@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>第零章：编译运行 RV64 裸机程序 &mdash; rCore-Tutorial-Book-v3 0.1 documentation</title>
+  <title>移除标准库依赖 &mdash; rCore-Tutorial-Book-v3 0.1 documentation</title>
   
 
   
@@ -36,8 +36,8 @@
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="移除标准库依赖" href="1remove-std.html" />
-    <link rel="prev" title="快速上手" href="../quickstart.html" /> 
+    <link rel="next" title="reStructuredText 基本语法" href="../rest-example.html" />
+    <link rel="prev" title="第零章：编译运行 RV64 裸机程序" href="index.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -84,8 +84,10 @@
               <p class="caption"><span class="caption-text">正文</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart.html">快速上手</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">第零章：编译运行 RV64 裸机程序</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="1remove-std.html">移除标准库依赖</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第零章：编译运行 RV64 裸机程序</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">移除标准库依赖</a><ul class="simple">
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -137,13 +139,15 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-      <li>第零章：编译运行 RV64 裸机程序</li>
+          <li><a href="index.html">第零章：编译运行 RV64 裸机程序</a> &raquo;</li>
+        
+      <li>移除标准库依赖</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/chapter0/index.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/chapter0/1remove-std.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -156,9 +160,43 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="rv64">
-<h1>第零章：编译运行 RV64 裸机程序<a class="headerlink" href="#rv64" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="id1">
+<h1>移除标准库依赖<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
 <div class="toctree-wrapper compound">
+</div>
+<p>让我们从零开始创建内核项目。一开始，它就和一个普通的 Cargo 项目没有什么不同：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo new os --bin
+</pre></div>
+</div>
+<p>我们加上了 <code class="docutils literal notranslate"><span class="pre">--bin</span></code> 选项来告诉 Cargo 我们创建一个可执行项目而不是库项目。此时，项目的文件结构如下：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> tree os
+<span class="go">os</span>
+<span class="go">├── Cargo.toml</span>
+<span class="go">└── src</span>
+<span class="go">    └── main.rs</span>
+
+<span class="go">1 directory, 2 files</span>
+</pre></div>
+</div>
+<p>其中 <code class="docutils literal notranslate"><span class="pre">Cargo.toml</span></code> 中保存着项目的配置，包括作者的信息、联系方式以及库依赖等等。显而易见源代码保存在 <code class="docutils literal notranslate"><span class="pre">src</span></code> 目录下，目前为止只有 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code>
+一个文件，让我们看一下里面的内容：</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">最简单的 Rust 应用</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Hello, world!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<p>利用 Cargo 工具即可一条命令实现构建并运行项目：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo run
+<span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
+<span class="go">    Finished dev [unoptimized + debuginfo] target(s) in 1.15s</span>
+<span class="go">     Running `target/debug/os`</span>
+<span class="go">Hello, world!</span>
+</pre></div>
 </div>
 </div>
 
@@ -170,10 +208,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="1remove-std.html" class="btn btn-neutral float-right" title="移除标准库依赖" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="../rest-example.html" class="btn btn-neutral float-right" title="reStructuredText 基本语法" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="../quickstart.html" class="btn btn-neutral float-left" title="快速上手" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="index.html" class="btn btn-neutral float-left" title="第零章：编译运行 RV64 裸机程序" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
