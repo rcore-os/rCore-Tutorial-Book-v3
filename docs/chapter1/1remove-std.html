@@ -37,7 +37,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="reStructuredText 基本语法" href="../rest-example.html" />
-    <link rel="prev" title="第零章：编译运行 RV64 裸机程序" href="index.html" /> 
+    <link rel="prev" title="第一章：编译运行 RV64 裸机程序" href="index.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -84,8 +84,10 @@
               <p class="caption"><span class="caption-text">正文</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart.html">快速上手</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">第零章：编译运行 RV64 裸机程序</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">移除标准库依赖</a><ul class="simple">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第一章：编译运行 RV64 裸机程序</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">移除标准库依赖</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">应用程序运行环境</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">目标三元组</a></li>
 </ul>
 </li>
 </ul>
@@ -139,7 +141,7 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-          <li><a href="index.html">第零章：编译运行 RV64 裸机程序</a> &raquo;</li>
+          <li><a href="index.html">第一章：编译运行 RV64 裸机程序</a> &raquo;</li>
         
       <li>移除标准库依赖</li>
     
@@ -147,7 +149,7 @@
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/chapter0/1remove-std.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/chapter1/1remove-std.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -164,7 +166,7 @@
 <h1>移除标准库依赖<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
-<p>让我们从零开始创建内核项目。一开始，它就和一个普通的 Cargo 项目没有什么不同：</p>
+<p>作为一切的开始，让我们使用 Cargo 工具来创建一个 Rust 项目。它看上去没有任何特别之处：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo new os --bin
 </pre></div>
 </div>
@@ -180,8 +182,8 @@
 </div>
 <p>其中 <code class="docutils literal notranslate"><span class="pre">Cargo.toml</span></code> 中保存着项目的配置，包括作者的信息、联系方式以及库依赖等等。显而易见源代码保存在 <code class="docutils literal notranslate"><span class="pre">src</span></code> 目录下，目前为止只有 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code>
 一个文件，让我们看一下里面的内容：</p>
-<div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-text">最简单的 Rust 应用</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">最简单的 Rust 应用</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
 2
 3</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -198,6 +200,50 @@
 <span class="go">Hello, world!</span>
 </pre></div>
 </div>
+<p>如我们预想的一样，我们在屏幕上看到了一行 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 。但是，需要注意到我们所享受到的编程的方便并不是理所当然的，背后有着从硬件
+到软件的多种机制的支持。</p>
+<div class="section" id="id2">
+<h2>应用程序运行环境<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<p>如下图所示，应用程序的运行需要下面一套运行环境栈的支持：</p>
+<img alt="../_images/app-software-stack.png" src="../_images/app-software-stack.png" />
+<p>图中的白色块自上而下（越往下则越靠近底层，下层作为上层的执行环境支持上层代码的运行）表示各级运行环境，黑色块则表示相邻两层运行环境之间
+的接口。</p>
+<p>我们的应用位于最上层，它可以通过调用编程语言提供的标准库或者其他三方库对外提供的功能强大的函数接口，使得仅需少量的源代码就能完成复杂的
+功能。但是这些库的功能不仅限于此，事实上它们属于应用程序的 <strong>执行环境</strong> (Execution Environment)，在我们通常不会注意到的地方，它
+们还会在执行应用之前完成一些初始化工作，并在应用程序执行的时候对它进行监控。我们在打印 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 时使用的 <code class="docutils literal notranslate"><span class="pre">println!</span></code>
+宏正是由 Rust 标准库 std 提供的。</p>
+<p>从内核/操作系统的角度看来，它上面的一切都属于用户态，而它自身属于内核态。无论用户态应用如何编写，是手写汇编代码，还是基于某种编程语言利用
+其标准库或三方库，某些功能总要直接或间接的通过内核/操作系统提供的 <strong>系统调用</strong> (System Call) 来实现。因此系统调用充当了用户和内核之间
+的边界。内核作为用户态的运行环境，它不仅要提供系统调用接口，还需要对用户态应用的执行进行监控和管理。</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 用到了哪些系统调用？</p>
+</div>
+<p>从硬件的角度来看，它上面的一切都属于软件。硬件可以分为三种： 处理器 (Processor) ——它更常见的名字是中央处理单元 (CPU, Central Processing Unit)，
+内存 (Memory) 还有 I/O 设备。其中处理器无疑是其中最复杂同时也最关键的一个。它与软件约定一套 <strong>指令集架构</strong> (ISA, Instruction Set Architecture)，
+使得软件可以通过 ISA 中提供的汇编指令来访问各种硬件资源。软件当然也需要知道处理器会如何执行这些指令：最简单的话就是一条一条执行位于内存
+中的指令。当然，实际的情况远比这个要复杂得多，为了适应现代应用程序的场景，处理器还需要提供很多额外的机制，而不仅仅是让数据在 CPU 寄存器、内存和 I/O 设备
+三者之间流动。</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>多层执行环境都是必需的吗？</p>
+<p>除了最上层的应用程序和最下层的硬件平台必须存在之外，作为中间层的函数库和内核并不是必须存在的：它们都是对下层资源进行了 <strong>抽象</strong> (Abstraction)，
+并为上层提供了一套运行环境。抽象的优点在于它让上层以较小的代价获得所需的功能，并同时可以提供一些保护。但抽象同时也是一种限制，会丧失一些
+应有的灵活性。比如，当你在考虑在项目中应该使用哪个函数库的时候，就常常需要这方面的权衡：过多的抽象和过少的抽象自然都是不合适的。</p>
+<p>实际上，我们通过应用程序的特征来判断它需要什么程度的抽象。</p>
+<ul class="simple">
+<li><p>如果函数库和内核都不存在，那么我们就是在手写汇编代码，这种方式具有最高的灵活性，抽象能力则最低，基本等同于硬件。我们通常用这种方式来
+实现一些架构相关且仅通过编程语言无法描述的小模块或者代码片段。</p></li>
+<li><p>如果仅存在函数库而不存在内核，意味着我们不需要内核提供的抽象。在嵌入式场景就常常会出现这种情况。嵌入式设备虽然也包含 CPU、内存和 I/O
+设备，但是它上面通常只会同时运行一个或几个功能非常简单的小应用程序，其定位就是那种功能单一的场景，比如人脸识别打卡系统等。我们常用的
+操作系统如 Windows/Linux/macOS 等的抽象都支持同时运行很多应用程序，在嵌入式场景是过抽象的。因此，常见的解决方案是仅使用函数库构建
+单独的应用程序或是用专为应用场景特别裁减过的轻量级内核管理少数应用程序。</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="id3">
+<h2>目标三元组<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+</div>
 </div>
 
 
@@ -211,7 +257,7 @@
         <a href="../rest-example.html" class="btn btn-neutral float-right" title="reStructuredText 基本语法" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="index.html" class="btn btn-neutral float-left" title="第零章：编译运行 RV64 裸机程序" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="index.html" class="btn btn-neutral float-left" title="第一章：编译运行 RV64 裸机程序" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
