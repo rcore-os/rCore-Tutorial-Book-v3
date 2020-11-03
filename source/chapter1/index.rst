@@ -4,7 +4,7 @@
 
 .. toctree::
    :hidden:
-   :maxdepth: 3
+   :maxdepth: 4
 
    1app-ee-platform
    2remove-std

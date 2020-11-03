@@ -20,6 +20,8 @@
 project = 'rCore-Tutorial-Book-v3'
 copyright = '2020, Yifan Wu'
 author = 'Yifan Wu'
+language = 'zh_CN'
+html_search_language = 'zh'
 
 # The full version, including alpha/beta/rc tags
 release = '0.1'

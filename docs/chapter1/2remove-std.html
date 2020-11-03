@@ -1,14 +1,14 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<!--[if IE 8]><html class="no-js lt-ie9" lang="zh-CN" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="zh-CN" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>移除标准库依赖 &mdash; rCore-Tutorial-Book-v3 0.1 documentation</title>
+  <title>移除标准库依赖 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
@@ -25,6 +25,7 @@
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
         <script src="../_static/language_data.js"></script>
+        <script src="../_static/translations.js"></script>
         <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
@@ -34,8 +35,8 @@
   
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" />
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
     <link rel="next" title="reStructuredText 基本语法" href="../rest-example.html" />
     <link rel="prev" title="应用程序运行环境与平台支持" href="1app-ee-platform.html" /> 
 </head>
@@ -165,7 +166,7 @@
            <div itemprop="articleBody">
             
   <div class="section" id="id1">
-<h1>移除标准库依赖<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
+<h1>移除标准库依赖<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
 <p>本节我们尝试移除之前的 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 程序对于标准库的依赖，使得它能够编译到裸机平台 RV64GC 上。</p>
@@ -179,10 +180,10 @@
 <p>当然，这只是使得我们之后在 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> 的时候不必再加上 <code class="docutils literal notranslate"><span class="pre">--target</span></code> 参数的一个小 trick。如果我们现在 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> ，还是会和
 上一小节一样出现找不到标准库 std 的错误。于是我们开始着手移除标准库。当然，这会产生一些副作用。</p>
 <div class="section" id="println">
-<h2>移除 println! 宏<a class="headerlink" href="#println" title="Permalink to this headline">¶</a></h2>
+<h2>移除 println! 宏<a class="headerlink" href="#println" title="永久链接至标题">¶</a></h2>
 <p>我们在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的开头加上一行 <code class="docutils literal notranslate"><span class="pre">#![no_std]</span></code> 来告诉 Rust 编译器不使用 Rust 标准库 std 转而使用核心库 core。编译器报出如下错误：</p>
 <div class="admonition error">
-<p class="admonition-title">Error</p>
+<p class="admonition-title">错误</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">error: cannot find macro `println` in this scope</span>
@@ -197,9 +198,9 @@
 使用了系统调用也不能在核心库 core 中找到它。我们目前先通过将它注释掉来绕过它。</p>
 </div>
 <div class="section" id="panic-handler">
-<h2>提供语义项 panic_handler<a class="headerlink" href="#panic-handler" title="Permalink to this headline">¶</a></h2>
+<h2>提供语义项 panic_handler<a class="headerlink" href="#panic-handler" title="永久链接至标题">¶</a></h2>
 <div class="admonition error">
-<p class="admonition-title">Error</p>
+<p class="admonition-title">错误</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">error: `#[panic_handler]` function required, but not found</span>
@@ -212,7 +213,7 @@
 <p>在标准库 std 中提供了 panic 的处理函数 <code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code>，其大致功能是打印出错位置和原因并杀死当前应用。可惜的是在核心库 core 中并没有提供，
 因此我们需要自己实现 panic 处理函数。</p>
 <div class="admonition note">
-<p class="admonition-title">Note</p>
+<p class="admonition-title">注解</p>
 <p><strong>Rust 语义项 lang_items</strong></p>
 <p>Rust 编译器内部的某些功能的实现并不是硬编码在语言内部的，而是以一种可插入的形式在库中提供。库只需要通过某种方式告诉编译器它的某个方法实现了
 编译器内部的哪些功能，编译器就会采用库提供的方法来实现它内部对应的功能。通常只需要在库的方法前面加上一个标记即可。</p>
@@ -231,9 +232,9 @@
 会从 <code class="docutils literal notranslate"><span class="pre">PanicInfo</span></code> 解析出错位置并打印出来，然后杀死应用程序。但目前我们什么都不做只是在原地 loop。</p>
 </div>
 <div class="section" id="main">
-<h2>移除 main 函数<a class="headerlink" href="#main" title="Permalink to this headline">¶</a></h2>
+<h2>移除 main 函数<a class="headerlink" href="#main" title="永久链接至标题">¶</a></h2>
 <div class="admonition error">
-<p class="admonition-title">Error</p>
+<p class="admonition-title">错误</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ cargo build
    Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)
 error: requires `start` lang_item
@@ -270,6 +271,12 @@ error: requires `start` lang_item
 <p>本小节我们固然脱离了标准库，通过了编译器的检验，但也是伤筋动骨，将原有的很多功能弱化甚至直接删除，看起来距离在 RV64GC 平台上打印
 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 相去甚远了（我们甚至连 println! 和 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数都删除了）。不要着急，接下来我们会以自己的方式来重塑这些
 功能，并最终完成我们的目标。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>在 x86_64 平台上移除标准库依赖</strong></p>
+<p>有兴趣的同学可以将目标平台换回之前默认的 <code class="docutils literal notranslate"><span class="pre">x86_64-unknown-linux-gnu</span></code> 并重复本小节所做的事情，比较两个平台从 ISA 到操作系统
+的差异。可以参考 <a class="reference external" href="https://os.phil-opp.com/freestanding-rust-binary/">BlogOS 的相关内容</a> 。</p>
+</div>
 </div>
 </div>
 

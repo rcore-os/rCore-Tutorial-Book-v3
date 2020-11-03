@@ -26,7 +26,10 @@ rCore-Tutorial-Book 第三版
    :hidden:
 
    rest-example
+   collaboration
 
 
 欢迎来到 rCore-Tutorial-Book 第三版！
+
+请参考 :doc:`/collaboration` 了解如何进行项目协作。
 
