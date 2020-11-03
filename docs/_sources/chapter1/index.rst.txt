@@ -6,4 +6,4 @@
    :hidden:
    :maxdepth: 3
 
-   1remove-std
+   1app-ee-platform

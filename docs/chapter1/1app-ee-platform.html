@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>移除标准库依赖 &mdash; rCore-Tutorial-Book-v3 0.1 documentation</title>
+  <title>应用程序运行环境与平台支持 &mdash; rCore-Tutorial-Book-v3 0.1 documentation</title>
   
 
   
@@ -85,7 +85,7 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart.html">快速上手</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第一章：编译运行 RV64 裸机程序</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">移除标准库依赖</a><ul>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">应用程序运行环境与平台支持</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">应用程序运行环境</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id3">平台与目标三元组</a></li>
 </ul>
@@ -143,13 +143,13 @@
         
           <li><a href="index.html">第一章：编译运行 RV64 裸机程序</a> &raquo;</li>
         
-      <li>移除标准库依赖</li>
+      <li>应用程序运行环境与平台支持</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/chapter1/1remove-std.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/chapter1/1app-ee-platform.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -163,7 +163,7 @@
            <div itemprop="articleBody">
             
   <div class="section" id="id1">
-<h1>移除标准库依赖<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
+<h1>应用程序运行环境与平台支持<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
 <p>作为一切的开始，让我们使用 Cargo 工具来创建一个 Rust 项目。它看上去没有任何特别之处：</p>
@@ -277,12 +277,34 @@
 </pre></div>
 </div>
 <p>从其中的 host 一项可以看出默认的目标平台是 <code class="docutils literal notranslate"><span class="pre">x86_64-unknown-linux-gnu</span></code>，其中 CPU 架构是 x86_64，CPU 厂商是 unknown，操作系统是 linux-gnu。
-这种无论编译器还是目标文件都在我们当前所处的平台运行是一种最简单也最普遍的情况。但是很快我们就将遇到另外一种情况。</p>
-<p>讲了这么多，终于该介绍我们的主线任务了。我们希望能够在另一个平台上运行 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code>，而与之前的默认平台不同的地方在于：</p>
-<ul class="simple">
-<li><p>CPU 架构从 x86_64 换成 RISC-V 架构；</p></li>
-<li><p>操作系统从 linux-gnu 换成 none-elf，也就是没有任何系统调用支持。</p></li>
-</ul>
+这种无论编译器还是其目标文件都在我们当前所处的平台运行是一种最简单也最普遍的情况。但是很快我们就将遇到另外一种情况。</p>
+<p>讲了这么多，终于该介绍我们的主线任务了。我们希望能够在另一个平台上运行 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code>，而与之前的默认平台不同的地方在于，我们将 CPU 架构从
+x86_64 换成 RISC-V。</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>为何基于 RISC-V 架构而非 x86 系列架构？</p>
+<p>x86 架构为了在升级换代的同时保持对基于旧版架构应用程序/内核的兼容性，存在大量的历史包袱，也就是一些对于目前的应用场景没有任何意义，但又必须
+花大量时间正确设置才能正常使用 CPU 的奇怪设定。为了建立并维护架构的应用生态，这确实是必不可少的，但站在教学的角度几乎完全是在浪费时间。而
+新生的 RISC-V 架构十分简洁，架构文档需要阅读的核心部分不足百页，且这些功能已经足以用来构造一个具有相当抽象能力的内核了。</p>
+</div>
+<p>可以看一下目前 Rust 编译器支持哪些基于 RISC-V 的平台：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> rustc --print target-list <span class="p">|</span> grep riscv
+<span class="go">riscv32i-unknown-none-elf</span>
+<span class="go">riscv32imac-unknown-none-elf</span>
+<span class="go">riscv32imc-unknown-none-elf</span>
+<span class="go">riscv64gc-unknown-linux-gnu</span>
+<span class="go">riscv64gc-unknown-none-elf</span>
+<span class="go">riscv64imac-unknown-none-elf</span>
+</pre></div>
+</div>
+<p>这里我们选择的是 <code class="docutils literal notranslate"><span class="pre">riscv64gc-unknown-none-elf</span></code>，目标三元组中的操作系统是 none-elf，表明没有任何系统调用支持。这里我们之所以不选择有
+linux-gnu 系统调用支持的版本 <code class="docutils literal notranslate"><span class="pre">riscv64gc-unknown-linux-gnu</span></code>，是因为我们只是想跑一个 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code>，没有必要使用操作系统所提供的
+那么高级的抽象。而且我们很清楚后续我们要开发的是一个内核，如果仅仅基于已有操作系统提供的系统调用的话，它自身的抽象能力会受到很大限制。所以它必须
+直面底层硬件来解锁更大的抽象能力上限。</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>RISC-V 指令集拓展</p>
+</div>
 </div>
 </div>
 
