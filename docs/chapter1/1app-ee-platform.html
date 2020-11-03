@@ -36,7 +36,7 @@
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="reStructuredText 基本语法" href="../rest-example.html" />
+    <link rel="next" title="移除标准库依赖" href="2remove-std.html" />
     <link rel="prev" title="第一章：编译运行 RV64 裸机程序" href="index.html" /> 
 </head>
 
@@ -88,8 +88,10 @@
 <li class="toctree-l2 current"><a class="current reference internal" href="#">应用程序运行环境与平台支持</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">应用程序运行环境</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id3">平台与目标三元组</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#rust">Rust 标准库与核心库</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="2remove-std.html">移除标准库依赖</a></li>
 </ul>
 </li>
 </ul>
@@ -192,7 +194,7 @@
 </pre></div>
 </td></tr></table></div>
 </div>
-<p>利用 Cargo 工具即可一条命令实现构建并运行项目：</p>
+<p>进入 os 项目根目录下，利用 Cargo 工具即可一条命令实现构建并运行项目：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo run
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">    Finished dev [unoptimized + debuginfo] target(s) in 1.15s</span>
@@ -220,7 +222,7 @@
 的边界。内核作为用户态的运行环境，它不仅要提供系统调用接口，还需要对用户态应用的执行进行监控和管理。</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 用到了哪些系统调用？</p>
+<p><strong>Hello, world! 用到了哪些系统调用？</strong></p>
 <p>从之前的 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">run</span></code> 的输出可以看出之前构建的可执行文件是在 target/debug 目录下的 os 。
 在 Ubuntu 系统上，可以通过 <code class="docutils literal notranslate"><span class="pre">strace</span></code> 工具来运行一个程序并输出程序运行过程当中向内核请求的所有的系统调用及其返回值。
 我们只需输入 <code class="docutils literal notranslate"><span class="pre">strace</span> <span class="pre">target/debug/os</span></code> 即可看到一长串的系统调用。</p>
@@ -239,7 +241,7 @@
 三者之间流动。</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>多层执行环境都是必需的吗？</p>
+<p><strong>多层执行环境都是必需的吗？</strong></p>
 <p>除了最上层的应用程序和最下层的硬件平台必须存在之外，作为中间层的函数库和内核并不是必须存在的：它们都是对下层资源进行了 <strong>抽象</strong> (Abstraction)，
 并为上层提供了一套运行环境。抽象的优点在于它让上层以较小的代价获得所需的功能，并同时可以提供一些保护。但抽象同时也是一种限制，会丧失一些
 应有的灵活性。比如，当你在考虑在项目中应该使用哪个函数库的时候，就常常需要这方面的权衡：过多的抽象和过少的抽象自然都是不合适的。</p>
@@ -303,8 +305,38 @@ linux-gnu 系统调用支持的版本 <code class="docutils literal notranslate"
 直面底层硬件来解锁更大的抽象能力上限。</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>RISC-V 指令集拓展</p>
+<p><strong>RISC-V 指令集拓展</strong></p>
+<p>由于基于 RISC-V 架构的处理器可能用于嵌入式场景或是通用计算场景，因此指令集规范将指令集划分为最基本的 RV32/64I 以及若干标准指令集拓展。
+每款处理器只需按照其实际应用场景按需实现指令集拓展即可。</p>
+<ul class="simple">
+<li><p>RV32/64I：每款处理器都必须实现的基本整数指令集。在 RV32I 中，每个通用寄存器的位宽为 32 位；在 RV64I 中则为 64 位。它可以用来模拟
+绝大多数标准指令集拓展中的指令，除了比较特殊的 A 拓展，因为它需要特别的硬件支持。</p></li>
+<li><p>M 拓展：提供整数乘除法相关指令。</p></li>
+<li><p>A 拓展：提供原子指令和一些相关的内存同步机制，这个后面会展开。</p></li>
+<li><p>F/D 拓展：提供单/双精度浮点数运算支持。</p></li>
+<li><p>C 拓展：提供压缩指令拓展。</p></li>
+</ul>
+<p>G 拓展是基本整数指令集 I 再加上标准指令集拓展 MAFD 的总称，因此 riscv64gc 也就等同于 riscv64imafdc。我们剩下的内容都基于该处理器
+架构完成。除此之外 RISC-V 架构还有很多标准指令集拓展，有一些还在持续更新中尚未稳定，有兴趣的读者可以浏览最新版的 RISC-V 指令集规范。</p>
 </div>
+</div>
+<div class="section" id="rust">
+<h2>Rust 标准库与核心库<a class="headerlink" href="#rust" title="Permalink to this headline">¶</a></h2>
+<p>我们尝试一下将当前的 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序的目标平台换成 riscv64gc-unknown-none-elf 看看会发生什么事情：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo run --target riscv64gc-unknown-none-elf
+<span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
+<span class="go">error[E0463]: can&#39;t find crate for `std`</span>
+<span class="go">  |</span>
+<span class="go">  = note: the `riscv64gc-unknown-none-elf` target may not be installed</span>
+</pre></div>
+</div>
+<p>在之前的环境配置中，我们已经在 rustup 工具链中安装了这个目标平台支持，因此并不是该目标平台未安装的问题。因此只是单纯的在这个目标平台上找不到
+Rust 标准库 std。我们之前曾经提到过，编程语言的标准库或三方库的某些功能会直接或间接的用到操作系统提供的系统调用。但目前我们所选的目标平台不存在
+任何操作系统支持，于是 Rust 并没有为这个目标平台支持完整的标准库 std。类似这样的平台通常被我们称为 <strong>裸机平台</strong> (bare-metal)。</p>
+<p>幸运的是，Rust 有一个对 std 裁剪过后的核心库 core，这个库是不需要任何操作系统支持的，相对的它的功能也比较受限，但是也包含了 Rust 语言
+相当一部分的核心机制，可以满足我们的大部分需求。在 Rust 语言生态中，有很多三方库也不依赖标准库 std 而仅仅依赖核心库 core，它们也可以很大
+程度上减轻我们的编程负担。它们是我们能够在裸机平台挣扎求生的最主要倚仗。</p>
+<p>于是，我们知道在裸机平台上我们要将对于标准库 std 的引用换成核心库 core。但是做起来其实并没有那么容易。</p>
 </div>
 </div>
 
@@ -316,7 +348,7 @@ linux-gnu 系统调用支持的版本 <code class="docutils literal notranslate"
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../rest-example.html" class="btn btn-neutral float-right" title="reStructuredText 基本语法" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="2remove-std.html" class="btn btn-neutral float-right" title="移除标准库依赖" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="index.html" class="btn btn-neutral float-left" title="第一章：编译运行 RV64 裸机程序" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

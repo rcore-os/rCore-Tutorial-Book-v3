@@ -7,3 +7,4 @@
    :maxdepth: 3
 
    1app-ee-platform
+   2remove-std
