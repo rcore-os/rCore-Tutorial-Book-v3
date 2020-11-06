@@ -1,0 +1,307 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>重建最小化运行时 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/translations.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="reStructuredText 基本语法" href="../rest-example.html" />
+    <link rel="prev" title="移除标准库依赖" href="2remove-std.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">正文</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">快速上手</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第一章：编译运行 RV64 裸机程序</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html">应用程序运行环境与平台支持</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2remove-std.html">移除标准库依赖</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">重建最小化运行时</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">函数调用与栈</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">开发注记</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../collaboration.html">项目协作</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">rCore-Tutorial-Book-v3</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">第一章：编译运行 RV64 裸机程序</a> &raquo;</li>
+        
+      <li>重建最小化运行时</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/chapter1/3minimal-rt.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="id1">
+<h1>重建最小化运行时<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<p>本节开始我们将着手自己来实现之前被我们移除的 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序中的功能。在这一小节，我们介绍如何进行 <strong>执行环境初始化</strong> 。</p>
+<p>我们在上一小节提到过，一个应用程序的运行离不开下面多层执行环境栈的支撑。以 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序为例，在目前广泛使用的操作系统上，
+它就至少需要经历以下层层递进的初始化过程：</p>
+<ul class="simple">
+<li><p>一段汇编代码对硬件进行初始化，让上层包括内核在内的软件得以运行；</p></li>
+<li><p>要运行该程序的时候，内核分配相应资源，将程序代码和数据载入内存，并赋予 CPU 使用权，由此应用程序可以运行；</p></li>
+<li><p>程序员编写的代码是应用程序的一部分，它需要标准库进行一些初始化工作后才能运行。</p></li>
+</ul>
+<p>但在上一小节中，由于目标平台 <code class="docutils literal notranslate"><span class="pre">riscv64gc-unknown-none-elf</span></code> 没有任何操作系统支持，我们只能禁用标准库并移除默认的 main 函数
+入口。但是最终我们还是要将 main 恢复回来并且在里面输出 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 的。因此，我们需要知道具体需要做哪些初始化工作才能支持
+main 的运行。</p>
+<p>而这又需要明确两点：首先是系统在做这些初始化工作之前处于什么状态，在做完初始化工作也就是即将执行 main 函数之前又处于什么状态。比较二者
+即可得出答案。</p>
+<p>让我们从 CPU 加电后第一条指令开始讲起。对于裸机平台 <code class="docutils literal notranslate"><span class="pre">riscv64gc-unknown-none-elf</span></code> 而言，它的 pc 寄存器会被设置为 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，
+也就是说它会从这个 <strong>物理地址</strong> (Physical Address) 开始一条条取指并执行放置于 <strong>物理内存</strong> (Physical Memory) 中的指令。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>物理内存与物理地址</strong></p>
+<p>物理内存是计算机体系结构中一个重要的组成部分。在存储方面，CPU 唯一能够直接访问的只有物理内存中的数据，它可以通过访存指令来达到这一目的。
+从 CPU 的视角看来，可以将物理内存看成一个大字节数组，而物理地址则对应于一个能够用来访问数组中某个元素的下标。与我们日常编程习惯不同的
+是，该下标通常不以 0 开头，而通常以 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头。总结一下的话就是， CPU 可以通过物理地址来 <em>逐字节</em> 访问物理内存中保存的
+数据。</p>
+<p>值得一提的是，当 CPU 以多个字节（比如 2/4/8 或更多）为单位访问物理内存（事实上并不局限于物理内存）中的数据时，就有可能会引入端序和
+地址对齐的问题。由于这并不是重点，我们在这里不展开说明。</p>
+</div>
+<p>在该目标平台上，物理内存以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头的部分放置着 <strong>引导加载程序</strong> (bootloader) 的代码。它的任务是对硬件进行一些
+初始化工作，并跳转到一个固定的物理地址 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 。在这之后，控制权就会被移交到我们手中。因此，我们需要保证我们负责的初始化的代码
+出现在物理内存以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 开头的地方。在我们的初始化任务完成之后，自然需要跳转到 main 函数进行执行里面的代码，这也是
+初始化任务的一个重要部分。</p>
+<p>但实际上不止如此，我们还需要考虑堆栈的设置。</p>
+<div class="section" id="id2">
+<h2>函数调用与栈<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>从汇编指令的级别看待一段程序的执行，假如 CPU 依次执行的指令的物理地址序列为 <span class="math notranslate nohighlight">\({a_n}\)</span>，那么这个序列会符合怎样的模式呢？</p>
+<p>其中最简单的无疑就是 CPU 一条条连续向下执行指令，也即满足递推式 <span class="math notranslate nohighlight">\(a_{n+1}=a_n+L\)</span>，这里我们假设该平台的指令是定长的且均为
+<span class="math notranslate nohighlight">\(L\)</span> 字节（常见情况为 2/4 字节）。但是执行序列并不总是符合这种模式，当位于物理地址 <span class="math notranslate nohighlight">\(a_n\)</span> 的指令是一条跳转指令的时候，
+该模式就有可能被破坏。跳转指令对应于我们在程序中构造的 <strong>控制流</strong> (Control Flow) 的多种不同结构，比如分支结构（如 if/switch 语句）
+和循环结构（如 for/while 语句）。用来实现上述两种结构的跳转指令，只需实现跳转功能，也就是将 pc 寄存器设置到一个指定的地址即可。</p>
+<p>另一种控制流结构则显得更为复杂： <strong>函数调用</strong> (Function Call)。我们大概清楚调用函数整个过程中代码执行的顺序，如果是从源代码级的
+视角来看，我们会去执行被调用函数的代码，等到它返回之后，我们会回到调用函数对应语句的下一行继续执行。那么我们如何用汇编指令来实现
+这一过程？首先在调用的时候，需要有一条指令跳转到被调用函数的位置，这个看起来和其他控制结构没什么不同；但是在被调用函数返回的时候，我们
+却需要返回那条跳转过来的指令的下一条继续执行。这次用来返回的跳转究竟跳转到何处，在对应的函数调用发生之前是不知道的。比如，我们在两个不同的
+地方调用同一个函数，显然函数返回之后会回到不同的地址。这是一个很大的不同：其他控制流都只需要跳转到一个 <em>编译期固定下来</em> 的地址，而函数调用
+的返回跳转是跳转到一个 <em>运行时确定</em> （确切地说是在函数调用发生的时候）的地址。</p>
+<p>对此，指令集必须给用于函数调用的跳转指令一些额外的能力，而不只是单纯的跳转。在 RISC-V 架构上，有两条指令即符合这样的特征：</p>
+<table class="colwidths-given docutils align-center" id="id3">
+<caption><span class="caption-text">RISC-V 函数调用跳转指令</span><a class="headerlink" href="#id3" title="永久链接至表格">¶</a></caption>
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>指令</p></th>
+<th class="head"><p>指令功能</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>jal rd, imm[20:1]</p></td>
+<td><p><span class="math notranslate nohighlight">\(\text{rd}\leftarrow\text{pc}+4\)</span></p>
+<p><span class="math notranslate nohighlight">\(\text{pc}\leftarrow\text{pc}+\text{imm}\)</span></p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>jalr rd, rs, imm[11:0]</p></td>
+<td><p><span class="math notranslate nohighlight">\(\text{rd}\leftarrow\text{pc}+4\)</span></p>
+<p><span class="math notranslate nohighlight">\(\text{pc}\leftarrow\text{rs}+\text{imm}\)</span></p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>从中可以看出，这两条指令除了设置 pc 寄存器完成跳转功能之外，还将当前跳转指令的下一条指令地址保存在 rd 寄存器中。在 RISC-V 架构中，
+通常使用 x1(ra) 寄存器作为其中的 rd ，因此在函数返回的时候，只需跳转回 x1 所保存的地址即可。事实上在函数返回的时候我们常常使用一条
+<strong>伪指令</strong> (Pseudo Instruction) 跳转回调用之前的位置： <code class="docutils literal notranslate"><span class="pre">ret</span></code> 。它会被汇编器翻译为 <code class="docutils literal notranslate"><span class="pre">jalr</span> <span class="pre">x0,</span> <span class="pre">0(x1)</span></code>，含义为跳转到寄存器
+x1 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中保存这一步被省略。总结一下，在进行函数调用的时候，我们通过 jalr 指令
+保存返回地址并实现跳转；而在函数即将返回的时候，则通过 ret 指令跳转之前的下一条指令继续执行。</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../rest-example.html" class="btn btn-neutral float-right" title="reStructuredText 基本语法" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="2remove-std.html" class="btn btn-neutral float-left" title="移除标准库依赖" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; 版权所有 2020, Yifan Wu
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -3,7 +3,7 @@
 
 .. toctree::
    :hidden:
-   :maxdepth: 4
+   :maxdepth: 5
 
 本节我们尝试移除之前的 ``Hello world!`` 程序对于标准库的依赖，使得它能够编译到裸机平台 RV64GC 上。
 

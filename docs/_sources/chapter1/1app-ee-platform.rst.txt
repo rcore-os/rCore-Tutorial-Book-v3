@@ -3,7 +3,7 @@
 
 .. toctree::
    :hidden:
-   :maxdepth: 4
+   :maxdepth: 5
 
 作为一切的开始，让我们使用 Cargo 工具来创建一个 Rust 项目。它看上去没有任何特别之处：
 

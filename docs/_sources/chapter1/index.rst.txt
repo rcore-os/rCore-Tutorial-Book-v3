@@ -8,3 +8,4 @@
 
    1app-ee-platform
    2remove-std
+   3minimal-rt
