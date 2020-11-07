@@ -197,14 +197,15 @@ main 的运行。</p>
 <p>值得一提的是，当 CPU 以多个字节（比如 2/4/8 或更多）为单位访问物理内存（事实上并不局限于物理内存）中的数据时，就有可能会引入端序和
 地址对齐的问题。由于这并不是重点，我们在这里不展开说明。</p>
 </div>
-<p>在该目标平台上，物理内存以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头的部分放置着 <strong>引导加载程序</strong> (bootloader) 的代码。它的任务是对硬件进行一些
-初始化工作，并跳转到一个固定的物理地址 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 。在这之后，控制权就会被移交到我们手中。因此，我们需要保证我们负责的初始化的代码
+<p>在该目标平台上，物理内存以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头的部分放置着 <strong>引导加载程序</strong> (Bootloader) 的代码。它的任务是对硬件进行一些
+初始化工作，并跳转到一个固定的物理地址 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 。在本书正文中我们无需关心它的实现，而是当成一个黑盒使用即可，它的预编译版本
+可执行文件放在项目根目录的 <code class="docutils literal notranslate"><span class="pre">bootloader</span></code> 目录下。在这之后，控制权就会被移交到我们手中。因此，我们需要保证我们负责的初始化的代码
 出现在物理内存以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 开头的地方。在我们的初始化任务完成之后，自然需要跳转到 main 函数进行执行里面的代码，这也是
 初始化任务的一个重要部分。</p>
-<p>但实际上不止如此，我们还需要考虑堆栈的设置。</p>
+<p>但实际上不止如此，我们还需要考虑栈的设置。</p>
 <div class="section" id="id2">
 <h2>函数调用与栈<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
-<p>从汇编指令的级别看待一段程序的执行，假如 CPU 依次执行的指令的物理地址序列为 <span class="math notranslate nohighlight">\({a_n}\)</span>，那么这个序列会符合怎样的模式呢？</p>
+<p>从汇编指令的级别看待一段程序的执行，假如 CPU 依次执行的指令的物理地址序列为 <span class="math notranslate nohighlight">\(\{a_n\}\)</span>，那么这个序列会符合怎样的模式呢？</p>
 <p>其中最简单的无疑就是 CPU 一条条连续向下执行指令，也即满足递推式 <span class="math notranslate nohighlight">\(a_{n+1}=a_n+L\)</span>，这里我们假设该平台的指令是定长的且均为
 <span class="math notranslate nohighlight">\(L\)</span> 字节（常见情况为 2/4 字节）。但是执行序列并不总是符合这种模式，当位于物理地址 <span class="math notranslate nohighlight">\(a_n\)</span> 的指令是一条跳转指令的时候，
 该模式就有可能被破坏。跳转指令对应于我们在程序中构造的 <strong>控制流</strong> (Control Flow) 的多种不同结构，比如分支结构（如 if/switch 语句）
@@ -216,8 +217,8 @@ main 的运行。</p>
 地方调用同一个函数，显然函数返回之后会回到不同的地址。这是一个很大的不同：其他控制流都只需要跳转到一个 <em>编译期固定下来</em> 的地址，而函数调用
 的返回跳转是跳转到一个 <em>运行时确定</em> （确切地说是在函数调用发生的时候）的地址。</p>
 <p>对此，指令集必须给用于函数调用的跳转指令一些额外的能力，而不只是单纯的跳转。在 RISC-V 架构上，有两条指令即符合这样的特征：</p>
-<table class="colwidths-given docutils align-center" id="id3">
-<caption><span class="caption-text">RISC-V 函数调用跳转指令</span><a class="headerlink" href="#id3" title="永久链接至表格">¶</a></caption>
+<table class="colwidths-given docutils align-center" id="id4">
+<caption><span class="caption-text">RISC-V 函数调用跳转指令</span><a class="headerlink" href="#id4" title="永久链接至表格">¶</a></caption>
 <colgroup>
 <col style="width: 40%" />
 <col style="width: 60%" />
@@ -228,23 +229,79 @@ main 的运行。</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>jal rd, imm[20:1]</p></td>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\text{jal}\ \text{rd},\ \text{imm}[20:1]\)</span></p></td>
 <td><p><span class="math notranslate nohighlight">\(\text{rd}\leftarrow\text{pc}+4\)</span></p>
 <p><span class="math notranslate nohighlight">\(\text{pc}\leftarrow\text{pc}+\text{imm}\)</span></p>
 </td>
 </tr>
-<tr class="row-odd"><td><p>jalr rd, rs, imm[11:0]</p></td>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\text{jalr}\ \text{rd},\ (\text{imm}[11:0])\text{rs}\)</span></p></td>
 <td><p><span class="math notranslate nohighlight">\(\text{rd}\leftarrow\text{pc}+4\)</span></p>
 <p><span class="math notranslate nohighlight">\(\text{pc}\leftarrow\text{rs}+\text{imm}\)</span></p>
 </td>
 </tr>
 </tbody>
 </table>
-<p>从中可以看出，这两条指令除了设置 pc 寄存器完成跳转功能之外，还将当前跳转指令的下一条指令地址保存在 rd 寄存器中。在 RISC-V 架构中，
-通常使用 x1(ra) 寄存器作为其中的 rd ，因此在函数返回的时候，只需跳转回 x1 所保存的地址即可。事实上在函数返回的时候我们常常使用一条
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>RISC-V 指令各部分含义</strong></p>
+<p>在大多数只与通用寄存器打交道的指令中， rs 表示 <strong>源寄存器</strong> (Source Register)， imm 表示 <strong>立即数</strong> (Immediate)，
+是一个常数，二者构成了指令的输入部分；而 rd 表示 <strong>目标寄存器</strong> (Destination Register)，它是指令的输出部分。rs 和 rd
+可以在 32 个通用寄存器 x0~x31 中选取。但是这三个部分都不是必须的，某些指令只有一种输入类型，另一些指令则没有输出部分。</p>
+</div>
+<p>从中可以看出，这两条指令除了设置 pc 寄存器完成跳转功能之外，还将当前跳转指令的下一条指令地址保存在 rd 寄存器中。
+（这里假设所有指令的长度均为 4 字节，在不使用 C 标准指令集拓展的情况下成立）
+在 RISC-V 架构中，
+通常使用 ra(x1) 寄存器作为其中的 rd ，因此在函数返回的时候，只需跳转回 ra 所保存的地址即可。事实上在函数返回的时候我们常常使用一条
 <strong>伪指令</strong> (Pseudo Instruction) 跳转回调用之前的位置： <code class="docutils literal notranslate"><span class="pre">ret</span></code> 。它会被汇编器翻译为 <code class="docutils literal notranslate"><span class="pre">jalr</span> <span class="pre">x0,</span> <span class="pre">0(x1)</span></code>，含义为跳转到寄存器
-x1 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中保存这一步被省略。总结一下，在进行函数调用的时候，我们通过 jalr 指令
-保存返回地址并实现跳转；而在函数即将返回的时候，则通过 ret 指令跳转之前的下一条指令继续执行。</p>
+ra 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中保存这一步被省略。总结一下，在进行函数调用的时候，我们通过 jalr 指令
+保存返回地址并实现跳转；而在函数即将返回的时候，则通过 ret 指令跳转之前的下一条指令继续执行。这两条指令实现了函数调用流程的核心机制。</p>
+<p>由于我们是在 ra 寄存器中保存返回地址的，我们要保证它在函数执行的全程不发生变化，不然在 ret 之后就会跳转到错误的位置。事实上编译器
+除了函数调用的相关指令之外确实基本上不使用 ra 寄存器。也就是说，如果在函数中没有调用其他函数，那 ra 的值不会变化，函数调用流程
+能够正常工作。但遗憾的是，在实际编写代码的时候我们常常会遇到函数 <strong>多层嵌套调用</strong> 的情形。我们很容易想象，如果函数不支持嵌套调用，那么编程将会
+变得多么复杂。如果我们试图在一个函数 <span class="math notranslate nohighlight">\(f\)</span> 中调用一个子函数，在跳转到子函数 <span class="math notranslate nohighlight">\(g\)</span> 的同时，ra 会被覆盖成这条跳转指令的
+下一条的地址，而 ra 之前所保存的函数 <span class="math notranslate nohighlight">\(f\)</span> 的返回地址将会 <cite>永久丢失</cite> 。</p>
+<p>因此，若想正确实现嵌套函数调用的控制流，我们必须通过某种方式保证：在一个函数调用子函数的前后，ra 寄存器的值不能发生变化。但实际上，
+这并不仅仅局限于 ra 一个寄存器，而是作用于所有的通用寄存器。这是因为，编译器是独立编译每个函数的，因此一个函数并不能知道它所调用的
+子函数修改了哪些寄存器。而站在一个函数的视角，在调用子函数的过程中某些寄存器的值被覆盖的确会对它接下来的执行产生影响。因此这是必要的。
+我们将在控制流转移前后需要保持不变的寄存器集合称之为 <strong>上下文</strong> (Context) 或称 <strong>活动记录</strong> (Activation Record)，利用这一概念
+，则在函数调用前后需要保持不变的寄存器集合被称为函数调用上下文。</p>
+<p>由于每个 CPU 只有一套寄存器，我们若想在子函数调用前后保持函数调用上下文不变，需要物理内存的帮助。确切的说，在调用子函数之前，我们需要在
+内存中的一个区域 <strong>保存</strong> (Save) 函数调用上下文中的寄存器；而之后我们会从内存中同样的区域读取并 <strong>恢复</strong> (Restore) 函数调用上下文
+中的寄存器。实际上，这一工作是由子函数的调用者和被调用者（也就是子函数自身）合作完成。函数调用上下文中的寄存器被分为如下两类：</p>
+<ul class="simple">
+<li><p><strong>被调用者保存</strong> (Callee-Saved) 寄存器，即被调用的函数保证调用它前后，这些寄存器保持不变；</p></li>
+<li><p><strong>调用者保存</strong> (Caller-Saved) 寄存器，被调用的函数可能会覆盖这些寄存器。</p></li>
+</ul>
+<p>从名字中可以看出，函数调用上下文由调用者和被调用者分别保存，其具体过程分别如下：</p>
+<ul class="simple">
+<li><p>调用者：首先保存不希望在函数调用过程中发生变化的调用者保存寄存器，然后通过 jal/jalr 指令调用子函数，返回回来之后恢复这些寄存器。</p></li>
+<li><p>被调用者：在函数开头保存函数执行过程中被用到的被调用者保存寄存器，然后执行函数，在退出之前恢复这些寄存器。</p></li>
+</ul>
+<p>我们发现无论是调用者还是被调用者，都会因调用行为而需要两段匹配的保存和恢复寄存器的汇编代码，可以分别将其称为 <strong>开场白</strong> (Prologue) 和
+<strong>收场白</strong> (Epilogue)，它们会由编译器帮我们自动插入。一个函数既有可能作为调用者调用其他函数，也有可能作为被调用者被其他函数调用。对于
+它而言，如果在执行的时候需要修改被调用者保存寄存器，而必须在函数开头的开场白和结尾的收场白处进行保存；对于调用者保存寄存器则可以没有任何
+顾虑的随便使用，因为它在约定中本就不需要承担保证调用者保存寄存器保持不变的义务。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>寄存器保存与编译器优化</strong></p>
+<p>这里值得说明的是，调用者和被调用者实际上只需分别按需保存调用者保存寄存器和被调用者保存寄存器的一个子集。对于调用者而言，那些内容
+并不重要，即使在调用子函数的时候被覆盖也不影响函数执行的调用者保存寄存器不会被编译器保存；而对于被调用者而言，在其执行过程中没有
+使用到的被调用者保存寄存器也无需保存。从这一角度也可以理解为何要将函数调用上下文分成两类：可以在尽可能早的时候优化掉一些无用的
+寄存器保存与恢复。</p>
+</div>
+<p><strong>调用规范</strong> (Calling Convention) 约定在某个指令集架构上，某种编程语言的函数调用如何实现。它包括了以下内容：</p>
+<ol class="arabic simple">
+<li><p>函数的输入参数和返回值如何传递；</p></li>
+<li><p>函数调用上下文中调用者/被调用者保存寄存器的划分；</p></li>
+<li><p>其他的在函数调用流程中对于寄存器的使用方法。</p></li>
+</ol>
+<p>调用规范是对于一种确定的编程语言来说的，因为一般意义上的函数调用只会在编程语言的内部进行。当一种语言想要调用用另一门编程语言编写的函数
+接口时，编译器就需要同时清楚两门语言的调用规范，并对寄存器的使用做出调整。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>RISC-V 架构上的 C 语言调用规范</strong></p>
+<p>RISC-V 架构上的 C 语言调用规范可以在 <a class="reference external" href="https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf">这里</a> 找到。</p>
+</div>
 </div>
 </div>
 
