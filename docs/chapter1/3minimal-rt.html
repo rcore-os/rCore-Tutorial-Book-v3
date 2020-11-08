@@ -217,8 +217,8 @@ main 的运行。</p>
 地方调用同一个函数，显然函数返回之后会回到不同的地址。这是一个很大的不同：其他控制流都只需要跳转到一个 <em>编译期固定下来</em> 的地址，而函数调用
 的返回跳转是跳转到一个 <em>运行时确定</em> （确切地说是在函数调用发生的时候）的地址。</p>
 <p>对此，指令集必须给用于函数调用的跳转指令一些额外的能力，而不只是单纯的跳转。在 RISC-V 架构上，有两条指令即符合这样的特征：</p>
-<table class="colwidths-given docutils align-center" id="id4">
-<caption><span class="caption-text">RISC-V 函数调用跳转指令</span><a class="headerlink" href="#id4" title="永久链接至表格">¶</a></caption>
+<table class="colwidths-given docutils align-center" id="id5">
+<caption><span class="caption-text">RISC-V 函数调用跳转指令</span><a class="headerlink" href="#id5" title="永久链接至表格">¶</a></caption>
 <colgroup>
 <col style="width: 40%" />
 <col style="width: 60%" />
@@ -300,8 +300,48 @@ ra 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>RISC-V 架构上的 C 语言调用规范</strong></p>
-<p>RISC-V 架构上的 C 语言调用规范可以在 <a class="reference external" href="https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf">这里</a> 找到。</p>
+<p>RISC-V 架构上的 C 语言调用规范可以在 <a class="reference external" href="https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf">这里</a> 找到。
+它对通用寄存器的使用做出了如下约定：</p>
+<table class="colwidths-given docutils align-center" id="id6">
+<caption><span class="caption-text">RISC-V 寄存器功能分类</span><a class="headerlink" href="#id6" title="永久链接至表格">¶</a></caption>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>寄存器组</p></th>
+<th class="head"><p>保存者</p></th>
+<th class="head"><p>功能</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>a0~a7</p></td>
+<td><p>调用者保存</p></td>
+<td><p>用来传递输入参数。特别的 a0 和 a1 用来保存返回值。</p></td>
+</tr>
+<tr class="row-odd"><td><p>t0~t6</p></td>
+<td><p>调用者保存</p></td>
+<td><p>作为临时寄存器使用，在函数中可以随意使用无需保存。</p></td>
+</tr>
+<tr class="row-even"><td><p>s0~s11</p></td>
+<td><p>被调用者保存</p></td>
+<td><p>作为临时寄存器使用，保存后才能在函数中使用。</p></td>
+</tr>
+</tbody>
+</table>
+<p>剩下的 5 个通用寄存器情况如下：</p>
+<ul class="simple">
+<li><p>zero(x0) 之前提到过，它恒为零，函数调用不会对他产生影响；</p></li>
+<li><p>ra(x1) 是调用者保存的，不过它并不会在每次调用子函数的时候都保存一次，而是在函数的开头和结尾保存/恢复即可，因为在执行期间即使被
+覆盖也没有关系。看上去和被调用者保存寄存器保存的位置一样，但是它确实是调用者保存的。</p></li>
+<li><p>sp(x2) 是被调用者保存的。这个之后就会提到。</p></li>
+<li><p>gp(x3) 和 tp(x4) 在一个程序运行期间都不会变化，因此不必放在函数调用上下文中。它们的用途在后面的章节会提到。</p></li>
+</ul>
+<p>更加详细的内容可以参考 Cornell 的 <a class="reference external" href="http://www.cs.cornell.edu/courses/cs3410/2019sp/schedule/slides/10-calling-notes-bw.pdf">课件</a> 。</p>
 </div>
+<p>之前我们讨论了函数调用上下文的保存/恢复时机以及寄存器的选择，但我们并没有详细说明这些寄存器保存在哪里，只是用“内存中的一块区域”草草带过。实际上，
+它更确切的名字是 <strong>栈</strong> (Stack) 。</p>
 </div>
 </div>
 
