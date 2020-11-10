@@ -1,7 +1,8 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html5" lang="zh-CN" >
+<!--[if IE 8]><html class="no-js lt-ie9" lang="zh-CN" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="zh-CN" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
   
@@ -11,18 +12,12 @@
   
 
   
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-
-  
   
   
   
 
   
-  <!--[if lt IE 9]>
-    <script src="../_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
@@ -36,6 +31,10 @@
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
     
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
     <link rel="next" title="reStructuredText 基本语法" href="../rest-example.html" />
@@ -53,7 +52,7 @@
           
 
           
-            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
           
 
           
@@ -76,7 +75,6 @@
           
         </div>
 
-        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -106,7 +104,6 @@
             
           
         </div>
-        
       </div>
     </nav>
 
@@ -145,7 +142,7 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li><a href="../index.html">Docs</a> &raquo;</li>
         
           <li><a href="index.html">第一章：编译运行 RV64 裸机程序</a> &raquo;</li>
         
@@ -332,7 +329,7 @@ ra 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中
 </table>
 <p>剩下的 5 个通用寄存器情况如下：</p>
 <ul class="simple">
-<li><p>zero(x0) 之前提到过，它恒为零，函数调用不会对他产生影响；</p></li>
+<li><p>zero(x0) 之前提到过，它恒为零，函数调用不会对它产生影响；</p></li>
 <li><p>ra(x1) 是调用者保存的，不过它并不会在每次调用子函数的时候都保存一次，而是在函数的开头和结尾保存/恢复即可，因为在执行期间即使被
 覆盖也没有关系。看上去和被调用者保存寄存器保存的位置一样，但是它确实是调用者保存的。</p></li>
 <li><p>sp(x2) 是被调用者保存的。这个之后就会提到。</p></li>
@@ -341,7 +338,31 @@ ra 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中
 <p>更加详细的内容可以参考 Cornell 的 <a class="reference external" href="http://www.cs.cornell.edu/courses/cs3410/2019sp/schedule/slides/10-calling-notes-bw.pdf">课件</a> 。</p>
 </div>
 <p>之前我们讨论了函数调用上下文的保存/恢复时机以及寄存器的选择，但我们并没有详细说明这些寄存器保存在哪里，只是用“内存中的一块区域”草草带过。实际上，
-它更确切的名字是 <strong>栈</strong> (Stack) 。</p>
+它更确切的名字是 <strong>栈</strong> (Stack) 。 sp(x2) 常用来保存 <strong>栈指针</strong> (Stack Pointer)，它是一个指向了内存中已经用过的位置的一个地址。在
+RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中，作为起始的开场白负责分配一块新的栈空间，其实它只需要知道需要空间的大小，然后将 sp
+的值减小相应的字节数即可，于是物理地址区间 <span class="math notranslate nohighlight">\([\text{新sp},\text{旧sp})\)</span> 对应的物理内存便可以被这个函数用来函数调用上下文的保存/恢复
+以及其他工作，这块物理内存被称为这个函数的 <strong>栈帧</strong> (Stackframe)。同理，函数中作为结尾的收场白负责将开场白分配的栈帧回收，这也仅仅需要
+将 sp 的值增加相同的字节数回到分配之前的状态。这也可以解释为什么 sp 是一个被调用者保存寄存器。</p>
+<div class="figure align-default" id="id7">
+<img alt="../_images/CallStack.png" src="../_images/CallStack.png" />
+<p class="caption"><span class="caption-text">函数调用与栈帧：如图所示，我们能够看到在程序依次调用 a、调用 b、调用 c、c 返回、b 返回整个过程中栈帧的分配/回收以及 sp 寄存器的变化。
+图中标有 a/b/c 的块分别代表函数 a/b/c 的栈帧。</span><a class="headerlink" href="#id7" title="永久链接至图片">¶</a></p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>数据结构中的栈与实现函数调用所需要的栈</strong></p>
+<p>从数据结构的角度来看，栈是一个 <strong>后入先出</strong> (Last In First Out, LIFO) 的线性表，支持向栈顶压入一个元素以及从栈顶弹出一个元素
+两种操作，分别被称为 push 和 pop。从它提供的接口来看，它只支持访问栈顶附近的元素。因此在实现的时候需要维护一个指向栈顶
+的指针来表示栈当前的状态。</p>
+<p>我们这里的栈与数据结构中的栈原理相同，在很多方面可以一一对应。栈指针 sp 可以对应到指向栈顶的指针，对于栈帧的分配/回收可以分别
+对应到 push/pop 操作。如果将我们的栈看成一个内存分配器，它之所以可以这么简单，是因为它回收的内存一定是 <em>最近一次分配</em> 的内存，
+从而只需要类似 push/pop 的两种操作即可。</p>
+</div>
+<p>一个函数的栈帧内容可能如下图所示：</p>
+<div class="figure align-default" id="id8">
+<img alt="../_images/StackFrame.png" src="../_images/StackFrame.png" />
+<p class="caption"><span class="caption-text">函数栈帧中的内容</span><a class="headerlink" href="#id8" title="永久链接至图片">¶</a></p>
+</div>
 </div>
 </div>
 
@@ -365,19 +386,11 @@ ra 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中
 
   <div role="contentinfo">
     <p>
-        
-        &copy; 版权所有 2020, Yifan Wu
+        &copy; Copyright 2020, Yifan Wu
 
     </p>
   </div>
-    
-    
-    
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
-    
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -388,6 +401,7 @@ ra 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中
 
   </div>
   
+
 
   <script type="text/javascript">
       jQuery(function () {
