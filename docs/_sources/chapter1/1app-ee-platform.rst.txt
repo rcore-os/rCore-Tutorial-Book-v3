@@ -55,6 +55,7 @@
 .. _app-software-stack:
 
 .. figure:: app-software-stack.png
+   :align: center
 
    应用程序运行环境栈：图中的白色块自上而下（越往下则越靠近底层，下层作为上层的执行环境支持上层代码的运行）表示各级运行环境，
    黑色块则表示相邻两层运行环境之间的接口。
