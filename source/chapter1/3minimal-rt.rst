@@ -217,6 +217,8 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
 - 其他被调用者保存寄存器 s1~s11；
 - 函数所使用到的局部变量。
 
+因此，栈上实际上保存了一条完整的函数调用链，通过适当的方式我们可以实现对它的跟踪。
+
 至此，我们基本上说明了函数调用是如何基于栈来实现的。不过我们可以暂时先忽略掉这些细节，因为我们现在只是需要在初始化阶段完成栈的设置，也就是
 设置好栈指针 sp 寄存器，后面的函数调用相关机制编译器会帮我们自动完成。麻烦的是， sp 的值也不能随便设置。至少我们需要保证它仍在物理内存上，
 而且不能与程序的其他代码、数据段相交，因为在函数调用的过程中，栈区域里面的内容会被修改。如何保证这一点呢？此外，之前我们还提到我们编写的
@@ -273,6 +275,167 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
 实现
 ----------
 
+我们自己编写运行时初始化的代码：
+
+.. code-block:: asm
+    :linenos:
+
+    # os/src/entry.asm
+        .section .text.entry
+        .globl _start
+    _start:
+        la sp, boot_stack_top
+        call rust_main
+
+        .section .bss.stack
+        .globl boot_stack
+    boot_stack:
+        .space 4096 * 16
+        .globl boot_stack_top
+    boot_stack_top:
+
+在这段汇编代码中，我们从第 8 行开始预留了一块大小为 4096 * 16 字节也就是 :math:`16\text{KiB}` 的空间用作接下来要运行的程序的栈空间，
+这块栈空间的栈顶地址被全局符号 ``boot_stack_top`` 标识，栈底则被全局符号 ``boot_stack`` 标识。同时，这块栈空间单独作为一个名为 
+``.bss.stack`` 的段，之后我们会通过链接脚本来安排它的位置。
+
+从第 2 行开始，我们通过汇编代码实现执行环境的初始化，它其实只有两条指令：第一条指令将 sp 设置为我们预留的栈空间的栈顶位置，于是之后在函数
+调用的时候，栈就可以从这里开始向低地址增长了。简单起见，我们目前暂时不考虑 sp 越过了栈底 ``boot_stack`` ，也就是栈溢出的情形，虽然这有
+可能导致严重的错误。第二条指令则是通过伪指令 ``call`` 函数调用 ``rust_main`` ，这里的 ``rust_main`` 是一个我们稍后自己编写的应用
+入口。因此初始化任务非常简单：正如上面所说的一样，只需要设置栈指针 sp，随后跳转到应用入口即可。这两条指令单独作为一个名为 
+``.text.entry`` 的段，且全局符号 ``_start`` 给出了段内第一条指令的地址。
+
+接着，我们在 ``main.rs`` 中嵌入这些汇编代码并声明应用入口 ``rust_main`` ：
+
+.. code-block:: rust
+    :linenos:
+    :emphasize-lines: 4,8,10,11,12,13
+
+    // os/src/main.rs
+    #![no_std]
+    #![no_main]
+    #![feature(global_asm)]
+
+    mod lang_items;
+
+    global_asm!(include_str!("entry.asm"));
+
+    #[no_mangle]
+    pub fn rust_main() -> ! {
+        loop {}
+    }
+
+背景高亮指出了 ``main.rs`` 中新增的代码。
+
+第 4 行中，我们手动设置 ``global_asm`` 特性来支持在 Rust 代码中嵌入全局汇编代码。第 8 行，我们首先通过 
+``include_str!`` 宏将同目录下的汇编代码 ``entry.asm`` 转化为字符串并通过 ``global_asm!`` 宏嵌入到代码中。
+
+从第 10 行开始，
+我们声明了应用的入口点 ``rust_main`` ，这里需要注意的是需要通过宏将 ``rust_main`` 标记为 ``#[no_mangle]`` 以避免编译器对它的
+名字进行混淆，不然的话在链接的时候， ``entry.asm`` 将找不到 ``main.rs`` 提供的外部符号 ``rust_main`` 从而导致链接失败。
+
+我们修改 Cargo 的配置文件来使用我们自己的链接脚本 ``os/src/linker.ld`` 而非使用默认的内存布局：
+
+.. code-block::
+    :linenos:
+    :emphasize-lines: 5,6,7,8
+
+    // os/.cargo/config
+    [build]
+    target = "riscv64gc-unknown-none-elf"
+
+    [target.riscv64gc-unknown-none-elf]
+    rustflags = [
+        "-Clink-arg=-Tsrc/linker.ld", "-Cforce-frame-pointers=yes"
+    ]
+
+具体的链接脚本 ``os/src/linker.ld`` 如下：
+
+.. code-block::
+    :linenos:
+
+    OUTPUT_ARCH(riscv)
+    ENTRY(_start)
+    BASE_ADDRESS = 0x80020000;
+
+    SECTIONS
+    {
+        . = BASE_ADDRESS;
+        skernel = .;
+
+        stext = .;
+        .text : {
+            *(.text.entry)
+            *(.text)
+        }
+
+        . = ALIGN(4K);
+        etext = .;
+        srodata = .;
+        .rodata : {
+            *(.rodata)
+        }
+
+        . = ALIGN(4K);
+        erodata = .;
+        sdata = .;
+        .data : {
+            *(.data)
+        }
+
+        . = ALIGN(4K);
+        edata = .;
+        sbss = .;
+        .bss : {
+            *(.bss)
+        }
+
+        . = ALIGN(4K);
+        ebss = .;
+        .stack : {
+            *(.bss.stack)
+        }
+
+        ekernel = .;
+
+        /DISCARD/ : {
+            *(.eh_frame)
+        }
+    }
+
+第 1 行我们设置了目标平台为 riscv ；第 2 行我们设置了整个程序的入口点为之前定义的全局符号 ``_start``；
+第 3 行定义了一个常量 ``BASE_ADDRESS`` 为 ``0x80020000`` ，也就是我们之前提到的期望我们自己实现的初始化代码被放在的地址；
+
+从第 5 行开始体现了链接过程中对输入的目标文件的段的合并。其中 ``.`` 表示当前地址，也就是链接器会从它指向的位置开始往下放置从输入的目标文件
+中收集来的段。我们可以对 ``.`` 进行赋值来调整接下来的段放在哪里，也可以创建一些全局符号赋值为 ``.`` 从而记录这一时刻的位置。我们还能够
+看到这样的格式：
+
+.. code-block::
+
+    .rodata : {
+        *(.rodata)
+    }
+
+冒号前面表示最终生成的可执行文件的一个段的名字，花括号内按照放置顺序描述将所有输入目标文件的哪些段放在这个段中，每一行格式为 
+``<ObjectFile>(SectionName)``，表示目标文件 ``ObjectFile`` 的名为 ``SectionName`` 的段需要被放进去。我们也可以
+使用通配符来书写 ``<ObjectFile>`` 部分表示所有可能的输入目标文件。因此，最终的合并结果是，在最终可执行文件中各个常见的段 
+``.text, .rodata .data, .bss`` 从低地址到高地址按顺序放置，每个段里面都包括了所有输入目标文件的同名段，且每个段都有两个全局符号
+给出了它的开始和结束地址（比如 ``.text`` 段的开始和结束地址分别是 ``stext`` 和 ``etext`` ）。
+
+为了说明当前实现的正确性，我们需要讨论这样两个问题：
+
+1. 如何做到执行环境的初始化代码被放在内存上以 ``0x80020000`` 开头的区域上？
+
+	在链接脚本第 7 行，我们将当前地址设置为 ``BASE_ADDRESS`` 也即 ``0x80020000`` ，然后从这里开始往高地址放置各个段。第一个被放置的
+	是 ``.text`` ，而里面第一个被放置的又是来自 ``entry.asm`` 中的段 ``.text.entry``，这个段恰恰是含有两条指令的执行环境初始化代码，
+	它在所有段中最早被放置在我们期望的 ``0x80020000`` 处。
+
+2. 应用函数调用所需的栈放在哪里？
+
+	在链接脚本第 39 行，我们为最终生成的可执行文件新增了一个名为 ``.stack`` 的段并将 ``entry.asm`` 中分配的栈空间对应的段 
+	``.bss.stack`` 放在里面。因此栈放在可执行文件中的 ``.stack`` 段中，并位于所有段中最高的地址。
+
+这样一来，我们就将运行时重建完毕了。在 ``os`` 目录下 ``cargo build --release`` 或者直接 ``make build`` 就能够看到
+最终生成的可执行文件 ``target/riscv64gc-unknown-none-elf/release/os`` 。
 
 参考文献
 ----------------
