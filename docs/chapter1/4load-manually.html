@@ -1,7 +1,8 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html5" lang="zh-CN" >
+<!--[if IE 8]><html class="no-js lt-ie9" lang="zh-CN" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="zh-CN" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
   
@@ -11,18 +12,12 @@
   
 
   
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-
-  
   
   
   
 
   
-  <!--[if lt IE 9]>
-    <script src="../_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
@@ -36,9 +31,13 @@
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
     
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
-    <link rel="next" title="reStructuredText 基本语法" href="../rest-example.html" />
+    <link rel="next" title="格式化输出" href="5sbi-print.html" />
     <link rel="prev" title="重建最小化运行时" href="3minimal-rt.html" /> 
 </head>
 
@@ -53,7 +52,7 @@
           
 
           
-            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
           
 
           
@@ -76,7 +75,6 @@
           
         </div>
 
-        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -96,6 +94,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#k210">k210 平台</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="5sbi-print.html">格式化输出</a></li>
 </ul>
 </li>
 </ul>
@@ -108,7 +107,6 @@
             
           
         </div>
-        
       </div>
     </nav>
 
@@ -147,7 +145,7 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li><a href="../index.html">Docs</a> &raquo;</li>
         
           <li><a href="index.html">第一章：构建运行 RV64 裸机程序</a> &raquo;</li>
         
@@ -408,6 +406,54 @@
 </div>
 <div class="section" id="k210">
 <h2>k210 平台<a class="headerlink" href="#k210" title="永久链接至标题">¶</a></h2>
+<p>对于 k210 平台来说，只需要将 maix 系列开发板通过数据线连接到 PC，然后 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span> <span class="pre">BOARD=k210</span></code> 即可。从 Makefile 中来看：</p>
+<div class="highlight-makefile notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="nv">K210-SERIALPORT</span>      <span class="o">=</span> /dev/ttyUSB0
+<span class="nv">K210-BURNER</span>          <span class="o">=</span> ../tools/kflash.py
+
+<span class="nf">run-inner</span><span class="o">:</span> <span class="n">build</span>
+<span class="cp">ifeq ($(BOARD),qemu)</span>
+   @qemu-system-riscv64 <span class="se">\</span>
+      -machine virt <span class="se">\</span>
+      -nographic <span class="se">\</span>
+      -bios <span class="k">$(</span>BOOTLOADER<span class="k">)</span> <span class="se">\</span>
+      -device loader,file<span class="o">=</span><span class="k">$(</span>KERNEL_BIN<span class="k">)</span>,addr<span class="o">=</span><span class="k">$(</span>KERNEL_ENTRY_PA<span class="k">)</span>
+<span class="cp">else</span>
+   @cp <span class="k">$(</span>BOOTLOADER<span class="k">)</span> <span class="k">$(</span>BOOTLOADER<span class="k">)</span>.copy
+<span class="hll">   @dd <span class="k">if</span><span class="o">=</span><span class="k">$(</span>KERNEL_BIN<span class="k">)</span> <span class="nv">of</span><span class="o">=</span><span class="k">$(</span>BOOTLOADER<span class="k">)</span>.copy <span class="nv">bs</span><span class="o">=</span>128K <span class="nv">seek</span><span class="o">=</span><span class="m">1</span>
+</span>   @mv <span class="k">$(</span>BOOTLOADER<span class="k">)</span>.copy <span class="k">$(</span>KERNEL_BIN<span class="k">)</span>
+   @sudo chmod <span class="m">777</span> <span class="k">$(</span>K210-SERIALPORT<span class="k">)</span>
+<span class="hll">   python3 <span class="k">$(</span>K210-BURNER<span class="k">)</span> -p <span class="k">$(</span>K210-SERIALPORT<span class="k">)</span> -b <span class="m">1500000</span> <span class="k">$(</span>KERNEL_BIN<span class="k">)</span>
+</span><span class="hll">   miniterm --eol LF --dtr <span class="m">0</span> --rts <span class="m">0</span> --filter direct <span class="k">$(</span>K210-SERIALPORT<span class="k">)</span> <span class="m">115200</span>
+</span><span class="cp">endif</span>
+</pre></div>
+</td></tr></table></div>
+<p>在构建目标 <code class="docutils literal notranslate"><span class="pre">run-inner</span></code> 的时候，根据平台 <code class="docutils literal notranslate"><span class="pre">BOARD</span></code> 的不同，启动运行的指令也不同。当我们传入命令行参数 <code class="docutils literal notranslate"><span class="pre">BOARD=k210</span></code> 时，就会进入下面
+的分支。</p>
+<ul class="simple">
+<li><p>第 13 行我们使用 <code class="docutils literal notranslate"><span class="pre">dd</span></code> 工具将 bootloader 和二进制镜像拼接到一起，这是因为 k210 平台的写入工具每次只支持写入一个文件，所以我们只能
+将二者合并到一起一并写入 k210 的内存上。这样的参数设置可以保证 bootloader 在合并后文件的开头，而二进制镜像在文件偏移量 0x20000 的
+位置处。有兴趣的读者可以输入命令 <code class="docutils literal notranslate"><span class="pre">man</span> <span class="pre">dd</span></code> 查看关于工具 <code class="docutils literal notranslate"><span class="pre">dd</span></code> 的更多信息。</p></li>
+<li><p>第 16 行我们使用烧写工具 <code class="docutils literal notranslate"><span class="pre">K210-BURNER</span></code> 将合并后的镜像烧写到 k210 开发板的内存的 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 地址上。
+参数 <code class="docutils literal notranslate"><span class="pre">K210-SERIALPORT</span></code> 表示当前 OS 识别到的 k210 开发板的串口设备名。在 Ubuntu 平台上一般为 <code class="docutils literal notranslate"><span class="pre">/dev/ttyUSB0</span></code>。</p></li>
+<li><p>第 17 行我们打开串口终端和 k210 开发板进行通信，可以通过键盘向 k210 开发板发送字符并在屏幕上看到 k210 开发板的字符输出。</p></li>
+</ul>
 </div>
 </div>
 
@@ -419,7 +465,7 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../rest-example.html" class="btn btn-neutral float-right" title="reStructuredText 基本语法" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="5sbi-print.html" class="btn btn-neutral float-right" title="格式化输出" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="3minimal-rt.html" class="btn btn-neutral float-left" title="重建最小化运行时" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
@@ -431,19 +477,11 @@
 
   <div role="contentinfo">
     <p>
-        
-        &copy; 版权所有 2020, Yifan Wu
+        &copy; Copyright 2020, Yifan Wu
 
     </p>
   </div>
-    
-    
-    
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
-    
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -454,6 +492,7 @@
 
   </div>
   
+
 
   <script type="text/javascript">
       jQuery(function () {

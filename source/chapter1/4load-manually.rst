@@ -228,3 +228,38 @@ qemu 平台
 
 k210 平台
 ------------------------
+
+对于 k210 平台来说，只需要将 maix 系列开发板通过数据线连接到 PC，然后 ``make run BOARD=k210`` 即可。从 Makefile 中来看：
+
+.. code-block:: makefile
+   :linenos:
+   :emphasize-lines: 13,16,17
+
+   K210-SERIALPORT	= /dev/ttyUSB0
+   K210-BURNER		= ../tools/kflash.py
+
+   run-inner: build
+   ifeq ($(BOARD),qemu)
+      @qemu-system-riscv64 \
+         -machine virt \
+         -nographic \
+         -bios $(BOOTLOADER) \
+         -device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
+   else
+      @cp $(BOOTLOADER) $(BOOTLOADER).copy
+      @dd if=$(KERNEL_BIN) of=$(BOOTLOADER).copy bs=128K seek=1
+      @mv $(BOOTLOADER).copy $(KERNEL_BIN)
+      @sudo chmod 777 $(K210-SERIALPORT)
+      python3 $(K210-BURNER) -p $(K210-SERIALPORT) -b 1500000 $(KERNEL_BIN)
+      miniterm --eol LF --dtr 0 --rts 0 --filter direct $(K210-SERIALPORT) 115200
+   endif
+
+在构建目标 ``run-inner`` 的时候，根据平台 ``BOARD`` 的不同，启动运行的指令也不同。当我们传入命令行参数 ``BOARD=k210`` 时，就会进入下面
+的分支。
+
+- 第 13 行我们使用 ``dd`` 工具将 bootloader 和二进制镜像拼接到一起，这是因为 k210 平台的写入工具每次只支持写入一个文件，所以我们只能
+  将二者合并到一起一并写入 k210 的内存上。这样的参数设置可以保证 bootloader 在合并后文件的开头，而二进制镜像在文件偏移量 0x20000 的
+  位置处。有兴趣的读者可以输入命令 ``man dd`` 查看关于工具 ``dd`` 的更多信息。
+- 第 16 行我们使用烧写工具 ``K210-BURNER`` 将合并后的镜像烧写到 k210 开发板的内存的 ``0x80000000`` 地址上。
+  参数 ``K210-SERIALPORT`` 表示当前 OS 识别到的 k210 开发板的串口设备名。在 Ubuntu 平台上一般为 ``/dev/ttyUSB0``。
+- 第 17 行我们打开串口终端和 k210 开发板进行通信，可以通过键盘向 k210 开发板发送字符并在屏幕上看到 k210 开发板的字符输出。

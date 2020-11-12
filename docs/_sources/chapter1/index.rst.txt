@@ -10,3 +10,4 @@
    2remove-std
    3minimal-rt
    4load-manually
+   5sbi-print
