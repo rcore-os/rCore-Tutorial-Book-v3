@@ -1,15 +1,18 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="zh-CN" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="zh-CN" > <!--<![endif]-->
+<html class="writer-html5" lang="zh-CN" >
 <head>
   <meta charset="utf-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>手动加载应用程序 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>手动加载、运行应用程序 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
 
   
   
@@ -17,7 +20,9 @@
   
 
   
-  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
@@ -31,10 +36,6 @@
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
     <link rel="next" title="reStructuredText 基本语法" href="../rest-example.html" />
@@ -52,7 +53,7 @@
           
 
           
-            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
           
 
           
@@ -75,6 +76,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -85,11 +87,13 @@
               <p class="caption"><span class="caption-text">正文</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart.html">快速上手</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">第一章：编译运行 RV64 裸机程序</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第一章：构建运行 RV64 裸机程序</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html">应用程序运行环境与平台支持</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2remove-std.html">移除标准库依赖</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3minimal-rt.html">重建最小化运行时</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">手动加载应用程序</a><ul class="simple">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">手动加载、运行应用程序</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#qemu">qemu 平台</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#k210">k210 平台</a></li>
 </ul>
 </li>
 </ul>
@@ -104,6 +108,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -142,11 +147,11 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../index.html">Docs</a> &raquo;</li>
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-          <li><a href="index.html">第一章：编译运行 RV64 裸机程序</a> &raquo;</li>
+          <li><a href="index.html">第一章：构建运行 RV64 裸机程序</a> &raquo;</li>
         
-      <li>手动加载应用程序</li>
+      <li>手动加载、运行应用程序</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -166,10 +171,244 @@
            <div itemprop="articleBody">
             
   <div class="section" id="id1">
-<h1>手动加载应用程序<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<h1>手动加载、运行应用程序<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
-<p>本节我们来手动加载应用程序。</p>
+<p>在上一节中我们自己实现了一套运行时来代替标准库，并完整的构建了最终的可执行文件。但是它现在只是放在磁盘上的一个文件，若想将它运行起来的话，
+就需要将它加载到内存中，在大多数情况下这是操作系统的任务。</p>
+<p>让我们先来看看最终可执行文件的格式：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> file os/target/riscv64gc-unknown-none-elf/release/os
+<span class="go">os/target/riscv64gc-unknown-none-elf/release/os: ELF 64-bit LSB executable,</span>
+<span class="go">UCB RISC-V, version 1 (SYSV), statically linked, not stripped</span>
+</pre></div>
+</div>
+<p>从中可以看出可执行文件的格式为 <strong>可执行和链接格式</strong> (Executable and Linkable Format, ELF)，硬件平台是 RV64 。在 ELF 文件中，
+除了程序必要的代码、数据段（它们本身都只是一些二进制的数据）之外，还有一些 <strong>元数据</strong> (Metadata) 描述这些段在地址空间中的位置和在
+文件中的位置以及一些权限控制信息，这些元数据只能放在代码、数据段的外面。</p>
+<p>我们可以通过二进制工具 <code class="docutils literal notranslate"><span class="pre">readelf</span></code> 来看看 ELF 文件中究竟包含什么内容，输入命令：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> riscv64-unknown-elf-readelf os/target/riscv64gc-unknown-none-elf/release/os -a
+</pre></div>
+</div>
+<p>首先可以看到一个 ELF header，它位于 ELF 文件的开头：</p>
+<div class="highlight-objdump notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="x">ELF Header:</span>
+<span class="hll"><span class="x">Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00</span>
+</span><span class="x">Class:                             ELF64</span>
+<span class="x">Data:                              2&#39;s complement, little endian</span>
+<span class="x">Version:                           1 (current)</span>
+<span class="x">OS/ABI:                            UNIX - System V</span>
+<span class="x">ABI Version:                       0</span>
+<span class="x">Type:                              EXEC (Executable file)</span>
+<span class="x">Machine:                           RISC-V</span>
+<span class="x">Version:                           0x1</span>
+<span class="hll"><span class="x">Entry point address:               0x80020000</span>
+</span><span class="hll"><span class="x">Start of program headers:          64 (bytes into file)</span>
+</span><span class="hll"><span class="x">Start of section headers:          9032 (bytes into file)</span>
+</span><span class="x">Flags:                             0x1, RVC, soft-float ABI</span>
+<span class="x">Size of this header:               64 (bytes)</span>
+<span class="x">Size of program headers:           56 (bytes)</span>
+<span class="hll"><span class="x">Number of program headers:         3</span>
+</span><span class="x">Size of section headers:           64 (bytes)</span>
+<span class="hll"><span class="x">Number of section headers:         9</span>
+</span><span class="x">Section header string table index: 7</span>
+</pre></div>
+</td></tr></table></div>
+<ul class="simple">
+<li><p>第 2 行是一个称之为 <strong>魔数</strong> (Magic) 独特的常数，存放在 ELF header 的一个固定位置。当加载器将 ELF 文件加载到内存之前，通常会查看
+该位置的值是否正确，来快速确认被加载的文件是不是一个 ELF 。</p></li>
+<li><p>第 11 行给出了可执行文件的入口点为 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> ，这正是我们上一节所做的事情。</p></li>
+<li><p>从 12/13/17/19 行中，我们可以知道除了 ELF header 之外，还有另外两种不同的 header，分别称为 program header 和 section header，
+它们都有多个。ELF header 中给出了三种 header 的大小、在文件中的位置以及数目。</p></li>
+</ul>
+<p>一共有 3 个不同的 program header，它们从文件的 64 字节开始，每个 56 字节：</p>
+<div class="highlight-objdump notranslate"><div class="highlight"><pre><span></span><span class="x">Program Headers:</span>
+<span class="x">Type           Offset             VirtAddr           PhysAddr</span>
+<span class="x">               FileSiz            MemSiz              Flags  Align</span>
+<span class="x">LOAD           0x0000000000001000 0x0000000080020000 0x0000000080020000</span>
+<span class="x">               0x000000000000001a 0x000000000000001a  R E    0x1000</span>
+<span class="x">LOAD           0x0000000000002000 0x0000000080021000 0x0000000080021000</span>
+<span class="x">               0x0000000000000000 0x0000000000010000  RW     0x1000</span>
+<span class="x">GNU_STACK      0x0000000000000000 0x0000000000000000 0x0000000000000000</span>
+<span class="x">               0x0000000000000000 0x0000000000000000  RW     0x0</span>
+</pre></div>
+</div>
+<p>每个 program header 指向一个在加载的时候可以连续加载的区域。</p>
+<p>一共有 9 个不同的 section header，它们从文件的 9032 字节开始，每个 64 字节：</p>
+<div class="highlight-objdump notranslate"><div class="highlight"><pre><span></span><span class="x">Section Headers:</span>
+<span class="x">[Nr] Name              Type             Address           Offset</span>
+<span class="x">      Size              EntSize          Flags  Link  Info  Align</span>
+<span class="x">[ 0]                   NULL             0000000000000000  00000000</span>
+<span class="x">      0000000000000000  0000000000000000           0     0     0</span>
+<span class="x">[ 1] .text             PROGBITS         0000000080020000  00001000</span>
+<span class="x">      0000000000000010  0000000000000000  AX       0     0     1</span>
+<span class="x">[ 2] .text.rust_main   PROGBITS         0000000080020010  00001010</span>
+<span class="x">      000000000000000a  0000000000000000  AX       0     0     2</span>
+<span class="x">[ 3] .stack            NOBITS           0000000080021000  00002000</span>
+<span class="x">      0000000000010000  0000000000000000  WA       0     0     1</span>
+<span class="x">[ 4] .riscv.attributes RISCV_ATTRIBUTE  0000000000000000  00002000</span>
+<span class="x">      000000000000006a  0000000000000000           0     0     1</span>
+<span class="x">[ 5] .comment          PROGBITS         0000000000000000  0000206a</span>
+<span class="x">      0000000000000013  0000000000000001  MS       0     0     1</span>
+<span class="x">[ 6] .symtab           SYMTAB           0000000000000000  00002080</span>
+<span class="x">      00000000000001c8  0000000000000018           8     4     8</span>
+<span class="x">[ 7] .shstrtab         STRTAB           0000000000000000  00002248</span>
+<span class="x">      0000000000000053  0000000000000000           0     0     1</span>
+<span class="x">[ 8] .strtab           STRTAB           0000000000000000  0000229b</span>
+<span class="x">      00000000000000ab  0000000000000000           0     0     1</span>
+<span class="x">Key to Flags:</span>
+<span class="x">W (write), A (alloc), X (execute), M (merge), S (strings), I (info),</span>
+<span class="x">L (link order), O (extra OS processing required), G (group), T (TLS),</span>
+<span class="x">C (compressed), x (unknown), o (OS specific), E (exclude),</span>
+<span class="x">p (processor specific)</span>
+
+<span class="x">There are no section groups in this file.</span>
+</pre></div>
+</div>
+<p>每个 section header 则描述一个段的元数据。</p>
+<p>其中，我们看到了代码段 <code class="docutils literal notranslate"><span class="pre">.text/.text.rust_main</span></code> 被放在可执行文件的 4096 字节处，大小 0x1a=26 字节，需要被加载到地址 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code>。
+它们分别由元数据的字段 Offset、 Size 和 Address 给出。同理，我们自己预留的应用程序函数调用栈在 <code class="docutils literal notranslate"><span class="pre">.stack</span></code> 段中，大小为 <span class="math notranslate nohighlight">\(64\text{KiB}\)</span>
+，需要被加载到地址 <code class="docutils literal notranslate"><span class="pre">0x80021000</span></code> 处。我们没有看到 <code class="docutils literal notranslate"><span class="pre">.bss/.data/.rodata</span></code> 等段，因为目前的 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 里面没有任何东西。</p>
+<p>我们还能够看到 <code class="docutils literal notranslate"><span class="pre">.symtab</span></code> 段中给出的符号表：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Symbol</span> <span class="n">table</span> <span class="s1">&#39;.symtab&#39;</span> <span class="n">contains</span> <span class="mi">19</span> <span class="n">entries</span><span class="p">:</span>
+   <span class="n">Num</span><span class="p">:</span>    <span class="n">Value</span>          <span class="n">Size</span> <span class="n">Type</span>    <span class="n">Bind</span>   <span class="n">Vis</span>      <span class="n">Ndx</span> <span class="n">Name</span>
+   <span class="mi">0</span><span class="p">:</span> <span class="mi">0000000000000000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">LOCAL</span>  <span class="n">DEFAULT</span>  <span class="n">UND</span>
+   <span class="mi">1</span><span class="p">:</span> <span class="mi">0000000000000000</span>     <span class="mi">0</span> <span class="n">FILE</span>    <span class="n">LOCAL</span>  <span class="n">DEFAULT</span>  <span class="n">ABS</span> <span class="n">os</span><span class="o">.</span><span class="mi">78</span><span class="n">wp4f2l</span><span class="o">-</span><span class="n">cgu</span><span class="o">.</span><span class="mi">0</span>
+   <span class="mi">2</span><span class="p">:</span> <span class="mi">0000000000000000</span>     <span class="mi">0</span> <span class="n">FILE</span>    <span class="n">LOCAL</span>  <span class="n">DEFAULT</span>  <span class="n">ABS</span> <span class="n">os</span><span class="o">.</span><span class="mi">78</span><span class="n">wp4f2l</span><span class="o">-</span><span class="n">cgu</span><span class="o">.</span><span class="mi">1</span>
+   <span class="mi">3</span><span class="p">:</span> <span class="mi">0000000080020000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">LOCAL</span>  <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="o">.</span><span class="n">Lpcrel_hi0</span>
+   <span class="mi">4</span><span class="p">:</span> <span class="mi">0000000080020000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">_start</span>
+   <span class="mi">5</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">3</span> <span class="n">boot_stack</span>
+   <span class="mi">6</span><span class="p">:</span> <span class="mi">0000000080031000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">3</span> <span class="n">boot_stack_top</span>
+   <span class="mi">7</span><span class="p">:</span> <span class="mi">0000000080020010</span>    <span class="mi">10</span> <span class="n">FUNC</span>    <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">rust_main</span>
+   <span class="mi">8</span><span class="p">:</span> <span class="mi">0000000080020000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>  <span class="n">ABS</span> <span class="n">BASE_ADDRESS</span>
+   <span class="mi">9</span><span class="p">:</span> <span class="mi">0000000080020000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">skernel</span>
+   <span class="mi">10</span><span class="p">:</span> <span class="mi">0000000080020000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">stext</span>
+   <span class="mi">11</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">etext</span>
+   <span class="mi">12</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">srodata</span>
+   <span class="mi">13</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">erodata</span>
+   <span class="mi">14</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">sdata</span>
+   <span class="mi">15</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">edata</span>
+   <span class="mi">16</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">sbss</span>
+   <span class="mi">17</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">ebss</span>
+   <span class="mi">18</span><span class="p">:</span> <span class="mi">0000000080031000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">3</span> <span class="n">ekernel</span>
+</pre></div>
+</div>
+<p>里面包括了栈顶、栈底、rust_main 的地址以及我们在 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中定义的各个段开始和结束地址。</p>
+<p>因此，从 ELF header 中可以看出，ELF 中的内容按顺序应该是：</p>
+<ul class="simple">
+<li><p>ELF header</p></li>
+<li><p>若干个 program header</p></li>
+<li><p>程序各个段的实际数据</p></li>
+<li><p>若干的 section header</p></li>
+</ul>
+<p>当将程序加载到内存的时候，对于每个 program header 所指向的区域，我们需要将对应的数据从文件复制到内存中。这就需要解析 ELF 的元数据
+才能知道数据在文件中的位置以及即将被加载到内存中的位置。但目前，我们不需要从 ELF 中解析元数据就知道程序的内存布局
+（这个内存布局是我们按照需求自己指定的），我们可以手动完成加载任务。</p>
+<p>具体的做法是利用 <code class="docutils literal notranslate"><span class="pre">rust-objcopy</span></code> 工具删除掉 ELF 文件中的
+所有 header 只保留各个段的实际数据得到一个没有任何符号的纯二进制镜像文件，由于缺少了必要的元数据，我们的二进制工具也没有办法
+对它完成解析了。而后，我们直接将这个二进制镜像文件手动载入到内存中合适位置即可。在这里，我们知道在镜像文件中，仍然是代码段 <code class="docutils literal notranslate"><span class="pre">.text</span></code>
+作为起始，因此我们要将这个代码段载入到 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 才能和上一级 bootloader 对接上。因此，我们只要把整个镜像文件手动载入到
+内存的地址 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 处即可。在不同的硬件平台上，手动加载的方式是不同的。</p>
+<div class="section" id="qemu">
+<h2>qemu 平台<a class="headerlink" href="#qemu" title="永久链接至标题">¶</a></h2>
+<p>首先我们还原一下可执行文件和二进制镜像的生成流程：</p>
+<div class="highlight-makefile notranslate"><div class="highlight"><pre><span></span><span class="c"># os/Makefile</span>
+<span class="nv">TARGET</span> <span class="o">:=</span> riscv64gc-unknown-none-elf
+<span class="nv">MODE</span> <span class="o">:=</span> release
+<span class="nv">KERNEL_ELF</span> <span class="o">:=</span> target/<span class="k">$(</span>TARGET<span class="k">)</span>/<span class="k">$(</span>MODE<span class="k">)</span>/os
+<span class="nv">KERNEL_BIN</span> <span class="o">:=</span> <span class="k">$(</span>KERNEL_ELF<span class="k">)</span>.bin
+
+<span class="nf">$(KERNEL_BIN)</span><span class="o">:</span> <span class="n">kernel</span>
+   @<span class="k">$(</span>OBJCOPY<span class="k">)</span> <span class="k">$(</span>KERNEL_ELF<span class="k">)</span> --strip-all -O binary <span class="nv">$@</span>
+
+<span class="nf">kernel</span><span class="o">:</span>
+   @cargo build --release
+</pre></div>
+</div>
+<p>这里可以看出 <code class="docutils literal notranslate"><span class="pre">KERNEL_ELF</span></code> 保存最终可执行文件 <code class="docutils literal notranslate"><span class="pre">os</span></code> 的路径，而 <code class="docutils literal notranslate"><span class="pre">KERNEL_BIN</span></code> 保存只保留各个段数据的二进制镜像文件 <code class="docutils literal notranslate"><span class="pre">os.bin</span></code>
+的路径。目标 <code class="docutils literal notranslate"><span class="pre">kernel</span></code> 直接通过 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> 以 release 模式最终可执行文件，目标 <code class="docutils literal notranslate"><span class="pre">KERNEL_BIN</span></code> 依赖于目标 <code class="docutils literal notranslate"><span class="pre">kernel</span></code>，将
+可执行文件通过 <code class="docutils literal notranslate"><span class="pre">rust-objcopy</span></code> 工具加上适当的配置移除所有的 header 和符号得到二进制镜像。</p>
+<p>我们可以通过 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 直接在 qemu 上运行我们的应用程序，qemu 是一个虚拟机，它完整的模拟了一整套硬件平台，就像是一台真正的计算机
+一样，我们来看运行 qemu 的具体命令：</p>
+<div class="highlight-makefile notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="nv">KERNEL_ENTRY_PA</span> <span class="o">:=</span> 0x80020000
+
+<span class="nv">BOARD</span>                <span class="o">?=</span> qemu
+<span class="nv">SBI</span>                  <span class="o">?=</span> rustsbi
+<span class="nv">BOOTLOADER</span>   <span class="o">:=</span> ../bootloader/<span class="k">$(</span>SBI<span class="k">)</span>-<span class="k">$(</span>BOARD<span class="k">)</span>.bin
+
+<span class="nf">run</span><span class="o">:</span> <span class="n">run</span>-<span class="n">inner</span>
+
+<span class="nf">run-inner</span><span class="o">:</span> <span class="n">build</span>
+<span class="cp">ifeq ($(BOARD),qemu)</span>
+<span class="hll">   @qemu-system-riscv64 <span class="se">\</span>
+</span><span class="hll">      -machine virt <span class="se">\</span>
+</span><span class="hll">      -nographic <span class="se">\</span>
+</span><span class="hll">      -bios <span class="k">$(</span>BOOTLOADER<span class="k">)</span> <span class="se">\</span>
+</span><span class="hll">      -device loader,file<span class="o">=</span><span class="k">$(</span>KERNEL_BIN<span class="k">)</span>,addr<span class="o">=</span><span class="k">$(</span>KERNEL_ENTRY_PA<span class="k">)</span>
+</span><span class="cp">else</span>
+   @cp <span class="k">$(</span>BOOTLOADER<span class="k">)</span> <span class="k">$(</span>BOOTLOADER<span class="k">)</span>.copy
+   @dd <span class="k">if</span><span class="o">=</span><span class="k">$(</span>KERNEL_BIN<span class="k">)</span> <span class="nv">of</span><span class="o">=</span><span class="k">$(</span>BOOTLOADER<span class="k">)</span>.copy <span class="nv">bs</span><span class="o">=</span>128K <span class="nv">seek</span><span class="o">=</span><span class="m">1</span>
+   @mv <span class="k">$(</span>BOOTLOADER<span class="k">)</span>.copy <span class="k">$(</span>KERNEL_BIN<span class="k">)</span>
+   @sudo chmod <span class="m">777</span> <span class="k">$(</span>K210-SERIALPORT<span class="k">)</span>
+   python3 <span class="k">$(</span>K210-BURNER<span class="k">)</span> -p <span class="k">$(</span>K210-SERIALPORT<span class="k">)</span> -b <span class="m">1500000</span> <span class="k">$(</span>KERNEL_BIN<span class="k">)</span>
+   miniterm --eol LF --dtr <span class="m">0</span> --rts <span class="m">0</span> --filter direct <span class="k">$(</span>K210-SERIALPORT<span class="k">)</span> <span class="m">115200</span>
+<span class="cp">endif</span>
+</pre></div>
+</td></tr></table></div>
+<p>注意其中高亮部分给出了传给 qemu 的参数。</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-machine</span></code> 告诉 qemu 使用预设的硬件配置。在整个项目中我们将一直沿用该配置。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-bios</span></code> 告诉 qemu 使用我们放在 <code class="docutils literal notranslate"><span class="pre">bootloader</span></code> 目录下的预编译版本作为 bootloader。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-device</span></code> 则告诉 qemu 将二进制镜像加载到内存指定的位置。</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>使用 GDB 跟踪 qemu 的运行状态</strong></p>
+<p>TODO</p>
+</div>
+</div>
+<div class="section" id="k210">
+<h2>k210 平台<a class="headerlink" href="#k210" title="永久链接至标题">¶</a></h2>
+</div>
 </div>
 
 
@@ -192,11 +431,19 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020, Yifan Wu
+        
+        &copy; 版权所有 2020, Yifan Wu
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -207,7 +454,6 @@
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {
