@@ -11,3 +11,4 @@
    3minimal-rt
    4load-manually
    5sbi-print
+   6practice

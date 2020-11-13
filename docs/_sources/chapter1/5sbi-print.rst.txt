@@ -8,7 +8,7 @@
 这一小节我们来自己实现 ``println!`` 的功能。 我们这里只是给出一些函数之间的调用关系，而不在这里进行一些实现细节上的展开。有兴趣的读者
 可以自行参考代码提供的注释。
 
-在屏幕上打印一个字符是最基础的功能，它已经由 bootloader （也就是放在 ``bootloader`` 目录下的预编译版本）提供，具体的使用方法可以参考 
+在屏幕上打印一个字符是最基础的功能，它已经由 bootloader （也就是放在 ``bootloader`` 目录下的预编译版本）提供，具体的调用方法可以参考 
 ``sbi.rs`` 中的 ``console_putchar`` 函数。
 
 随后我们在 ``console.rs`` 中利用 ``console_putchar`` 来实现 ``print!`` 和 ``println!`` 两个宏。有兴趣的读者可以去代码注释中
@@ -19,6 +19,7 @@
 
 .. code-block:: rust
 
+    // os/src/lang_items.rs
     use crate::sbi::shutdown;
 
     #[panic_handler]
@@ -38,12 +39,23 @@
 
     **Rust 小知识： 错误处理**
 
+    Rust 中常利用 ``Option<T>`` 和 ``Result<T, E>`` 进行方便的错误处理。它们都属于枚举结构：
+
+    - ``Option<T>`` 既可以有值 ``Option::Some<T>`` ，也有可能没有值 ``Option::None``；
+    - ``Result<T, E>`` 既可以保存某个操作的返回值 ``Result::Ok<T>`` ，也可以表明操作过程中出现了错误 ``Result::Err<E>`` 。
+
+    我们可以使用 ``Option/Result`` 来保存一个不能确定存在/不存在或是成功/失败的值。之后可以通过匹配 ``if let`` 或是在能够确定
+    的场合直接通过 ``unwrap`` 将里面的值取出。详细的内容可以参考 Rust 官方文档。
+
+
 此外，我们还使用 bootloader 中提供的另一个接口 ``shutdown`` 关闭机器。
 
 最终我们的应用程序 ``rust_main`` 如下：
 
 .. code-block:: rust
 
+    // os/src/main.rs
+    
     #[no_mangle]
     pub fn rust_main() -> ! {
         extern "C" {

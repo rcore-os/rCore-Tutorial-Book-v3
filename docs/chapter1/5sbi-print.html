@@ -37,7 +37,7 @@
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
-    <link rel="next" title="reStructuredText 基本语法" href="../rest-example.html" />
+    <link rel="next" title="练习一" href="6practice.html" />
     <link rel="prev" title="手动加载、运行应用程序" href="4load-manually.html" /> 
 </head>
 
@@ -93,6 +93,9 @@
 <li class="toctree-l2 current"><a class="current reference internal" href="#">格式化输出</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="6practice.html">练习一</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#sub1">sub1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#sub2">sub2</a></li>
 </ul>
 </li>
 </ul>
@@ -172,13 +175,14 @@
 </div>
 <p>这一小节我们来自己实现 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 的功能。 我们这里只是给出一些函数之间的调用关系，而不在这里进行一些实现细节上的展开。有兴趣的读者
 可以自行参考代码提供的注释。</p>
-<p>在屏幕上打印一个字符是最基础的功能，它已经由 bootloader （也就是放在 <code class="docutils literal notranslate"><span class="pre">bootloader</span></code> 目录下的预编译版本）提供，具体的使用方法可以参考
+<p>在屏幕上打印一个字符是最基础的功能，它已经由 bootloader （也就是放在 <code class="docutils literal notranslate"><span class="pre">bootloader</span></code> 目录下的预编译版本）提供，具体的调用方法可以参考
 <code class="docutils literal notranslate"><span class="pre">sbi.rs</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">console_putchar</span></code> 函数。</p>
 <p>随后我们在 <code class="docutils literal notranslate"><span class="pre">console.rs</span></code> 中利用 <code class="docutils literal notranslate"><span class="pre">console_putchar</span></code> 来实现 <code class="docutils literal notranslate"><span class="pre">print!</span></code> 和 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 两个宏。有兴趣的读者可以去代码注释中
 参考有关 Rust <code class="docutils literal notranslate"><span class="pre">core::fmt</span></code> 库和宏编写的相关知识。在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 声明子模块 <code class="docutils literal notranslate"><span class="pre">mod</span> <span class="pre">console</span></code> 的时候加上 <code class="docutils literal notranslate"><span class="pre">#[macro_use]</span></code> 来让
 整个引用都可以使用到该模块里面定义的宏。</p>
 <p>接着我们在 <code class="docutils literal notranslate"><span class="pre">lang_items.rs</span></code> 中修改 panic 时的行为：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">sbi</span>::<span class="n">shutdown</span><span class="p">;</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/lang_items.rs</span>
+<span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">sbi</span>::<span class="n">shutdown</span><span class="p">;</span><span class="w"></span>
 
 <span class="cp">#[panic_handler]</span><span class="w"></span>
 <span class="k">fn</span> <span class="nf">panic</span><span class="p">(</span><span class="n">info</span>: <span class="kp">&amp;</span><span class="nc">PanicInfo</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -196,10 +200,19 @@
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>Rust 小知识： 错误处理</strong></p>
+<p>Rust 中常利用 <code class="docutils literal notranslate"><span class="pre">Option&lt;T&gt;</span></code> 和 <code class="docutils literal notranslate"><span class="pre">Result&lt;T,</span> <span class="pre">E&gt;</span></code> 进行方便的错误处理。它们都属于枚举结构：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Option&lt;T&gt;</span></code> 既可以有值 <code class="docutils literal notranslate"><span class="pre">Option::Some&lt;T&gt;</span></code> ，也有可能没有值 <code class="docutils literal notranslate"><span class="pre">Option::None</span></code>；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Result&lt;T,</span> <span class="pre">E&gt;</span></code> 既可以保存某个操作的返回值 <code class="docutils literal notranslate"><span class="pre">Result::Ok&lt;T&gt;</span></code> ，也可以表明操作过程中出现了错误 <code class="docutils literal notranslate"><span class="pre">Result::Err&lt;E&gt;</span></code> 。</p></li>
+</ul>
+<p>我们可以使用 <code class="docutils literal notranslate"><span class="pre">Option/Result</span></code> 来保存一个不能确定存在/不存在或是成功/失败的值。之后可以通过匹配 <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">let</span></code> 或是在能够确定
+的场合直接通过 <code class="docutils literal notranslate"><span class="pre">unwrap</span></code> 将里面的值取出。详细的内容可以参考 Rust 官方文档。</p>
 </div>
 <p>此外，我们还使用 bootloader 中提供的另一个接口 <code class="docutils literal notranslate"><span class="pre">shutdown</span></code> 关闭机器。</p>
 <p>最终我们的应用程序 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 如下：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
+
+<span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">rust_main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="k">fn</span> <span class="nf">stext</span><span class="p">();</span><span class="w"></span>
@@ -278,7 +291,7 @@ Panicked at src/main.rs:46 Shutdown machine!
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../rest-example.html" class="btn btn-neutral float-right" title="reStructuredText 基本语法" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="6practice.html" class="btn btn-neutral float-right" title="练习一" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="4load-manually.html" class="btn btn-neutral float-left" title="手动加载、运行应用程序" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
