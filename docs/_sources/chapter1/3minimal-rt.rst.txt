@@ -365,36 +365,33 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
         stext = .;
         .text : {
             *(.text.entry)
-            *(.text)
+            *(.text .text.*)
         }
 
         . = ALIGN(4K);
         etext = .;
         srodata = .;
         .rodata : {
-            *(.rodata)
+            *(.rodata .rodata.*)
         }
 
         . = ALIGN(4K);
         erodata = .;
         sdata = .;
         .data : {
-            *(.data)
+            *(.data .data.*)
         }
 
         . = ALIGN(4K);
         edata = .;
-        sbss = .;
         .bss : {
-            *(.bss)
+            *(.bss.stack)
+            sbss = .;
+            *(.bss .bss.*)
         }
 
         . = ALIGN(4K);
         ebss = .;
-        .stack : {
-            *(.bss.stack)
-        }
-
         ekernel = .;
 
         /DISCARD/ : {
@@ -417,9 +414,9 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
 
 冒号前面表示最终生成的可执行文件的一个段的名字，花括号内按照放置顺序描述将所有输入目标文件的哪些段放在这个段中，每一行格式为 
 ``<ObjectFile>(SectionName)``，表示目标文件 ``ObjectFile`` 的名为 ``SectionName`` 的段需要被放进去。我们也可以
-使用通配符来书写 ``<ObjectFile>`` 部分表示所有可能的输入目标文件。因此，最终的合并结果是，在最终可执行文件中各个常见的段 
-``.text, .rodata .data, .bss`` 从低地址到高地址按顺序放置，每个段里面都包括了所有输入目标文件的同名段，且每个段都有两个全局符号
-给出了它的开始和结束地址（比如 ``.text`` 段的开始和结束地址分别是 ``stext`` 和 ``etext`` ）。
+使用通配符来书写 ``<ObjectFile>`` 和 ``<SectionName>`` 分别表示可能的输入目标文件和段名。因此，最终的合并结果是，在最终可执行文件
+中各个常见的段 ``.text, .rodata .data, .bss`` 从低地址到高地址按顺序放置，每个段里面都包括了所有输入目标文件的同名段，
+且每个段都有两个全局符号给出了它的开始和结束地址（比如 ``.text`` 段的开始和结束地址分别是 ``stext`` 和 ``etext`` ）。
 
 为了说明当前实现的正确性，我们需要讨论这样两个问题：
 
@@ -431,8 +428,9 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
 
 2. 应用函数调用所需的栈放在哪里？
 
-	在链接脚本第 39 行，我们为最终生成的可执行文件新增了一个名为 ``.stack`` 的段并将 ``entry.asm`` 中分配的栈空间对应的段 
-	``.bss.stack`` 放在里面。因此栈放在可执行文件中的 ``.stack`` 段中，并位于所有段中最高的地址。
+    从链接脚本第 32 行开始，我们可以看出 ``entry.asm`` 中分配的栈空间对应的段 ``.bss.stack`` 被放入到可执行文件中的 
+    ``.bss`` 段中的低地址中。在后面虽然有一个通配符 ``.bss.*`` ，但是由于链接脚本的优先匹配规则它并不会被匹配到后面去。
+    这里需要注意的是地址区间 :math:`[\text{sbss},\text{ebss})` 并不包括栈空间，其原因后面再进行说明。
 
 这样一来，我们就将运行时重建完毕了。在 ``os`` 目录下 ``cargo build --release`` 或者直接 ``make build`` 就能够看到
 最终生成的可执行文件 ``target/riscv64gc-unknown-none-elf/release/os`` 。

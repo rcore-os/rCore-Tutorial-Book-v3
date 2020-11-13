@@ -44,14 +44,14 @@
    Version:                           0x1
    Entry point address:               0x80020000
    Start of program headers:          64 (bytes into file)
-   Start of section headers:          9032 (bytes into file)
+   Start of section headers:          9016 (bytes into file)
    Flags:                             0x1, RVC, soft-float ABI
    Size of this header:               64 (bytes)
    Size of program headers:           56 (bytes)
    Number of program headers:         3
    Size of section headers:           64 (bytes)
-   Number of section headers:         9
-   Section header string table index: 7
+   Number of section headers:         8
+   Section header string table index: 6
 
 - 第 2 行是一个称之为 **魔数** (Magic) 独特的常数，存放在 ELF header 的一个固定位置。当加载器将 ELF 文件加载到内存之前，通常会查看
   该位置的值是否正确，来快速确认被加载的文件是不是一个 ELF 。
@@ -75,7 +75,7 @@
 
 每个 program header 指向一个在加载的时候可以连续加载的区域。
 
-一共有 9 个不同的 section header，它们从文件的 9032 字节开始，每个 64 字节：
+一共有 8 个不同的 section header，它们从文件的 9016 字节开始，每个 64 字节：
 
 .. code-block:: objdump
 
@@ -85,20 +85,18 @@
    [ 0]                   NULL             0000000000000000  00000000
          0000000000000000  0000000000000000           0     0     0
    [ 1] .text             PROGBITS         0000000080020000  00001000
-         0000000000000010  0000000000000000  AX       0     0     1
-   [ 2] .text.rust_main   PROGBITS         0000000080020010  00001010
-         000000000000000a  0000000000000000  AX       0     0     2
-   [ 3] .stack            NOBITS           0000000080021000  00002000
+         000000000000001a  0000000000000000  AX       0     0     2
+   [ 2] .bss              NOBITS           0000000080021000  00002000
          0000000000010000  0000000000000000  WA       0     0     1
-   [ 4] .riscv.attributes RISCV_ATTRIBUTE  0000000000000000  00002000
+   [ 3] .riscv.attributes RISCV_ATTRIBUTE  0000000000000000  00002000
          000000000000006a  0000000000000000           0     0     1
-   [ 5] .comment          PROGBITS         0000000000000000  0000206a
+   [ 4] .comment          PROGBITS         0000000000000000  0000206a
          0000000000000013  0000000000000001  MS       0     0     1
-   [ 6] .symtab           SYMTAB           0000000000000000  00002080
-         00000000000001c8  0000000000000018           8     4     8
-   [ 7] .shstrtab         STRTAB           0000000000000000  00002248
-         0000000000000053  0000000000000000           0     0     1
-   [ 8] .strtab           STRTAB           0000000000000000  0000229b
+   [ 5] .symtab           SYMTAB           0000000000000000  00002080
+         00000000000001c8  0000000000000018           7     4     8
+   [ 6] .shstrtab         STRTAB           0000000000000000  00002248
+         0000000000000041  0000000000000000           0     0     1
+   [ 7] .strtab           STRTAB           0000000000000000  00002289
          00000000000000ab  0000000000000000           0     0     1
    Key to Flags:
    W (write), A (alloc), X (execute), M (merge), S (strings), I (info),
@@ -110,9 +108,9 @@
 
 每个 section header 则描述一个段的元数据。
 
-其中，我们看到了代码段 ``.text/.text.rust_main`` 被放在可执行文件的 4096 字节处，大小 0x1a=26 字节，需要被加载到地址 ``0x80020000``。
-它们分别由元数据的字段 Offset、 Size 和 Address 给出。同理，我们自己预留的应用程序函数调用栈在 ``.stack`` 段中，大小为 :math:`64\text{KiB}`
-，需要被加载到地址 ``0x80021000`` 处。我们没有看到 ``.bss/.data/.rodata`` 等段，因为目前的 ``rust_main`` 里面没有任何东西。
+其中，我们看到了代码段 ``.text`` 被放在可执行文件的 4096 字节处，大小 0x1a=26 字节，需要被加载到地址 ``0x80020000``。
+它们分别由元数据的字段 Offset、 Size 和 Address 给出。同理，我们自己预留的应用程序函数调用栈在 ``.bss`` 段中，大小为 :math:`64\text{KiB}`
+，需要被加载到地址 ``0x80021000`` 处。我们没有看到 ``.data/.rodata`` 等段，因为目前的 ``rust_main`` 里面没有任何东西。
 
 我们还能够看到 ``.symtab`` 段中给出的符号表：
 
@@ -125,20 +123,20 @@
       2: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS os.78wp4f2l-cgu.1
       3: 0000000080020000     0 NOTYPE  LOCAL  DEFAULT    1 .Lpcrel_hi0
       4: 0000000080020000     0 NOTYPE  GLOBAL DEFAULT    1 _start
-      5: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    3 boot_stack
-      6: 0000000080031000     0 NOTYPE  GLOBAL DEFAULT    3 boot_stack_top
-      7: 0000000080020010    10 FUNC    GLOBAL DEFAULT    2 rust_main
+      5: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    2 boot_stack
+      6: 0000000080031000     0 NOTYPE  GLOBAL DEFAULT    2 boot_stack_top
+      7: 0000000080020010    10 FUNC    GLOBAL DEFAULT    1 rust_main
       8: 0000000080020000     0 NOTYPE  GLOBAL DEFAULT  ABS BASE_ADDRESS
       9: 0000000080020000     0 NOTYPE  GLOBAL DEFAULT    1 skernel
       10: 0000000080020000     0 NOTYPE  GLOBAL DEFAULT    1 stext
-      11: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    2 etext
-      12: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    2 srodata
-      13: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    2 erodata
-      14: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    2 sdata
-      15: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    2 edata
-      16: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    2 sbss
-      17: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    2 ebss
-      18: 0000000080031000     0 NOTYPE  GLOBAL DEFAULT    3 ekernel
+      11: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    1 etext
+      12: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    1 srodata
+      13: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    1 erodata
+      14: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    1 sdata
+      15: 0000000080021000     0 NOTYPE  GLOBAL DEFAULT    1 edata
+      16: 0000000080031000     0 NOTYPE  GLOBAL DEFAULT    2 sbss
+      17: 0000000080031000     0 NOTYPE  GLOBAL DEFAULT    2 ebss
+      18: 0000000080031000     0 NOTYPE  GLOBAL DEFAULT    2 ekernel
 
 里面包括了栈顶、栈底、rust_main 的地址以及我们在 ``linker.ld`` 中定义的各个段开始和结束地址。
 
@@ -219,6 +217,8 @@ qemu 平台
 - ``-bios`` 告诉 qemu 使用我们放在 ``bootloader`` 目录下的预编译版本作为 bootloader。
 - ``-device`` 则告诉 qemu 将二进制镜像加载到内存指定的位置。
 
+可以先输入 Ctrl+A ，再输入 X 来退出 qemu 终端。
+
 .. note::
 
    **使用 GDB 跟踪 qemu 的运行状态**
@@ -263,3 +263,60 @@ k210 平台
 - 第 16 行我们使用烧写工具 ``K210-BURNER`` 将合并后的镜像烧写到 k210 开发板的内存的 ``0x80000000`` 地址上。
   参数 ``K210-SERIALPORT`` 表示当前 OS 识别到的 k210 开发板的串口设备名。在 Ubuntu 平台上一般为 ``/dev/ttyUSB0``。
 - 第 17 行我们打开串口终端和 k210 开发板进行通信，可以通过键盘向 k210 开发板发送字符并在屏幕上看到 k210 开发板的字符输出。
+
+可以输入 Ctrl+] 退出 miniterm。
+
+手动清空 .bss 段
+----------------------------------
+
+由于 ``.bss`` 段需要在程序正式开始运行之前被固定初始化为零，因此在 ELF 文件中，为了节省磁盘空间，只会记录 ``.bss`` 段的位置而并不是
+有一块长度相等的全为零的数据。在内核将可执行文件加载到内存的时候，它需要负责将 ``.bss`` 所分配到的内存区域全部清零。而我们这里需要在
+应用程序 ``rust_main`` 中，在访问任何 ``.bss`` 段的全局数据之前手动将其清零。
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/main.rs
+    fn clear_bss() {
+        extern "C" {
+            fn sbss();
+            fn ebss();
+        }
+        (sbss as usize..ebss as usize).for_each(|a| {
+            unsafe { (a as *mut u8).write_volatile(0) }
+        });
+    }
+
+在程序内自己进行清零的时候，我们就不用去解析 ELF（此时也没有 ELF 可供解析）了，而是通过链接脚本 ``linker.ld`` 中给出的全局符号 
+``sbss`` 和 ``ebss`` 来确定 ``.bss`` 段的位置。
+
+.. note::
+
+    **Rust 小知识：外部符号引用**
+
+    extern "C" 可以引用一个外部的 C 函数接口（这意味着调用它的时候要遵从目标平台的 C 语言调用规范）。但我们这里只是引用位置标志
+    并将其转成 usize 获取它的地址。由此可以知道 ``.bss`` 段两端的地址。
+
+    **Rust 小知识：迭代器与闭包**
+
+    代码第 7 行用到了 Rust 的迭代器与闭包的语法，它们在很多情况下能够提高开发效率。如读者感兴趣的话也可以将其改写为等价的 for 
+    循环实现。
+
+.. warning::
+
+    **Rust Unsafe**
+
+    代码第 8 行，我们将 ``.bss`` 段内的一个地址转化为一个 **裸指针** (Raw Pointer)，并将它指向的值修改为 0。这在 C 语言中是
+    一种司空见惯的操作，但在 Rust 中我们需要将他包裹在 unsafe 块中。这是因为，Rust 认为对于裸指针的 **解引用** (Dereference) 
+    是一种 unsafe 行为。
+
+    相比 C 语言，Rust 进行了更多的语义约束来保证安全性（内存安全/类型安全/并发安全），这在编译期和运行期都有所体现。但在某些时候，
+    尤其是与底层硬件打交道的时候，在 Rust 的语义约束之内没法满足我们的需求，这个时候我们就需要将超出了 Rust 语义约束的行为包裹
+    在 unsafe 块中，告知编译器不需要对它进行完整的约束检查，而是由程序员自己负责保证它的安全性。当代码不能正常运行的时候，我们往往也是
+    最先去检查 unsafe 块中的代码，因为它没有受到编译器的保护，出错的概率更大。
+
+    C 语言中的指针相当于 Rust 中的裸指针，它无所不能但又太过于灵活，程序员对其不谨慎的使用常常会引起很多内存不安全问题，最常见的如
+    悬垂指针和多次回收的问题，Rust 编译器没法确认程序员对它的使用是否安全，因此将其划到 unsafe Rust 的领域。在 safe Rust 中，我们
+    有引用 ``&/&mut`` 以及各种功能各异的智能指针 ``Box<T>/RefCell<T>/Rc<T>`` 可以使用，只要按照 Rust 的规则来使用它们便可借助
+    编译器在编译期就解决很对潜在的内存不安全问题。
+

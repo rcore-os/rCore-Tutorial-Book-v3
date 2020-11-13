@@ -92,6 +92,7 @@
 <li class="toctree-l2 current"><a class="current reference internal" href="#">手动加载、运行应用程序</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#qemu">qemu 平台</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#k210">k210 平台</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bss">手动清空 .bss 段</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="5sbi-print.html">格式化输出</a></li>
@@ -219,14 +220,14 @@
 <span class="x">Version:                           0x1</span>
 <span class="hll"><span class="x">Entry point address:               0x80020000</span>
 </span><span class="hll"><span class="x">Start of program headers:          64 (bytes into file)</span>
-</span><span class="hll"><span class="x">Start of section headers:          9032 (bytes into file)</span>
+</span><span class="hll"><span class="x">Start of section headers:          9016 (bytes into file)</span>
 </span><span class="x">Flags:                             0x1, RVC, soft-float ABI</span>
 <span class="x">Size of this header:               64 (bytes)</span>
 <span class="x">Size of program headers:           56 (bytes)</span>
 <span class="hll"><span class="x">Number of program headers:         3</span>
 </span><span class="x">Size of section headers:           64 (bytes)</span>
-<span class="hll"><span class="x">Number of section headers:         9</span>
-</span><span class="x">Section header string table index: 7</span>
+<span class="hll"><span class="x">Number of section headers:         8</span>
+</span><span class="x">Section header string table index: 6</span>
 </pre></div>
 </td></tr></table></div>
 <ul class="simple">
@@ -249,27 +250,25 @@
 </pre></div>
 </div>
 <p>每个 program header 指向一个在加载的时候可以连续加载的区域。</p>
-<p>一共有 9 个不同的 section header，它们从文件的 9032 字节开始，每个 64 字节：</p>
+<p>一共有 8 个不同的 section header，它们从文件的 9016 字节开始，每个 64 字节：</p>
 <div class="highlight-objdump notranslate"><div class="highlight"><pre><span></span><span class="x">Section Headers:</span>
 <span class="x">[Nr] Name              Type             Address           Offset</span>
 <span class="x">      Size              EntSize          Flags  Link  Info  Align</span>
 <span class="x">[ 0]                   NULL             0000000000000000  00000000</span>
 <span class="x">      0000000000000000  0000000000000000           0     0     0</span>
 <span class="x">[ 1] .text             PROGBITS         0000000080020000  00001000</span>
-<span class="x">      0000000000000010  0000000000000000  AX       0     0     1</span>
-<span class="x">[ 2] .text.rust_main   PROGBITS         0000000080020010  00001010</span>
-<span class="x">      000000000000000a  0000000000000000  AX       0     0     2</span>
-<span class="x">[ 3] .stack            NOBITS           0000000080021000  00002000</span>
+<span class="x">      000000000000001a  0000000000000000  AX       0     0     2</span>
+<span class="x">[ 2] .bss              NOBITS           0000000080021000  00002000</span>
 <span class="x">      0000000000010000  0000000000000000  WA       0     0     1</span>
-<span class="x">[ 4] .riscv.attributes RISCV_ATTRIBUTE  0000000000000000  00002000</span>
+<span class="x">[ 3] .riscv.attributes RISCV_ATTRIBUTE  0000000000000000  00002000</span>
 <span class="x">      000000000000006a  0000000000000000           0     0     1</span>
-<span class="x">[ 5] .comment          PROGBITS         0000000000000000  0000206a</span>
+<span class="x">[ 4] .comment          PROGBITS         0000000000000000  0000206a</span>
 <span class="x">      0000000000000013  0000000000000001  MS       0     0     1</span>
-<span class="x">[ 6] .symtab           SYMTAB           0000000000000000  00002080</span>
-<span class="x">      00000000000001c8  0000000000000018           8     4     8</span>
-<span class="x">[ 7] .shstrtab         STRTAB           0000000000000000  00002248</span>
-<span class="x">      0000000000000053  0000000000000000           0     0     1</span>
-<span class="x">[ 8] .strtab           STRTAB           0000000000000000  0000229b</span>
+<span class="x">[ 5] .symtab           SYMTAB           0000000000000000  00002080</span>
+<span class="x">      00000000000001c8  0000000000000018           7     4     8</span>
+<span class="x">[ 6] .shstrtab         STRTAB           0000000000000000  00002248</span>
+<span class="x">      0000000000000041  0000000000000000           0     0     1</span>
+<span class="x">[ 7] .strtab           STRTAB           0000000000000000  00002289</span>
 <span class="x">      00000000000000ab  0000000000000000           0     0     1</span>
 <span class="x">Key to Flags:</span>
 <span class="x">W (write), A (alloc), X (execute), M (merge), S (strings), I (info),</span>
@@ -281,9 +280,9 @@
 </pre></div>
 </div>
 <p>每个 section header 则描述一个段的元数据。</p>
-<p>其中，我们看到了代码段 <code class="docutils literal notranslate"><span class="pre">.text/.text.rust_main</span></code> 被放在可执行文件的 4096 字节处，大小 0x1a=26 字节，需要被加载到地址 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code>。
-它们分别由元数据的字段 Offset、 Size 和 Address 给出。同理，我们自己预留的应用程序函数调用栈在 <code class="docutils literal notranslate"><span class="pre">.stack</span></code> 段中，大小为 <span class="math notranslate nohighlight">\(64\text{KiB}\)</span>
-，需要被加载到地址 <code class="docutils literal notranslate"><span class="pre">0x80021000</span></code> 处。我们没有看到 <code class="docutils literal notranslate"><span class="pre">.bss/.data/.rodata</span></code> 等段，因为目前的 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 里面没有任何东西。</p>
+<p>其中，我们看到了代码段 <code class="docutils literal notranslate"><span class="pre">.text</span></code> 被放在可执行文件的 4096 字节处，大小 0x1a=26 字节，需要被加载到地址 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code>。
+它们分别由元数据的字段 Offset、 Size 和 Address 给出。同理，我们自己预留的应用程序函数调用栈在 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段中，大小为 <span class="math notranslate nohighlight">\(64\text{KiB}\)</span>
+，需要被加载到地址 <code class="docutils literal notranslate"><span class="pre">0x80021000</span></code> 处。我们没有看到 <code class="docutils literal notranslate"><span class="pre">.data/.rodata</span></code> 等段，因为目前的 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 里面没有任何东西。</p>
 <p>我们还能够看到 <code class="docutils literal notranslate"><span class="pre">.symtab</span></code> 段中给出的符号表：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Symbol</span> <span class="n">table</span> <span class="s1">&#39;.symtab&#39;</span> <span class="n">contains</span> <span class="mi">19</span> <span class="n">entries</span><span class="p">:</span>
    <span class="n">Num</span><span class="p">:</span>    <span class="n">Value</span>          <span class="n">Size</span> <span class="n">Type</span>    <span class="n">Bind</span>   <span class="n">Vis</span>      <span class="n">Ndx</span> <span class="n">Name</span>
@@ -292,20 +291,20 @@
    <span class="mi">2</span><span class="p">:</span> <span class="mi">0000000000000000</span>     <span class="mi">0</span> <span class="n">FILE</span>    <span class="n">LOCAL</span>  <span class="n">DEFAULT</span>  <span class="n">ABS</span> <span class="n">os</span><span class="o">.</span><span class="mi">78</span><span class="n">wp4f2l</span><span class="o">-</span><span class="n">cgu</span><span class="o">.</span><span class="mi">1</span>
    <span class="mi">3</span><span class="p">:</span> <span class="mi">0000000080020000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">LOCAL</span>  <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="o">.</span><span class="n">Lpcrel_hi0</span>
    <span class="mi">4</span><span class="p">:</span> <span class="mi">0000000080020000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">_start</span>
-   <span class="mi">5</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">3</span> <span class="n">boot_stack</span>
-   <span class="mi">6</span><span class="p">:</span> <span class="mi">0000000080031000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">3</span> <span class="n">boot_stack_top</span>
-   <span class="mi">7</span><span class="p">:</span> <span class="mi">0000000080020010</span>    <span class="mi">10</span> <span class="n">FUNC</span>    <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">rust_main</span>
+   <span class="mi">5</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">boot_stack</span>
+   <span class="mi">6</span><span class="p">:</span> <span class="mi">0000000080031000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">boot_stack_top</span>
+   <span class="mi">7</span><span class="p">:</span> <span class="mi">0000000080020010</span>    <span class="mi">10</span> <span class="n">FUNC</span>    <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">rust_main</span>
    <span class="mi">8</span><span class="p">:</span> <span class="mi">0000000080020000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>  <span class="n">ABS</span> <span class="n">BASE_ADDRESS</span>
    <span class="mi">9</span><span class="p">:</span> <span class="mi">0000000080020000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">skernel</span>
    <span class="mi">10</span><span class="p">:</span> <span class="mi">0000000080020000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">stext</span>
-   <span class="mi">11</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">etext</span>
-   <span class="mi">12</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">srodata</span>
-   <span class="mi">13</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">erodata</span>
-   <span class="mi">14</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">sdata</span>
-   <span class="mi">15</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">edata</span>
-   <span class="mi">16</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">sbss</span>
-   <span class="mi">17</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">ebss</span>
-   <span class="mi">18</span><span class="p">:</span> <span class="mi">0000000080031000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">3</span> <span class="n">ekernel</span>
+   <span class="mi">11</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">etext</span>
+   <span class="mi">12</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">srodata</span>
+   <span class="mi">13</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">erodata</span>
+   <span class="mi">14</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">sdata</span>
+   <span class="mi">15</span><span class="p">:</span> <span class="mi">0000000080021000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">1</span> <span class="n">edata</span>
+   <span class="mi">16</span><span class="p">:</span> <span class="mi">0000000080031000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">sbss</span>
+   <span class="mi">17</span><span class="p">:</span> <span class="mi">0000000080031000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">ebss</span>
+   <span class="mi">18</span><span class="p">:</span> <span class="mi">0000000080031000</span>     <span class="mi">0</span> <span class="n">NOTYPE</span>  <span class="n">GLOBAL</span> <span class="n">DEFAULT</span>    <span class="mi">2</span> <span class="n">ekernel</span>
 </pre></div>
 </div>
 <p>里面包括了栈顶、栈底、rust_main 的地址以及我们在 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中定义的各个段开始和结束地址。</p>
@@ -398,6 +397,7 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">-bios</span></code> 告诉 qemu 使用我们放在 <code class="docutils literal notranslate"><span class="pre">bootloader</span></code> 目录下的预编译版本作为 bootloader。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-device</span></code> 则告诉 qemu 将二进制镜像加载到内存指定的位置。</p></li>
 </ul>
+<p>可以先输入 Ctrl+A ，再输入 X 来退出 qemu 终端。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>使用 GDB 跟踪 qemu 的运行状态</strong></p>
@@ -454,6 +454,60 @@
 参数 <code class="docutils literal notranslate"><span class="pre">K210-SERIALPORT</span></code> 表示当前 OS 识别到的 k210 开发板的串口设备名。在 Ubuntu 平台上一般为 <code class="docutils literal notranslate"><span class="pre">/dev/ttyUSB0</span></code>。</p></li>
 <li><p>第 17 行我们打开串口终端和 k210 开发板进行通信，可以通过键盘向 k210 开发板发送字符并在屏幕上看到 k210 开发板的字符输出。</p></li>
 </ul>
+<p>可以输入 Ctrl+] 退出 miniterm。</p>
+</div>
+<div class="section" id="bss">
+<h2>手动清空 .bss 段<a class="headerlink" href="#bss" title="永久链接至标题">¶</a></h2>
+<p>由于 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段需要在程序正式开始运行之前被固定初始化为零，因此在 ELF 文件中，为了节省磁盘空间，只会记录 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的位置而并不是
+有一块长度相等的全为零的数据。在内核将可执行文件加载到内存的时候，它需要负责将 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 所分配到的内存区域全部清零。而我们这里需要在
+应用程序 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 中，在访问任何 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的全局数据之前手动将其清零。</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
+<span class="k">fn</span> <span class="nf">clear_bss</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">fn</span> <span class="nf">sbss</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="k">fn</span> <span class="nf">ebss</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">(</span><span class="n">sbss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="o">..</span><span class="n">ebss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">for_each</span><span class="p">(</span><span class="o">|</span><span class="n">a</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">});</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>在程序内自己进行清零的时候，我们就不用去解析 ELF（此时也没有 ELF 可供解析）了，而是通过链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中给出的全局符号
+<code class="docutils literal notranslate"><span class="pre">sbss</span></code> 和 <code class="docutils literal notranslate"><span class="pre">ebss</span></code> 来确定 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的位置。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>Rust 小知识：外部符号引用</strong></p>
+<p>extern “C” 可以引用一个外部的 C 函数接口（这意味着调用它的时候要遵从目标平台的 C 语言调用规范）。但我们这里只是引用位置标志
+并将其转成 usize 获取它的地址。由此可以知道 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段两端的地址。</p>
+<p><strong>Rust 小知识：迭代器与闭包</strong></p>
+<p>代码第 7 行用到了 Rust 的迭代器与闭包的语法，它们在很多情况下能够提高开发效率。如读者感兴趣的话也可以将其改写为等价的 for
+循环实现。</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">警告</p>
+<p><strong>Rust Unsafe</strong></p>
+<p>代码第 8 行，我们将 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段内的一个地址转化为一个 <strong>裸指针</strong> (Raw Pointer)，并将它指向的值修改为 0。这在 C 语言中是
+一种司空见惯的操作，但在 Rust 中我们需要将他包裹在 unsafe 块中。这是因为，Rust 认为对于裸指针的 <strong>解引用</strong> (Dereference)
+是一种 unsafe 行为。</p>
+<p>相比 C 语言，Rust 进行了更多的语义约束来保证安全性（内存安全/类型安全/并发安全），这在编译期和运行期都有所体现。但在某些时候，
+尤其是与底层硬件打交道的时候，在 Rust 的语义约束之内没法满足我们的需求，这个时候我们就需要将超出了 Rust 语义约束的行为包裹
+在 unsafe 块中，告知编译器不需要对它进行完整的约束检查，而是由程序员自己负责保证它的安全性。当代码不能正常运行的时候，我们往往也是
+最先去检查 unsafe 块中的代码，因为它没有受到编译器的保护，出错的概率更大。</p>
+<p>C 语言中的指针相当于 Rust 中的裸指针，它无所不能但又太过于灵活，程序员对其不谨慎的使用常常会引起很多内存不安全问题，最常见的如
+悬垂指针和多次回收的问题，Rust 编译器没法确认程序员对它的使用是否安全，因此将其划到 unsafe Rust 的领域。在 safe Rust 中，我们
+有引用 <code class="docutils literal notranslate"><span class="pre">&amp;/&amp;mut</span></code> 以及各种功能各异的智能指针 <code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;/RefCell&lt;T&gt;/Rc&lt;T&gt;</span></code> 可以使用，只要按照 Rust 的规则来使用它们便可借助
+编译器在编译期就解决很对潜在的内存不安全问题。</p>
+</div>
 </div>
 </div>
 
