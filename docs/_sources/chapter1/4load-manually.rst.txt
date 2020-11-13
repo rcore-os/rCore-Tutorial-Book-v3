@@ -219,11 +219,9 @@ qemu 平台
 
 可以先输入 Ctrl+A ，再输入 X 来退出 qemu 终端。
 
-.. note::
+.. warning::
 
-   **使用 GDB 跟踪 qemu 的运行状态**
-
-   TODO
+   **FIXME： 使用 GDB 跟踪 qemu 的运行状态**
 
 
 k210 平台
