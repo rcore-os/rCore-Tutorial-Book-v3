@@ -36,6 +36,16 @@ extensions = [
     "sphinx_comments"
 ]
 
+comments_config = {
+   "utterances": {
+       "repo": "rcore-os/rCore-Tutorial-Book-v3",
+       "issue-term": "pathname",
+       "label": "comments",
+       "theme": "github-light",
+       "crossorigin": "anonymous",
+   }
+}
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -57,12 +67,3 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-comments_config = {
-   "utterances": {
-       "repo": "rcore-os/rCore-Tutorial-Book-v3",
-       "issue-term": "pathname",
-       "label": "comments",
-       "theme": "github-light",
-       "crossorigin": "anonymous",
-   }
-}

@@ -32,5 +32,13 @@ rCore-Tutorial-Book 第三版
 
 欢迎来到 rCore-Tutorial-Book 第三版！
 
+读者须知
+---------------------
+
+请先按照 :doc:`/quickstart` 中的说明完成环境配置，再从第一章开始阅读正文。
+
+项目协作
+----------------------
+
 请参考 :doc:`/collaboration` 了解如何进行项目协作。
 
