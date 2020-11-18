@@ -7,8 +7,8 @@
 
    1what-is-os
    2why-os
-   3book-overview
-   4summary
+   3hello-world
+   4book-overview
    5extend-reading
 
 
