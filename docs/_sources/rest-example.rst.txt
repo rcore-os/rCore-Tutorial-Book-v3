@@ -42,3 +42,21 @@ reStructuredText 基本语法
 下面是一个测试 gif。
 
 .. image:: test.gif
+
+接下来是一个表格的例子。
+
+.. list-table:: RISC-V 函数调用跳转指令
+   :widths: 20 30
+   :header-rows: 1
+   :align: center
+
+   * - 指令
+     - 指令功能
+   * - :math:`\text{jal}\ \text{rd},\ \text{imm}[20:1]`
+     - :math:`\text{rd}\leftarrow\text{pc}+4`
+
+       :math:`\text{pc}\leftarrow\text{pc}+\text{imm}`
+   * - :math:`\text{jalr}\ \text{rd},\ (\text{imm}[11:0])\text{rs}`
+     - :math:`\text{rd}\leftarrow\text{pc}+4`
+       
+       :math:`\text{pc}\leftarrow\text{rs}+\text{imm}`
