@@ -143,3 +143,73 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 第 4 行开始，我们使用 Rust 提供的 ``llvm_asm!`` 宏在代码中内嵌汇编，在本行也给出了具体要插入的汇编指令，也就是 ``ecall``，但这并不是
 全部，后面我们还需要进行一些相关设置。这个宏在 Rust 中还不稳定，因此我们需要在 ``lib.rs`` 开头加入 ``#![feature(llvm_asm)]`` 。
 此外，编译器无法判定插入汇编代码这个行为的安全性，所以我们需要将其包裹在 unsafe 块中自己来对它负责。
+
+Rust 中的 ``llvm_asm!`` 宏的完整格式如下：
+
+.. code-block:: rust
+
+   llvm_asm!(assembly template
+      : output operands
+      : input operands
+      : clobbers
+      : options
+   );
+
+下面逐行进行说明。
+
+第 5 行指定输出操作数。这里由于我们的系统调用返回值只有一个 ``isize`` ，根据调用规范它会被保存在 ``a0`` 寄存器中。在双引号内，我们
+可以对于使用的操作数进行限制，由于是输出部分，限制的开头必须是一个 ``=`` 。我们可以在限制内使用一对花括号再加上一个寄存器的名字告诉
+编译器汇编的输出结果会保存在这个寄存器中。我们将声明出来用来保存系统调用返回值的变量 ``ret`` 包在一对普通括号里面放在操作数限制的
+后面，这样可以把变量和寄存器建立联系。于是，在系统调用返回之后我们就能在变量 ``ret`` 中看到返回值了。注意，变量 ``ret`` 必须为可变
+绑定，否则无法通过编译，这也说明在 unsafe 块内编译器还是会进行力所能及的安全检查。
+
+第 6 行指定输入操作数。由于是输入部分，限制的开头不用加上 ``=`` 。同时在限制中设置使用寄存器 ``a0~a2`` 来保存系统调用的参数，以及
+寄存器 ``a7`` 保存 syscall ID ，而它们分别 ``syscall`` 的参数变量 ``args`` 和 ``id`` 绑定。
+
+第 7 行用于告知编译器插入的汇编代码会造成的一些影响以防止编译器在不知情的情况下误优化。常用的使用方法是告知编译器某个寄存器在执行嵌入
+的汇编代码中的过程中会发生变化。我们这里则是告诉编译器在执行嵌入汇编代码中的时候会修改内存。这能给编译器提供更多信息。
+
+第 8 行用于告知编译器将我们在程序中给出的嵌入汇编代码保持原样放到最终构建的可执行文件中。如果不这样做的话，编译器可能会把它和其他代码
+一视同仁并放在一起进行一些我们期望之外的优化。为了保证语义的正确性，一些比较关键的汇编代码需要加上该选项。
+
+.. note::
+
+   **Rust 中的内联汇编**
+
+   我们这里使用的 ``llvm_asm!`` 宏是将 Rust 底层 IR LLVM 中提供的内联汇编包装成的，更多信息可以参考 `llvm_asm 文档 <https://doc.rust-lang.org/unstable-book/library-features/llvm-asm.html>`_ 。 
+
+   在未来的 Rust 版本推荐使用功能更加强大且方便易用的 ``asm!`` 宏，但是目前还未稳定，可以查看 `inline-asm RFC <https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html>`_ 了解最新进展。
+
+于是 ``sys_write`` 和 ``sys_exit`` 只需将 ``syscall`` 进行包装：
+
+.. code-block:: rust
+    :linenos:
+
+    const SYSCALL_WRITE: usize = 64;
+    const SYSCALL_EXIT: usize = 93;
+
+    pub fn sys_write(fd: usize, buffer: &[u8]) -> isize {
+        syscall(SYSCALL_WRITE, [fd, buffer.as_ptr() as usize, buffer.len()])
+    }
+
+    pub fn sys_exit(xstate: i32) -> isize {
+        syscall(SYSCALL_EXIT, [xstate as usize, 0, 0])
+    }
+
+注意 ``sys_write`` 使用一个 ``&[u8]`` 切片类型来描述缓冲区，这是一个 **胖指针** (Fat Pointer)，里面既包含缓冲区的起始地址，还
+包含缓冲区的长度。我们可以分别通过 ``as_ptr`` 和 ``len`` 方法取出它们并独立的作为实际的系统调用参数。
+
+我们把 ``console`` 子模块中 ``Stdout::write_str`` 改成基于 ``sys_write`` 的实现，且传入的 ``fd`` 参数设置为 1，它代表标准输出，
+也就是输出到屏幕。目前我们不需要考虑其他的 ``fd`` 选取情况。这样，应用程序的 ``println!`` 宏借助系统调用变得可用了。
+
+``sys_exit`` 则在用户库中的 ``_start`` 内使用，当应用程序主逻辑 ``main`` 返回之后，使用该系统调用退出应用程序并将返回值告知
+底层的批处理系统。
+
+自动构建
+-----------------------
+
+这里简要介绍一下应用程序的自动构建。只需要在 ``user`` 目录下 ``make build`` 即可：
+
+1. 对于 ``src/bin`` 下的每个应用程序，在 ``target/riscv64gc-unknown-none-elf/release`` 目录下生成一个同名的 ELF 可执行文件；
+2. 使用 objcopy 二进制工具将上一步中生成的 ELF 文件删除所有 ELF header 和符号得到 ``.bin`` 后缀的纯二进制镜像文件。它们将被链接
+   进内核并由内核在合适的时机加载到内存。
