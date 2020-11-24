@@ -14,6 +14,7 @@ rCore-Tutorial-Book 第三版
    quickstart
    chapter1/index
    chapter2/index
+   chapter3/index
 
 .. toctree::
    :maxdepth: 2

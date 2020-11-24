@@ -131,6 +131,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="4trap-handling.html">处理 Trap</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：分时多任务系统</a></li>
 </ul>
 <p class="caption"><span class="caption-text">附录</span></p>
 <ul>
@@ -359,7 +360,10 @@ U 模式的应用程序之间的接口被称为 <strong>应用程序二进制接
 就必须寻求高特权级软件的帮助。因此，在一条执行流中我们经常能够看到特权级切换。如下图所示：</p>
 <img alt="../_images/EnvironmentCallFlow.png" class="align-center" src="../_images/EnvironmentCallFlow.png" />
 <p>其他的异常则一般是在执行某一条指令的时候发生了错误，需要将控制转交给高特权级软件：当错误可恢复的时候，则处理错误并重新回到上层软件的执行；
-否则，一般会将上层软件杀死以避免破坏执行环境。</p>
+否则，一般会将上层软件杀死以避免破坏执行环境。非法指令错误就可以在某种程度上实现特权级保护机制。通用寄存器 <code class="docutils literal notranslate"><span class="pre">x0~x31</span></code> 在任何特权级
+都可以任意访问，而每个特权级都对应一些特殊的 <strong>控制状态寄存器</strong> (CSR, Control and Status Register) 来控制该特权级的某些行为并描述
+其状态， 它们必须通过特殊的特权指令才能够访问。当然特权指令不只有读写 CSR 这一种用途，还有其他功能的特权指令。当我们在低特权级使用高特权级
+的特权指令时就会触发非法指令异常，于是位于高特权级的执行环境能够得知上层软件出现了该错误，这个错误一般是不可恢复的，于是它会将上层软件终止。</p>
 <p>第一章只是一个简单的嵌入式应用，它全程运行在 M 模式下。而在后续的章节中，我们会用到 M/S/U 三种特权级：其中我们的内核运行在 S 模式下
 （在本章表现为一个简单的批处理系统），应用程序运行在 U 特权级下，第一章提到的预编译的 bootloader 实际上是运行在 M 模式下的 SEE。
 整个系统就由这三层运行在不同特权级下的不同软件组成。在特权级相关机制方面，本书正文中我们重点关心 S/U 特权级， M 特权级的机制细节则
