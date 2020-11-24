@@ -20,6 +20,9 @@ rCore-Tutorial-Book 第三版
    :caption: 附录
    :hidden:
 
+   appendix-a/index
+   appendix-b/index
+   appendix-c/index
 
 .. toctree::
    :maxdepth: 2
