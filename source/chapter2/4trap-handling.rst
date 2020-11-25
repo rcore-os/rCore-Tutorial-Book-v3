@@ -99,7 +99,110 @@ Trap 的硬件机制
 
 - ``sstatus`` 的 ``SPP`` 字段会被修改为 CPU 当前的特权级（U/S）。
 - ``sepc`` 会被修改为 Trap 回来之后默认会执行的下一条指令的地址。当 Trap 是一个异常的时候，它实际会被修改成 Trap 之前执行的最后一条
-  指令的地址；如果是中断的话，则会被修改成 Trap 之前执行的最后一条指令的下一条指令的地址。
+  指令的地址。
+- ``scause/stval`` 分别会被修改成这次 Trap 的原因以及相关的附加信息。
+- CPU 会跳转到 ``stvec`` 所设置的 Trap 处理入口地址，并将当前特权级设置为 S ，然后开始向下执行。
+
+.. note::
+
+   **stvec 相关细节**
+
+   在 RV64 中， ``stvec`` 是一个 64 位的 CSR，它有两个字段：
+
+   - MODE 位于 [1:0]，长度为 2 个比特；
+   - BASE 位于 [63:2]，长度为 62 个比特。
+
+   当 MODE 字段为 0 的时候， ``stvec`` 被设置为 Direct 模式，此时进入 S 的 Trap 无论原因如何，处理 Trap 的入口地址都是 BASE 
+   字段， CPU 会跳转到这个地方。本书中我们只会将 ``stvec`` 设置为 Direct 模式。而 ``stvec`` 还可以被设置为 Vectored 模式，
+   有兴趣的读者可以自行参考 RISC-V 指令集特权级规范。
+
+而当 CPU 完成 Trap 处理准备返回的时候，需要通过一条 S 特权级的特权指令 ``sret`` ，这一条指令就能同时完成以下功能：
+
+- CPU 会将当前的特权级按照 ``sstatus`` 的 ``SPP`` 字段设置为 U 或者 S ；
+- CPU 会跳转到 ``sepc`` 寄存器指向的那条指令，然后开始向下执行。
+
+从上面可以看出硬件主要负责特权级切换、跳转到正确的处理入口（要经过我们的设置才能正确）以及在 CSR 中保存一些只有硬件才能探测到的 Trap 
+相关信息。这基本上都是硬件不得不完成的事情，剩下的工作都交给软件，让软件能有更大的灵活性。
+
+软件实现执行流切换
+--------------------------------
+
+在 Trap 触发的一瞬间， CPU 就会切换到 S 特权级并跳转到 ``stvec`` 所指示的位置。但是在正式进入 S 特权级的 Trap 处理之前，上面
+提到过我们必须保存原执行流的寄存器状态，还需要换栈。我们在一个作为用户栈的特别留出的内存区域上保存应用程序执行流的历史信息，而 Trap 
+执行流则使用另一个内核栈。这样使用两个不同的栈是为了安全性：如果两个执行流使用同一个栈，在返回之后应用程序就有能力看到 Trap 执行流的
+历史信息，比如内核一些函数的地址，这样会带来安全隐患。于是，我们要做的是，在批处理系统中加入一段汇编代码中，实现从用户栈切换到内核栈，
+并在内核栈上保存应用程序执行流的寄存器状态。
+
+我们声明两个类型 ``KernelStack`` 和 ``UserStack`` 分别表示用户栈和内核栈，它们都只是字节数组的简单包装：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/batch.rs
+
+    const USER_STACK_SIZE: usize = 4096 * 2;
+    const KERNEL_STACK_SIZE: usize = 4096 * 2;
+
+    #[repr(align(4096))]
+    struct KernelStack {
+        data: [u8; KERNEL_STACK_SIZE],
+    }
+
+    #[repr(align(4096))]
+    struct UserStack {
+        data: [u8; USER_STACK_SIZE],
+    }
+
+    static KERNEL_STACK: KernelStack = KernelStack { data: [0; KERNEL_STACK_SIZE] };
+    static USER_STACK: UserStack = UserStack { data: [0; USER_STACK_SIZE] };
+
+常数 ``USER_STACK_SIZE`` 和 ``KERNEL_STACK_SIZE`` 指出内核栈和用户栈的大小分别为 :math:`8\text{KiB}` 。两个类型是以全局变量
+的形式实例化在批处理系统的 ``.bss`` 段中的。
+
+我们为两个类型实现了 ``get_sp`` 方法来获取栈顶地址。由于在 RISC-V 中栈是向下增长的，我们只需返回包裹的数组的终止地址，以用户栈
+类型 ``UserStack`` 为例：
+
+.. code-block:: rust
+    :linenos:
+
+    impl UserStack {
+        fn get_sp(&self) -> usize {
+            self.data.as_ptr() as usize + USER_STACK_SIZE
+        }
+    }
+
+于是换栈是非常简单的，只需将 ``sp`` 寄存器的值修改为 ``get_sp`` 的返回值即可。
+
+接下来是寄存器状态。类比函数调用上下文，我们也定义在 Trap 前后原执行流需要保存不变的寄存器集合为 Trap 上下文，并将其一起放在一个名为 
+``TrapContext`` 的类型中，定义如下：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/trap/context.rs
+
+    #[repr(C)]
+    pub struct TrapContext {
+        pub x: [usize; 32],
+        pub sstatus: Sstatus,
+        pub sepc: usize,
+    }
+
+可以看到里面包含所有的通用寄存器 ``x0~x31`` ，还有 ``sstatus`` 和 ``sepc`` 。那么为什么需要保存它们呢？
+
+- 对于通用寄存器而言，两条执行流运行在不同的特权级，所属的软件也可能有不同的编程语言编写，虽然在 Trap 执行流只是会执行 Trap 处理
+  相关的代码，但依然可能直接或间接调用很多模块，因此很难甚至不可能找出哪些寄存器无需保存。既然如此我们就只能全部保存了。但这里也有一些例外，
+  如 ``x0`` 被硬编码为 0 ，它自然不会有变化；还有 ``tp(x4)`` 除非我们手动出于一些特殊用途使用它，否则一般也不会被用到。它们无需保存，
+  但我们仍然在 ``TrapContext`` 中为它们预留空间，主要是为了后续的实现方便。
+- 对于 CSR 而言，我们知道进入 Trap 的时候，硬件会立即覆盖掉 ``scause/stval/sstatus/sepc`` 的全部或是其中一部分。``scause/stval`` 
+  的情况是：它总是在 Trap 处理的第一时间就被使用或者是在其他地方保存下来了，因此它没有被覆盖掉使得内容丢失造成不良影响的风险。
+  而对于 ``sstatus/sepc`` 而言，它们会在 Trap 处理的全程有意义（在 Trap 执行流最后 ``sret`` 的时候还用到了它们），而且确实会出现 
+  Trap 嵌套的情况使得它们的值被覆盖掉。所以我们需要将它们也一起保存下来，并在 ``sret`` 之前恢复原样。
+
+接下来我们具体实现 Trap 上下文保存和恢复的汇编代码。
+
+Trap 上下文保存与恢复
+----------------------------------------------------
 
 .. 
    马老师发生甚么事了？

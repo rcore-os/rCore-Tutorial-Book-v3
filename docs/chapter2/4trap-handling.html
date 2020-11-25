@@ -128,6 +128,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="3batch-system.html">实现批处理系统</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">处理 Trap</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id1">Trap 的硬件机制</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">软件实现执行流切换</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">Trap 上下文保存与恢复</a></li>
 </ul>
 </li>
 </ul>
@@ -229,8 +231,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>在 RISC-V 架构中，关于 Trap 有一条重要的规则：在 Trap 前后特权级不会下降。因此如果触发 Trap 之后切换到 S 特权级（下称 Trap 到 S），
 说明 Trap 发生之前 CPU 只能运行在 S/U 特权级。但无论如何，只要是 Trap 到 S，硬件就会使用 S 特权级与 Trap 相关的 CSR 来辅助 Trap
 处理。我们在编写运行在 S 特权级的批处理系统中的 Trap 处理相关代码的时候，也需要使用它们。</p>
-<table class="colwidths-given docutils align-center" id="id2">
-<caption><span class="caption-text">进入 S 特权级 Trap 的相关 CSR</span><a class="headerlink" href="#id2" title="永久链接至表格">¶</a></caption>
+<table class="colwidths-given docutils align-center" id="id4">
+<caption><span class="caption-text">进入 S 特权级 Trap 的相关 CSR</span><a class="headerlink" href="#id4" title="永久链接至表格">¶</a></caption>
 <colgroup>
 <col style="width: 23%" />
 <col style="width: 77%" />
@@ -305,6 +307,127 @@ CSR，比如 CPU 所在的特权级。我们要保证它们的变化在我们的
 <p>执行流切换的相关机制一部分由硬件帮我们完成，另一部分则需要由我们自己软件实现。</p>
 <div class="section" id="id1">
 <h2>Trap 的硬件机制<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
+<p>当 CPU 执行完一条指令并准备 Trap 到 S 特权级的时候，硬件会自动帮我们做这些事情：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 的 <code class="docutils literal notranslate"><span class="pre">SPP</span></code> 字段会被修改为 CPU 当前的特权级（U/S）。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sepc</span></code> 会被修改为 Trap 回来之后默认会执行的下一条指令的地址。当 Trap 是一个异常的时候，它实际会被修改成 Trap 之前执行的最后一条
+指令的地址。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scause/stval</span></code> 分别会被修改成这次 Trap 的原因以及相关的附加信息。</p></li>
+<li><p>CPU 会跳转到 <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 所设置的 Trap 处理入口地址，并将当前特权级设置为 S ，然后开始向下执行。</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>stvec 相关细节</strong></p>
+<p>在 RV64 中， <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 是一个 64 位的 CSR，它有两个字段：</p>
+<ul class="simple">
+<li><p>MODE 位于 [1:0]，长度为 2 个比特；</p></li>
+<li><p>BASE 位于 [63:2]，长度为 62 个比特。</p></li>
+</ul>
+<p>当 MODE 字段为 0 的时候， <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 被设置为 Direct 模式，此时进入 S 的 Trap 无论原因如何，处理 Trap 的入口地址都是 BASE
+字段， CPU 会跳转到这个地方。本书中我们只会将 <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 设置为 Direct 模式。而 <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 还可以被设置为 Vectored 模式，
+有兴趣的读者可以自行参考 RISC-V 指令集特权级规范。</p>
+</div>
+<p>而当 CPU 完成 Trap 处理准备返回的时候，需要通过一条 S 特权级的特权指令 <code class="docutils literal notranslate"><span class="pre">sret</span></code> ，这一条指令就能同时完成以下功能：</p>
+<ul class="simple">
+<li><p>CPU 会将当前的特权级按照 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 的 <code class="docutils literal notranslate"><span class="pre">SPP</span></code> 字段设置为 U 或者 S ；</p></li>
+<li><p>CPU 会跳转到 <code class="docutils literal notranslate"><span class="pre">sepc</span></code> 寄存器指向的那条指令，然后开始向下执行。</p></li>
+</ul>
+<p>从上面可以看出硬件主要负责特权级切换、跳转到正确的处理入口（要经过我们的设置才能正确）以及在 CSR 中保存一些只有硬件才能探测到的 Trap
+相关信息。这基本上都是硬件不得不完成的事情，剩下的工作都交给软件，让软件能有更大的灵活性。</p>
+</div>
+<div class="section" id="id2">
+<h2>软件实现执行流切换<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>在 Trap 触发的一瞬间， CPU 就会切换到 S 特权级并跳转到 <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 所指示的位置。但是在正式进入 S 特权级的 Trap 处理之前，上面
+提到过我们必须保存原执行流的寄存器状态，还需要换栈。我们在一个作为用户栈的特别留出的内存区域上保存应用程序执行流的历史信息，而 Trap
+执行流则使用另一个内核栈。这样使用两个不同的栈是为了安全性：如果两个执行流使用同一个栈，在返回之后应用程序就有能力看到 Trap 执行流的
+历史信息，比如内核一些函数的地址，这样会带来安全隐患。于是，我们要做的是，在批处理系统中加入一段汇编代码中，实现从用户栈切换到内核栈，
+并在内核栈上保存应用程序执行流的寄存器状态。</p>
+<p>我们声明两个类型 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> 和 <code class="docutils literal notranslate"><span class="pre">UserStack</span></code> 分别表示用户栈和内核栈，它们都只是字节数组的简单包装：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/batch.rs</span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">USER_STACK_SIZE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">4096</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"></span>
+<span class="k">const</span><span class="w"> </span><span class="n">KERNEL_STACK_SIZE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">4096</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#[repr(align(4096))]</span><span class="w"></span>
+<span class="k">struct</span> <span class="nc">KernelStack</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">data</span>: <span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="n">KERNEL_STACK_SIZE</span><span class="p">],</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="cp">#[repr(align(4096))]</span><span class="w"></span>
+<span class="k">struct</span> <span class="nc">UserStack</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">data</span>: <span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="n">USER_STACK_SIZE</span><span class="p">],</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">static</span><span class="w"> </span><span class="n">KERNEL_STACK</span>: <span class="nc">KernelStack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KernelStack</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">data</span>: <span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">KERNEL_STACK_SIZE</span><span class="p">]</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
+<span class="k">static</span><span class="w"> </span><span class="n">USER_STACK</span>: <span class="nc">UserStack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UserStack</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">data</span>: <span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">USER_STACK_SIZE</span><span class="p">]</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>常数 <code class="docutils literal notranslate"><span class="pre">USER_STACK_SIZE</span></code> 和 <code class="docutils literal notranslate"><span class="pre">KERNEL_STACK_SIZE</span></code> 指出内核栈和用户栈的大小分别为 <span class="math notranslate nohighlight">\(8\text{KiB}\)</span> 。两个类型是以全局变量
+的形式实例化在批处理系统的 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段中的。</p>
+<p>我们为两个类型实现了 <code class="docutils literal notranslate"><span class="pre">get_sp</span></code> 方法来获取栈顶地址。由于在 RISC-V 中栈是向下增长的，我们只需返回包裹的数组的终止地址，以用户栈
+类型 <code class="docutils literal notranslate"><span class="pre">UserStack</span></code> 为例：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">impl</span><span class="w"> </span><span class="n">UserStack</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">get_sp</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">USER_STACK_SIZE</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>于是换栈是非常简单的，只需将 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器的值修改为 <code class="docutils literal notranslate"><span class="pre">get_sp</span></code> 的返回值即可。</p>
+<p>接下来是寄存器状态。类比函数调用上下文，我们也定义在 Trap 前后原执行流需要保存不变的寄存器集合为 Trap 上下文，并将其一起放在一个名为
+<code class="docutils literal notranslate"><span class="pre">TrapContext</span></code> 的类型中，定义如下：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/trap/context.rs</span>
+
+<span class="cp">#[repr(C)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TrapContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">x</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">32</span><span class="p">],</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">sstatus</span>: <span class="nc">Sstatus</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">sepc</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>可以看到里面包含所有的通用寄存器 <code class="docutils literal notranslate"><span class="pre">x0~x31</span></code> ，还有 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sepc</span></code> 。那么为什么需要保存它们呢？</p>
+<ul class="simple">
+<li><p>对于通用寄存器而言，两条执行流运行在不同的特权级，所属的软件也可能有不同的编程语言编写，虽然在 Trap 执行流只是会执行 Trap 处理
+相关的代码，但依然可能直接或间接调用很多模块，因此很难甚至不可能找出哪些寄存器无需保存。既然如此我们就只能全部保存了。但这里也有一些例外，
+如 <code class="docutils literal notranslate"><span class="pre">x0</span></code> 被硬编码为 0 ，它自然不会有变化；还有 <code class="docutils literal notranslate"><span class="pre">tp(x4)</span></code> 除非我们手动出于一些特殊用途使用它，否则一般也不会被用到。它们无需保存，
+但我们仍然在 <code class="docutils literal notranslate"><span class="pre">TrapContext</span></code> 中为它们预留空间，主要是为了后续的实现方便。</p></li>
+<li><p>对于 CSR 而言，我们知道进入 Trap 的时候，硬件会立即覆盖掉 <code class="docutils literal notranslate"><span class="pre">scause/stval/sstatus/sepc</span></code> 的全部或是其中一部分。<code class="docutils literal notranslate"><span class="pre">scause/stval</span></code>
+的情况是：它总是在 Trap 处理的第一时间就被使用或者是在其他地方保存下来了，因此它没有被覆盖掉使得内容丢失造成不良影响的风险。
+而对于 <code class="docutils literal notranslate"><span class="pre">sstatus/sepc</span></code> 而言，它们会在 Trap 处理的全程有意义（在 Trap 执行流最后 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 的时候还用到了它们），而且确实会出现
+Trap 嵌套的情况使得它们的值被覆盖掉。所以我们需要将它们也一起保存下来，并在 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 之前恢复原样。</p></li>
+</ul>
+<p>接下来我们具体实现 Trap 上下文保存和恢复的汇编代码。</p>
+</div>
+<div class="section" id="id3">
+<h2>Trap 上下文保存与恢复<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
 </div>
 </div>
 
