@@ -199,6 +199,8 @@ Rust 中的 ``llvm_asm!`` 宏的完整格式如下：
         syscall(SYSCALL_EXIT, [xstate as usize, 0, 0])
     }
 
+.. _term-fat-pointer:
+
 注意 ``sys_write`` 使用一个 ``&[u8]`` 切片类型来描述缓冲区，这是一个 **胖指针** (Fat Pointer)，里面既包含缓冲区的起始地址，还
 包含缓冲区的长度。我们可以分别通过 ``as_ptr`` 和 ``len`` 方法取出它们并独立的作为实际的系统调用参数。
 

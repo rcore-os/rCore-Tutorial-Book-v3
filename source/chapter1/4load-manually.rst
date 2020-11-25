@@ -16,6 +16,9 @@
    os/target/riscv64gc-unknown-none-elf/release/os: ELF 64-bit LSB executable, 
    UCB RISC-V, version 1 (SYSV), statically linked, not stripped
 
+.. _term-elf:
+.. _term-metadata:
+
 从中可以看出可执行文件的格式为 **可执行和链接格式** (Executable and Linkable Format, ELF)，硬件平台是 RV64 。在 ELF 文件中，
 除了程序必要的代码、数据段（它们本身都只是一些二进制的数据）之外，还有一些 **元数据** (Metadata) 描述这些段在地址空间中的位置和在
 文件中的位置以及一些权限控制信息，这些元数据只能放在代码、数据段的外面。
@@ -52,6 +55,8 @@
    Size of section headers:           64 (bytes)
    Number of section headers:         8
    Section header string table index: 6
+
+.. _term-magic:
 
 - 第 2 行是一个称之为 **魔数** (Magic) 独特的常数，存放在 ELF header 的一个固定位置。当加载器将 ELF 文件加载到内存之前，通常会查看
   该位置的值是否正确，来快速确认被加载的文件是不是一个 ELF 。
@@ -300,6 +305,8 @@ k210 平台
     代码第 7 行用到了 Rust 的迭代器与闭包的语法，它们在很多情况下能够提高开发效率。如读者感兴趣的话也可以将其改写为等价的 for 
     循环实现。
 
+.. _term-raw-pointer:
+.. _term-dereference:
 .. warning::
 
     **Rust Unsafe**

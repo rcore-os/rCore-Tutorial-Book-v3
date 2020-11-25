@@ -140,9 +140,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p class="caption"><span class="caption-text">附录</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">Rust 快速入门</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../appendix-b/index.html">常见工具的使用方法</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../appendix-c/index.html">深入机器模式：RustSBI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 快速入门</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-b/index.html">附录 B：常见工具的使用方法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-c/index.html">附录 C：深入机器模式：RustSBI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
 </ul>
 <p class="caption"><span class="caption-text">开发注记</span></p>
 <ul>
@@ -263,11 +264,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p class="caption"><span class="caption-text">应用程序运行环境栈：图中的白色块自上而下（越往下则越靠近底层，下层作为上层的执行环境支持上层代码的运行）表示各级运行环境，
 黑色块则表示相邻两层运行环境之间的接口。</span><a class="headerlink" href="#id5" title="永久链接至图片">¶</a></p>
 </div>
-<p>我们的应用位于最上层，它可以通过调用编程语言提供的标准库或者其他三方库对外提供的功能强大的函数接口，使得仅需少量的源代码就能完成复杂的
+<p id="term-execution-environment">我们的应用位于最上层，它可以通过调用编程语言提供的标准库或者其他三方库对外提供的功能强大的函数接口，使得仅需少量的源代码就能完成复杂的
 功能。但是这些库的功能不仅限于此，事实上它们属于应用程序的 <strong>执行环境</strong> (Execution Environment)，在我们通常不会注意到的地方，它
 们还会在执行应用之前完成一些初始化工作，并在应用程序执行的时候对它进行监控。我们在打印 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 时使用的 <code class="docutils literal notranslate"><span class="pre">println!</span></code>
 宏正是由 Rust 标准库 std 提供的。</p>
-<p>从内核/操作系统的角度看来，它上面的一切都属于用户态，而它自身属于内核态。无论用户态应用如何编写，是手写汇编代码，还是基于某种编程语言利用
+<p id="term-system-call">从内核/操作系统的角度看来，它上面的一切都属于用户态，而它自身属于内核态。无论用户态应用如何编写，是手写汇编代码，还是基于某种编程语言利用
 其标准库或三方库，某些功能总要直接或间接的通过内核/操作系统提供的 <strong>系统调用</strong> (System Call) 来实现。因此系统调用充当了用户和内核之间
 的边界。内核作为用户态的运行环境，它不仅要提供系统调用接口，还需要对用户态应用的执行进行监控和管理。</p>
 <div class="admonition note">
@@ -284,7 +285,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>其余的系统调用基本上分别用于函数库和内核两层执行环境的初始化工作和对于上层的运行期监控和管理。之后，随着应用场景的复杂化，我们
 需要更强的抽象能力，也会实现这里面的一些系统调用。</p>
 </div>
-<p>从硬件的角度来看，它上面的一切都属于软件。硬件可以分为三种： 处理器 (Processor) ——它更常见的名字是中央处理单元 (CPU, Central Processing Unit)，
+<p id="term-isa">从硬件的角度来看，它上面的一切都属于软件。硬件可以分为三种： 处理器 (Processor) ——它更常见的名字是中央处理单元 (CPU, Central Processing Unit)，
 内存 (Memory) 还有 I/O 设备。其中处理器无疑是其中最复杂同时也最关键的一个。它与软件约定一套 <strong>指令集体系结构</strong> (ISA, Instruction Set Architecture)，
 使得软件可以通过 ISA 中提供的汇编指令来访问各种硬件资源。软件当然也需要知道处理器会如何执行这些指令：最简单的话就是一条一条执行位于内存
 中的指令。当然，实际的情况远比这个要复杂得多，为了适应现代应用程序的场景，处理器还需要提供很多额外的机制，而不仅仅是让数据在 CPU 寄存器、内存和 I/O 设备
@@ -292,7 +293,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>多层执行环境都是必需的吗？</strong></p>
-<p>除了最上层的应用程序和最下层的硬件平台必须存在之外，作为中间层的函数库和内核并不是必须存在的：它们都是对下层资源进行了 <strong>抽象</strong> (Abstraction)，
+</div>
+<blockquote id="term-abstraction">
+<div><p>除了最上层的应用程序和最下层的硬件平台必须存在之外，作为中间层的函数库和内核并不是必须存在的：它们都是对下层资源进行了 <strong>抽象</strong> (Abstraction)，
 并为上层提供了一套运行环境。抽象的优点在于它让上层以较小的代价获得所需的功能，并同时可以提供一些保护。但抽象同时也是一种限制，会丧失一些
 应有的灵活性。比如，当你在考虑在项目中应该使用哪个函数库的时候，就常常需要这方面的权衡：过多的抽象和过少的抽象自然都是不合适的。</p>
 <p>实际上，我们通过应用程序的特征来判断它需要什么程度的抽象。</p>
@@ -304,11 +307,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 操作系统如 Windows/Linux/macOS 等的抽象都支持同时运行很多应用程序，在嵌入式场景是过抽象的。因此，常见的解决方案是仅使用函数库构建
 单独的应用程序或是用专为应用场景特别裁减过的轻量级内核管理少数应用程序。</p></li>
 </ul>
-</div>
+</div></blockquote>
 </div>
 <div class="section" id="id3">
 <h2>平台与目标三元组<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
-<p>对于一份用某种编程语言实现的源代码而言，编译器在将其通过编译、链接得到目标文件的时候需要知道程序要在哪个 <strong>平台</strong> (Platform) 上运行。
+<p id="term-platform">对于一份用某种编程语言实现的源代码而言，编译器在将其通过编译、链接得到目标文件的时候需要知道程序要在哪个 <strong>平台</strong> (Platform) 上运行。
 从上面给出的 <a class="reference internal" href="#app-software-stack"><span class="std std-ref">应用程序运行环境栈</span></a> 可以看出：</p>
 <ul class="simple">
 <li><p>如果用户态基于的内核不同，会导致系统调用接口不同或者语义不一致；</p></li>
@@ -316,7 +319,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>它们都会导致最终生成的目标文件有很大不同。需要指出的是，某些编译器支持同一份源代码无需修改就可编译到多个不同的目标平台并在上面运行。这种
 情况下，源代码是 <strong>跨平台</strong> 的。而另一些编译器则已经预设好了一个固定的目标平台。</p>
-<p>我们可以通过 <strong>目标三元组</strong> (Target Triplet) 来描述一个目标平台。它一般包括 CPU 架构、CPU 厂商和操作系统，它们确实都会控制目标文件的生成。
+<p id="term-target-triplet">我们可以通过 <strong>目标三元组</strong> (Target Triplet) 来描述一个目标平台。它一般包括 CPU 架构、CPU 厂商和操作系统，它们确实都会控制目标文件的生成。
 比如，我们可以尝试看一下之前的 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 的目标平台是什么。这可以通过打印编译器 rustc 的默认配置信息：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> rustc --version --verbose
 <span class="go">rustc 1.48.0-nightly (73dc675b9 2020-09-06)</span>
@@ -380,7 +383,7 @@ linux-gnu 系统调用支持的版本 <code class="docutils literal notranslate"
 <span class="go">  = note: the `riscv64gc-unknown-none-elf` target may not be installed</span>
 </pre></div>
 </div>
-<p>在之前的环境配置中，我们已经在 rustup 工具链中安装了这个目标平台支持，因此并不是该目标平台未安装的问题。因此只是单纯的在这个目标平台上找不到
+<p id="term-bare-metal">在之前的环境配置中，我们已经在 rustup 工具链中安装了这个目标平台支持，因此并不是该目标平台未安装的问题。因此只是单纯的在这个目标平台上找不到
 Rust 标准库 std。我们之前曾经提到过，编程语言的标准库或三方库的某些功能会直接或间接的用到操作系统提供的系统调用。但目前我们所选的目标平台不存在
 任何操作系统支持，于是 Rust 并没有为这个目标平台支持完整的标准库 std。类似这样的平台通常被我们称为 <strong>裸机平台</strong> (bare-metal)。</p>
 <p>幸运的是，Rust 有一个对 std 裁剪过后的核心库 core，这个库是不需要任何操作系统支持的，相对的它的功能也比较受限，但是也包含了 Rust 语言

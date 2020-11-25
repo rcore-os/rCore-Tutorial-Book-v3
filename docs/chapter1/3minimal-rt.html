@@ -141,9 +141,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p class="caption"><span class="caption-text">附录</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">Rust 快速入门</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../appendix-b/index.html">常见工具的使用方法</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../appendix-c/index.html">深入机器模式：RustSBI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 快速入门</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-b/index.html">附录 B：常见工具的使用方法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-c/index.html">附录 C：深入机器模式：RustSBI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
 </ul>
 <p class="caption"><span class="caption-text">开发注记</span></p>
 <ul>
@@ -233,7 +234,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 main 的运行。</p>
 <p>而这又需要明确两点：首先是系统在做这些初始化工作之前处于什么状态，在做完初始化工作也就是即将执行 main 函数之前又处于什么状态。比较二者
 即可得出答案。</p>
-<p>让我们从 CPU 加电后第一条指令开始讲起。对于裸机平台 <code class="docutils literal notranslate"><span class="pre">riscv64gc-unknown-none-elf</span></code> 而言，它的 pc 寄存器会被设置为 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，
+<p id="term-physical-memory"><span id="term-physical-address"></span>让我们从 CPU 加电后第一条指令开始讲起。对于裸机平台 <code class="docutils literal notranslate"><span class="pre">riscv64gc-unknown-none-elf</span></code> 而言，它的 pc 寄存器会被设置为 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，
 也就是说它会从这个 <strong>物理地址</strong> (Physical Address) 开始一条条取指并执行放置于 <strong>物理内存</strong> (Physical Memory) 中的指令。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
@@ -245,7 +246,7 @@ main 的运行。</p>
 <p>值得一提的是，当 CPU 以多个字节（比如 2/4/8 或更多）为单位访问物理内存（事实上并不局限于物理内存）中的数据时，就有可能会引入端序和
 地址对齐的问题。由于这并不是重点，我们在这里不展开说明。</p>
 </div>
-<p>在该目标平台上，物理内存以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头的部分放置着 <strong>引导加载程序</strong> (Bootloader) 的代码。它的任务是对硬件进行一些
+<p id="term-bootloader">在该目标平台上，物理内存以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头的部分放置着 <strong>引导加载程序</strong> (Bootloader) 的代码。它的任务是对硬件进行一些
 初始化工作，并跳转到一个固定的物理地址 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 。在本书正文中我们无需关心它的实现，而是当成一个黑盒使用即可，它的预编译版本
 可执行文件放在项目根目录的 <code class="docutils literal notranslate"><span class="pre">bootloader</span></code> 目录下。在这之后，控制权就会被移交到我们手中。因此，我们需要保证我们负责的初始化的代码
 出现在物理内存以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 开头的地方。在我们的初始化任务完成之后，自然需要跳转到 main 函数进行执行里面的代码，这也是
@@ -254,11 +255,11 @@ main 的运行。</p>
 <div class="section" id="function-call-and-stack">
 <span id="id2"></span><h2>函数调用与栈<a class="headerlink" href="#function-call-and-stack" title="永久链接至标题">¶</a></h2>
 <p>从汇编指令的级别看待一段程序的执行，假如 CPU 依次执行的指令的物理地址序列为 <span class="math notranslate nohighlight">\(\{a_n\}\)</span>，那么这个序列会符合怎样的模式呢？</p>
-<p>其中最简单的无疑就是 CPU 一条条连续向下执行指令，也即满足递推式 <span class="math notranslate nohighlight">\(a_{n+1}=a_n+L\)</span>，这里我们假设该平台的指令是定长的且均为
+<p id="term-control-flow">其中最简单的无疑就是 CPU 一条条连续向下执行指令，也即满足递推式 <span class="math notranslate nohighlight">\(a_{n+1}=a_n+L\)</span>，这里我们假设该平台的指令是定长的且均为
 <span class="math notranslate nohighlight">\(L\)</span> 字节（常见情况为 2/4 字节）。但是执行序列并不总是符合这种模式，当位于物理地址 <span class="math notranslate nohighlight">\(a_n\)</span> 的指令是一条跳转指令的时候，
 该模式就有可能被破坏。跳转指令对应于我们在程序中构造的 <strong>控制流</strong> (Control Flow) 的多种不同结构，比如分支结构（如 if/switch 语句）
 和循环结构（如 for/while 语句）。用来实现上述两种结构的跳转指令，只需实现跳转功能，也就是将 pc 寄存器设置到一个指定的地址即可。</p>
-<p>另一种控制流结构则显得更为复杂： <strong>函数调用</strong> (Function Call)。我们大概清楚调用函数整个过程中代码执行的顺序，如果是从源代码级的
+<p id="term-function-call">另一种控制流结构则显得更为复杂： <strong>函数调用</strong> (Function Call)。我们大概清楚调用函数整个过程中代码执行的顺序，如果是从源代码级的
 视角来看，我们会去执行被调用函数的代码，等到它返回之后，我们会回到调用函数对应语句的下一行继续执行。那么我们如何用汇编指令来实现
 这一过程？首先在调用的时候，需要有一条指令跳转到被调用函数的位置，这个看起来和其他控制结构没什么不同；但是在被调用函数返回的时候，我们
 却需要返回那条跳转过来的指令的下一条继续执行。这次用来返回的跳转究竟跳转到何处，在对应的函数调用发生之前是不知道的。比如，我们在两个不同的
@@ -289,14 +290,14 @@ main 的运行。</p>
 </tr>
 </tbody>
 </table>
-<div class="admonition note">
-<p class="admonition-title">注解</p>
+<div class="admonition note" id="term-destination-register">
+<span id="term-immediate"></span><span id="term-source-register"></span><p class="admonition-title">注解</p>
 <p><strong>RISC-V 指令各部分含义</strong></p>
 <p>在大多数只与通用寄存器打交道的指令中， rs 表示 <strong>源寄存器</strong> (Source Register)， imm 表示 <strong>立即数</strong> (Immediate)，
 是一个常数，二者构成了指令的输入部分；而 rd 表示 <strong>目标寄存器</strong> (Destination Register)，它是指令的输出部分。rs 和 rd
 可以在 32 个通用寄存器 x0~x31 中选取。但是这三个部分都不是必须的，某些指令只有一种输入类型，另一些指令则没有输出部分。</p>
 </div>
-<p>从中可以看出，这两条指令除了设置 pc 寄存器完成跳转功能之外，还将当前跳转指令的下一条指令地址保存在 rd 寄存器中。
+<p id="term-pseudo-instruction">从中可以看出，这两条指令除了设置 pc 寄存器完成跳转功能之外，还将当前跳转指令的下一条指令地址保存在 rd 寄存器中。
 （这里假设所有指令的长度均为 4 字节，在不使用 C 标准指令集拓展的情况下成立）
 在 RISC-V 架构中，
 通常使用 ra(x1) 寄存器作为其中的 rd ，因此在函数返回的时候，只需跳转回 ra 所保存的地址即可。事实上在函数返回的时候我们常常使用一条
@@ -308,15 +309,15 @@ ra 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中
 能够正常工作。但遗憾的是，在实际编写代码的时候我们常常会遇到函数 <strong>多层嵌套调用</strong> 的情形。我们很容易想象，如果函数不支持嵌套调用，那么编程将会
 变得多么复杂。如果我们试图在一个函数 <span class="math notranslate nohighlight">\(f\)</span> 中调用一个子函数，在跳转到子函数 <span class="math notranslate nohighlight">\(g\)</span> 的同时，ra 会被覆盖成这条跳转指令的
 下一条的地址，而 ra 之前所保存的函数 <span class="math notranslate nohighlight">\(f\)</span> 的返回地址将会 <cite>永久丢失</cite> 。</p>
-<p>因此，若想正确实现嵌套函数调用的控制流，我们必须通过某种方式保证：在一个函数调用子函数的前后，ra 寄存器的值不能发生变化。但实际上，
+<p id="term-activation-record"><span id="term-context"></span>因此，若想正确实现嵌套函数调用的控制流，我们必须通过某种方式保证：在一个函数调用子函数的前后，ra 寄存器的值不能发生变化。但实际上，
 这并不仅仅局限于 ra 一个寄存器，而是作用于所有的通用寄存器。这是因为，编译器是独立编译每个函数的，因此一个函数并不能知道它所调用的
 子函数修改了哪些寄存器。而站在一个函数的视角，在调用子函数的过程中某些寄存器的值被覆盖的确会对它接下来的执行产生影响。因此这是必要的。
 我们将在控制流转移前后需要保持不变的寄存器集合称之为 <strong>上下文</strong> (Context) 或称 <strong>活动记录</strong> (Activation Record)，利用这一概念
 ，则在函数调用前后需要保持不变的寄存器集合被称为函数调用上下文。</p>
-<p>由于每个 CPU 只有一套寄存器，我们若想在子函数调用前后保持函数调用上下文不变，需要物理内存的帮助。确切的说，在调用子函数之前，我们需要在
+<p id="term-save-restore">由于每个 CPU 只有一套寄存器，我们若想在子函数调用前后保持函数调用上下文不变，需要物理内存的帮助。确切的说，在调用子函数之前，我们需要在
 内存中的一个区域 <strong>保存</strong> (Save) 函数调用上下文中的寄存器；而之后我们会从内存中同样的区域读取并 <strong>恢复</strong> (Restore) 函数调用上下文
 中的寄存器。实际上，这一工作是由子函数的调用者和被调用者（也就是子函数自身）合作完成。函数调用上下文中的寄存器被分为如下两类：</p>
-<ul class="simple">
+<span id="term-callee-saved"></span><ul class="simple" id="term-caller-saved">
 <li><p><strong>被调用者保存</strong> (Callee-Saved) 寄存器，即被调用的函数保证调用它前后，这些寄存器保持不变；</p></li>
 <li><p><strong>调用者保存</strong> (Caller-Saved) 寄存器，被调用的函数可能会覆盖这些寄存器。</p></li>
 </ul>
@@ -325,7 +326,7 @@ ra 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中
 <li><p>调用者：首先保存不希望在函数调用过程中发生变化的调用者保存寄存器，然后通过 jal/jalr 指令调用子函数，返回回来之后恢复这些寄存器。</p></li>
 <li><p>被调用者：在函数开头保存函数执行过程中被用到的被调用者保存寄存器，然后执行函数，在退出之前恢复这些寄存器。</p></li>
 </ul>
-<p>我们发现无论是调用者还是被调用者，都会因调用行为而需要两段匹配的保存和恢复寄存器的汇编代码，可以分别将其称为 <strong>开场白</strong> (Prologue) 和
+<p id="term-epilogue"><span id="term-prologue"></span>我们发现无论是调用者还是被调用者，都会因调用行为而需要两段匹配的保存和恢复寄存器的汇编代码，可以分别将其称为 <strong>开场白</strong> (Prologue) 和
 <strong>收场白</strong> (Epilogue)，它们会由编译器帮我们自动插入。一个函数既有可能作为调用者调用其他函数，也有可能作为被调用者被其他函数调用。对于
 它而言，如果在执行的时候需要修改被调用者保存寄存器，而必须在函数开头的开场白和结尾的收场白处进行保存；对于调用者保存寄存器则可以没有任何
 顾虑的随便使用，因为它在约定中本就不需要承担保证调用者保存寄存器保持不变的义务。</p>
@@ -337,7 +338,7 @@ ra 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中
 使用到的被调用者保存寄存器也无需保存。编译器作为寄存器的使用者自然知道在这两个场景中，分别有哪些值得保存的寄存器。
 从这一角度也可以理解为何要将函数调用上下文分成两类：可以在尽可能早的时候优化掉一些无用的寄存器保存与恢复。</p>
 </div>
-<p><strong>调用规范</strong> (Calling Convention) 约定在某个指令集架构上，某种编程语言的函数调用如何实现。它包括了以下内容：</p>
+<p id="term-calling-convention"><strong>调用规范</strong> (Calling Convention) 约定在某个指令集架构上，某种编程语言的函数调用如何实现。它包括了以下内容：</p>
 <ol class="arabic simple">
 <li><p>函数的输入参数和返回值如何传递；</p></li>
 <li><p>函数调用上下文中调用者/被调用者保存寄存器的划分；</p></li>
@@ -388,7 +389,7 @@ ra 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中
 </ul>
 <p>更加详细的内容可以参考 Cornell 的 <a class="reference external" href="http://www.cs.cornell.edu/courses/cs3410/2019sp/schedule/slides/10-calling-notes-bw.pdf">课件</a> 。</p>
 </div>
-<p>之前我们讨论了函数调用上下文的保存/恢复时机以及寄存器的选择，但我们并没有详细说明这些寄存器保存在哪里，只是用“内存中的一块区域”草草带过。实际上，
+<p id="term-stack-frame"><span id="term-stack-pointer"></span><span id="term-stack"></span>之前我们讨论了函数调用上下文的保存/恢复时机以及寄存器的选择，但我们并没有详细说明这些寄存器保存在哪里，只是用“内存中的一块区域”草草带过。实际上，
 它更确切的名字是 <strong>栈</strong> (Stack) 。 sp(x2) 常用来保存 <strong>栈指针</strong> (Stack Pointer)，它是一个指向了内存中已经用过的位置的一个地址。在
 RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中，作为起始的开场白负责分配一块新的栈空间，其实它只需要知道需要空间的大小，然后将 sp
 的值减小相应的字节数即可，于是物理地址区间 <span class="math notranslate nohighlight">\([\text{新sp},\text{旧sp})\)</span> 对应的物理内存便可以被这个函数用来函数调用上下文的保存/恢复
@@ -402,13 +403,15 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>数据结构中的栈与实现函数调用所需要的栈</strong></p>
-<p>从数据结构的角度来看，栈是一个 <strong>后入先出</strong> (Last In First Out, LIFO) 的线性表，支持向栈顶压入一个元素以及从栈顶弹出一个元素
+</div>
+<blockquote id="term-lifo">
+<div><p>从数据结构的角度来看，栈是一个 <strong>后入先出</strong> (Last In First Out, LIFO) 的线性表，支持向栈顶压入一个元素以及从栈顶弹出一个元素
 两种操作，分别被称为 push 和 pop。从它提供的接口来看，它只支持访问栈顶附近的元素。因此在实现的时候需要维护一个指向栈顶
 的指针来表示栈当前的状态。</p>
 <p>我们这里的栈与数据结构中的栈原理相同，在很多方面可以一一对应。栈指针 sp 可以对应到指向栈顶的指针，对于栈帧的分配/回收可以分别
 对应到 push/pop 操作。如果将我们的栈看成一个内存分配器，它之所以可以这么简单，是因为它回收的内存一定是 <em>最近一次分配</em> 的内存，
 从而只需要类似 push/pop 的两种操作即可。</p>
-</div>
+</div></blockquote>
 <p>在合适的编译选项设置之下，一个函数的栈帧内容可能如下图所示：</p>
 <div class="figure align-center" id="id11">
 <img alt="../_images/StackFrame.png" src="../_images/StackFrame.png" />
@@ -429,7 +432,7 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
 </div>
 <div class="section" id="id5">
 <h2>程序内存布局<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<p>在我们将源代码编译为可执行文件之后，它就会变成一个看似充满了杂乱无章的字节的一个文件。但我们知道这些字节至少可以分成代码和数据两部分，在
+<p id="term-memory-layout"><span id="term-section"></span>在我们将源代码编译为可执行文件之后，它就会变成一个看似充满了杂乱无章的字节的一个文件。但我们知道这些字节至少可以分成代码和数据两部分，在
 程序运行起来的时候它们的功能并不相同：代码部分由一条条可以被 CPU 解码并执行的指令组成，而数据部分只是被 CPU 视作可用的存储空间。事实上
 我们还可以根据其功能进一步把两个部分划分为更小的单位： <strong>段</strong> (Section) 。不同的段会被编译器放置在内存不同的位置上，这构成了程序的
 <strong>内存布局</strong> (Memory Layout)。一种典型的程序相对内存布局如下：</p>
@@ -439,7 +442,7 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
 </div>
 <p>代码部分只有代码段 <code class="docutils literal notranslate"><span class="pre">.text</span></code> 一个段，存放程序的所有汇编代码。</p>
 <p>数据部分则还可以继续细化：</p>
-<ul class="simple">
+<ul class="simple" id="term-heap">
 <li><p>已初始化数据段保存程序中那些已初始化的全局数据，分为 <code class="docutils literal notranslate"><span class="pre">.rodata</span></code> 和 <code class="docutils literal notranslate"><span class="pre">.data</span></code> 两部分。前者存放只读的全局数据，通常是一些常数或者是
 常量字符串等；而后者存放可修改的全局数据。</p></li>
 <li><p>未初始化数据段 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 保存程序中那些未初始化的全局数据，通常由程序的加载者代为进行零初始化，也即将这块区域逐字节清零；</p></li>
@@ -460,7 +463,7 @@ gp 加上一个偏移量来访问的。</p></li>
 </ul>
 </div>
 <p>我们可以将常说的编译流程细化为多个阶段（虽然输入一条命令便可将它们全部完成）：</p>
-<ol class="arabic simple">
+<span id="term-linker"></span><span id="term-assembler"></span><span id="term-compiler"></span><ol class="arabic simple" id="term-object-file">
 <li><p><strong>编译器</strong> (Compiler) 将每个源文件从某门高级编程语言转化为汇编语言，注意此时源文件仍然是一个 ASCII 或其他编码的文本文件；</p></li>
 <li><p><strong>汇编器</strong> (Assembler) 将上一步的每个源文件中的文本格式的指令转化为机器码，得到一个二进制的 <strong>目标文件</strong> (Object File)；</p></li>
 <li><p><strong>链接器</strong> (Linker) 将上一步得到的所有目标文件以及一些可能的外部目标文件链接在一起形成一个完整的可执行文件。</p></li>
@@ -468,7 +471,7 @@ gp 加上一个偏移量来访问的。</p></li>
 <p>每个目标文件都有着自己局部的内存布局，里面含有若干个段。在链接的时候，链接器会将这些内存布局合并起来形成一个整体的内存布局。此外，每个目标文件
 都有一个符号表，里面记录着它需要从其他文件中寻找的外部符号和能够提供给其他文件的符号，通常是一些函数和全局变量等。在链接的时候汇编器会将
 外部符号替换为实际的地址。</p>
-<p>我们可以通过 <strong>链接脚本</strong> (Linker Script) 调整链接器的行为，使得最终生成的可执行文件的内存布局符合我们的预期。</p>
+<p id="term-linker-script">我们可以通过 <strong>链接脚本</strong> (Linker Script) 调整链接器的行为，使得最终生成的可执行文件的内存布局符合我们的预期。</p>
 </div>
 <div class="section" id="id6">
 <h2>实现<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>

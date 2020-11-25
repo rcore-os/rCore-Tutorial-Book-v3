@@ -15,6 +15,8 @@
    [build]
    target = "riscv64gc-unknown-none-elf"
 
+.. _term-cross-compile:
+
 这会对于 Cargo 工具在 os 目录下的行为进行调整：现在默认会使用 riscv64gc 作为目标平台而不是原先的默认 x86_64-unknown-linux-gnu。
 事实上，这是一种编译器运行所在的平台与编译器生成可执行文件的目标平台不同（分别是后者和前者）的情况。这是一种 **交叉编译** (Cross Compile)。
 
