@@ -190,4 +190,8 @@
    * - 执行流
      - Execution of Thread
      - :ref:`处理 Trap <term-execution-of-thread>`
+   * - 原子指令
+     - Atomic Instruction
+     - :ref:`处理 Trap <term-atomic-instruction>`
+   
    

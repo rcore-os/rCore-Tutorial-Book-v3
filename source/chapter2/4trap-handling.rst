@@ -204,6 +204,95 @@ Trap 的硬件机制
 Trap 上下文保存与恢复
 ----------------------------------------------------
 
+在批处理系统初始化的时候，我们需要修改 ``stvec`` 寄存器来指向正确的 Trap 处理入口点。
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/trap/mod.rs
+
+    global_asm!(include_str!("trap.S"));
+
+    pub fn init() {
+        extern "C" { fn __alltraps(); }
+        unsafe {
+            stvec::write(__alltraps as usize, TrapMode::Direct);
+        }
+    }
+
+这里我们引入了一个外部符号 ``__alltraps`` ，并将 ``stvec`` 设置为 Direct 模式指向它的地址。我们在 ``os/src/trap/trap.S`` 
+中实现 Trap 上下文保存/恢复的汇编代码，分别用外部符号 ``__alltraps`` 和 ``__restore`` 标记，并将这段汇编代码中插入进来。
+
+Trap 处理的总体流程如下：首先通过 ``__alltraps`` 将 Trap 上下文保存在内核栈上，然后跳转到使用 Rust 编写的 ``trap_handler`` 函数
+完成 Trap 分发及处理。当 ``trap_handler`` 返回之后，使用 ``__restore`` 从保存在内核栈上的 Trap 上下文恢复寄存器。最后通过一条 
+``sret`` 指令回到应用程序执行。
+
+首先是保存 Trap 上下文的 ``__alltraps`` 的实现：
+
+.. code-block:: riscv
+    :linenos:
+
+    # os/src/trap/trap.S
+
+    .macro SAVE_GP n
+        sd x\n, \n*8(sp)
+    .endm
+
+    .align 2
+    __alltraps:
+        csrrw sp, sscratch, sp
+        # now sp->kernel stack, sscratch->user stack
+        # allocate a TrapContext on kernel stack
+        addi sp, sp, -34*8
+        # save general-purpose registers
+        sd x1, 1*8(sp)
+        # skip sp(x2), we will save it later
+        sd x3, 3*8(sp)
+        # skip tp(x4), application does not use it
+        # save x5~x31
+        .set n, 5
+        .rept 27
+            SAVE_GP %n
+            .set n, n+1
+        .endr
+        # we can use t0/t1/t2 freely, because they were saved on kernel stack
+        csrr t0, sstatus
+        csrr t1, sepc
+        sd t0, 32*8(sp)
+        sd t1, 33*8(sp)
+        # read user stack from sscratch and save it on the kernel stack
+        csrr t2, sscratch
+        sd t2, 2*8(sp)
+        # set input argument of trap_handler(cx: &mut TrapContext)
+        mv a0, sp
+        call trap_handler
+
+- 第 7 行我们使用 ``.align`` 将 ``__alltraps`` 的地址 4 字节对齐，这是 RISC-V 特权级规范的要求；
+- 第 8 行的 ``csrrw`` 原型是 :math:`\text{csrrw rd, csr, rs}` 可以将 CSR 当前的值读到通用寄存器 :math:`\text{rd}` 中，然后将
+  通用寄存器 :math:`\text{rs}` 的值写入该 CSR 。因此这里起到的是交换 sscratch 和 sp 的效果。在这一行之前 sp 指向用户栈， sscratch 
+  指向内核栈（原因稍后说明），现在 sp 指向内核栈， sscratch 指向用户栈。
+- 第 12 行，我们准备在内核栈上保存 Trap 上下文，于是预先分配 :math:`34\times 8` 字节的栈帧，这里改动的是 sp ，说明确实是在内核栈上。
+- 第 13~24 行，保存 Trap 上下文的通用寄存器 x0~x31，跳过 x0 和 tp(x4)，原因之前已经说明。我们在这里也不保存 sp(x2)，因为我们要基于
+  它来找到每个寄存器应该被保存到的正确的位置。实际上，在栈帧分配之后，我们可用于保存 Trap 上下文的地址区间为 :math:`[\text{sp},\text{sp}+8\times34)` ，
+  
+  按照  ``TrapContext`` 结构体的内存布局，它从低地址到高地址分别按顺序放置 x0~x31，最后是 sstatus 和 sepc 。因此通用寄存器 xn 
+  应该被保存在地址区间 :math:`[\text{sp}+8n,\text{sp}+8(n+1))` 。 在这里我们正是这样基于 sp 来保存这些通用寄存器的。
+
+  为了简化代码，x5~x31 这 27 个通用寄存器我们通过类似循环的 ``.rept`` 每次使用 ``SAVE_GP`` 宏来保存，其实质是相同的。注意我们需要在 
+  ``Trap.S`` 开头加上 ``.altmacro`` 才能正常使用 ``.rept`` 命令。
+- 第 25~28 行，
+
+
+.. _term-atomic-instruction:
+
+.. note::
+
+    **CSR 相关原子指令**
+
+    RISC-V 中读写 CSR 的指令通常都能只需一条指令就能完成多项功能。这样的指令被称为 **原子指令** (Atomic Instruction)。这里
+    的原子的含义是“不可分割的最小个体”，也就是说指令的多项功能要么都不完成，要么全部完成，而不会处于某种中间状态。
+
+
 .. 
    马老师发生甚么事了？
    --
