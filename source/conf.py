@@ -103,8 +103,8 @@ class RVLexer(RegexLexer):
             (r'\s', token.Whitespace),
             # Other operators
             (r'[,\+\*\-\(\)\\%]', token.Text),
-            # alltraps Hack
-            (r'(?:SAVE_GP|trap_handler)', token.Name.Builtin),
+            # Hacks
+            (r'(?:SAVE_GP|trap_handler|LOAD_GP)', token.Name.Builtin),
             (r'(?:n)', token.Name.Entity),
             (r'(?:x)', token.Text),
         ],

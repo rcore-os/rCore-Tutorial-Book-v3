@@ -300,6 +300,233 @@ Trap 处理的总体流程如下：首先通过 ``__alltraps`` 将 Trap 上下�
     RISC-V 中读写 CSR 的指令通常都能只需一条指令就能完成多项功能。这样的指令被称为 **原子指令** (Atomic Instruction)。这里
     的原子的含义是“不可分割的最小个体”，也就是说指令的多项功能要么都不完成，要么全部完成，而不会处于某种中间状态。
 
+当 ``trap_handler`` 返回之后会从调用 ``trap_handler`` 的下一条指令开始执行，也就是从栈上的 Trap 上下文恢复的 ``__restore`` ：
+
+.. _code-restore:
+
+.. code-block:: riscv
+    :linenos:
+
+    .macro LOAD_GP n
+        ld x\n, \n*8(sp)
+    .endm
+
+    __restore:
+        # case1: start running app by __restore
+        # case2: back to U after handling trap
+        mv sp, a0
+        # now sp->kernel stack(after allocated), sscratch->user stack
+        # restore sstatus/sepc
+        ld t0, 32*8(sp)
+        ld t1, 33*8(sp)
+        ld t2, 2*8(sp)
+        csrw sstatus, t0
+        csrw sepc, t1
+        csrw sscratch, t2
+        # restore general-purpuse registers except sp/tp
+        ld x1, 1*8(sp)
+        ld x3, 3*8(sp)
+        .set n, 5
+        .rept 27
+            LOAD_GP %n
+            .set n, n+1
+        .endr
+        # release TrapContext on kernel stack
+        addi sp, sp, 34*8
+        # now sp->kernel stack, sscratch->user stack
+        csrrw sp, sscratch, sp
+        sret
+
+- 第 8 行比较奇怪我们暂且不管，假设它从未发生，那么 sp 仍然指向内核栈的栈顶。
+- 第 11~24 行负责从内核栈顶的 Trap 上下文恢复通用寄存器和 CSR 。注意我们要先恢复 CSR 再恢复通用寄存器，这样我们使用的三个临时寄存器
+  才能被正确恢复。
+- 在第 26 行之前，sp 指向保存了 Trap 上下文之后的内核栈栈顶， sscratch 指向用户栈栈顶。我们在第 26 行在内核栈上回收 Trap 上下文所
+  占用的内存，回归进入 Trap 之前的内核栈栈顶。第 27 行，再次交换 sscratch 和 sp，现在 sp 重新指向用户栈栈顶，sscratch 也依然保存
+  进入 Trap 之前的状态并指向内核栈栈顶。
+- 在应用程序执行流状态被还原之后，第 28 行我们使用 ``sret`` 指令回到 U 特权级继续运行应用程序执行流。
+
+Trap 分发与处理
+---------------------------------------
+
+Trap 在使用 Rust 实现的 ``trap_handler`` 函数中完成分发和处理：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/trap/mod.rs
+
+    #[no_mangle]
+    pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
+        let scause = scause::read();
+        let stval = stval::read();
+        match scause.cause() {
+            Trap::Exception(Exception::UserEnvCall) => {
+                cx.sepc += 4;
+                cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
+            }
+            Trap::Exception(Exception::StoreFault) |
+            Trap::Exception(Exception::StorePageFault) => {
+                println!("[kernel] PageFault in application, core dumped.");
+                run_next_app();
+            }
+            Trap::Exception(Exception::IllegalInstruction) => {
+                println!("[kernel] IllegalInstruction in application, core dumped.");
+                run_next_app();
+            }
+            _ => {
+                panic!("Unsupported trap {:?}, stval = {:#x}!", scause.cause(), stval);
+            }
+        }
+        cx
+    }
+
+- 第 4 行声明返回值为 ``&mut TrapContext`` 并在第 25 行实际将传入的 ``cx`` 原样返回，因此在 ``__restore`` 的时候 a0 在调用 
+  ``trap_handler`` 前后并没有发生变化，仍然指向分配 Trap 上下文之后的内核栈栈顶，和此时 sp 的值相同，我们 :math:`\text{sp}\leftarrow\text{a}_0` 
+  并不会有问题；
+- 第 7 行根据 scause 寄存器所保存的 Trap 的原因进行分发处理。这里我们无需手动操作这些 CSR ，而是使用 Rust 的 riscv 库来更加方便的
+  做这些事情。要引入 riscv 库，我们需要：
+
+  .. code-block:: toml
+
+      # os/Cargo.toml
+      
+      [dependencies]
+      riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }  
+    
+- 第 8~11 行，发现 Trap 的原因是来自 U 特权级的 Environment Call，也就是系统调用。这里我们首先修改保存在内核栈上的 Trap 上下文里面 
+  sepc，让其增加 4。这是因为我们知道这是一个由 ``ecall`` 指令触发的系统调用，在进入 Trap 的时候，硬件会将 sepc 设置为这条 ``ecall`` 
+  指令所在的地址（因为它是进入 Trap 之前最后一条执行的指令）。而在 Trap 返回之后，我们希望应用程序执行流从 ``ecall`` 的下一条指令
+  开始执行。因此我们只需修改 Trap 上下文里面的 sepc，让它增加 ``ecall`` 指令的码长，也即 4 字节。这样在 ``__restore`` 的时候 sepc 
+  在恢复之后就会指向 ``ecall`` 的下一条指令，并在 ``sret`` 之后从那里开始执行。这属于我们之前提到过的——用户程序能够预知到的执行流
+  状态所发生的变化。
+
+  用来保存系统调用返回值的 a0 寄存器也会同样发生变化。我们从 Trap 上下文取出作为 syscall ID 的 a7 和系统调用的三个参数 a0~a2 传给 
+  ``syscall`` 函数并获取返回值。 ``syscall`` 函数是在 ``syscall`` 子模块中实现的。 
+- 第 12~20 行，分别处理应用程序出现访存错误和非法指令错误的情形。此时需要打印错误信息并调用 ``run_next_app`` 直接切换并运行下一个
+  应用程序。
+- 第 21 行开始，当遇到目前还不支持的 Trap 类型的时候，我们的批处理系统整个 panic 报错退出。
+
+对于系统调用而言， ``syscall`` 函数并不会实际处理系统调用而只是会根据 syscall ID 分发到具体的处理函数：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/syscall/mod.rs
+
+    pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
+        match syscall_id {
+            SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
+            SYSCALL_EXIT => sys_exit(args[0] as i32),
+            _ => panic!("Unsupported syscall_id: {}", syscall_id),
+        }
+    }
+
+这里我们会将传进来的参数 ``args`` 转化成能够被具体的系统调用处理函数接受的类型。它们的实现都非常简单：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/syscall/fs.rs
+
+    const FD_STDOUT: usize = 1;
+
+    pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+        match fd {
+            FD_STDOUT => {
+                let slice = unsafe { core::slice::from_raw_parts(buf, len) };
+                let str = core::str::from_utf8(slice).unwrap();
+                print!("{}", str);
+                len as isize
+            },
+            _ => {
+                panic!("Unsupported fd in sys_write!");
+            }
+        }
+    }
+
+    // os/src/syscall/process.rs
+
+    pub fn sys_exit(xstate: i32) -> ! {
+        println!("[kernel] Application exited with code {}", xstate);
+        run_next_app()
+    }
+
+- ``sys_write`` 我们将传入的位于应用程序内的缓冲区的开始地址和长度转化为一个字符串 ``&str`` ，然后使用批处理系统已经实现的 ``print!`` 
+  宏打印出来。注意这里我们并没有检查传入参数的安全性，即使会在出错严重的时候 panic，还是会存在安全隐患。这里我们出于实现方便暂且不做修补。
+- ``sys_exit`` 打印退出的应用程序的返回值并同样调用 ``run_next_app`` 切换到下一个应用程序。
+
+执行应用程序
+-------------------------------------
+
+当批处理系统初始化完成，或者是某个应用程序运行结束或出错的时候，我们要调用 ``run_next_app`` 函数切换到下一个应用程序。此时 CPU 运行在 
+S 特权级，而它希望能够切换到 U 特权级。在 RISC-V 架构中，唯一一种能够使得 CPU 特权级下降的方法就是通过 Trap 返回系列指令，比如 
+``sret`` 。事实上，我们大概在运行应用程序之前要完成这些工作：
+
+- 跳转到应用程序入口点 ``0x80040000``。
+- 将使用的栈切换到用户栈。
+- 在 ``__alltraps`` 时我们要求 ``sscratch`` 指向内核栈，这个也需要在此时完成。
+- 从 S 特权级切换到 U 特权级。
+
+它们可以通过复用 ``__restore`` 的代码更容易的实现。我们只需要在内核栈上压入一个相应构造的 Trap 上下文，再通过 ``__restore`` ，就能
+让这些寄存器到达我们希望的状态。
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/trap/context.rs
+
+    impl TrapContext {
+        pub fn set_sp(&mut self, sp: usize) { self.x[2] = sp; }
+        pub fn app_init_context(entry: usize, sp: usize) -> Self {
+            let mut sstatus = sstatus::read();
+            sstatus.set_spp(SPP::User);
+            let mut cx = Self {
+                x: [0; 32],
+                sstatus,
+                sepc: entry,
+            };
+            cx.set_sp(sp);
+            cx
+        }
+    }
+
+为 ``TrapContext`` 实现 ``app_init_context`` 方法，修改其中的 sepc 寄存器为应用程序入口点 ``entry``， sp 寄存器为我们设定的
+一个栈指针，并将 sstatus 寄存器的 ``SPP`` 字段设置为 User 。
+
+在 ``run_next_app`` 函数中我们能够看到：
+
+.. code-block:: rust
+    :linenos:
+    :emphasize-lines: 10,11,12,13,14
+
+    // os/src/batch.rs
+
+    pub fn run_next_app() -> ! {
+        let current_app = APP_MANAGER.inner.borrow().get_current_app();
+        unsafe {
+            APP_MANAGER.inner.borrow().load_app(current_app);
+        }
+        APP_MANAGER.inner.borrow_mut().move_to_next_app();
+        extern "C" { fn __restore(cx_addr: usize); }
+        unsafe {
+            __restore(KERNEL_STACK.push_context(
+                TrapContext::app_init_context(APP_BASE_ADDRESS, USER_STACK.get_sp())
+            ) as *const _ as usize);
+        }
+        panic!("Unreachable in batch::run_current_app!");
+    }
+
+在高亮行所做的事情是在内核栈上压入一个 Trap 上下文，其 sepc 是应用程序入口地址 ``0x80040000`` ，其 sp 寄存器指向用户栈，其 sstatus 
+的 ``SPP`` 字段被设置为 User 。``push_context`` 的返回值是内核栈压入 Trap 上下文之后的栈顶，它会被作为 ``__restore`` 的参数（
+回看 :ref:`__restore 代码 <code-restore>` ，这时我们可以理解为何 ``__restore`` 的开头会做 
+:math:`\text{sp}\leftarrow\text{a}_0` ）使得在 ``__restore`` 中 sp 仍然可以指向内核栈的栈顶。这之后，就和一次普通的 
+``__restore`` 一样了。
+
+.. note::
+
+    由于篇幅原因无法做到完全分析。有兴趣的读者可以思考： sscratch 是何时被设置为内核栈顶的？
+
+
 
 .. 
    马老师发生甚么事了？
