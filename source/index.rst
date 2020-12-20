@@ -8,13 +8,24 @@ rCore-Tutorial-Book 第三版
 
 .. toctree::
    :maxdepth: 2
-   :caption: 正文
+   :caption: Part1 - Just do it!
    :hidden:
    
    quickstart
    chapter1/index
    chapter2/index
    chapter3/index
+   chapter4/index
+   chapter5/index
+   chapter6/index
+   chapter7/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Part2 - Do it better!
+   :hidden:
+   
+   chapter8/index
 
 .. toctree::
    :maxdepth: 2
@@ -53,3 +64,4 @@ rCore-Tutorial-Book 第三版
 - 2020-11-03：环境搭建完成，开始着手编写文档。
 - 2020-11-13：第一章完成。
 - 2020-11-27：第二章完成。
+- 2020-12-20：前七章代码完成。
