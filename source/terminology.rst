@@ -194,4 +194,20 @@
      - Atomic Instruction
      - :ref:`处理 Trap <term-atomic-instruction>`
    
-   
+第三章
+-------------------------
+
+.. list-table:: 
+   :align: center
+   :header-rows: 1
+   :widths: 40 60 30
+
+   * - 中文
+     - 英文
+     - 出现章节
+   * - 多道程序
+     - Multiprogramming
+     - :ref:`引言 <term-multiprogramming>`   
+   * - 分时多任务系统
+     - Time-Sharing Multitasking
+     - :ref:`引言 <term-time-sharing-multitasking>`
