@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>快速上手 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>环境配置 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
@@ -120,7 +120,12 @@ commentsRunWhenDOMLoaded(addUtterances);
             
               <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">快速上手</a><ul class="simple">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">环境配置</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#id2">系统环境配置</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#rust">Rust 开发环境配置</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#qemu">Qemu 模拟器安装</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id5">其他工具安装</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#rcore-tutorial-v3">运行 rCore-Tutorial-v3</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="chapter1/index.html">第一章：RV64 裸机应用</a></li>
@@ -192,7 +197,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
         
-      <li>快速上手</li>
+      <li>环境配置</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -212,30 +217,169 @@ commentsRunWhenDOMLoaded(addUtterances);
            <div itemprop="articleBody">
             
   <div class="section" id="id1">
-<h1>快速上手<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<h1>环境配置<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
-<p>本节我们将完成环境配置并成功运行 rCore-Tutorial。</p>
-<p>首先，请参考 <a class="reference external" href="https://rcore-os.github.io/rCore-Tutorial-deploy/docs/pre-lab/env.html">环境部署</a> 安装 qemu 模拟器
-和 rust。有一些小的变更如下：</p>
+<p>本节我们将完成环境配置并成功运行 rCore-Tutorial-v3 。整个流程分为下面几个部分：</p>
 <ul class="simple">
-<li><p>将 <code class="docutils literal notranslate"><span class="pre">riscv64imac-unknown-none-elf</span></code> 改成 <code class="docutils literal notranslate"><span class="pre">riscv64gc-unknown-none-elf</span></code>；</p></li>
-<li><p>在使用文档中提供的链接下载 qemu 源码的时候，点击下载之后需要将链接中的 <code class="docutils literal notranslate"><span class="pre">localhost</span></code> 替换为 <code class="docutils literal notranslate"><span class="pre">42.194.184.212:5212</span></code>。若仍然
-不行的话，可以在 <a class="reference external" href="https://www.sifive.com/software">SiFive 官网</a> 下载预编译的 qemu，比如
-<a class="reference external" href="https://static.dev.sifive.com/dev-tools/riscv-qemu-4.2.0-2020.04.0-x86_64-linux-ubuntu14.tar.gz">Ubuntu 版本 qemu</a> 。</p></li>
+<li><p>系统环境配置</p></li>
+<li><p>Rust 开发环境配置</p></li>
+<li><p>Qemu 模拟器安装</p></li>
+<li><p>其他工具安装</p></li>
+<li><p>运行 rCore-Tutorial-v3</p></li>
 </ul>
-<p>此外：</p>
+<div class="section" id="id2">
+<h2>系统环境配置<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>目前实验仅支持 Ubuntu18.04 操作系统。对于 Windows10 和 macOS 上的用户，可以使用 VMware 或
+VirtualBox 安装一台 Ubuntu18.04 虚拟机并在上面进行实验。</p>
+<p>特别的，Windows10 的用户可以通过系统内置的 WSL2 虚拟机（请不要使用 WSL1）来安装 Ubuntu 18.04 。
+步骤如下：</p>
+<ul>
+<li><p>升级 Windows 10 到最新版（Windows 10 版本 18917 或以后的内部版本）。注意，如果
+不是 Windows 10 专业版，可能需要手动更新，在微软官网上下载。升级之后，
+可以在 PowerShell 中输入 <code class="docutils literal notranslate"><span class="pre">winver</span></code> 命令来查看内部版本号。</p></li>
+<li><p>「Windows 设置 &gt; 更新和安全 &gt; Windows 预览体验计划」处选择加入 “Dev 开发者模式”。</p></li>
+<li><p>以管理员身份打开 PowerShell 终端并输入以下命令：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># 启用 Windows 功能：“适用于 Linux 的 Windows 子系统”</span>
+<span class="o">&gt;&gt;</span> <span class="n">dism</span><span class="o">.</span><span class="n">exe</span> <span class="o">/</span><span class="n">online</span> <span class="o">/</span><span class="n">enable</span><span class="o">-</span><span class="n">feature</span> <span class="o">/</span><span class="n">featurename</span><span class="p">:</span><span class="n">Microsoft</span><span class="o">-</span><span class="n">Windows</span><span class="o">-</span><span class="n">Subsystem</span><span class="o">-</span><span class="n">Linux</span> <span class="o">/</span><span class="nb">all</span> <span class="o">/</span><span class="n">norestart</span>
+
+<span class="c1"># 启用 Windows 功能：“已安装的虚拟机平台”</span>
+<span class="o">&gt;&gt;</span> <span class="n">dism</span><span class="o">.</span><span class="n">exe</span> <span class="o">/</span><span class="n">online</span> <span class="o">/</span><span class="n">enable</span><span class="o">-</span><span class="n">feature</span> <span class="o">/</span><span class="n">featurename</span><span class="p">:</span><span class="n">VirtualMachinePlatform</span> <span class="o">/</span><span class="nb">all</span> <span class="o">/</span><span class="n">norestart</span>
+
+<span class="c1"># &lt;Distro&gt; 改为对应从微软应用商店安装的 Linux 版本名，比如：`wsl --set-version Ubuntu 2`</span>
+<span class="c1"># 如果你没有提前从微软应用商店安装任何 Linux 版本，请跳过此步骤</span>
+<span class="o">&gt;&gt;</span> <span class="n">wsl</span> <span class="o">--</span><span class="nb">set</span><span class="o">-</span><span class="n">version</span> <span class="o">&lt;</span><span class="n">Distro</span><span class="o">&gt;</span> <span class="mi">2</span>
+
+<span class="c1"># 设置默认为 WSL 2，如果 Windows 版本不够，这条命令会出错</span>
+<span class="o">&gt;&gt;</span> <span class="n">wsl</span> <span class="o">--</span><span class="nb">set</span><span class="o">-</span><span class="n">default</span><span class="o">-</span><span class="n">version</span> <span class="mi">2</span>
+</pre></div>
+</div>
+</li>
+<li><p><a class="reference external" href="https://docs.microsoft.com/zh-cn/windows/wsl/install-win10#step-4---download-the-linux-kernel-update-package">下载 Linux 内核安装包</a></p></li>
+<li><p>在微软商店（Microsoft Store）中搜索并安装 Ubuntu18.04 。</p></li>
+</ul>
+<p>如果你打算使用 VMware 安装虚拟机的话，我们已经配置好了一个能直接运行 rCore-Tutorial-v3 的
+Ubuntu18.04 镜像，它是一个 <code class="docutils literal notranslate"><span class="pre">vmdk</span></code> 格式的虚拟磁盘文件，只需要在 VMware 中新建一台虚拟机，
+在设置虚拟磁盘的时候选择它即可。<a class="reference external" href="https://pan.baidu.com/s/1JzKjWivy9GZKK8rc3WMJ0g">百度网盘链接</a> ，
+提取码 <code class="docutils literal notranslate"><span class="pre">x5mf</span></code> 。</p>
+<p>你也可以在 Windows10 或 macOS 原生系统或者其他 Linux 发行版上进行实验，基本上不会出现太大的问题。不过由于
+时间问题我们只在 Ubuntu18.04 上进行了测试，后面的配置也都是基于它的。如果遇到了问题的话，请在本节的讨论区
+中留言，我们会尽量帮助解决。</p>
+</div>
+<div class="section" id="rust">
+<h2>Rust 开发环境配置<a class="headerlink" href="#rust" title="永久链接至标题">¶</a></h2>
+<p>首先安装 Rust 版本管理器 rustup 和 Rust 包管理器 cargo，这里我们用官方的安装脚本来安装：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl https://sh.rustup.rs -sSf <span class="p">|</span> sh
+</pre></div>
+</div>
+<p>如果通过官方的脚本下载失败了，可以在浏览器的地址栏中输入 <a class="reference external" href="https://sh.rustup.rs">https://sh.rustup.rs</a> 来下载脚本，在本地运行即可。</p>
+<p>如果官方的脚本在运行时出现了网络速度较慢的问题，可选地可以通过修改 rustup 的镜像地址
+（修改为中国科学技术大学的镜像服务器）来加速：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">RUSTUP_DIST_SERVER</span><span class="o">=</span>https://mirrors.ustc.edu.cn/rust-static
+<span class="nb">export</span> <span class="nv">RUSTUP_UPDATE_ROOT</span><span class="o">=</span>https://mirrors.ustc.edu.cn/rust-static/rustup
+curl https://sh.rustup.rs -sSf <span class="p">|</span> sh
+</pre></div>
+</div>
+<p>或者也可以通过在运行前设置命令行中的科学上网代理来实现：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># e.g. Shadowsocks 代理，请根据自身配置灵活调整下面的链接</span>
+<span class="nb">export</span> <span class="nv">https_proxy</span><span class="o">=</span>http://127.0.0.1:1080
+<span class="nb">export</span> <span class="nv">http_proxy</span><span class="o">=</span>http://127.0.0.1:1080
+<span class="nb">export</span> <span class="nv">ftp_proxy</span><span class="o">=</span>http://127.0.0.1:1080
+</pre></div>
+</div>
+<p>安装完成后，我们可以重新打开一个终端来让之前设置的环境变量生效。我们也可以手动将环境变量设置应用到当前终端，
+只需要输入以下命令：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span> <span class="nv">$HOME</span>/.cargo/env
+</pre></div>
+</div>
+<p>接下来，我们可以确认一下我们正确安装了 Rust 工具链：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rustc --version
+</pre></div>
+</div>
+<p>可以看到当前安装的工具链的版本。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rustc <span class="m">1</span>.46.0-nightly <span class="o">(</span>7750c3d46 <span class="m">2020</span>-06-26<span class="o">)</span>
+</pre></div>
+</div>
+<p>我们最好把软件包管理器 cargo 所用的软件包镜像地址 crates.io 也换成中国科学技术大学的镜像服务器来加速三方库的下载。
+我们打开（如果没有就新建） <code class="docutils literal notranslate"><span class="pre">~/.cargo/config</span></code> 文件，并把内容修改为：</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[source.crates-io]</span>
+<span class="n">registry</span> <span class="o">=</span> <span class="s">&quot;https://github.com/rust-lang/crates.io-index&quot;</span>
+<span class="n">replace-with</span> <span class="o">=</span> <span class="s">&#39;ustc&#39;</span>
+<span class="k">[source.ustc]</span>
+<span class="n">registry</span> <span class="o">=</span> <span class="s">&quot;git://mirrors.ustc.edu.cn/crates.io-index&quot;</span>
+</pre></div>
+</div>
+<p>至于 Rust 开发环境，推荐 Visual Studio Code 搭配 rust-analyzer 和 RISC-V Support 插件。</p>
+</div>
+<div class="section" id="qemu">
+<h2>Qemu 模拟器安装<a class="headerlink" href="#qemu" title="永久链接至标题">¶</a></h2>
+<p>我们需要使用 Qemu 5.0.0 版本进行实验，而很多 Linux 发行版的软件包管理器默认软件源中的 Qemu 版本过低，因此
+我们需要从源码手动编译安装 Qemu 模拟器。</p>
+<p>首先我们安装依赖包，获取 Qemu 源代码并手动编译：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 安装编译所需的依赖包</span>
+sudo apt install autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev <span class="se">\</span>
+              gawk build-essential bison flex texinfo gperf libtool patchutils bc <span class="se">\</span>
+              zlib1g-dev libexpat-dev git
+<span class="c1"># 下载源码包</span>
+<span class="c1"># 如果下载速度过慢可以使用我们提供的百度网盘链接：https://pan.baidu.com/s/1z-iWIPjxjxbdFS2Qf-NKxQ</span>
+<span class="c1"># 提取码 8woe</span>
+wget https://download.qemu.org/qemu-5.0.0.tar.xz
+<span class="c1"># 解压</span>
+tar xvJf qemu-5.0.0.tar.xz
+<span class="c1"># 编译安装并配置 RISC-V 支持</span>
+<span class="nb">cd</span> qemu-5.0.0
+./configure --target-list<span class="o">=</span>riscv64-softmmu,riscv64-linux-user
+make -j<span class="k">$(</span>nproc<span class="k">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p>注意，上面的依赖包可能并不完全，比如在 Ubuntu 18.04 上：</p>
 <ul class="simple">
-<li><p>下载安装 <a class="reference external" href="https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.0-x86_64-apple-darwin.tar.gz?_ga=2.230260892.1021855761.1603335606-1708912445.1603335606">macOS 平台</a>
-或 <a class="reference external" href="https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.0-x86_64-linux-ubuntu14.tar.gz?_ga=2.230260892.1021855761.1603335606-1708912445.1603335606">Ubuntu 平台</a>
-的预编译版本 <code class="docutils literal notranslate"><span class="pre">riscv64-unknown-elf-*</span></code> 工具链，并添加到环境变量。可以在提示找不到的情况下再进行下载。</p></li>
-<li><p>下载安装 <a class="reference external" href="https://musl.cc/riscv64-linux-musl-cross.tgz">Linux 平台</a> 预编译版本的 <code class="docutils literal notranslate"><span class="pre">riscv64-linux-musl-*</span></code> 工具链，并
-添加到环境变量。可以在提示找不到的情况下再进行下载。</p></li>
-<li><p>如果想在 Maix 系列开发板上运行，需要安装 python 包 <code class="docutils literal notranslate"><span class="pre">pyserial</span></code> 和串口终端 miniterm 。</p></li>
+<li><p>出现 <code class="docutils literal notranslate"><span class="pre">ERROR:</span> <span class="pre">pkg-config</span> <span class="pre">binary</span> <span class="pre">'pkg-config'</span> <span class="pre">not</span> <span class="pre">found</span></code> 时，可以安装 <code class="docutils literal notranslate"><span class="pre">pkg-config</span></code> 包；</p></li>
+<li><p>出现 <code class="docutils literal notranslate"><span class="pre">ERROR:</span> <span class="pre">glib-2.48</span> <span class="pre">gthread-2.0</span> <span class="pre">is</span> <span class="pre">required</span> <span class="pre">to</span> <span class="pre">compile</span> <span class="pre">QEMU</span></code> 时，可以安装
+<code class="docutils literal notranslate"><span class="pre">libglib2.0-dev</span></code> 包；</p></li>
+<li><p>出现 <code class="docutils literal notranslate"><span class="pre">ERROR:</span> <span class="pre">pixman</span> <span class="pre">&gt;=</span> <span class="pre">0.21.8</span> <span class="pre">not</span> <span class="pre">present</span></code> 时，可以安装 <code class="docutils literal notranslate"><span class="pre">libpixman-1-dev</span></code> 包。</p></li>
 </ul>
-<div class="admonition warning">
-<p class="admonition-title">警告</p>
-<p><strong>FIXME： 提供一套开箱即用的 Docker 环境</strong></p>
+<p>另外一些 Linux 发行版编译 Qemu 的依赖包可以从 <a class="reference external" href="https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html#prerequisites">这里</a>
+找到。</p>
+</div>
+<p>之后我们可以在同目录下 <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">make</span> <span class="pre">install</span></code> 将 Qemu 安装到 <code class="docutils literal notranslate"><span class="pre">/usr/local/bin</span></code> 目录下，但这样经常会引起
+冲突。个人来说更习惯的做法是，编辑 <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code> 文件（如果使用的是默认的 <code class="docutils literal notranslate"><span class="pre">bash</span></code> 终端），在文件的末尾加入
+几行：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 请注意，qemu-5.0.0 的父目录可以随着你的实际安装位置灵活调整</span>
+<span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:/home/shinbokuow/Downloads/built/qemu-5.0.0
+<span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:/home/shinbokuow/Downloads/built/qemu-5.0.0/riscv64-softmmu
+<span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:/home/shinbokuow/Downloads/built/qemu-5.0.0/riscv64-linux-user
+</pre></div>
+</div>
+<p>随后即可在当前终端 <code class="docutils literal notranslate"><span class="pre">source</span> <span class="pre">~/.bashrc</span></code> 更新系统路径，或者直接重启一个新的终端。</p>
+<p>此时我们可以确认 Qemu 的版本：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>qemu-system-riscv64 --version
+qemu-riscv64 --version
+</pre></div>
+</div>
+</div>
+<div class="section" id="id5">
+<h2>其他工具安装<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+<p>为了能在 K210 真机上运行 Tutorial，我们还需要安装基于 Python 的串口通信库和简易的串口终端。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip3 install pyserial
+sudo apt install python-serial
+</pre></div>
+</div>
+<p>下面这些工具链并不一定会被用到，可以等到真正依赖的时候再来安装。</p>
+</div>
+<div class="section" id="rcore-tutorial-v3">
+<h2>运行 rCore-Tutorial-v3<a class="headerlink" href="#rcore-tutorial-v3" title="永久链接至标题">¶</a></h2>
+<p>如果是在 Qemu 平台上运行，只需在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录下 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 即可。在内核加载完毕之后，可以看到目前可以用的
+应用程序。 <code class="docutils literal notranslate"><span class="pre">usertests</span></code> 打包了其中的很大一部分，所以我们可以运行它，只需输入在终端中输入它的名字即可。</p>
+<img alt="_images/qemu-final.gif" src="_images/qemu-final.gif" />
+<p>如果是在 K210 平台上运行则略显复杂。</p>
+<p>首先，我们需要将 MicroSD 插入 PC 来将文件系统镜像拷贝上去。</p>
+<img alt="_images/prepare-sd.gif" src="_images/prepare-sd.gif" />
+<p>随后，我们将 MicroSD 插入 K210 开发板，将 K210 开发板连接到 PC ，然后进入 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span> <span class="pre">BOARD=k210</span></code>
+在 K210 开发板上跑 Tutorial 。</p>
+<img alt="_images/k210-final.gif" src="_images/k210-final.gif" />
 </div>
 </div>
 

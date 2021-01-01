@@ -41,7 +41,7 @@ reStructuredText 基本语法
 
 下面是一个测试 gif。
 
-.. image:: test.gif
+.. image:: resources/test.gif
 
 接下来是一个表格的例子。
 
