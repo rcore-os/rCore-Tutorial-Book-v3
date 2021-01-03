@@ -94,7 +94,7 @@ class RVLexer(RegexLexer):
             (r'(?:.globl|.local|.equ)', token.Name.Function),
             (r'(?:.text|.data|.rodata|.bss|.comm|.common|.section)', token.Name.Function),
             (r'(?:.option|.macro|.endm|.file|.ident|.size|.type)', token.Name.Function),
-            (r'(?:.set|.rept|.endr|.macro|.endm)', token.Name.Function),
+            (r'(?:.set|.rept|.endr|.macro|.endm|.altmacro)', token.Name.Function),
             # Number
             (r'\b(?:(?:0x|)[\da-f]+|(?:0o|)[0-7]+|\d+)\b', token.Number),
             # Labels
@@ -104,7 +104,7 @@ class RVLexer(RegexLexer):
             # Other operators
             (r'[,\+\*\-\(\)\\%]', token.Text),
             # Hacks
-            (r'(?:SAVE_GP|trap_handler|LOAD_GP)', token.Name.Builtin),
+            (r'(?:SAVE_GP|trap_handler|__switch|LOAD_GP|SAVE_SN|LOAD_SN)', token.Name.Builtin),
             (r'(?:n)', token.Name.Entity),
             (r'(?:x)', token.Text),
         ],
