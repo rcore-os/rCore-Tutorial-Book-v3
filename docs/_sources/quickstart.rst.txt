@@ -194,6 +194,8 @@ Qemu 模拟器安装
 
 .. image:: resources/qemu-final.gif
 
+之后，可以先按下 ``Ctrl+A`` ，再按下 ``X`` 来退出 Qemu。
+
 如果是在 K210 平台上运行则略显复杂。
 
 首先，我们需要将 MicroSD 插入 PC 来将文件系统镜像拷贝上去。
@@ -204,5 +206,7 @@ Qemu 模拟器安装
 在 K210 开发板上跑 Tutorial 。 
 
 .. image:: resources/k210-final.gif
+
+之后，可以按下 ``Ctrl+]`` 来退出串口终端。
 
 到这里，恭喜你完成了实验环境的配置，可以开始阅读教程的正文部分了！
