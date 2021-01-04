@@ -248,11 +248,45 @@ Trap 执行流是在 Trap 触发的一瞬间生成的，它和原应用执行流
 <li><p>与 Trap 不同，它的一部分是由编译器帮忙完成的；</p></li>
 <li><p>与 Trap 相同，它对应用是透明的。</p></li>
 </ul>
-<p>事实上，它是来自两个不同应用的 Trap 执行流之间的切换。当一个应用 Trap 到 S 进行处理的时候，其 Trap
-执行流 <strong>主动</strong> 调用一个 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数来切换到另一个应用的 Trap 执行流。这个 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 有两个参数，分别指明被换出和即将被换入的
-两个 Trap 执行流，参数的详细含义将在后面说明。一个被换出的执行流稍后也可以被重新换入并继续执行，这只需要将它的“指示器”作为第二个参数传给
-<code class="docutils literal notranslate"><span class="pre">__switch</span></code> ，而不是像它被换出的时候作为第一个参数即可。如果将视角固定在一个 Trap 执行流， <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 可以看成一次普通的函数调用，
-只不过在调用期间该执行流经历了一次完整的换出换入过程。</p>
+<p>事实上，它是来自两个不同应用的 Trap 执行流之间的切换。当一个应用 Trap 到 S 进行处理的时候，其 Trap 执行流可以调用一个特殊的
+<code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数。这个函数表面上就是一个普通的函数调用：在 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 返回之后，将继续从调用该函数的位置继续向下执行。
+但是其间却隐藏着复杂的执行流切换过程。具体来说，调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 之后直到它返回前的这段时间，原 Trap 执行流会先被暂停并被
+切换出去， CPU 转而运行另一个应用的 Trap 执行流。之后在时机合适的时候，原 Trap 执行流才会从某一条 Trap 执行流（很有可能不是
+它之前切换到的那一条）切换回来继续执行并最终返回。不过，从实现的角度讲， <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 和一个普通的函数之间的差别仅仅是它会换栈。</p>
+<img alt="../_images/task_context.png" src="../_images/task_context.png" />
+<p>当 Trap 执行流准备调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数并进入暂停状态的时候，让我们考察一下它内核栈上的情况。如上图所示，在准备调用
+<code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数之前，内核栈上从栈底到栈顶分别是保存了应用执行状态的 Trap 上下文以及内核在对 Trap 处理的过程中留下的
+调用栈信息。由于之后还要恢复回来执行，我们必须保存 CPU 当前的某些寄存器，我们称它们为任务上下文 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code>。
+我们会在稍后介绍里面需要包含哪些寄存器。至于保存的位置，我们将任务上下文直接压入内核栈的栈顶，从这一点上来说它和函数调用一样。</p>
+<p>这样需要保存的信息就已经确实的保存在内核栈上了，而恢复的时候我们要从任务上下文的位置——也就是这一时刻内核栈栈顶的位置找到
+被保存的寄存器快照进行恢复，这个位置也需要被保存下来。对于每一条被暂停的 Trap 执行流，我们都用一个名为 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr</span></code>
+的变量来保存它栈顶的任务上下文的地址。利用 C 语言的引用来描述的话就是：</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">TaskContext</span> <span class="o">*</span><span class="n">task_cx_ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">task_cx</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>由于我们要用 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr</span></code> 这个变量来进行保存，自然也要对它进行修改。于是我们还需要指向它的指针 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr2</span></code> ：</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">TaskContext</span> <span class="o">**</span><span class="n">task_cx_ptr2</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">task_cx_ptr</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>接下来我们同样从栈上内容的角度来看 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的整体流程：</p>
+<img alt="../_images/switch-1.png" src="../_images/switch-1.png" />
+<img alt="../_images/switch-2.png" src="../_images/switch-2.png" />
+<p>Trap 执行流在调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 之前就需要明确知道即将切换到哪一条目前正处于暂停状态的 Trap 执行流，因此 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 有两个参数，
+第一个参数代表它自己，第二个参数则代表即将切换到的那条 Trap 执行流。这里我们用上面提到过的 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr2</span></code> 作为代表。在上图中我们
+假设某次 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 调用要从 Trap 执行流 A 切换到 B，一共可以分为五个阶段，在每个阶段中我们都给出了 A 和 B 内核栈上的内容。</p>
+<ul class="simple">
+<li><p>阶段 [1]：在 Trap 执行流 A 调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 之前，A 的内核栈上只有 Trap 上下文和 Trap 处理的调用栈信息，而 B 是之前被切换
+出去的，它的栈顶还有额外的一个任务上下文；</p></li>
+<li><p>阶段 [2]：A 在自身的内核栈上分配一块任务上下文的空间在里面保存 CPU 当前的寄存器快照。随后，我们更新 A 的 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr</span></code>，只需
+写入指向它的指针 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr2</span></code> 指向的内存即可；</p></li>
+<li><p>阶段 [3]：这一步极为关键。这里读取 B 的 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr</span></code> 或者说 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr2</span></code> 指向的那块内存获取到 B 的内核栈栈顶位置，并
+复制给 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器来换到 B 的内核栈。由于内核栈保存着它迄今为止的执行历史记录，可以说 <strong>换栈也就实现了执行流的切换</strong> 。
+正是因为这一步， <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 才能做到一个函数跨两条执行流执行。</p></li>
+<li><p>阶段 [4]：CPU 从 B 的内核栈栈顶取出任务上下文并恢复寄存器状态，在这之后还要进行退栈操作。</p></li>
+<li><p>阶段 [5]：对于 B 而言， <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数返回，可以从调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的位置继续向下执行。</p></li>
+</ul>
+<p>从结果来看，我们看到 A 和 B 的状态发生了互换， A 在保存任务上下文之后进入暂停状态，而 B 则恢复过来在 CPU 上执行。</p>
+<p>下面我们给出 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的实现：</p>
 <div class="highlight-riscv notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
  3
@@ -285,7 +319,14 @@ Trap 执行流是在 Trap 触发的一瞬间生成的，它和原应用执行流
 30
 31
 32
-33</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="nf">.altmacro</span><span class="w"></span>
+33
+34
+35
+36
+37
+38</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c"># os/src/task/switch.S</span>
+
+<span class="nf">.altmacro</span><span class="w"></span>
 <span class="nf">.macro</span><span class="w"> </span><span class="nb">SAVE_SN</span><span class="w"> </span><span class="ni">n</span><span class="w"></span>
 <span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="no">s</span>\<span class="ni">n</span>,<span class="w"> </span>(\<span class="ni">n</span>+<span class="m">1</span>)*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
 <span class="nf">.endm</span><span class="w"></span>
@@ -295,7 +336,10 @@ Trap 执行流是在 Trap 触发的一瞬间生成的，它和原应用执行流
 <span class="w">    </span><span class="nf">.section</span><span class="w"> </span><span class="nf">.text</span><span class="w"></span>
 <span class="w">    </span><span class="nf">.globl</span><span class="w"> </span><span class="nb">__switch</span><span class="w"></span>
 <span class="nb">__switch:</span><span class="w"></span>
-<span class="w">    </span><span class="c"># __switch(current_task_cx: &amp;*const TaskContext, next_task_cx: &amp;*const TaskContext)</span>
+<span class="w">    </span><span class="c"># __switch(</span>
+<span class="w">    </span><span class="c">#     current_task_cx_ptr2: &amp;*const TaskContext,</span>
+<span class="w">    </span><span class="c">#     next_task_cx_ptr2: &amp;*const TaskContext</span>
+<span class="w">    </span><span class="c"># )</span>
 <span class="w">    </span><span class="c"># push TaskContext to current sp and save its address to where a0 points to</span>
 <span class="w">    </span><span class="nd">addi</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="na">sp</span>,<span class="w"> </span>-<span class="m">13</span>*<span class="m">8</span><span class="w"></span>
 <span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">0</span>(<span class="na">a0</span>)<span class="w"></span>
@@ -320,6 +364,55 @@ Trap 执行流是在 Trap 触发的一瞬间生成的，它和原应用执行流
 <span class="w">    </span><span class="nd">ret</span><span class="w"></span>
 </pre></div>
 </td></tr></table></div>
+<p>我们手写汇编代码来实现 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 。可以看到它的函数原型中的两个参数分别是当前 Trap 执行流和即将被切换到的 Trap 执行流的
+<code class="docutils literal notranslate"><span class="pre">task_cx_ptr2</span></code> ，从 <a class="reference internal" href="../chapter1/3minimal-rt.html#term-calling-convention"><span class="std std-ref">RISC-V 调用规范</span></a> 可以知道它们分别通过寄存器 <code class="docutils literal notranslate"><span class="pre">a0/a1</span></code> 传入。</p>
+<p>阶段 [2] 体现在第 18~26 行。第 18 行在 A 的内核栈上预留任务上下文的空间，然后将当前的栈顶位置保存下来。接下来就是逐个对寄存器
+进行保存，从中我们也能够看出 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 里面究竟包含哪些寄存器：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/context.rs</span>
+
+<span class="cp">#[repr(C)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">ra</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">s</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">12</span><span class="p">],</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>这里面只保存了 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 和被调用者保存的 <code class="docutils literal notranslate"><span class="pre">s0~s11</span></code> 。<code class="docutils literal notranslate"><span class="pre">ra</span></code> 的保存很重要，它记录了 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 返回之后应该到哪里继续执行，
+从而在切换回来并 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 之后能到正确的位置。而保存调用者保存的寄存器是因为，调用者保存的寄存器可以由编译器帮我们自动保存。我们会将
+这段汇编代码中的全局符号 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 解释为一个 Rust 函数：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/switch.rs</span>
+
+<span class="n">global_asm</span><span class="o">!</span><span class="p">(</span><span class="n">include_str</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;switch.S&quot;</span><span class="p">));</span><span class="w"></span>
+
+<span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">__switch</span><span class="p">(</span><span class="w"></span>
+<span class="w">        </span><span class="n">current_task_cx_ptr2</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="n">next_task_cx_ptr2</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="w"></span>
+<span class="w">    </span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>我们会调用该函数来完成切换功能而不是直接跳转到符号 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的地址。因此在调用前后 Rust 编译器会自动帮助我们插入保存/恢复
+调用者保存寄存器的汇编代码。</p>
+<p>仔细观察的话可以发现 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 很像一个普通函数栈帧中的内容。正如之前所说， <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的实现除了换栈之外几乎就是一个
+普通函数，也能在这里得到体现。尽管如此，二者的内涵却有着很大的不同。</p>
+<p>剩下的汇编代码就比较简单了。读者可以自行对照注释看看图示中的后面几个阶段各是如何实现的。另外，后面会出现传给 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的两个参数
+相同，也就是某个 Trap 执行流自己切换到自己的情形，请读者对照图示思考目前的实现能否对它进行正确处理。</p>
 </div>
 
 

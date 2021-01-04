@@ -635,6 +635,15 @@ Trap 嵌套的情况使得它们的值被覆盖掉。所以我们需要将它们
 进入 Trap 之前的状态并指向内核栈栈顶。</p></li>
 <li><p>在应用程序执行流状态被还原之后，第 28 行我们使用 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 指令回到 U 特权级继续运行应用程序执行流。</p></li>
 </ul>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>sscratch CSR 的用途</strong></p>
+<p>在特权级切换的时候，我们需要将 Trap 上下文保存在内核栈上，因此需要一个寄存器暂存内核栈地址，并以它作为基地址来依次保存 Trap 上下文
+的内容。但是所有的通用寄存器都不能够用来暂存，因为它们都需要被保存，如果覆盖掉它们会影响应用执行流的执行。</p>
+<p>事实上我们缺少了一个重要的中转寄存器，而 <code class="docutils literal notranslate"><span class="pre">sscratch</span></code> CSR 正是为此而生。从上面的汇编代码中可以看出，在保存 Trap 上下文的时候，它
+起到了两个作用：首先是它保存了内核栈的地址，其次是它作为一个中转站让 sp 目前指向的用户栈的地址可以暂时保存下来。于是，我们仅需一条
+<code class="docutils literal notranslate"><span class="pre">csrrw</span></code> 指令就完成了从用户栈到内核栈的切换，这是一种极其精巧的实现。</p>
+</div>
 </div>
 <div class="section" id="id4">
 <h2>Trap 分发与处理<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
