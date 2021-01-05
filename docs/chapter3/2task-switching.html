@@ -232,7 +232,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 ，且始终用一个固定的栈来保存执行的历史记录，因此函数调用并不涉及执行流的切换。但是我们依然可以将其看成调用者和被调用者两个过程的“切换”，
 二者的协作体现在它们都遵循调用规范，分别保存一部分通用寄存器，这样的好处是编译器能够有足够的信息来尽可能减少需要保存的寄存器的数目。
 虽然当时用了很大的篇幅来说明，但其实整个过程都是编译器负责完成的，我们只需设置好栈就行了。</p></li>
-<li><p>第二章《批处理系统》中第一次涉及到了某种异常控制流，即两条控制流的切换。当时，为了让内核能够 <em>完全掌控</em> 应用的执行，我们必须利用硬件
+<li><p>第二章《批处理系统》中第一次涉及到了某种异常控制流，即两条执行流的切换。当时，为了让内核能够 <em>完全掌控</em> 应用的执行，我们必须利用硬件
 提供的特权级机制，让应用和内核运行在不同的特权级。应用运行在 U 特权级，它所被允许的操作进一步受限，处处被内核监督管理；而内核运行在 S
 特权级，有能力处理应用执行过程中提出的请求或遇到的状况。</p>
 <p>二者打交道的核心在于硬件提供的 Trap 机制，也就是在 U 特权级运行的应用执行流和在 S 特权级运行的 Trap 执行流之间的切换。
@@ -254,9 +254,9 @@ Trap 执行流是在 Trap 触发的一瞬间生成的，它和原应用执行流
 切换出去， CPU 转而运行另一个应用的 Trap 执行流。之后在时机合适的时候，原 Trap 执行流才会从某一条 Trap 执行流（很有可能不是
 它之前切换到的那一条）切换回来继续执行并最终返回。不过，从实现的角度讲， <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 和一个普通的函数之间的差别仅仅是它会换栈。</p>
 <img alt="../_images/task_context.png" src="../_images/task_context.png" />
-<p>当 Trap 执行流准备调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数并进入暂停状态的时候，让我们考察一下它内核栈上的情况。如上图所示，在准备调用
+<p id="term-task-context">当 Trap 执行流准备调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数并进入暂停状态的时候，让我们考察一下它内核栈上的情况。如上图所示，在准备调用
 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数之前，内核栈上从栈底到栈顶分别是保存了应用执行状态的 Trap 上下文以及内核在对 Trap 处理的过程中留下的
-调用栈信息。由于之后还要恢复回来执行，我们必须保存 CPU 当前的某些寄存器，我们称它们为任务上下文 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code>。
+调用栈信息。由于之后还要恢复回来执行，我们必须保存 CPU 当前的某些寄存器，我们称它们为 <strong>任务上下文</strong> (Task Context)。
 我们会在稍后介绍里面需要包含哪些寄存器。至于保存的位置，我们将任务上下文直接压入内核栈的栈顶，从这一点上来说它和函数调用一样。</p>
 <p>这样需要保存的信息就已经确实的保存在内核栈上了，而恢复的时候我们要从任务上下文的位置——也就是这一时刻内核栈栈顶的位置找到
 被保存的寄存器快照进行恢复，这个位置也需要被保存下来。对于每一条被暂停的 Trap 执行流，我们都用一个名为 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr</span></code>

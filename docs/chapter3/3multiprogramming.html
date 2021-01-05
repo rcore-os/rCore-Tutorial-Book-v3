@@ -219,6 +219,43 @@ commentsRunWhenDOMLoaded(addUtterances);
             
   <div class="section" id="id1">
 <h1>多道程序与协作式调度<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<p>上一节我们已经介绍了任务切换是如何实现的，最终我们将其封装为一个函数 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 。但是在实际使用的时候，我们需要知道何时调用该函数，
+以及如何确定传入函数的两个参数——分别代表正待换出和即将被换入的两条 Trap 执行流。本节我们就来介绍任务切换的第一种实际应用场景：多道程序。
+本节的代码可以在 <code class="docutils literal notranslate"><span class="pre">ch3-coop</span></code> 分支上找到。</p>
+<p>还记得第二章中介绍的批处理系统的设计初衷吗？它是注意到 CPU 并没有一直在执行应用程序，在一个应用程序运行结束直到下一个应用程序开始运行
+的这段时间，可能需要操作员取出上一个程序的执行结果并手动进行程序卡片的替换，这段空档期对于宝贵的 CPU 计算资源是一种巨大的浪费。于是
+批处理系统横空出世，它可以自动连续完成应用的加载和运行，并将一些本不需要 CPU 完成的简单任务交给廉价的外围设备，从而让 CPU 能够更加
+专注于计算任务本身，大大提高了 CPU 的利用率。</p>
+<p id="term-input-output">尽管 CPU 一直在跑应用了，但是其利用率仍有上升的空间。随着应用需求的不断复杂，有的时候会在内核的监督下访问一些外设，它们也是计算机系统
+的另一个非常重要的组成部分，即 <strong>输入/输出</strong> (I/O, Input/Output) 。CPU 会将请求和一些附加的参数写入外设，待外设处理完毕之后，
+CPU 便可以从外设读到请求的处理结果。比如在从作为外部存储的磁盘上读取数据的时候，CPU 将要读取的扇区的编号以及读到的数据放到的物理地址
+传给磁盘，在磁盘对请求进行调度并完成数据拷贝之后，就能在物理内存中看到要读取的数据。</p>
+<p>在一个应用对外设发出了请求之后，它不能立即向下执行，而是要等待外设将请求处理完毕并拿到完整的处理结果之后才能继续。那么如何知道
+外设是否已经完成了请求呢？通常外设会提供一个可读的寄存器记录它目前的工作状态，于是 CPU 需要不断原地循环读取它直到它的结果显示设备已经
+将请求处理完毕了，才能向下执行。然而，外设的计算速度和 CPU 相比可能慢了几个数量级，这就导致 CPU 有大量时间浪费在等待外设这件事情上，
+这段时间它几乎没有做任何事情，也在一定程度上造成了 CPU 的利用率不够理想。</p>
+<p>我们暂时考虑 CPU 只能 <em>单方面</em> 通过读取外设提供的寄存器来获取外设请求处理的状态。多道程序的思想在于：内核同时管理多个应用。
+如果外设处理的时间足够长，那我们可以先进行任务切换去执行其他应用，在某次切换回来之后，应用再次读取设备寄存器，发现请求已经处理完毕了，
+那么就可以用拿到的完整的数据继续向下执行了。这样的话，只要同时存在的应用足够多，就能保证 CPU 不必浪费时间在等待外设上，而是几乎一直
+在进行计算。这种任务切换，是通过应用进行一个名为 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 的系统调用来实现的，这意味着它主动交出 CPU 的使用权给其他应用。</p>
+<img alt="../_images/multiprogramming.png" src="../_images/multiprogramming.png" />
+<p>上图描述了一种多道程序执行的典型情况。其中横轴为时间线，纵轴为正在执行的实体。开始时，某个应用（蓝色）向外设提交了一个请求，
+随即可以看到对应的外设（紫色）开始工作。但是它要工作相当长的一段时间，因此应用（蓝色）不会去等待它结束而是会调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code>
+主动交出 CPU 使用权来切换到另一个应用（绿色）。另一个应用（绿色）在执行了一段时间之后调用了 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> ，此时内核决定让应用（蓝色）
+继续执行。它检查了一下外设的工作状态，发现请求尚未处理完，于是再次调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 。然后另一个应用（绿色）执行了一段时间之后
+<code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 再次切换回这个应用（蓝色），这次的不同是它发现外设已经处理完请求了，于是它终于可以向下执行了。</p>
+<p>上面我们是通过“避免无谓的外设等待来提高 CPU 利用率”这一切入点来引入 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 。但其实调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 不一定与外设有关。
+随着内核功能的逐渐复杂，我们还会遇到很多其他类型的需要等待其完成才能继续向下执行的事件，我们都可以立即调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 来避免等待
+过程造成的浪费。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>sys_yield 的缺点</strong></p>
+<p>请读者思考一下， <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 存在哪些缺点？</p>
+<p>当应用调用它主动交出 CPU 使用权之后，它下一次再被允许使用 CPU 的时间点与内核的调度策略与当前的总体应用执行情况有关，很有可能
+远远迟于该应用等待的事件（如外设处理完请求）达成的时间点。这就会造成该应用的响应延迟不稳定，有可能极高。比如，设想一下，敲击键盘
+之后隔了数分钟之后才能在屏幕上看到字符，这已经超出了人类所能忍受的范畴。</p>
+<p>但也请不要担心，我们后面会有更加优雅的解决方案。</p>
+</div>
 </div>
 
 

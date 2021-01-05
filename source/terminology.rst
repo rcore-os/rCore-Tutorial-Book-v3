@@ -211,3 +211,9 @@
    * - 分时多任务系统
      - Time-Sharing Multitasking
      - :ref:`引言 <term-time-sharing-multitasking>`
+   * - 任务上下文
+     - Task Context
+     - :ref:`任务切换 <term-task-context>`
+   * - 输入/输出
+     - I/O, Input/Output
+     - :ref:`多道程序与协作式调度 <term-input-output>`
