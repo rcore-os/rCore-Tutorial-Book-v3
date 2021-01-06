@@ -217,3 +217,6 @@
    * - 输入/输出
      - I/O, Input/Output
      - :ref:`多道程序与协作式调度 <term-input-output>`
+   * - 任务控制块
+     - Task Control Block
+     - :ref:`多道程序与协作式调度 <term-task-control-block>`

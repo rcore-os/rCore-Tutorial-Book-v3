@@ -259,7 +259,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="cp">#[link_section = </span><span class="s">&quot;.text.entry&quot;</span><span class="cp">]</span><span class="w"></span>
 <span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="n">clear_bss</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="n">syscall</span>::<span class="n">sys_exit</span><span class="p">(</span><span class="n">main</span><span class="p">());</span><span class="w"></span>
+<span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">());</span><span class="w"></span>
 <span class="w">    </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;unreachable after sys_exit!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
@@ -267,8 +267,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>第 2 行使用 Rust 的宏将 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 这段代码编译后的汇编代码中放在一个名为 <code class="docutils literal notranslate"><span class="pre">.text.entry</span></code> 的代码段中，方便我们在后续链接的时候
 调整它的位置使得它能够作为用户库的入口。</p>
 <p>而从第 4 行开始我们能够看到进入用户库入口之后，首先和第一章一样手动清空需要被零初始化 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段（很遗憾到目前为止底层的批处理系统还
-没有这个能力，所以我们只能在用户库中完成），然后是调用 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数得到一个类型为 <code class="docutils literal notranslate"><span class="pre">i32</span></code> 的返回值，最后是使用接下来会提到的系统调用
-退出应用程序并将这个返回值告知批处理系统。</p>
+没有这个能力，所以我们只能在用户库中完成），然后是调用 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数得到一个类型为 <code class="docutils literal notranslate"><span class="pre">i32</span></code> 的返回值。</p>
+<p>第 5 行我们调用后面会提到的用户库提供的 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 接口退出应用程序并将这个返回值告知批处理系统。</p>
 <p>我们还在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 中看到了另一个 <code class="docutils literal notranslate"><span class="pre">main</span></code> ：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
 2
@@ -308,7 +308,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 提供应用程序所需的功能，只是站在应用程序的角度去使用即可。</p>
 <p>在本章中，应用程序和批处理系统之间约定如下两个系统调用：</p>
 <div class="literal-block-wrapper docutils container" id="id6">
-<div class="code-block-caption"><span class="caption-text">系统调用一</span><a class="headerlink" href="#id6" title="永久链接至代码">¶</a></div>
+<div class="code-block-caption"><span class="caption-text">第二章新增系统调用</span><a class="headerlink" href="#id6" title="永久链接至代码">¶</a></div>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：将内存中缓冲区中的数据写入文件。</span>
 <span class="sd">/// 参数：`fd` 表示待写入文件的文件描述符；</span>
 <span class="sd">///      `buf` 表示内存中缓冲区的起始地址；</span>
@@ -342,7 +342,11 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
  9
 10
 11
-12</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">syscall</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">args</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">3</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+12
+13
+14</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/syscall.rs</span>
+
+<span class="k">fn</span> <span class="nf">syscall</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">args</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">3</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ret</span>: <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
 <span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="n">llvm_asm</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;ecall&quot;</span><span class="w"></span>
@@ -356,8 +360,8 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </td></tr></table></div>
-<p>第 1 行，我们将所有的系统调用都封装成 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 函数，可以看到它支持传入 syscall ID 和 3 个参数。</p>
-<p>第 4 行开始，我们使用 Rust 提供的 <code class="docutils literal notranslate"><span class="pre">llvm_asm!</span></code> 宏在代码中内嵌汇编，在本行也给出了具体要插入的汇编指令，也就是 <code class="docutils literal notranslate"><span class="pre">ecall</span></code>，但这并不是
+<p>第 3 行，我们将所有的系统调用都封装成 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 函数，可以看到它支持传入 syscall ID 和 3 个参数。</p>
+<p>第 6 行开始，我们使用 Rust 提供的 <code class="docutils literal notranslate"><span class="pre">llvm_asm!</span></code> 宏在代码中内嵌汇编，在本行也给出了具体要插入的汇编指令，也就是 <code class="docutils literal notranslate"><span class="pre">ecall</span></code>，但这并不是
 全部，后面我们还需要进行一些相关设置。这个宏在 Rust 中还不稳定，因此我们需要在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 开头加入 <code class="docutils literal notranslate"><span class="pre">#![feature(llvm_asm)]</span></code> 。
 此外，编译器无法判定插入汇编代码这个行为的安全性，所以我们需要将其包裹在 unsafe 块中自己来对它负责。</p>
 <p>Rust 中的 <code class="docutils literal notranslate"><span class="pre">llvm_asm!</span></code> 宏的完整格式如下：</p>
@@ -370,22 +374,22 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 </pre></div>
 </div>
 <p>下面逐行进行说明。</p>
-<p>第 5 行指定输出操作数。这里由于我们的系统调用返回值只有一个 <code class="docutils literal notranslate"><span class="pre">isize</span></code> ，根据调用规范它会被保存在 <code class="docutils literal notranslate"><span class="pre">a0</span></code> 寄存器中。在双引号内，我们
+<p>第 7 行指定输出操作数。这里由于我们的系统调用返回值只有一个 <code class="docutils literal notranslate"><span class="pre">isize</span></code> ，根据调用规范它会被保存在 <code class="docutils literal notranslate"><span class="pre">a0</span></code> 寄存器中。在双引号内，我们
 可以对于使用的操作数进行限制，由于是输出部分，限制的开头必须是一个 <code class="docutils literal notranslate"><span class="pre">=</span></code> 。我们可以在限制内使用一对花括号再加上一个寄存器的名字告诉
 编译器汇编的输出结果会保存在这个寄存器中。我们将声明出来用来保存系统调用返回值的变量 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 包在一对普通括号里面放在操作数限制的
 后面，这样可以把变量和寄存器建立联系。于是，在系统调用返回之后我们就能在变量 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 中看到返回值了。注意，变量 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 必须为可变
 绑定，否则无法通过编译，这也说明在 unsafe 块内编译器还是会进行力所能及的安全检查。</p>
-<p>第 6 行指定输入操作数。由于是输入部分，限制的开头不用加上 <code class="docutils literal notranslate"><span class="pre">=</span></code> 。同时在限制中设置使用寄存器 <code class="docutils literal notranslate"><span class="pre">a0~a2</span></code> 来保存系统调用的参数，以及
+<p>第 8 行指定输入操作数。由于是输入部分，限制的开头不用加上 <code class="docutils literal notranslate"><span class="pre">=</span></code> 。同时在限制中设置使用寄存器 <code class="docutils literal notranslate"><span class="pre">a0~a2</span></code> 来保存系统调用的参数，以及
 寄存器 <code class="docutils literal notranslate"><span class="pre">a7</span></code> 保存 syscall ID ，而它们分别 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 的参数变量 <code class="docutils literal notranslate"><span class="pre">args</span></code> 和 <code class="docutils literal notranslate"><span class="pre">id</span></code> 绑定。</p>
-<p>第 7 行用于告知编译器插入的汇编代码会造成的一些影响以防止编译器在不知情的情况下误优化。常用的使用方法是告知编译器某个寄存器在执行嵌入
+<p>第 9 行用于告知编译器插入的汇编代码会造成的一些影响以防止编译器在不知情的情况下误优化。常用的使用方法是告知编译器某个寄存器在执行嵌入
 的汇编代码中的过程中会发生变化。我们这里则是告诉编译器在执行嵌入汇编代码中的时候会修改内存。这能给编译器提供更多信息。</p>
-<p>第 8 行用于告知编译器将我们在程序中给出的嵌入汇编代码保持原样放到最终构建的可执行文件中。如果不这样做的话，编译器可能会把它和其他代码
+<p>第 10 行用于告知编译器将我们在程序中给出的嵌入汇编代码保持原样放到最终构建的可执行文件中。如果不这样做的话，编译器可能会把它和其他代码
 一视同仁并放在一起进行一些我们期望之外的优化。为了保证语义的正确性，一些比较关键的汇编代码需要加上该选项。</p>
 <p>第一章中的输出到屏幕的操作也同样是使用内联汇编调用 SEE 提供的 SBI 接口来实现的。有兴趣的读者可以回顾第一章的 <code class="docutils literal notranslate"><span class="pre">console.rs</span></code> 和
 <code class="docutils literal notranslate"><span class="pre">sbi.rs</span></code> 。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p><strong>Rust 中的内联汇编</strong></p>
+<p><strong>Rust 语法卡片：内联汇编</strong></p>
 <p>我们这里使用的 <code class="docutils literal notranslate"><span class="pre">llvm_asm!</span></code> 宏是将 Rust 底层 IR LLVM 中提供的内联汇编包装成的，更多信息可以参考 <a class="reference external" href="https://doc.rust-lang.org/unstable-book/library-features/llvm-asm.html">llvm_asm 文档</a> 。</p>
 <p>在未来的 Rust 版本推荐使用功能更加强大且方便易用的 <code class="docutils literal notranslate"><span class="pre">asm!</span></code> 宏，但是目前还未稳定，可以查看 <a class="reference external" href="https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html">inline-asm RFC</a> 了解最新进展。</p>
 </div>
@@ -399,7 +403,11 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
  7
  8
  9
-10</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_WRITE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="p">;</span><span class="w"></span>
+10
+11
+12</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/syscall.rs</span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_WRITE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="p">;</span><span class="w"></span>
 <span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_EXIT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">93</span><span class="p">;</span><span class="w"></span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
@@ -413,9 +421,41 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 </td></tr></table></div>
 <p id="term-fat-pointer">注意 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 使用一个 <code class="docutils literal notranslate"><span class="pre">&amp;[u8]</span></code> 切片类型来描述缓冲区，这是一个 <strong>胖指针</strong> (Fat Pointer)，里面既包含缓冲区的起始地址，还
 包含缓冲区的长度。我们可以分别通过 <code class="docutils literal notranslate"><span class="pre">as_ptr</span></code> 和 <code class="docutils literal notranslate"><span class="pre">len</span></code> 方法取出它们并独立的作为实际的系统调用参数。</p>
-<p>我们把 <code class="docutils literal notranslate"><span class="pre">console</span></code> 子模块中 <code class="docutils literal notranslate"><span class="pre">Stdout::write_str</span></code> 改成基于 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 的实现，且传入的 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 参数设置为 1，它代表标准输出，
-也就是输出到屏幕。目前我们不需要考虑其他的 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 选取情况。这样，应用程序的 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏借助系统调用变得可用了。</p>
-<p><code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 则在用户库中的 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 内使用，当应用程序主逻辑 <code class="docutils literal notranslate"><span class="pre">main</span></code> 返回之后，使用该系统调用退出应用程序并将返回值告知
+<p>我们将上述两个系统调用在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中进一步封装，从而更加接近在 Linux 等平台的实际体验：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
+<span class="k">use</span><span class="w"> </span><span class="n">syscall</span>::<span class="o">*</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exit</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_exit</span><span class="p">(</span><span class="n">exit_code</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>我们把 <code class="docutils literal notranslate"><span class="pre">console</span></code> 子模块中 <code class="docutils literal notranslate"><span class="pre">Stdout::write_str</span></code> 改成基于 <code class="docutils literal notranslate"><span class="pre">write</span></code> 的实现，且传入的 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 参数设置为 1，它代表标准输出，
+也就是输出到屏幕。目前我们不需要考虑其他的 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 选取情况。这样，应用程序的 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏借助系统调用变得可用了。
+参考下面的代码片段：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/console.rs</span>
+<span class="k">const</span><span class="w"> </span><span class="n">STDOUT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Write</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Stdout</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">write_str</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">s</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">fmt</span>::<span class="nb">Result</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">write</span><span class="p">(</span><span class="n">STDOUT</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">());</span><span class="w"></span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p><code class="docutils literal notranslate"><span class="pre">exit</span></code> 接口则在用户库中的 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 内使用，当应用程序主逻辑 <code class="docutils literal notranslate"><span class="pre">main</span></code> 返回之后，使用它退出应用程序并将返回值告知
 底层的批处理系统。</p>
 </div>
 <div class="section" id="id5">

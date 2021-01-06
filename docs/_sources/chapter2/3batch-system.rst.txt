@@ -79,12 +79,23 @@
         current_app: usize,
         app_start: [usize; MAX_APP_NUM + 1],
     }
+    unsafe impl Sync for AppManager {}
 
 这里我们可以看出，上面提到的应用管理器需要保存和维护的信息都在 ``AppManagerInner`` 里面，而结构体 ``AppManager`` 里面只是保存了
 一个指向 ``AppManagerInner`` 的 ``RefCell`` 智能指针。这样设计的原因在于：我们希望将 ``AppManager`` 实例化为一个全局变量使得
 任何函数都可以直接访问，但是里面的 ``current_app`` 字段表示当前执行到了第几个应用，它会在系统运行期间发生变化。因此在声明全局变量
 的时候一种自然的方法是利用 ``static mut``。但是在 Rust 中，任何对于 ``static mut`` 变量的访问都是 unsafe 的，而我们要尽可能
 减少 unsafe 的使用来更多的让编译器负责安全性检查。
+
+此外，为了让 ``AppManager`` 能被直接全局实例化，我们需要将其标记为 ``Sync`` 。
+
+.. note::
+
+    **为什么对于 static mut 的访问是 unsafe 的**
+
+    **为什么要将 AppManager 标记为 Sync**
+
+    可以参考附录A：Rust 快速入门的并发章节。
 
 于是，我们利用 ``RefCell`` 来提供内部可变性，所谓的内部可变性就是指在我们只能拿到 ``AppManager`` 的不可变借用，意味着同样也只能
 拿到 ``AppManagerInner`` 的不可变借用的情况下依然可以修改 ``AppManagerInner`` 里面的字段。

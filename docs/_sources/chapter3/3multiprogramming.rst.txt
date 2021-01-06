@@ -1,6 +1,9 @@
 多道程序与协作式调度
 =========================================
 
+多道程序背景与 yield 系统调用
+-------------------------------------------------------------------------
+
 上一节我们已经介绍了任务切换是如何实现的，最终我们将其封装为一个函数 ``__switch`` 。但是在实际使用的时候，我们需要知道何时调用该函数，
 以及如何确定传入函数的两个参数——分别代表正待换出和即将被换入的两条 Trap 执行流。本节我们就来介绍任务切换的第一种实际应用场景：多道程序。
 本节的代码可以在 ``ch3-coop`` 分支上找到。
@@ -50,3 +53,394 @@ CPU 便可以从外设读到请求的处理结果。比如在从作为外部存�
     之后隔了数分钟之后才能在屏幕上看到字符，这已经超出了人类所能忍受的范畴。
 
     但也请不要担心，我们后面会有更加优雅的解决方案。
+
+我们给出 ``sys_yield`` 的标准接口：
+
+.. code-block:: rust
+    :caption: 第三章新增系统调用（一）
+
+    /// 功能：应用主动交出 CPU 所有权并切换到其他应用。
+    /// 返回值：总是返回 0。
+    /// syscall ID：124
+    fn sys_yield() -> isize;
+
+然后是用户库对应的实现和封装：
+
+.. code-block:: rust
+    
+    // user/src/syscall.rs
+
+    pub fn sys_yield() -> isize {
+        syscall(SYSCALL_YIELD, [0, 0, 0])
+    }
+
+    // user/src/lib.rs
+
+    pub fn yield_() -> isize { sys_yield() }
+
+注意 ``yield`` 是 Rust 的关键字，因此我们只能将应用直接调用的接口命名为 ``yield_`` 。
+
+接下来我们介绍内核应如何实现该系统调用。
+
+任务控制块与任务运行状态
+---------------------------------------------------------
+
+在第二章批处理系统中我们只需知道目前执行到第几个应用就行了，因为同一时间内核只管理一个应用，当它出错或退出之后内核会
+将其替换为另一个。然而，一旦引入了任务切换机制就没有那么简单了，同一时间内核需要管理多个未完成的应用，而且我们不能对
+应用完成的顺序做任何假定，并不是先加入的应用就一定会先完成。这种情况下，我们必须在内核中对每个应用分别维护它的运行
+状态，目前有如下几种：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/task.rs
+
+    #[derive(Copy, Clone, PartialEq)]
+    pub enum TaskStatus {
+        UnInit, // 未初始化
+        Ready, // 准备运行
+        Running, // 正在运行
+        Exited, // 已退出
+    }
+
+.. note::
+
+    **Rust 语法卡片：#[derive]**
+
+    通过 ``#[derive(...)]`` 可以让编译器为你的类型提供一些 Trait 的默认实现。
+
+    - 实现了 ``Clone`` Trait 之后就可以调用 ``clone`` 函数完成拷贝；
+    - 实现了 ``PartialEq`` Trait 之后就可以使用 ``==`` 运算符比较该类型的两个实例，从逻辑上说只有
+      两个相等的应用执行状态才会被判为相等，而事实上也确实如此。
+    - ``Copy`` 是一个标记 Trait，决定该类型在按值传参/赋值的时候取移动语义还是复制语义。
+
+
+.. _term-task-control-block:
+
+仅仅有这个是不够的，内核还需要保存一个应用的更多信息，我们将它们都保存在一个名为 **任务控制块** 
+(Task Control Block) 的数据结构中：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/task.rs
+
+    pub struct TaskControlBlock {
+        pub task_cx_ptr: usize,
+        pub task_status: TaskStatus,
+    }
+
+    impl TaskControlBlock {
+        pub fn get_task_cx_ptr2(&self) -> *const usize {
+            &self.task_cx_ptr as *const usize
+        }
+    }
+
+可以看到我们还在 ``task_cx_ptr`` 字段中维护了一个上一小节中提到的指向应用被切换出去的时候，它内核栈栈顶的任务上下文
+的指针。而在任务切换函数 ``__switch`` 中我们需要用这个 ``task_cx_ptr`` 的指针作为参数并代表这个应用，于是 
+``TaskControlBlock`` 还提供了获取这个指针的指针 ``task_cx_ptr2`` 的方法 ``get_task_cx_ptr2`` 。
+
+任务控制块非常重要。在内核中，它就是应用的管理单位。在后面的章节我们还会不断向里面添加更多内容。
+
+任务管理器
+--------------------------------------
+
+我们还需要一个全局的任务管理器来管理这些用任务控制块描述的应用：
+
+.. code-block:: rust
+
+    // os/src/task/mod.rs
+
+    pub struct TaskManager {
+        num_app: usize,
+        inner: RefCell<TaskManagerInner>,
+    }
+
+    struct TaskManagerInner {
+        tasks: [TaskControlBlock; MAX_APP_NUM],
+        current_task: usize,
+    }
+
+    unsafe impl Sync for TaskManager {}
+
+其中仍然使用到了变量与常量分离的编程风格：字段 ``num_app`` 仍然表示任务管理器管理的应用的数目，它在 
+``TaskManager`` 初始化之后就不会发生变化；而包裹在 ``TaskManagerInner`` 内的任务控制块数组 
+``tasks`` 以及表示 CPU 正在执行的应用编号 ``current_task`` 会在执行应用的过程中发生变化： 每个
+应用的运行状态都会发生变化，而 CPU 执行的应用也在不断切换。
+
+再次强调，这里的 ``current_task`` 与第二章批处理系统中的含义不同。在批处理系统中，它表示一个既定的应用序列中的
+执行进度，隐含着在该应用之前的都已经执行完毕，之后都没有执行；而在这里我们只能通过它知道 CPU 正在执行哪个应用，
+而不能获得其他应用的任何信息。
+
+我们在使用之前初始化 ``TaskManager`` 的全局实例 ``TASK_MANAGER`` 
+（为此也需要将 ``TaskManager`` 标记为 ``Sync``）：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/mod.rs
+
+    lazy_static! {
+        pub static ref TASK_MANAGER: TaskManager = {
+            let num_app = get_num_app();
+            let mut tasks = [
+                TaskControlBlock { task_cx_ptr: 0, task_status: TaskStatus::UnInit };
+                MAX_APP_NUM
+            ];
+            for i in 0..num_app {
+                tasks[i].task_cx_ptr = init_app_cx(i) as * const _ as usize;
+                tasks[i].task_status = TaskStatus::Ready;
+            }
+            TaskManager {
+                num_app,
+                inner: RefCell::new(TaskManagerInner {
+                    tasks,
+                    current_task: 0,
+                }),
+            }
+        };
+    }
+
+- 第 5 行：调用 ``loader`` 子模块提供的 ``get_num_app`` 接口获取链接到内核的应用总数，后面会用到；
+- 第 6~9 行：创建一个初始化的 ``tasks`` 数组，其中的每个任务控制块的运行状态都是 ``UnInit`` 代表尚未初始化；
+- 第 10~12 行：依次对每个任务控制块进行初始化，将其运行状态设置为 ``Ready`` ，并在它的内核栈栈顶压入一些初始化
+  的上下文，然后更新它的 ``task_cx_ptr`` 。一些细节我们会稍后介绍。
+- 从第 14 行开始：创建 ``TaskManager`` 实例并返回。
+
+实现 sys_yield 和 sys_exit
+----------------------------------------------------------------------------
+
+``sys_yield`` 的实现用到了 ``task`` 子模块提供的 ``suspend_current_and_run_next`` 接口：
+
+.. code-block:: rust
+
+    // os/src/syscall/process.rs
+
+    use crate::task::suspend_current_and_run_next;
+
+    pub fn sys_yield() -> isize {
+        suspend_current_and_run_next();
+        0
+    }
+
+这个接口如字面含义，就是暂停当前的应用并切换到下个应用。
+
+同样， ``sys_exit`` 也改成基于 ``task`` 子模块提供的 ``exit_current_and_run_next`` 接口：
+
+.. code-block:: rust
+
+    // os/src/syscall/process.rs
+
+    use crate::task::exit_current_and_run_next;
+
+    pub fn sys_exit(exit_code: i32) -> ! {
+        println!("[kernel] Application exited with code {}", exit_code);
+        exit_current_and_run_next();
+        panic!("Unreachable in sys_exit!");
+    }
+
+它的含义是退出当前的应用并切换到下个应用。在调用它之前我们打印应用的退出信息并输出它的退出码。如果是应用出错也应该
+调用该接口，不过我们这里并没有实现，有兴趣的读者可以尝试。
+
+那么 ``suspend_current_and_run_next`` 和 ``exit_current_and_run_next`` 各是如何实现的呢？
+
+.. code-block:: rust
+
+    // os/src/task/mod.rs
+
+    pub fn suspend_current_and_run_next() {
+        mark_current_suspended();
+        run_next_task();
+    }
+
+    pub fn exit_current_and_run_next() {
+        mark_current_exited();
+        run_next_task();
+    }
+
+它们都是先修改当前应用的运行状态，然后尝试切换到下一个应用。修改运行状态比较简单，实现如下：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/mod.rs
+
+    fn mark_current_suspended() {
+        TASK_MANAGER.mark_current_suspended();
+    }
+
+    fn mark_current_exited() {
+        TASK_MANAGER.mark_current_exited();
+    }
+
+    impl TaskManager {
+        fn mark_current_suspended(&self) {
+            let mut inner = self.inner.borrow_mut();
+            let current = inner.current_task;
+            inner.tasks[current].task_status = TaskStatus::Ready;
+        }
+
+        fn mark_current_exited(&self) {
+            let mut inner = self.inner.borrow_mut();
+            let current = inner.current_task;
+            inner.tasks[current].task_status = TaskStatus::Exited;
+        }
+    }
+
+以 ``mark_current_suspended`` 为例。它调用了全局任务管理器 ``TASK_MANAGER`` 的 ``mark_current_suspended`` 
+方法。其中，首先获得里层 ``TaskManagerInner`` 的可变引用，然后根据其中记录的当前正在执行的应用 ID 对应在任务控制块
+数组 ``tasks`` 中修改状态。
+
+接下来看看 ``run_next_task`` 的实现：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/mod.rs
+
+    fn run_next_task() {
+        TASK_MANAGER.run_next_task();
+    }
+
+    impl TaskManager {
+        fn run_next_task(&self) {
+            if let Some(next) = self.find_next_task() {
+                let mut inner = self.inner.borrow_mut();
+                let current = inner.current_task;
+                inner.tasks[next].task_status = TaskStatus::Running;
+                inner.current_task = next;
+                let current_task_cx_ptr2 = inner.tasks[current].get_task_cx_ptr2();
+                let next_task_cx_ptr2 = inner.tasks[next].get_task_cx_ptr2();
+                core::mem::drop(inner);
+                unsafe {
+                    __switch(
+                        current_task_cx_ptr2,
+                        next_task_cx_ptr2,
+                    );
+                }
+            } else {
+                panic!("All applications completed!");
+            }
+        }
+    }
+
+``run_next_task`` 使用任务管理器的全局实例 ``TASK_MANAGER`` 的 ``run_next_task`` 方法。它会调用 
+``find_next_task`` 方法尝试寻找一个运行状态为 ``Ready`` 的应用并返回其 ID 。注意到其返回的类型是 
+``Option<usize>`` ，也就是说不一定能够找到，当所有的应用都退出并将自身状态修改为 ``Exited`` 就会出现这种情况，
+此时 ``find_next_task`` 应该返回 ``None`` 。如果能够找到下一个可运行的应用的话，我们就可以分别拿到当前应用 
+``current`` 和即将被切换到的应用 ``next`` 的 ``task_cx_ptr2`` ，然后调用 ``__switch`` 接口进行切换。
+如果找不到的话，说明所有的应用都运行完毕了，我们可以直接 panic 退出内核。
+
+注意在实际切换之前我们需要手动 drop 掉我们获取到的 ``TaskManagerInner`` 的可变引用。因为一般情况下它是在
+函数退出之后才会被自动释放，从而 ``TASK_MANAGER`` 的 ``inner`` 字段得以回归到未被借用的状态，之后可以再
+借用。如果不手动 drop 的话，编译器会在 ``__switch`` 返回，也就是当前应用被切换回来的时候才 drop，这期间我们
+都不能修改 ``TaskManagerInner`` ，甚至不能读（因为之前是可变借用）。正因如此，我们需要在 ``__switch`` 前
+提早手动 drop 掉 ``inner`` 。
+
+于是 ``find_next_task`` 又是如何实现的呢？
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/mod.rs
+
+    impl TaskManager {
+        fn find_next_task(&self) -> Option<usize> {
+            let inner = self.inner.borrow();
+            let current = inner.current_task;
+            (current + 1..current + self.num_app + 1)
+                .map(|id| id % self.num_app)
+                .find(|id| {
+                    inner.tasks[*id].task_status == TaskStatus::Ready
+                })
+        }
+    }
+
+``TaskManagerInner`` 的 ``tasks`` 是一个固定的任务控制块组成的表，长度为 ``num_app`` ，可以用下标 
+``0~num_app-1`` 来访问得到每个应用的控制状态。我们的任务就是找到 ``current_task`` 后面第一个状态为 
+``Ready`` 的应用。因此从 ``current_task + 1`` 开始循环一圈，需要首先对 ``num_app`` 取模得到实际的
+下标，然后检查它的运行状态。
+
+.. note:: 
+
+    **Rust 语法卡片：迭代器**
+
+    ``a..b`` 实际上表示左闭右开区间 :math:`[a,b)` ，在 Rust 中，它会被表示为类型 ``core::ops::Range`` ，
+    标准库中为它实现好了 ``Iterator`` trait，因此它也是一个迭代器。
+
+    关于迭代器的使用方法如 ``map/find`` 等，请参考 Rust 官方文档。
+
+我们可以总结一下应用的运行状态变化图：
+
+.. image:: fsm-coop.png
+
+第一次进入用户态
+------------------------------------------
+
+在应用真正跑起来之前，需要 CPU 第一次从内核态进入用户态。我们在第二章批处理系统中也介绍过实现方法，只需在内核栈上
+压入构造好的 Trap 上下文，然后 ``__restore`` 即可。本章的思路大致相同，但是有一些变化。
+
+当一个应用即将被运行的时候，它会被 ``__switch`` 过来。如果它是之前被切换出去的话，那么此时它的内核栈上应该有 
+Trap 上下文和任务上下文，切换机制可以正常工作。但是如果它是第一次被执行怎么办呢？这就需要它的内核栈上也有类似
+结构的内容。我们是在创建 ``TaskManager`` 的全局实例 ``TASK_MANAGER`` 的时候来进行这个初始化的。
+
+.. code-block:: rust
+
+    // os/src/task/mod.rs
+
+    for i in 0..num_app {
+        tasks[i].task_cx_ptr = init_app_cx(i) as * const _ as usize;
+        tasks[i].task_status = TaskStatus::Ready;
+    }
+
+当时我们进行了这样的操作。 ``init_app_cx`` 是在 ``loader`` 子模块中定义的：
+
+.. code-block:: rust
+
+    // os/src/loader.rs
+
+    pub fn init_app_cx(app_id: usize) -> &'static TaskContext {
+        KERNEL_STACK[app_id].push_context(
+            TrapContext::app_init_context(get_base_i(app_id), USER_STACK[app_id].get_sp()),
+            TaskContext::goto_restore(),
+        )
+    }
+
+    impl KernelStack {
+        fn get_sp(&self) -> usize {
+            self.data.as_ptr() as usize + KERNEL_STACK_SIZE
+        }
+        pub fn push_context(&self, trap_cx: TrapContext, task_cx: TaskContext) -> &'static mut TaskContext {
+            unsafe {
+                let trap_cx_ptr = (self.get_sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
+                *trap_cx_ptr = trap_cx;
+                let task_cx_ptr = (trap_cx_ptr as usize - core::mem::size_of::<TaskContext>()) as *mut TaskContext;
+                *task_cx_ptr = task_cx;
+                task_cx_ptr.as_mut().unwrap()
+            }
+        }
+    }
+
+这里 ``KernelStack`` 的 ``push_context`` 方法先压入一个和之前相同的 Trap 上下文，再在它上面压入一个任务上下文，
+然后返回任务上下文的地址。这个任务上下文是我们通过 ``TaskContext::goto_restore`` 构造的：
+
+.. code-block:: rust
+
+    // os/src/task/context.rs
+
+    impl TaskContext {
+        pub fn goto_restore() -> Self {
+            extern "C" { fn __restore(); }
+            Self {
+                ra: __restore as usize,
+                s: [0; 12],
+            }
+        }
+    }
+
+它只是将任务上下文的 ``ra`` 寄存器设置为 ``__restore`` 的入口地址。这样，在 ``__switch`` 从它上面恢复并返回
+之后就会直接跳转到 ``__restore`` ，此时栈顶是一个我们构造出来第一次进入用户态执行的 Trap 上下文，就和第二章的
+情况一样了。
+
+需要注意的是， ``__restore`` 的实现需要做出变化：它不再需要在开头 ``mv sp, a0`` 了。因为在 ``__switch`` 之后，
+``sp`` 就已经正确指向了我们需要的 Trap 上下文地址。
