@@ -123,11 +123,17 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../quickstart.html">环境配置</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">第三章：多道程序与分时多任务系统</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第三章：多道程序与分时多任务系统(working)</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="1multi-loader.html">多任务加载器</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2task-switching.html">任务切换</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3multiprogramming.html">多道程序与协作式调度</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">分时多任务系统与抢占式调度</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">分时多任务系统与抢占式调度</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">分时多任务系统的背景</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#risc-v">RISC-V 架构中的中断</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">时钟中断与计时器</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">???</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：内存隔离安全性</a></li>
@@ -196,7 +202,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-          <li><a href="index.html">第三章：多道程序与分时多任务系统</a> &raquo;</li>
+          <li><a href="index.html">第三章：多道程序与分时多任务系统(working)</a> &raquo;</li>
         
       <li>分时多任务系统与抢占式调度</li>
     
@@ -219,6 +225,67 @@ commentsRunWhenDOMLoaded(addUtterances);
             
   <div class="section" id="id1">
 <h1>分时多任务系统与抢占式调度<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<p>本节的代码可以在 <code class="docutils literal notranslate"><span class="pre">ch3</span></code> 分支上找到。</p>
+<div class="section" id="id2">
+<h2>分时多任务系统的背景<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p id="term-throughput">上一节我们介绍了多道程序，它是一种允许应用在等待外设时主动切换到其他应用来达到总体 CPU 利用率最高的设计。那个时候，
+应用是不太注重自身的运行情况的，即使它 yield 交出 CPU 资源之后需要很久才能再拿到，使得它真正在 CPU 执行的相邻
+两时间段距离都很远，应用也是无所谓的。因为它们的目标是总体 CPU 利用率最高，可以换成一个等价的指标： <strong>吞吐量</strong>
+(Throughput) 。大概可以理解为在某个时间点将一组应用放进去，要求在一段固定的时间之内执行完毕的应用最多，或者是
+总进度百分比最大。因此，所有的应用和编写应用的程序员都有这样的共识：只要 CPU 一直在做实际的工作就好。</p>
+<p id="term-latency"><span id="term-interactive-application"></span><span id="term-background-application"></span>从现在的眼光来看，当时的应用更多是一种 <strong>后台应用</strong> (Background Application) ，在将它加入执行队列之后我们
+只需定期确认它的运行状态。而随着技术的发展，涌现了越来越多的 <strong>交互式应用</strong> (Interactive Application) ，
+它们要达成的一个重要目标就是提高用户操作的响应速度，这样才能优化应用的使用体验。对于这些应用而言，即使需要等待外设
+或某些事件，它们也不会倾向于主动 yield 交出 CPU 使用权，因为这样可能会带来无法接受的延迟。也就是说，应用之间相比
+合作更多的是互相竞争宝贵的硬件资源。</p>
+<p id="term-preemptive-scheduling"><span id="term-cooperative-scheduling"></span>如果应用自己很少 yield ，内核就要开始收回之前下放的权力，由它自己对 CPU 资源进行集中管理并合理分配给各应用，这就是
+内核需要提供的任务调度能力。我们可以将多道程序的调度机制分类成 <strong>协作式调度</strong> (Cooperative Scheduling) ，因为
+它的特征是：只要一个应用不主动 yield 交出 CPU 使用权，它就会一直执行下去。与之相对， <strong>抢占式调度</strong>
+(Preemptive Scheduling) 则是应用 <em>随时</em> 都有被内核切换出去的可能。</p>
+<p id="term-fairness"><span id="term-time-slice"></span>现代的任务调度算法基本都是抢占式的，它要求每个应用只能连续执行一段时间，然后内核就会将它强制性切换出去。一般将 <strong>时间片</strong>
+(Time Slice) 作为应用连续执行时长的度量单位，每个时间片可能在毫秒量级。调度算法需要考虑：每次在换出之前给
+一个应用多少时间片去执行，以及要换入哪个应用。可以从性能和 <strong>公平性</strong> (Fairness) 两个维度来评价调度算法，后者
+要求多个应用分到的时间片占比不应差距过大。</p>
+<p id="term-round-robin">简单起见，本书中我们使用 <strong>时间片轮转算法</strong> (RR, Round-Robin) ，只要对它进行少许拓展就能完全满足我们后续的需求。
+本章中我们仅需要最原始的 RR 算法，用文字描述的话就是维护一个任务队列，每次从队头取出一个应用执行一个时间片，然后把它
+丢到队尾，再继续从队头取出一个应用，以此类推直到所有的应用执行完毕。</p>
+<p>于是，其核心机制就在于如何计时。这个我们是依靠硬件提供的时钟中断来实现的。在介绍时钟中断之前，我们先简单介绍一下中断。</p>
+</div>
+<div class="section" id="risc-v">
+<h2>RISC-V 架构中的中断<a class="headerlink" href="#risc-v" title="永久链接至标题">¶</a></h2>
+<p id="term-async"><span id="term-sync"></span><span id="term-interrupt"></span><strong>中断</strong> (Interrupt) 和我们第二章中介绍的 <a class="reference internal" href="../chapter2/1rv-privilege.html#term-exception"><span class="std std-ref">异常</span></a> 一样都是一种
+Trap ，但是它们被触发的原因确是不同的。对于某个处理器核而言，异常与它指令的执行是 <strong>同步</strong> (Synchronous) 的，异常
+被触发的原因一定能够追溯到某条指令的执行；而中断则 <strong>异步</strong> (Asynchronous) 于它指令的执行，也就是说中断来自于哪个
+外设以及中断如何触发完全与它指令的执行无关。</p>
+<div class="admonition note" id="term-parallel">
+<p class="admonition-title">注解</p>
+<p><strong>从底层硬件的角度区分同步和异步</strong></p>
+<p>从底层硬件的角度可能更容易理解这里所提到的同步和异步。以一个处理器传统的五级流水线设计而言，里面含有取指、译码、算术、
+访存、寄存器等单元，都属于执行指令所需的硬件资源。那么假如某条指令的执行出现了问题，一定能被其中某个单元看到并反馈给流水线
+控制单元，从而它会在执行预定的下一条指令之前先进入异常处理流程。而对于中断，可以想象为想发起中断的是一套完全
+不同的电路（从时钟中断来看就是简单的计数和比较器），这套电路仅通过一根导线接入进来，当想要触发中断的时候则输入一个高电平
+或正边沿，处理器会在每执行完一条指令之后检查一下这根线，看情况决定是继续执行接下来的指令还是进入中断处理流程。也就是说，
+大多数情况下，指令执行的相关硬件单元和可能发起中断的电路是完全独立 <strong>并行</strong> (Parallel) 运行的，它们中间只有一根导线相连
+，除此之外指令执行的那些单元就完全不知道对方处于什么状态了。而异常可以说是一切在这些单元内部就得以发现和解决。</p>
+</div>
+<p>在 RISC-V 架构中，中断和异常都属于 Trap ，于是第二章介绍到的 Trap 相关硬件机制</p>
+</div>
+<div class="section" id="id3">
+<h2>时钟中断与计时器<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<p>由于需要一种计时机制，RISC-V 架构要求处理器要有一个内置时钟，其频率一般低于 CPU 主频。此外，还有一个计数器统计处理器
+自上电以来经过了多少个内置时钟的时钟周期。在 RV64 架构上，该计数器保存在一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 中，我们无需担
+心它的溢出问题，在内核运行全程可以认为它是一直递增的。</p>
+<p>另外一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的作用是：一旦计数器 <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 的值超过了 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code>，就会触发一次时钟中断。
+这使得我们可以方便的通过设置 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的值来决定下一次时钟中断何时触发。</p>
+</div>
+<div class="section" id="id4">
+<h2>???<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<p>优先级 priority</p>
+<p>饥饿 starvation</p>
+<p>调度器 scheduler</p>
+<p>周转时间 turnaround time = completion time - arriving time</p>
+<p>响应时间 response time = first run time - arrive time</p>
+</div>
 </div>
 
 

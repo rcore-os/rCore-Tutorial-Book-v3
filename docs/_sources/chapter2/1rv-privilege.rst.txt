@@ -69,10 +69,9 @@ RISC-V 架构中一共定义了 4 种特权级：
 伴随着 CPU 的 **特权级切换** 。当执行环境的代码运行结束后，我们需要回到上层软件暂停的位置继续执行。在 RISC-V 架构中，这种与常规控制流
 （顺序、循环、分支、函数调用）不同的 **异常控制流** (ECF, Exception Control Flow) 被称为 **陷入** (Trap) 。
 
-.. _term-interrupt:
 .. _term-exception:
 
-触发 Trap 的原因总体上可以分为两种： **中断** (Interrupt) 和 **异常** (Exception) 。本章我们只会用到异常，因此暂且略过中断。异常
+触发 Trap 的原因总体上可以分为两种： 中断和 **异常** (Exception) 。本章我们只会用到异常，因此暂且略过中断。异常
 就是指上层软件需要执行环境功能的原因确切的与上层软件的 **某一条指令的执行** 相关。下表中我们给出了 RISC-V 特权级定义的一些异常：
 
 .. list-table:: RISC-V 异常一览表
@@ -126,7 +125,9 @@ RISC-V 架构中一共定义了 4 种特权级：
      - 14
      - Store/AMO page fault
 
-其中断点异常 (Breakpoint) 和执行环境调用 (Environment call) 两个异常是通过在上层软件中执行一条特定的指令触发的：当执行 ``ebreak`` 
+.. _term-environment-call:
+
+其中断点异常 (Breakpoint) 和 **执行环境调用** (Environment call) 两个异常是通过在上层软件中执行一条特定的指令触发的：当执行 ``ebreak`` 
 这条指令的之后就会触发断点异常；而执行 ``ecall`` 这条指令的时候则会随着 CPU 当前所处特权级而触发不同的异常。从表中可以看出，当 CPU 分别
 处于 M/S/U 三种特权级时执行 ``ecall`` 这条指令会触发三种异常。
 

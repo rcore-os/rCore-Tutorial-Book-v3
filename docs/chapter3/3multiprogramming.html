@@ -123,7 +123,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../quickstart.html">环境配置</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">第三章：多道程序与分时多任务系统</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第三章：多道程序与分时多任务系统(working)</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="1multi-loader.html">多任务加载器</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2task-switching.html">任务切换</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">多道程序与协作式调度</a><ul>
@@ -203,7 +203,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-          <li><a href="index.html">第三章：多道程序与分时多任务系统</a> &raquo;</li>
+          <li><a href="index.html">第三章：多道程序与分时多任务系统(working)</a> &raquo;</li>
         
       <li>多道程序与协作式调度</li>
     
@@ -226,11 +226,11 @@ commentsRunWhenDOMLoaded(addUtterances);
             
   <div class="section" id="id1">
 <h1>多道程序与协作式调度<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
-<div class="section" id="yield">
-<h2>多道程序背景与 yield 系统调用<a class="headerlink" href="#yield" title="永久链接至标题">¶</a></h2>
 <p>上一节我们已经介绍了任务切换是如何实现的，最终我们将其封装为一个函数 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 。但是在实际使用的时候，我们需要知道何时调用该函数，
 以及如何确定传入函数的两个参数——分别代表正待换出和即将被换入的两条 Trap 执行流。本节我们就来介绍任务切换的第一种实际应用场景：多道程序。
 本节的代码可以在 <code class="docutils literal notranslate"><span class="pre">ch3-coop</span></code> 分支上找到。</p>
+<div class="section" id="yield">
+<h2>多道程序背景与 yield 系统调用<a class="headerlink" href="#yield" title="永久链接至标题">¶</a></h2>
 <p>还记得第二章中介绍的批处理系统的设计初衷吗？它是注意到 CPU 并没有一直在执行应用程序，在一个应用程序运行结束直到下一个应用程序开始运行
 的这段时间，可能需要操作员取出上一个程序的执行结果并手动进行程序卡片的替换，这段空档期对于宝贵的 CPU 计算资源是一种巨大的浪费。于是
 批处理系统横空出世，它可以自动连续完成应用的加载和运行，并将一些本不需要 CPU 完成的简单任务交给廉价的外围设备，从而让 CPU 能够更加
@@ -247,6 +247,10 @@ CPU 便可以从外设读到请求的处理结果。比如在从作为外部存�
 如果外设处理的时间足够长，那我们可以先进行任务切换去执行其他应用，在某次切换回来之后，应用再次读取设备寄存器，发现请求已经处理完毕了，
 那么就可以用拿到的完整的数据继续向下执行了。这样的话，只要同时存在的应用足够多，就能保证 CPU 不必浪费时间在等待外设上，而是几乎一直
 在进行计算。这种任务切换，是通过应用进行一个名为 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 的系统调用来实现的，这意味着它主动交出 CPU 的使用权给其他应用。</p>
+<p>这正是本节标题的后半部分“协作式”的含义。一个应用会持续运行下去，直到它主动调用
+<code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 来交出 CPU 使用权。内核将很大的权力下放到应用，让所有的应用互相协作来最终达成最大化 CPU 利用率，充分
+利用计算资源这一终极目标。在计算机发展的早期，由于应用基本上都是一些简单的计算任务，且程序员都比较遵守规则，因此内核可以
+信赖应用，这样协作式的制度是没有问题的。</p>
 <img alt="../_images/multiprogramming.png" src="../_images/multiprogramming.png" />
 <p>上图描述了一种多道程序执行的典型情况。其中横轴为时间线，纵轴为正在执行的实体。开始时，某个应用（蓝色）向外设提交了一个请求，
 随即可以看到对应的外设（紫色）开始工作。但是它要工作相当长的一段时间，因此应用（蓝色）不会去等待它结束而是会调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code>

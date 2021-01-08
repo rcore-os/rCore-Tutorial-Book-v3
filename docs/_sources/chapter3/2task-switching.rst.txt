@@ -63,7 +63,7 @@
 
 接下来我们同样从栈上内容的角度来看 ``__switch`` 的整体流程：
 
-.. image:: switch-1.svg
+.. image:: switch-1.png
 
 .. image:: switch-2.png
 

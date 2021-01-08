@@ -163,12 +163,12 @@
    * - 陷入
      - Trap
      - :ref:`RISC-V 特权级架构 <term-trap>`
-   * - 中断
-     - Interrupt
-     - :ref:`RISC-V 特权级架构 <term-interrupt>`
    * - 异常
      - Exception
      - :ref:`RISC-V 特权级架构 <term-exception>`
+   * - 执行环境调用
+     - Environment Call
+     - :ref:`RISC-V 特权级架构 <term-environment-call>`
    * - 监督模式二进制接口
      - SBI, Supervisor Binary Interface
      - :ref:`RISC-V 特权级架构 <term-sbi>`
@@ -220,3 +220,37 @@
    * - 任务控制块
      - Task Control Block
      - :ref:`多道程序与协作式调度 <term-task-control-block>`
+   * - 吞吐量
+     - Throughput
+     - :ref:`分时多任务系统与抢占式调度 <term-throughput>`
+   * - 后台应用
+     - Background Application
+     - :ref:`分时多任务系统与抢占式调度 <term-background-application>`
+   * - 交互式应用
+     - Interactive Application
+     - :ref:`分时多任务系统与抢占式调度 <term-interactive-application>`
+   * - 协作式调度
+     - Cooperative Scheduling
+     - :ref:`分时多任务系统与抢占式调度 <term-cooperative-scheduling>`
+   * - 时间片
+     - Time Slice
+     - :ref:`分时多任务系统与抢占式调度 <term-time-slice>`
+   * - 公平性
+     - Fairness
+     - :ref:`分时多任务系统与抢占式调度 <term-fairness>`
+   * - 时间片轮转算法
+     - RR, Round-Robin
+     - :ref:`分时多任务系统与抢占式调度 <term-round-robin>`
+   * - 中断
+     - Interrupt
+     - :ref:`分时多任务系统与抢占式调度 <term-interrupt>`
+   * - 同步
+     - Synchronous
+     - :ref:`分时多任务系统与抢占式调度 <term-sync>`
+   * - 异步
+     - Asynchronous
+     - :ref:`分时多任务系统与抢占式调度 <term-async>`
+   * - 并行
+     - Parallel
+     - :ref:`分时多任务系统与抢占式调度 <term-parallel>`
+     
