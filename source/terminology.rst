@@ -253,4 +253,13 @@
    * - 并行
      - Parallel
      - :ref:`分时多任务系统与抢占式调度 <term-parallel>`
+   * - 软件中断
+     - Software Interrupt
+     - :ref:`分时多任务系统与抢占式调度 <term-software-interrupt>`
+   * - 时钟中断
+     - Timer Interrupt
+     - :ref:`分时多任务系统与抢占式调度 <term-timer-interrupt>`
+   * - 外部中断
+     - External Interrupt
+     - :ref:`分时多任务系统与抢占式调度 <term-external-interrupt>`
      

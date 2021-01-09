@@ -74,7 +74,64 @@ Trap ，但是它们被触发的原因确是不同的。对于某个处理器核
     大多数情况下，指令执行的相关硬件单元和可能发起中断的电路是完全独立 **并行** (Parallel) 运行的，它们中间只有一根导线相连
     ，除此之外指令执行的那些单元就完全不知道对方处于什么状态了。而异常可以说是一切在这些单元内部就得以发现和解决。
 
-在 RISC-V 架构中，中断和异常都属于 Trap ，于是第二章介绍到的 Trap 相关硬件机制
+在不考虑指令集拓展的情况下，RISC-V 架构中定义了如下中断：
+
+.. list-table:: RISC-V 中断一览表
+   :align: center
+   :header-rows: 1
+   :widths: 30 30 60
+
+   * - Interrupt
+     - Exception Code
+     - Description
+   * - 1
+     - 1
+     - Supervisor software interrupt
+   * - 1
+     - 3
+     - Machine software interrupt
+   * - 1
+     - 5
+     - Supervisor timer interrupt
+   * - 1
+     - 7
+     - Machine timer interrupt
+   * - 1
+     - 9
+     - Supervisor external interrupt
+   * - 1
+     - 11
+     - Machine external interrupt
+
+RISC-V 的中断可以分成三类：
+
+.. _term-software-interrupt:
+.. _term-timer-interrupt:
+.. _term-external-interrupt:
+
+- **软件中断** (Software Interrupt)
+- **时钟中断** (Timer Interrupt)
+- **外部中断** (External Interrupt)
+
+另外，相比异常，中断和特权级之间的联系更为紧密，可以看到这三种中断每一个都有 M/S 特权级两个版本。中断的特权级可以
+决定该中断是否会被屏蔽，以及需要 Trap 到 CPU 的哪个特权级进行处理。
+
+在判断中断是否会被屏蔽的时候，有以下规则：
+
+- 如果中断的特权级高于 CPU 当前的特权级，则会立即通过 Trap 处理该中断；
+- 如果中断的特权级低于 CPU 当前的特权级，则该中断会被屏蔽，不会被处理；
+- 如果中断的特权级与 CPU 当前的特权级相同，这需要通过相应的 CSR 判断该中断是否会被屏蔽。
+
+以内核所在的 S 特权级为例，中断屏蔽相应的 CSR 有 ``sstatus`` 和 ``sie`` 。``sstatus`` 的 ``sie`` 为 S 特权级
+的中断使能，能够同时控制三种中断，如果将其清零则会将它们全部屏蔽。即使 ``sstatus.sie`` 置 1 ，还要看 ``sie`` 这个 
+CSR，它的三个字段  ``ssie/stie/seie`` 分别控制 S 特权级的软件中断、时钟中断和外部中断的中断使能。比如对于 S 态时钟
+中断来说，如果 CPU 正处于 S 特权级，需要当前的 ``sstatus.sie`` 和 ``sie.stie`` 均为 1 该中断才不会被屏蔽。如果 
+CPU 正处于其他特权级，那么该中断是否被屏蔽与这两个 CSR 无关，只取决于 CPU 的当前特权级是高于还是低于 S 特权级。
+
+如果中断没有被屏蔽，那么接下来就需要 Trap 进行处理，而具体 Trap 到哪个特权级与一些中断代理 CSR 的设置有关。默认情况
+下，所有的中断都需要 Trap 到 M 特权级处理。而设置这些代理 CSR 之后，就可以 Trap 到低特权级处理，但是 Trap 到的特权
+级不能低于中断的特权级。事实上所有的异常默认也都是 Trap 到 M 特权级处理的，它们也有一套对应的异常代理 CSR ，设置之后
+也可以 Trap 到低优先级来处理异常。
 
 时钟中断与计时器
 ------------------------------------------------------------------
@@ -88,6 +145,9 @@ Trap ，但是它们被触发的原因确是不同的。对于某个处理器核
 
 ???
 ------------------------------------
+
+中断屏蔽
+中断嵌套
 
 优先级 priority
 

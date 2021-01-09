@@ -257,7 +257,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 Trap ，但是它们被触发的原因确是不同的。对于某个处理器核而言，异常与它指令的执行是 <strong>同步</strong> (Synchronous) 的，异常
 被触发的原因一定能够追溯到某条指令的执行；而中断则 <strong>异步</strong> (Asynchronous) 于它指令的执行，也就是说中断来自于哪个
 外设以及中断如何触发完全与它指令的执行无关。</p>
-<div class="admonition note" id="term-parallel">
+<div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>从底层硬件的角度区分同步和异步</strong></p>
 <p>从底层硬件的角度可能更容易理解这里所提到的同步和异步。以一个处理器传统的五级流水线设计而言，里面含有取指、译码、算术、
@@ -268,7 +268,70 @@ Trap ，但是它们被触发的原因确是不同的。对于某个处理器核
 大多数情况下，指令执行的相关硬件单元和可能发起中断的电路是完全独立 <strong>并行</strong> (Parallel) 运行的，它们中间只有一根导线相连
 ，除此之外指令执行的那些单元就完全不知道对方处于什么状态了。而异常可以说是一切在这些单元内部就得以发现和解决。</p>
 </div>
-<p>在 RISC-V 架构中，中断和异常都属于 Trap ，于是第二章介绍到的 Trap 相关硬件机制</p>
+<p>在不考虑指令集拓展的情况下，RISC-V 架构中定义了如下中断：</p>
+<table class="colwidths-given docutils align-center" id="id5">
+<caption><span class="caption-text">RISC-V 中断一览表</span><a class="headerlink" href="#id5" title="永久链接至表格">¶</a></caption>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Interrupt</p></th>
+<th class="head"><p>Exception Code</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>1</p></td>
+<td><p>Supervisor software interrupt</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>3</p></td>
+<td><p>Machine software interrupt</p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>5</p></td>
+<td><p>Supervisor timer interrupt</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>7</p></td>
+<td><p>Machine timer interrupt</p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>9</p></td>
+<td><p>Supervisor external interrupt</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>11</p></td>
+<td><p>Machine external interrupt</p></td>
+</tr>
+</tbody>
+</table>
+<p>RISC-V 的中断可以分成三类：</p>
+<span id="term-timer-interrupt"></span><span id="term-software-interrupt"></span><ul class="simple" id="term-external-interrupt">
+<li><p><strong>软件中断</strong> (Software Interrupt)</p></li>
+<li><p><strong>时钟中断</strong> (Timer Interrupt)</p></li>
+<li><p><strong>外部中断</strong> (External Interrupt)</p></li>
+</ul>
+<p>另外，相比异常，中断和特权级之间的联系更为紧密，可以看到这三种中断每一个都有 M/S 特权级两个版本。中断的特权级可以
+决定该中断是否会被屏蔽，以及需要 Trap 到 CPU 的哪个特权级进行处理。</p>
+<p>在判断中断是否会被屏蔽的时候，有以下规则：</p>
+<ul class="simple">
+<li><p>如果中断的特权级高于 CPU 当前的特权级，则会立即通过 Trap 处理该中断；</p></li>
+<li><p>如果中断的特权级低于 CPU 当前的特权级，则该中断会被屏蔽，不会被处理；</p></li>
+<li><p>如果中断的特权级与 CPU 当前的特权级相同，这需要通过相应的 CSR 判断该中断是否会被屏蔽。</p></li>
+</ul>
+<p>以内核所在的 S 特权级为例，中断屏蔽相应的 CSR 有 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 。<code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 的 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 为 S 特权级
+的中断使能，能够同时控制三种中断，如果将其清零则会将它们全部屏蔽。即使 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 置 1 ，还要看 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 这个
+CSR，它的三个字段  <code class="docutils literal notranslate"><span class="pre">ssie/stie/seie</span></code> 分别控制 S 特权级的软件中断、时钟中断和外部中断的中断使能。比如对于 S 态时钟
+中断来说，如果 CPU 正处于 S 特权级，需要当前的 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sie.stie</span></code> 均为 1 该中断才不会被屏蔽。如果
+CPU 正处于其他特权级，那么该中断是否被屏蔽与这两个 CSR 无关，只取决于 CPU 的当前特权级是高于还是低于 S 特权级。</p>
+<p>如果中断没有被屏蔽，那么接下来就需要 Trap 进行处理，而具体 Trap 到哪个特权级与一些中断代理 CSR 的设置有关。默认情况
+下，所有的中断都需要 Trap 到 M 特权级处理。而设置这些代理 CSR 之后，就可以 Trap 到低特权级处理，但是 Trap 到的特权
+级不能低于中断的特权级。事实上所有的异常默认也都是 Trap 到 M 特权级处理的，它们也有一套对应的异常代理 CSR ，设置之后
+也可以 Trap 到低优先级来处理异常。</p>
 </div>
 <div class="section" id="id3">
 <h2>时钟中断与计时器<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
@@ -280,6 +343,8 @@ Trap ，但是它们被触发的原因确是不同的。对于某个处理器核
 </div>
 <div class="section" id="id4">
 <h2>???<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<p>中断屏蔽
+中断嵌套</p>
 <p>优先级 priority</p>
 <p>饥饿 starvation</p>
 <p>调度器 scheduler</p>

@@ -58,6 +58,8 @@ rCore-Tutorial-Book 第三版
 
 请参考 :doc:`/collaboration` 了解如何进行项目协作。
 
+`项目仓库 <https://github.com/rcore-os/rCore-Tutorial-Book-v3>`_
+
 项目进度
 -----------------------
 
