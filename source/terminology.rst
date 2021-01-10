@@ -262,4 +262,10 @@
    * - 外部中断
      - External Interrupt
      - :ref:`分时多任务系统与抢占式调度 <term-external-interrupt>`
+   * - 嵌套中断
+     - Nested Interrupt
+     - :ref:`分时多任务系统与抢占式调度 <term-nested-interrupt>`
+   * - 轮询
+     - Busy Loop
+     - :ref:`分时多任务系统与抢占式调度 <term-busy-loop>`
      
