@@ -288,8 +288,26 @@
      - :ref:`引言 <term-time-division-multiplexing>`
    * - 地址空间
      - Address Space
-     - :ref:`地址空间与虚拟地址 <term-address-space>`
+     - :ref:`地址空间 <term-address-space>`
    * - 虚拟地址
      - Virtual Address
-     - :ref:`地址空间与虚拟地址 <term-virtual-address>`
+     - :ref:`地址空间 <term-virtual-address>`
+   * - 内存管理单元
+     - MMU, Memory Management Unit
+     - :ref:`地址空间 <term-mmu>`
+   * - 地址转换
+     - Address Translation
+     - :ref:`地址空间 <term-address-translation>`
+   * - 插槽
+     - Slot
+     - :ref:`地址空间 <term-slot>`
+   * - 位图
+     - Bitmap
+     - :ref:`地址空间 <term-bitmap>`
+   * - 内碎片
+     - Internal Fragment
+     - :ref:`地址空间 <term-internal-fragment>`
+   * - 外碎片
+     - External Fragment
+     - :ref:`地址空间 <term-external-fragment>`
     
