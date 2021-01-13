@@ -123,7 +123,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../quickstart.html">环境配置</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第四章：地址空间（施工中）</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">地址空间</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">地址空间与虚拟地址</a></li>
@@ -313,7 +313,7 @@ MMU 需要用一对不同的 <span class="math notranslate nohighlight">\(\text{
 从而硬件可以使用正确的一对 <span class="math notranslate nohighlight">\(\text{base/bound}\)</span> 寄存器进行合法性检查和完成实际的地址转换。这里只关注
 分段管理是否解决了内碎片带来的内存浪费问题。注意到每个段都只会在内存中占据一块与它实际所用到的大小相等的空间。堆
 的情况可能比较特殊，它的大小可能会在运行时增长，但是那需要应用通过系统调用向内核请求。也就是说这是一种按需分配，而
-不再是内核在开始时就给每个应用分配一大块很可能用不完的内存。</p>
+不再是内核在开始时就给每个应用分配一大块很可能用不完的内存。由此，不再有内碎片了。</p>
 <p id="term-external-fragment">尽管内碎片被消除了，但内存浪费问题并没有完全解决。这是因为每个段的大小都是不同的（它们可能来自不同的应用，功能
 也不同），内核就需要使用更加通用、也更加复杂的连续内存分配算法来进行内存管理，而不能像之前的插槽那样以一个比特
 为单位。顾名思义，连续内存分配算法就是每次需要分配一块连续内存来存放一个段的数据。
@@ -328,7 +328,13 @@ system，其具体表现取决于实际的应用需求，各有优劣。那么�
 </div>
 <div class="section" id="id4">
 <h2>分页内存管理<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
-<p>哈哈。</p>
+<p>仔细分析一下可以发现，段的大小不一是外碎片产生的根本原因。之前我们把应用的整个地址空间连续放置在物理内存中，在
+每个应用的地址空间大小均相同的情况下，只需利用类似位图的数据结构维护一组插槽的占用状态，从逻辑上分配和回收都是
+以一个固定的比特为单位，自然也就不会存在外碎片了。但是这样粒度过大，不够灵活，又在地址空间内部产生了内碎片。</p>
+<p>若要结合二者的优点的话，就需要内核始终以一个同样大小的单位来在物理内存上放置应用地址空间中的数据，这样内核就可以
+使用简单的插槽式内存管理，使得内存分配算法比较简单且不会产生外碎片；同时，这个单位的大小要足够小，从而其内部没有
+被用到的内碎片的大小也足够小，尽可能提高内存利用率。这便是我们将要介绍的分页内存管理。</p>
+<img alt="../_images/page-table.png" src="../_images/page-table.png" />
 </div>
 </div>
 
