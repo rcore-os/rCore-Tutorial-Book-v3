@@ -310,4 +310,17 @@
    * - 外碎片
      - External Fragment
      - :ref:`地址空间 <term-external-fragment>`
+   * - 页面
+     - Page
+     - :ref:`地址空间 <term-page>`
+   * - 虚拟页号
+     - VPN, Virtual Page Number
+     - :ref:`地址空间 <term-virtual-page-number>`
+   * - 物理页号
+     - PPN, Physical Page Number
+     - :ref:`地址空间 <term-physical-page-number>`
+   * - 页表
+     - Page Table
+     - :ref:`地址空间 <term-page-table>`
+  
     
