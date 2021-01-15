@@ -97,7 +97,10 @@
 
     可以参考附录A：Rust 快速入门的并发章节。
 
-于是，我们利用 ``RefCell`` 来提供内部可变性，所谓的内部可变性就是指在我们只能拿到 ``AppManager`` 的不可变借用，意味着同样也只能
+.. _term-interior-mutability:
+
+于是，我们利用 ``RefCell`` 来提供 **内部可变性** (Interior Mutability)，
+所谓的内部可变性就是指在我们只能拿到 ``AppManager`` 的不可变借用，意味着同样也只能
 拿到 ``AppManagerInner`` 的不可变借用的情况下依然可以修改 ``AppManagerInner`` 里面的字段。
 使用 ``RefCell::borrow/RefCell::borrow_mut`` 分别可以拿到 ``RefCell`` 里面内容的不可变借用/可变借用， 
 ``RefCell`` 内部会运行时维护当前已有的借用状态并进行借用检查。于是 ``RefCell::borrow_mut`` 就是我们实现内部可变性的关键。

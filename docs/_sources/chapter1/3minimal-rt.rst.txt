@@ -483,9 +483,12 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
 这样一来，我们就将运行时重建完毕了。在 ``os`` 目录下 ``cargo build --release`` 或者直接 ``make build`` 就能够看到
 最终生成的可执行文件 ``target/riscv64gc-unknown-none-elf/release/os`` 。
 
-参考文献
-----------------
-- `RISC-V C 语言调用规范 <https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf>`_
-- `Notes from Cornell CS3410 2019Spring <http://www.cs.cornell.edu/courses/cs3410/2019sp/schedule/slides/10-calling-notes-bw.pdf>`_
-- `Lecture from Berkeley CS61C 2018Spring <https://inst.eecs.berkeley.edu/~cs61c/sp18/lec/06/lec06.pdf>`_
-- `Lecture from MIT 6.828 2020 <https://pdos.csail.mit.edu/6.828/2020/lec/l-riscv-slides.pdf>`_
+.. note::
+
+    本节内容部分参考自：
+
+    - `RISC-V C 语言调用规范 <https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf>`_
+    - `Notes from Cornell CS3410 2019Spring <http://www.cs.cornell.edu/courses/cs3410/2019sp/schedule/slides/10-calling-notes-bw.pdf>`_
+    - `Lecture from Berkeley CS61C 2018Spring <https://inst.eecs.berkeley.edu/~cs61c/sp18/lec/06/lec06.pdf>`_
+    - `Lecture from MIT 6.828 2020 <https://pdos.csail.mit.edu/6.828/2020/lec/l-riscv-slides.pdf>`_
+

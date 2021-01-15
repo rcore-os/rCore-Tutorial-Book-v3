@@ -128,7 +128,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l3"><a class="reference internal" href="#function-call-and-stack">函数调用与栈</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id5">程序内存布局</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id6">实现</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id7">参考文献</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="4load-manually.html">手动加载、运行应用程序</a></li>
@@ -274,8 +273,8 @@ main 的运行。</p>
 地方调用同一个函数，显然函数返回之后会回到不同的地址。这是一个很大的不同：其他控制流都只需要跳转到一个 <em>编译期固定下来</em> 的地址，而函数调用
 的返回跳转是跳转到一个 <em>运行时确定</em> （确切地说是在函数调用发生的时候）的地址。</p>
 <p>对此，指令集必须给用于函数调用的跳转指令一些额外的能力，而不只是单纯的跳转。在 RISC-V 架构上，有两条指令即符合这样的特征：</p>
-<table class="colwidths-given docutils align-center" id="id8">
-<caption><span class="caption-text">RISC-V 函数调用跳转指令</span><a class="headerlink" href="#id8" title="永久链接至表格">¶</a></caption>
+<table class="colwidths-given docutils align-center" id="id7">
+<caption><span class="caption-text">RISC-V 函数调用跳转指令</span><a class="headerlink" href="#id7" title="永久链接至表格">¶</a></caption>
 <colgroup>
 <col style="width: 40%" />
 <col style="width: 60%" />
@@ -359,8 +358,8 @@ ra 保存的物理地址，由于 x0 是一个恒为 0 的寄存器，在 rd 中
 <p><strong>RISC-V 架构上的 C 语言调用规范</strong></p>
 <p>RISC-V 架构上的 C 语言调用规范可以在 <a class="reference external" href="https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf">这里</a> 找到。
 它对通用寄存器的使用做出了如下约定：</p>
-<table class="colwidths-given docutils align-center" id="id9">
-<caption><span class="caption-text">RISC-V 寄存器功能分类</span><a class="headerlink" href="#id9" title="永久链接至表格">¶</a></caption>
+<table class="colwidths-given docutils align-center" id="id8">
+<caption><span class="caption-text">RISC-V 寄存器功能分类</span><a class="headerlink" href="#id8" title="永久链接至表格">¶</a></caption>
 <colgroup>
 <col style="width: 25%" />
 <col style="width: 25%" />
@@ -403,10 +402,10 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
 的值减小相应的字节数即可，于是物理地址区间 <span class="math notranslate nohighlight">\([\text{新sp},\text{旧sp})\)</span> 对应的物理内存便可以被这个函数用来函数调用上下文的保存/恢复
 以及其他工作，这块物理内存被称为这个函数的 <strong>栈帧</strong> (Stackframe)。同理，函数中作为结尾的收场白负责将开场白分配的栈帧回收，这也仅仅需要
 将 sp 的值增加相同的字节数回到分配之前的状态。这也可以解释为什么 sp 是一个被调用者保存寄存器。</p>
-<div class="figure align-center" id="id10">
+<div class="figure align-center" id="id9">
 <img alt="../_images/CallStack.png" src="../_images/CallStack.png" />
 <p class="caption"><span class="caption-text">函数调用与栈帧：如图所示，我们能够看到在程序依次调用 a、调用 b、调用 c、c 返回、b 返回整个过程中栈帧的分配/回收以及 sp 寄存器的变化。
-图中标有 a/b/c 的块分别代表函数 a/b/c 的栈帧。</span><a class="headerlink" href="#id10" title="永久链接至图片">¶</a></p>
+图中标有 a/b/c 的块分别代表函数 a/b/c 的栈帧。</span><a class="headerlink" href="#id9" title="永久链接至图片">¶</a></p>
 </div>
 <div class="admonition note" id="term-lifo">
 <p class="admonition-title">注解</p>
@@ -419,9 +418,9 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
 从而只需要类似 push/pop 的两种操作即可。</p>
 </div>
 <p>在合适的编译选项设置之下，一个函数的栈帧内容可能如下图所示：</p>
-<div class="figure align-center" id="id11">
+<div class="figure align-center" id="id10">
 <img alt="../_images/StackFrame.png" src="../_images/StackFrame.png" />
-<p class="caption"><span class="caption-text">函数栈帧中的内容</span><a class="headerlink" href="#id11" title="永久链接至图片">¶</a></p>
+<p class="caption"><span class="caption-text">函数栈帧中的内容</span><a class="headerlink" href="#id10" title="永久链接至图片">¶</a></p>
 </div>
 <p>它的开头和结尾分别在 sp(x2) 和 fp(s0) 所指向的地址。按照地址从高到低分别有以下内容，它们都是通过 sp 加上一个偏移量来访问的：</p>
 <ul class="simple">
@@ -442,9 +441,9 @@ RISC-V 架构中，栈是从高地址到低地址增长的。在一个函数中�
 程序运行起来的时候它们的功能并不相同：代码部分由一条条可以被 CPU 解码并执行的指令组成，而数据部分只是被 CPU 视作可用的存储空间。事实上
 我们还可以根据其功能进一步把两个部分划分为更小的单位： <strong>段</strong> (Section) 。不同的段会被编译器放置在内存不同的位置上，这构成了程序的
 <strong>内存布局</strong> (Memory Layout)。一种典型的程序相对内存布局如下：</p>
-<div class="figure align-center" id="id12">
+<div class="figure align-center" id="id11">
 <img alt="../_images/MemoryLayout.png" src="../_images/MemoryLayout.png" />
-<p class="caption"><span class="caption-text">一种典型的程序相对内存布局</span><a class="headerlink" href="#id12" title="永久链接至图片">¶</a></p>
+<p class="caption"><span class="caption-text">一种典型的程序相对内存布局</span><a class="headerlink" href="#id11" title="永久链接至图片">¶</a></p>
 </div>
 <p>代码部分只有代码段 <code class="docutils literal notranslate"><span class="pre">.text</span></code> 一个段，存放程序的所有汇编代码。</p>
 <p>数据部分则还可以继续细化：</p>
@@ -695,15 +694,16 @@ gp 加上一个偏移量来访问的。</p></li>
 </ol>
 <p>这样一来，我们就将运行时重建完毕了。在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录下 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span> <span class="pre">--release</span></code> 或者直接 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">build</span></code> 就能够看到
 最终生成的可执行文件 <code class="docutils literal notranslate"><span class="pre">target/riscv64gc-unknown-none-elf/release/os</span></code> 。</p>
-</div>
-<div class="section" id="id7">
-<h2>参考文献<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p>本节内容部分参考自：</p>
 <ul class="simple">
 <li><p><a class="reference external" href="https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf">RISC-V C 语言调用规范</a></p></li>
 <li><p><a class="reference external" href="http://www.cs.cornell.edu/courses/cs3410/2019sp/schedule/slides/10-calling-notes-bw.pdf">Notes from Cornell CS3410 2019Spring</a></p></li>
 <li><p><a class="reference external" href="https://inst.eecs.berkeley.edu/~cs61c/sp18/lec/06/lec06.pdf">Lecture from Berkeley CS61C 2018Spring</a></p></li>
 <li><p><a class="reference external" href="https://pdos.csail.mit.edu/6.828/2020/lec/l-riscv-slides.pdf">Lecture from MIT 6.828 2020</a></p></li>
 </ul>
+</div>
 </div>
 </div>
 

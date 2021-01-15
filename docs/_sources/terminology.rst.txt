@@ -181,6 +181,9 @@
    * - 胖指针
      - Fat Pointer
      - :ref:`实现应用程序 <term-fat-pointer>`
+   * - 内部可变性
+     - Interior Mutability
+     - :ref:`实现应用程序 <term-interior-mutability>`
    * - 指令缓存
      - i-cache, Instruction Cache
      - :ref:`实现批处理系统 <term-icache>`
@@ -322,5 +325,33 @@
    * - 页表
      - Page Table
      - :ref:`地址空间 <term-page-table>`
+   * - 静态分配
+     - Static Allocation
+     - :ref:`Rust 中的动态内存分配 <term-static-allocation>`
+   * - 动态分配
+     - Dynamic Allocation
+     - :ref:`Rust 中的动态内存分配 <term-dynamic-allocation>`
+   * - 智能指针
+     - Smart Pointer
+     - :ref:`Rust 中的动态内存分配 <term-smart-pointer>`
+   * - 集合
+     - Collection
+     - :ref:`Rust 中的动态内存分配 <term-collection>`
+   * - 容器
+     - Container
+     - :ref:`Rust 中的动态内存分配 <term-container>`
+   * - 借用检查
+     - Borrow Check
+     - :ref:`Rust 中的动态内存分配 <term-borrow-check>`
+   * - 引用计数
+     - Reference Counting
+     - :ref:`Rust 中的动态内存分配 <term-reference-counting>`
+   * - 垃圾回收
+     - GC, Garbage Collection
+     - :ref:`Rust 中的动态内存分配 <term-garbage-collection>`
+   * - 资源获取即初始化
+     - RAII, Resource Acquisition Is Initialization
+     - :ref:`Rust 中的动态内存分配 <term-raii>`
+    
   
     

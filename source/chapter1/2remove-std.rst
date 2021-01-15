@@ -137,3 +137,7 @@
 
    有兴趣的同学可以将目标平台换回之前默认的 ``x86_64-unknown-linux-gnu`` 并重复本小节所做的事情，比较两个平台从 ISA 到操作系统
    的差异。可以参考 `BlogOS 的相关内容 <https://os.phil-opp.com/freestanding-rust-binary/>`_ 。
+
+.. note:: 
+
+   本节内容部分参考自 `BlogOS 的相关章节 <https://os.phil-opp.com/freestanding-rust-binary/>`_ 。
