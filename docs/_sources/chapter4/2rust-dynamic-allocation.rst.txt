@@ -113,6 +113,7 @@ Rust 而言，我们则可以直接使用以下容器：
 - 有序集合 ``BTreeSet<T>`` 类似于 C++ 中的 ``std::set`` ；
 - 链表 ``LinkedList<T>`` 类似于 C++ 中的 ``std::list`` ；
 - 双端队列 ``VecDeque<T>`` 类似于 C++ 中的 ``std::deque`` 。
+- 变长字符串 ``String`` 类似于 C++ 中的 ``std::string`` 。
 
 下面是一张 Rust 智能指针/容器及其他类型的内存布局的经典图示，来自 
 `这里 <https://docs.google.com/presentation/d/1q-c7UAyrUlM-eZyTo1pd8SZ0qwA_wYxmPZVOQkoDmH4/edit#slide=id.p>`_ 。
@@ -146,6 +147,118 @@ RAII 的含义是说，将一个使用前必须获取的资源的生命周期绑
 
 在内核中支持动态内存分配
 --------------------------------------------------------
+
+上边介绍的那些与堆相关的智能指针或容器都可以在 Rust 自带的 ``alloc`` crate 中找到。当我们使用 Rust 标准库 
+``std`` 的时候可以不用关心这个 crate ，因为标准库内已经已经实现了一套堆管理算法，并将 ``alloc`` 的内容包含在 
+``std`` 名字空间之下让开发者可以直接使用。然而我们的内核是在禁用了标准库（即 ``no_std`` ）的裸机平台，核心库 
+``core`` 也并没有动态内存分配的功能，这个时候就要考虑利用 ``alloc`` 了。 
+
+``alloc`` 需要我们提供给它一个全局的动态内存分配器，它会利用该分配器来管理堆空间，从而它提供的数据结构可以正常
+工作。我们的动态内存分配器需要实现它提供的 ``GlobalAlloc`` Trait，这个 Trait 有两个必须实现的抽象接口：
+
+.. code-block:: rust
+    
+    // alloc::alloc::GlobalAlloc
+
+    pub unsafe fn alloc(&self, layout: Layout) -> *mut u8;
+    pub unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout);
+
+可以看到，它们类似 C 语言中的 ``malloc/free`` ，分别代表堆空间的分配和回收，也同样使用一个裸指针（也就是地址）
+作为分配的返回值和回收的参数。两个接口中都有一个 ``alloc::alloc::Layout`` 类型的参数， 
+它指出了分配的需求，分为两部分，分别是所需空间的大小 ``size`` ，以及返回地址的对齐要求 ``align`` 。这个对齐要求
+必须是一个 2 的幂次，单位为字节数，限制返回的地址必须是 ``align`` 的倍数。
+
+.. note::
+
+    **为何 C 语言 malloc 的时候不需要提供对齐需求？**
+
+    在 C 语言中，所有对齐要求的最大值是一个平台有关的很小的常数，消耗少量内存即可使得每一次分配都符合这个最大
+    的对齐要求。因此也就不需要区分不同分配的对齐要求了。而在 Rust 中，某些分配的对齐要求可能很大，就只能采用更
+    加复杂的方法。
+
+之后，只需将我们的动态内存分配器类型实例化为一个全局变量，并使用 ``#[global_allocator]`` 语义项标记即可。由于该
+分配器的实现比较复杂，我们这里直接使用一个已有的伙伴分配器实现。首先添加 crate 依赖：
+
+.. code-block:: toml
+
+    # os/Cargo.toml
+
+    buddy_system_allocator = "0.6"
+
+接着，需要引入 ``alloc`` 的依赖，由于它算是 Rust 内置的 crate ，我们并不是在 ``Cargo.toml`` 中进行引入，而是在 
+``main.rs`` 中声明即可：
+
+.. code-block:: rust
+
+    // os/src/main.rs
+
+    extern crate alloc;
+
+然后，根据 ``alloc`` 留好的接口提供全局动态内存分配器：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/mm/heap_allocator.rs
+
+    use buddy_system_allocator::LockedHeap;
+    use crate::config::KERNEL_HEAP_SIZE;
+
+    #[global_allocator]
+    static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
+
+    static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
+
+    pub fn init_heap() {
+        unsafe {
+            HEAP_ALLOCATOR
+                .lock()
+                .init(HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE);
+        }
+    }
+
+- 第 7 行，我们直接将 ``buddy_system_allocator`` 中提供的 ``LockedHeap`` 实例化成一个全局变量，并使用 
+  ``alloc`` 要求的 ``#[global_allocator]`` 语义项进行标记。注意 ``LockedHeap`` 已经实现了 ``GlobalAlloc`` 
+  要求的抽象接口了。
+- 第 11 行，在使用任何 ``alloc`` 中提供的堆数据结构之前，我们需要先调用 ``init_heap`` 函数来给我们的全局分配器
+  一块内存用于分配。在第 9 行可以看到，这块内存是一个 ``static mut`` 且被零初始化的字节数组，位于内核的 
+  ``.bss`` 段中。 ``LockedHeap`` 也是一个被互斥锁保护的类型，在对它任何进行任何操作之前都要先获取锁以避免其他
+  线程同时对它进行操作导致数据竞争。然后，调用 ``init`` 方法告知它能够用来分配的空间的起始地址和大小即可。
+
+最后，让我们尝试一下动态内存分配吧！
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/mm/heap_allocator.rs
+
+    #[allow(unused)]
+    pub fn heap_test() {
+        use alloc::boxed::Box;
+        use alloc::vec::Vec;
+        extern "C" {
+            fn sbss();
+            fn ebss();
+        }
+        let bss_range = sbss as usize..ebss as usize;
+        let a = Box::new(5);
+        assert_eq!(*a, 5);
+        assert!(bss_range.contains(&(a.as_ref() as *const _ as usize)));
+        drop(a);
+        let mut v: Vec<usize> = Vec::new();
+        for i in 0..500 {
+            v.push(i);
+        }
+        for i in 0..500 {
+            assert_eq!(v[i], i);
+        }
+        assert!(bss_range.contains(&(v.as_ptr() as usize)));
+        drop(v);
+        println!("heap_test passed!");
+    }
+
+其中分别使用智能指针 ``Box<T>`` 和向量 ``Vec<T>`` 在堆上分配数据并管理它们，通过 ``as_ref`` 和 ``as_ptr`` 
+方法可以分别看到它们指向的数据的位置，能够确认它们的确在 ``.bss`` 段的堆上。
 
 .. note::
 

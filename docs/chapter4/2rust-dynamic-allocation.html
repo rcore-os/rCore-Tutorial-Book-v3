@@ -313,6 +313,7 @@ Rust 而言，我们则可以直接使用以下容器：</p>
 <li><p>有序集合 <code class="docutils literal notranslate"><span class="pre">BTreeSet&lt;T&gt;</span></code> 类似于 C++ 中的 <code class="docutils literal notranslate"><span class="pre">std::set</span></code> ；</p></li>
 <li><p>链表 <code class="docutils literal notranslate"><span class="pre">LinkedList&lt;T&gt;</span></code> 类似于 C++ 中的 <code class="docutils literal notranslate"><span class="pre">std::list</span></code> ；</p></li>
 <li><p>双端队列 <code class="docutils literal notranslate"><span class="pre">VecDeque&lt;T&gt;</span></code> 类似于 C++ 中的 <code class="docutils literal notranslate"><span class="pre">std::deque</span></code> 。</p></li>
+<li><p>变长字符串 <code class="docutils literal notranslate"><span class="pre">String</span></code> 类似于 C++ 中的 <code class="docutils literal notranslate"><span class="pre">std::string</span></code> 。</p></li>
 </ul>
 <p>下面是一张 Rust 智能指针/容器及其他类型的内存布局的经典图示，来自
 <a class="reference external" href="https://docs.google.com/presentation/d/1q-c7UAyrUlM-eZyTo1pd8SZ0qwA_wYxmPZVOQkoDmH4/edit#slide=id.p">这里</a> 。</p>
@@ -338,6 +339,144 @@ RAII 的含义是说，将一个使用前必须获取的资源的生命周期绑
 </div>
 <div class="section" id="id4">
 <h2>在内核中支持动态内存分配<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<p>上边介绍的那些与堆相关的智能指针或容器都可以在 Rust 自带的 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> crate 中找到。当我们使用 Rust 标准库
+<code class="docutils literal notranslate"><span class="pre">std</span></code> 的时候可以不用关心这个 crate ，因为标准库内已经已经实现了一套堆管理算法，并将 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 的内容包含在
+<code class="docutils literal notranslate"><span class="pre">std</span></code> 名字空间之下让开发者可以直接使用。然而我们的内核是在禁用了标准库（即 <code class="docutils literal notranslate"><span class="pre">no_std</span></code> ）的裸机平台，核心库
+<code class="docutils literal notranslate"><span class="pre">core</span></code> 也并没有动态内存分配的功能，这个时候就要考虑利用 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 了。</p>
+<p><code class="docutils literal notranslate"><span class="pre">alloc</span></code> 需要我们提供给它一个全局的动态内存分配器，它会利用该分配器来管理堆空间，从而它提供的数据结构可以正常
+工作。我们的动态内存分配器需要实现它提供的 <code class="docutils literal notranslate"><span class="pre">GlobalAlloc</span></code> Trait，这个 Trait 有两个必须实现的抽象接口：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// alloc::alloc::GlobalAlloc</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">alloc</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">layout</span>: <span class="nc">Layout</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">dealloc</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">layout</span>: <span class="nc">Layout</span><span class="p">);</span><span class="w"></span>
+</pre></div>
+</div>
+<p>可以看到，它们类似 C 语言中的 <code class="docutils literal notranslate"><span class="pre">malloc/free</span></code> ，分别代表堆空间的分配和回收，也同样使用一个裸指针（也就是地址）
+作为分配的返回值和回收的参数。两个接口中都有一个 <code class="docutils literal notranslate"><span class="pre">alloc::alloc::Layout</span></code> 类型的参数，
+它指出了分配的需求，分为两部分，分别是所需空间的大小 <code class="docutils literal notranslate"><span class="pre">size</span></code> ，以及返回地址的对齐要求 <code class="docutils literal notranslate"><span class="pre">align</span></code> 。这个对齐要求
+必须是一个 2 的幂次，单位为字节数，限制返回的地址必须是 <code class="docutils literal notranslate"><span class="pre">align</span></code> 的倍数。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>为何 C 语言 malloc 的时候不需要提供对齐需求？</strong></p>
+<p>在 C 语言中，所有对齐要求的最大值是一个平台有关的很小的常数，消耗少量内存即可使得每一次分配都符合这个最大
+的对齐要求。因此也就不需要区分不同分配的对齐要求了。而在 Rust 中，某些分配的对齐要求可能很大，就只能采用更
+加复杂的方法。</p>
+</div>
+<p>之后，只需将我们的动态内存分配器类型实例化为一个全局变量，并使用 <code class="docutils literal notranslate"><span class="pre">#[global_allocator]</span></code> 语义项标记即可。由于该
+分配器的实现比较复杂，我们这里直接使用一个已有的伙伴分配器实现。首先添加 crate 依赖：</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/Cargo.toml</span>
+
+<span class="n">buddy_system_allocator</span> <span class="o">=</span> <span class="s">&quot;0.6&quot;</span>
+</pre></div>
+</div>
+<p>接着，需要引入 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 的依赖，由于它算是 Rust 内置的 crate ，我们并不是在 <code class="docutils literal notranslate"><span class="pre">Cargo.toml</span></code> 中进行引入，而是在
+<code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 中声明即可：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
+
+<span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">alloc</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
+<p>然后，根据 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 留好的接口提供全局动态内存分配器：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/heap_allocator.rs</span>
+
+<span class="k">use</span><span class="w"> </span><span class="n">buddy_system_allocator</span>::<span class="n">LockedHeap</span><span class="p">;</span><span class="w"></span>
+<span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">config</span>::<span class="n">KERNEL_HEAP_SIZE</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#[global_allocator]</span><span class="w"></span>
+<span class="k">static</span><span class="w"> </span><span class="n">HEAP_ALLOCATOR</span>: <span class="nc">LockedHeap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LockedHeap</span>::<span class="n">empty</span><span class="p">();</span><span class="w"></span>
+
+<span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">HEAP_SPACE</span>: <span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="n">KERNEL_HEAP_SIZE</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">KERNEL_HEAP_SIZE</span><span class="p">];</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">init_heap</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">HEAP_ALLOCATOR</span><span class="w"></span>
+<span class="w">            </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span><span class="w"></span>
+<span class="w">            </span><span class="p">.</span><span class="n">init</span><span class="p">(</span><span class="n">HEAP_SPACE</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">KERNEL_HEAP_SIZE</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<ul class="simple">
+<li><p>第 7 行，我们直接将 <code class="docutils literal notranslate"><span class="pre">buddy_system_allocator</span></code> 中提供的 <code class="docutils literal notranslate"><span class="pre">LockedHeap</span></code> 实例化成一个全局变量，并使用
+<code class="docutils literal notranslate"><span class="pre">alloc</span></code> 要求的 <code class="docutils literal notranslate"><span class="pre">#[global_allocator]</span></code> 语义项进行标记。注意 <code class="docutils literal notranslate"><span class="pre">LockedHeap</span></code> 已经实现了 <code class="docutils literal notranslate"><span class="pre">GlobalAlloc</span></code>
+要求的抽象接口了。</p></li>
+<li><p>第 11 行，在使用任何 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 中提供的堆数据结构之前，我们需要先调用 <code class="docutils literal notranslate"><span class="pre">init_heap</span></code> 函数来给我们的全局分配器
+一块内存用于分配。在第 9 行可以看到，这块内存是一个 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 且被零初始化的字节数组，位于内核的
+<code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段中。 <code class="docutils literal notranslate"><span class="pre">LockedHeap</span></code> 也是一个被互斥锁保护的类型，在对它任何进行任何操作之前都要先获取锁以避免其他
+线程同时对它进行操作导致数据竞争。然后，调用 <code class="docutils literal notranslate"><span class="pre">init</span></code> 方法告知它能够用来分配的空间的起始地址和大小即可。</p></li>
+</ul>
+<p>最后，让我们尝试一下动态内存分配吧！</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/heap_allocator.rs</span>
+
+<span class="cp">#[allow(unused)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">heap_test</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">boxed</span>::<span class="nb">Box</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">vec</span>::<span class="nb">Vec</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">fn</span> <span class="nf">sbss</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="k">fn</span> <span class="nf">ebss</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">bss_range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sbss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="o">..</span><span class="n">ebss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Box</span>::<span class="n">new</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">assert</span><span class="o">!</span><span class="p">(</span><span class="n">bss_range</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="o">&amp;</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">as_ref</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)));</span><span class="w"></span>
+<span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">a</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">usize</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">500</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">i</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">500</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="n">assert</span><span class="o">!</span><span class="p">(</span><span class="n">bss_range</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="o">&amp;</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)));</span><span class="w"></span>
+<span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">v</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;heap_test passed!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>其中分别使用智能指针 <code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 和向量 <code class="docutils literal notranslate"><span class="pre">Vec&lt;T&gt;</span></code> 在堆上分配数据并管理它们，通过 <code class="docutils literal notranslate"><span class="pre">as_ref</span></code> 和 <code class="docutils literal notranslate"><span class="pre">as_ptr</span></code>
+方法可以分别看到它们指向的数据的位置，能够确认它们的确在 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的堆上。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p>本节部分内容参考自 <a class="reference external" href="https://os.phil-opp.com/heap-allocation/">BlogOS 的相关章节</a> 。</p>
