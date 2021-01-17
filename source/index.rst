@@ -12,6 +12,7 @@ rCore-Tutorial-Book 第三版
    :hidden:
    
    quickstart
+   chapter0/index
    chapter1/index
    chapter2/index
    chapter3/index
