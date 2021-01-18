@@ -73,3 +73,10 @@
    Panicked at src/main.rs:46 Shutdown machine!
 
 除了 ``Hello, world!`` 之外还有一些额外的信息，最后关机。
+
+
+.. note::
+
+   RustSBI是啥？
+   
+   戳 :doc:`../appendix-c/index` 可以进一步了解RustSBI。
