@@ -12,7 +12,6 @@ rCore-Tutorial-Book 第三版
    :hidden:
    
    chapter0/index
-   quickstart
    chapter1/index
    chapter2/index
    chapter3/index
@@ -54,7 +53,7 @@ rCore-Tutorial-Book 第三版
 
 请大家先阅读 :ref:`第零章 <link-chapter0>` ，对于项目的开发背景和操作系统的概念有一个整体把控。
  
-在正式进行实验之前，请先按照 :doc:`/quickstart` 中的说明完成环境配置，再从第一章开始阅读正文。
+在正式进行实验之前，请先按照 :doc:`chapter0/5setup-devel-env` 中的说明完成环境配置，再从第一章开始阅读正文。
 
 项目协作
 ----------------------

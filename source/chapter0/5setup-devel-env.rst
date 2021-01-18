@@ -1,4 +1,4 @@
-环境配置
+实验环境配置
 ============
 
 .. toctree::
@@ -16,7 +16,7 @@
 系统环境配置
 -------------------------------
 
-目前实验仅支持 Ubuntu18.04 操作系统。对于 Windows10 和 macOS 上的用户，可以使用 VMware 或 
+目前实验仅支持 Ubuntu18.04 +操作系统。对于 Windows10 和 macOS 上的用户，可以使用 VMware 或 
 VirtualBox 安装一台 Ubuntu18.04 虚拟机并在上面进行实验。
 
 特别的，Windows10 的用户可以通过系统内置的 WSL2 虚拟机（请不要使用 WSL1）来安装 Ubuntu 18.04 。
@@ -115,7 +115,24 @@ Rust 开发环境配置
    [source.ustc]
    registry = "git://mirrors.ustc.edu.cn/crates.io-index"
 
-至于 Rust 开发环境，推荐 Visual Studio Code 搭配 rust-analyzer 和 RISC-V Support 插件。
+
+接下来安装一些Rust相关的软件包
+
+.. code-block:: bash
+
+   rustup target add riscv64gc-unknown-none-elf
+   cargo install cargo-binutils
+   rustup component add llvm-tools-preview
+   rustup component add rust-src
+   
+
+至于 Rust 开发环境，推荐JetBrains Clion + Rust插件 或者 Visual Studio Code 搭配 rust-analyzer 和 RISC-V Support 插件。
+
+.. note::
+
+   * JetBrains Clion是付费商业软件，但对于学生和教师，只要在JetBrains网网站注册账号，可以享受一定期限（半年左右）的免费使用的福利。
+   * Visual Studio Code是开源软件，不用付费就可使用。
+   * 当然，采用VIM，Emacs等传统的编辑器也是没有问题的。
 
 Qemu 模拟器安装
 ----------------------------------------
@@ -130,7 +147,7 @@ Qemu 模拟器安装
    # 安装编译所需的依赖包
    sudo apt install autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
                  gawk build-essential bison flex texinfo gperf libtool patchutils bc \
-                 zlib1g-dev libexpat-dev git
+                 zlib1g-dev libexpat-dev pkg-config  libglib2.0-dev libpixman-1-dev git tmux python3
    # 下载源码包 
    # 如果下载速度过慢可以使用我们提供的百度网盘链接：https://pan.baidu.com/s/1z-iWIPjxjxbdFS2Qf-NKxQ
    # 提取码 8woe
@@ -192,7 +209,7 @@ Qemu 模拟器安装
 如果是在 Qemu 平台上运行，只需在 ``os`` 目录下 ``make run`` 即可。在内核加载完毕之后，可以看到目前可以用的
 应用程序。 ``usertests`` 打包了其中的很大一部分，所以我们可以运行它，只需输入在终端中输入它的名字即可。
 
-.. image:: resources/qemu-final.gif
+.. image:: qemu-final.gif
 
 之后，可以先按下 ``Ctrl+A`` ，再按下 ``X`` 来退出 Qemu。
 
@@ -200,12 +217,12 @@ Qemu 模拟器安装
 
 首先，我们需要将 MicroSD 插入 PC 来将文件系统镜像拷贝上去。
 
-.. image:: resources/prepare-sd.gif
+.. image:: prepare-sd.gif
 
 随后，我们将 MicroSD 插入 K210 开发板，将 K210 开发板连接到 PC ，然后进入 ``os`` 目录 ``make run BOARD=k210`` 
 在 K210 开发板上跑 Tutorial 。 
 
-.. image:: resources/k210-final.gif
+.. image:: k210-final.gif
 
 之后，可以按下 ``Ctrl+]`` 来退出串口终端。
 
