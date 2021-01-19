@@ -358,6 +358,19 @@
    * - 类型转换
      - Type Convertion
      - :ref:`实现 SV39 多级页表机制 <term-type-convertion>`
+   * - 字典树
+     - Trie
+     - :ref:`实现 SV39 多级页表机制 <term-trie>`
+   * - 多级页表
+     - Multi-Level Page Table
+     - :ref:`实现 SV39 多级页表机制 <term-multi-level-page-table>`
+   * - 页索引
+     - Page Index
+     - :ref:`实现 SV39 多级页表机制 <term-page-index>`
+   * - 大页
+     - Huge Page
+     - :ref:`实现 SV39 多级页表机制 <term-huge-page>`
+    
     
   
     
