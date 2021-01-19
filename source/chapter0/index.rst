@@ -15,10 +15,6 @@
 
 
 **为何要写这本操作系统书**
-<<<<<<< HEAD
-
-=======
->>>>>>> Writing multi-level page table.
 
 现在国内外已有一系列优秀的操作系统教材,例如William Stallings的《Operating Systems Internals and Design Principles》，Avi Silberschatz、Peter Baer Galvin 和 Greg Gagne 的《Operating System Concepts》，Remzi H. Arpaci-Dusseau 和 Andrea C. Arpaci-Dusseau 的《Operating Systems: Three Easy Pieces》等。然而,从我们从2000年以来的教学实践来看,某些经典教材对操作系统的概念和原理很重视，但缺乏对操作系统的概念/原理与操作系统的实现之间建立一个联系的桥梁，导致学生发现操作系统实现相关的实验与操作系统的概念相比，有较大的鸿沟。此外,部分教材把 x86 作为的操作系统实验的硬件参考平台，缺乏对当前快速发展的RISC-V等体系结构的实验支持，使得学生在操作系统实验中可能需要花较大代价了解相对繁杂的x86硬件细节，影响操作系统实验的效果。还有部分教材也基本以 Linux/Unix 等实际操作系统为主，难以让学生在一个学期内掌握其中的核心设计。
 
@@ -35,7 +31,7 @@
 
 .. note::
 
-   目前常见的操作系统内核都是基于C语言的，为何要推荐Rust语言？
+   **目前常见的操作系统内核都是基于C语言的，为何要推荐Rust语言？**
    
    - 没错，C语言就是为写UNIX而诞生的。Dennis Ritchie和KenThompson没有期望设计一种新语言能帮助高效简洁地开发复杂的应用业务逻辑，只是希望用一种简洁的方式抽象出计算机的行为，便于编写控制计算机硬件的操作系统，最终的结果就是C语言。
    - C语言的指针的天使与魔鬼，且C语言缺少有效的并发支持，导致内存和并发漏洞成为当前操作系统的噩梦。

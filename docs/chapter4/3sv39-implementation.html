@@ -121,7 +121,6 @@ commentsRunWhenDOMLoaded(addUtterances);
               <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">环境配置</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
@@ -129,7 +128,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="1address-space.html">地址空间</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2rust-dynamic-allocation.html">Rust 中的动态内存分配</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">实现 SV39 多级页表机制</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id1">SV39 的虚拟地址和物理地址</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id1">虚拟地址和物理地址</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">页表项</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">多级页表</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="4kernel-app-spaces.html">内核与应用的地址空间</a></li>
@@ -226,7 +227,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>在本章第一小节中我们简单介绍了分页的内存管理策略，本节我们在 RV64 架构提供的 SV39 分页机制的基础上完成内核中的
 软件对应实现。</p>
 <div class="section" id="id1">
-<h2>SV39 的虚拟地址和物理地址<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
+<h2>虚拟地址和物理地址<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
 <p>默认情况下 MMU 未被使能，此时无论 CPU 位于哪个特权级，访存的地址都会作为一个物理地址交给对应的内存控制单元来直接
 访问物理内存。我们可以通过修改 S 特权级的一个名为 <code class="docutils literal notranslate"><span class="pre">satp</span></code> 的 CSR 来启用分页模式，在这之后 S 和 U 特权级的访存
 地址会被视为一个虚拟地址，它需要经过 MMU 的地址转换变为一个物理地址，再通过它来访问物理内存；而 M 特权级的访存地址
@@ -235,9 +236,263 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>上图是 RV64 架构下 <code class="docutils literal notranslate"><span class="pre">satp</span></code> 的字段分布。当 <code class="docutils literal notranslate"><span class="pre">MODE</span></code> 设置为 0 的时候，代表所有访存都被视为物理地址；而设置为 8
 的时候，SV39 分页机制被启用，所有 S/U 特权级的访存被视为一个 39 位的虚拟地址，它们需要先经过 MMU 的地址转换流程，
 如果顺利的话，则会变成一个 56 位的物理地址来访问物理内存；否则则会触发异常，这体现了该机制的内存保护能力。</p>
+<p>虚拟地址和物理地址都是字节地址，39 位的虚拟地址可以用来访问理论上最大 <span class="math notranslate nohighlight">\(512\text{GiB}\)</span> 的地址空间，
+而 56 位的物理地址在理论上甚至可以访问一块大小比这个地址空间的还高出几个数量级的物理内存。但是实际上无论是
+虚拟地址还是物理地址，真正有意义、能够通过 MMU 的地址转换或是 CPU 内存控制单元的检查的地址仅占其中的很小
+一部分，因此它们的理论容量上限在目前都没有实际意义。</p>
 <img alt="../_images/sv39-va-pa.png" src="../_images/sv39-va-pa.png" />
-<p>虚拟地址和物理地址都是字节地址， 39 位的虚拟地址可以用来访问大小为 <span class="math notranslate nohighlight">\(512\text{GiB}\)</span> 的地址空间，
-而 56 位的物理地址</p>
+<p id="term-page-offset">我们采用分页管理，单个页面的大小设置为 <span class="math notranslate nohighlight">\(4\text{KiB}\)</span> ，每个虚拟页面和物理页帧都对齐到这个页面大小，也就是说
+虚拟/物理地址区间 <span class="math notranslate nohighlight">\([0,4\text{KiB})\)</span> 为第 <span class="math notranslate nohighlight">\(0\)</span> 个虚拟页面/物理页帧，而
+<span class="math notranslate nohighlight">\([4\text{KiB},8\text{KiB})\)</span> 为第 <span class="math notranslate nohighlight">\(1\)</span> 个，以此类推。 <span class="math notranslate nohighlight">\(4\text{KiB}\)</span> 需要用 12 位字节地址
+来表示，因此虚拟地址和物理地址都被分成两部分：它们的低 12 位，即 <span class="math notranslate nohighlight">\([11:0]\)</span> 被称为 <strong>页内偏移</strong>
+(Page Offset) ，它描述一个地址指向的字节在它所在页面中的相对位置。而虚拟地址的高 27 位，即 <span class="math notranslate nohighlight">\([38:12]\)</span> 为
+它的虚拟页号 VPN，同理物理地址的高 44 位，即 <span class="math notranslate nohighlight">\([55:12]\)</span> 为它的物理页号 VPN，页号可以用来定位一个虚拟/物理地址
+属于哪一个虚拟页面/物理页帧。</p>
+<p>地址转换是以页为单位进行的，在地址转换的前后地址的页内偏移部分不变。可以认为 MMU 只是从虚拟地址中取出 27 位虚拟页号，
+在页表中查到其对应的物理页号（如果存在的话），最后将得到的物理页号与虚拟地址的页内偏移依序拼接到一起就变成了物理地址。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>RV64 架构中虚拟地址为何只有 39 位？</strong></p>
+<p>在 64 位架构上虚拟地址长度确实应该和位宽一致为 64 位，但是在启用 SV39 分页模式下，只有后 39 位是真正有意义的。
+SV39 分页模式规定 64 位虚拟地址的 <span class="math notranslate nohighlight">\([63:39]\)</span> 这 25 位必须和第 38 位相同，否则 MMU 会直接认定它是一个
+不合法的虚拟地址。通过这个检查之后 MMU 再取出后 39 位尝试将其转化为一个 56 位的物理地址。</p>
+<p>也就是说，所有 <span class="math notranslate nohighlight">\(2^{64}\)</span> 个虚拟地址中，只有最低的 <span class="math notranslate nohighlight">\(256\text{GiB}\)</span> （当第 38 位为 0 时）
+以及最高的 <span class="math notranslate nohighlight">\(256\text{GiB}\)</span> （当第 38 位为 1 时）是可能通过 MMU 检查的。当我们写软件代码的时候，一个
+地址的位宽毋庸置疑就是 64 位，我们要清楚可用的只有最高和最低这两部分，尽管它们已经巨大的超乎想象了；而本节中
+我们专注于介绍 MMU 的机制，强调 MMU 看到的真正用来地址转换的虚拟地址，这只有 39 位。</p>
+</div>
+<p>正如本章第一小节所说，在分页内存管理中，地址转换的核心任务在于如何维护虚拟页号到物理页号的映射——也就是页表。不过在具体
+实现它之前，我们先将地址和页号的概念抽象为 Rust 中的类型，借助 Rust 的类型安全特性来确保它们被正确实现。</p>
+<p>首先是这些类型的定义：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/address.rs</span>
+
+<span class="cp">#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">PhysAddr</span><span class="p">(</span><span class="k">pub</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+
+<span class="cp">#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtAddr</span><span class="p">(</span><span class="k">pub</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+
+<span class="cp">#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">PhysPageNum</span><span class="p">(</span><span class="k">pub</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+
+<span class="cp">#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtPageNum</span><span class="p">(</span><span class="k">pub</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+</pre></div>
+</div>
+<p id="term-type-convertion">上面分别给出了物理地址、虚拟地址、物理页号、虚拟页号的 Rust 类型声明，它们都是 Rust 的元组式结构体，可以看成
+usize 的一种简单包装。我们刻意将它们各自抽象出来而不是都使用 usize 保存，就是为了在 Rust 编译器的帮助下进行
+多种方便且安全的 <strong>类型转换</strong> (Type Convertion) 。</p>
+<p>首先，这些类型本身可以和 usize 之间互相转换，以物理地址 <code class="docutils literal notranslate"><span class="pre">PhysAddr</span></code> 为例，我们需要：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/address.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="nb">From</span><span class="o">&lt;</span><span class="kt">usize</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">PhysAddr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from</span><span class="p">(</span><span class="n">v</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="bp">Self</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="nb">From</span><span class="o">&lt;</span><span class="n">PhysAddr</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from</span><span class="p">(</span><span class="n">v</span>: <span class="nc">PhysAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>前者允许我们从一个 <code class="docutils literal notranslate"><span class="pre">usize</span></code> 来生成 <code class="docutils literal notranslate"><span class="pre">PhysAddr</span></code> ，即 <code class="docutils literal notranslate"><span class="pre">PhysAddr::from(_:</span> <span class="pre">usize)</span></code> 将得到一个 <code class="docutils literal notranslate"><span class="pre">PhysAddr</span></code>
+；反之亦然。其实由于我们在声明结构体的时候将字段公开了出来，从物理地址变量 <code class="docutils literal notranslate"><span class="pre">pa</span></code> 得到它的 usize 表示的更简便方法
+是直接 <code class="docutils literal notranslate"><span class="pre">pa.0</span></code> 。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>Rust 语法卡片：类型转换之 From 和 Into</strong></p>
+<p>一般而言，当我们为类型 <code class="docutils literal notranslate"><span class="pre">U</span></code> 实现了 <code class="docutils literal notranslate"><span class="pre">From&lt;T&gt;</span></code> Trait 之后，可以使用 <code class="docutils literal notranslate"><span class="pre">U::from(_:</span> <span class="pre">T)</span></code> 来从一个 <code class="docutils literal notranslate"><span class="pre">T</span></code>
+类型的实例来构造一个 <code class="docutils literal notranslate"><span class="pre">U</span></code> 类型的实例；而当我们为类型 <code class="docutils literal notranslate"><span class="pre">U</span></code> 实现了 <code class="docutils literal notranslate"><span class="pre">Into&lt;T&gt;</span></code> Trait 之后，对于一个 <code class="docutils literal notranslate"><span class="pre">U</span></code>
+类型的实例 <code class="docutils literal notranslate"><span class="pre">u</span></code> ，可以使用 <code class="docutils literal notranslate"><span class="pre">u.into()</span></code> 来将其转化为一个类型为 <code class="docutils literal notranslate"><span class="pre">T</span></code> 的实例。</p>
+<p>当我们为 <code class="docutils literal notranslate"><span class="pre">U</span></code> 实现了 <code class="docutils literal notranslate"><span class="pre">From&lt;T&gt;</span></code> 之后，Rust 会自动为 <code class="docutils literal notranslate"><span class="pre">T</span></code> 实现 <code class="docutils literal notranslate"><span class="pre">Into&lt;U&gt;</span></code> Trait，
+因为它们两个本来就是在做相同的事情。因此我们只需相互实现 <code class="docutils literal notranslate"><span class="pre">From</span></code> 就可以相互 <code class="docutils literal notranslate"><span class="pre">From/Into</span></code> 了。</p>
+<p>需要注意的是，当我们使用 <code class="docutils literal notranslate"><span class="pre">From</span></code> Trait 的 <code class="docutils literal notranslate"><span class="pre">from</span></code> 方法来构造一个转换后类型的实例的时候，<code class="docutils literal notranslate"><span class="pre">from</span></code> 的参数
+已经指明了转换前的类型，因而 Rust 编译器知道该使用哪个实现；而使用 <code class="docutils literal notranslate"><span class="pre">Into</span></code> Trait 的 <code class="docutils literal notranslate"><span class="pre">into</span></code> 方法来将当前
+类型转化为另一种类型的时候，它并没有参数，因而函数签名中并没有指出要转化为哪一个类型，则我们必须在其他地方 <em>显式</em>
+指出目标类型。比如，当我们要将 <code class="docutils literal notranslate"><span class="pre">u.into()</span></code> 绑定到一个新变量 <code class="docutils literal notranslate"><span class="pre">t</span></code> 的时候，必须通过 <code class="docutils literal notranslate"><span class="pre">let</span> <span class="pre">t:</span> <span class="pre">T</span></code> 显式声明
+<code class="docutils literal notranslate"><span class="pre">t</span></code> 的类型；又或是将 <code class="docutils literal notranslate"><span class="pre">u.into()</span></code> 的结果作为参数传给某一个函数，那么这个函数的函数签名中一定指出了传入位置
+的参数的类型，Rust 编译器也就明确知道转换的类型。</p>
+<p>请注意，解引用 <code class="docutils literal notranslate"><span class="pre">Deref</span></code> Trait 是 Rust 编译器唯一允许的一种隐式类型转换，而对于其他的类型转换，我们必须手动
+调用类型转化方法或者是显式给出转换前后的类型。这体现了 Rust 的类型安全特性，在 C/C++ 中并不是如此，比如两个
+不同的整数/浮点数类型进行二元运算的时候，编译器经常要先进行隐式类型转换使两个操作数类型相同，而后再进行运算，导致
+了很多数值溢出或精度损失问题。Rust 不会进行这种隐式类型转换，它会在编译期直接报错，提示两个操作数类型不匹配。</p>
+</div>
+<p>其次，地址和页号之间可以相互转换。我们这里仍以物理地址和物理页号之间的转换为例：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/address.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">PhysAddr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">page_offset</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">PAGE_SIZE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="nb">From</span><span class="o">&lt;</span><span class="n">PhysAddr</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">PhysPageNum</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from</span><span class="p">(</span><span class="n">v</span>: <span class="nc">PhysAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">page_offset</span><span class="p">(),</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">floor</span><span class="p">()</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="nb">From</span><span class="o">&lt;</span><span class="n">PhysPageNum</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">PhysAddr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from</span><span class="p">(</span><span class="n">v</span>: <span class="nc">PhysPageNum</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="bp">Self</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">PAGE_SIZE_BITS</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>其中 <code class="docutils literal notranslate"><span class="pre">PAGE_SIZE</span></code> 为 <span class="math notranslate nohighlight">\(4096\)</span> ， <code class="docutils literal notranslate"><span class="pre">PAGE_SIZE_BITS</span></code> 为 <span class="math notranslate nohighlight">\(12\)</span> ，它们均定义在 <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块
+中，分别表示每个页面的大小和页内偏移的位宽。从物理页号到物理地址的转换只需左移 <span class="math notranslate nohighlight">\(12\)</span> 位即可，但是物理地址需要
+保证它与页面大小对齐才能通过右移转换为物理页号。</p>
+<p>对于不对齐的情况，物理地址不能通过 <code class="docutils literal notranslate"><span class="pre">From/Into</span></code> 转换为物理页号，而是需要通过它自己的 <code class="docutils literal notranslate"><span class="pre">floor</span></code> 或 <code class="docutils literal notranslate"><span class="pre">ceil</span></code> 方法来
+进行下取整或上取整的转换。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/address.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">PhysAddr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">floor</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysPageNum</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">PhysPageNum</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">ceil</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysPageNum</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">PhysPageNum</span><span class="p">((</span><span class="bp">self</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>我们暂时先介绍这两种最简单的类型转换。</p>
+</div>
+<div class="section" id="id2">
+<h2>页表项<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>第一小节中我们提到，在页表中以虚拟页号作为索引不仅能够查到物理页号，还能查到一组保护位，它控制了应用对地址空间每个
+虚拟页面的访问权限。但实际上还有更多的标志位，物理页号和全部的标志位以某种固定的格式保存在一个结构体中，它被称为
+<strong>页表项</strong> (PTE, Page Table Entry) ，是利用虚拟页号在页表中查到的结果。</p>
+<img alt="../_images/sv39-pte.png" src="../_images/sv39-pte.png" />
+<p>上图为 SV39 分页模式下的页表项，其中 <span class="math notranslate nohighlight">\([53:10]\)</span> 这 <span class="math notranslate nohighlight">\(44\)</span> 位是物理页号，最低的 <span class="math notranslate nohighlight">\(8\)</span> 位
+<span class="math notranslate nohighlight">\([7:0]\)</span> 则是标志位，它们的含义如下（请注意，为方便说明，下文我们用 <em>页表项的对应虚拟页面</em> 来表示索引到
+一个页表项的虚拟页号对应的虚拟页面）：</p>
+<ul class="simple">
+<li><p>仅当 V(Valid) 位为 1 时，页表项才是合法的；</p></li>
+<li><p>R/W/X 分别控制索引到这个页表项的对应虚拟页面是否允许读/写/取指；</p></li>
+<li><p>U 控制索引到这个页表项的对应虚拟页面是否在 CPU 处于 U 特权级的情况下是否被允许访问；</p></li>
+<li><p>G 我们暂且不理会；</p></li>
+<li><p>A(Accessed) 记录自从页表项上的这一位被清零之后，页表项的对应虚拟页面是否被访问过；</p></li>
+<li><p>D(Dirty) 则记录自从页表项上的这一位被清零之后，页表项的对应虚拟页表是否被修改过。</p></li>
+</ul>
+<p>让我们先来实现页表项中的标志位 <code class="docutils literal notranslate"><span class="pre">PTEFlags</span></code> ：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
+
+<span class="cp">#[macro_use]</span><span class="w"></span>
+<span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">bitflags</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">// os/src/mm/page_table.rs</span>
+
+<span class="k">use</span><span class="w"> </span><span class="n">bitflags</span>::<span class="o">*</span><span class="p">;</span><span class="w"></span>
+
+<span class="n">bitflags</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">PTEFlags</span>: <span class="kt">u8</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">R</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">W</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">U</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">G</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">6</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">D</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p><a class="reference external" href="https://docs.rs/bitflags/1.2.1/bitflags/">bitflags</a> 是一个 Rust 中常用来比特标志位的 crate 。它提供了
+一个 <code class="docutils literal notranslate"><span class="pre">bitflags!</span></code> 宏，如上面的代码段所展示的那样，可以将一个 <code class="docutils literal notranslate"><span class="pre">u8</span></code> 封装成一个标志位的集合类型，支持一些常见的集合
+运算。它的一些使用细节这里不展开，请读者自行参考它的官方文档。注意，在使用之前我们需要引入该 crate 的依赖：</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/Cargo.toml</span>
+
+<span class="k">[dependencies]</span>
+<span class="n">bitflags</span> <span class="o">=</span> <span class="s">&quot;1.2.1&quot;</span>
+</pre></div>
+</div>
+<p>接下来我们实现页表项 <code class="docutils literal notranslate"><span class="pre">PageTableEntry</span></code> ：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/page_table.rs</span>
+
+<span class="cp">#[derive(Copy, Clone)]</span><span class="w"></span>
+<span class="cp">#[repr(C)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">PageTableEntry</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">bits</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">PageTableEntry</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="nc">PTEFlags</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">PageTableEntry</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">bits</span>: <span class="nc">ppn</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">flags</span><span class="p">.</span><span class="n">bits</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">empty</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">PageTableEntry</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">bits</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">ppn</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysPageNum</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">bits</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">((</span><span class="mi">1</span><span class="k">usize</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">44</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)).</span><span class="n">into</span><span class="p">()</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">flags</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PTEFlags</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">PTEFlags</span>::<span class="n">from_bits</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">bits</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u8</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<ul class="simple">
+<li><p>第 3 行我们让编译器自动为 <code class="docutils literal notranslate"><span class="pre">PageTableEntry</span></code> 实现 <code class="docutils literal notranslate"><span class="pre">Copy/Clone</span></code> Trait，来让这个类型以值语义赋值/传参的时候
+不会发生所有权转移，而是拷贝一份新的副本。从这一点来说 <code class="docutils literal notranslate"><span class="pre">PageTableEntry</span></code> 就和 usize 一样，因为它也只是后者的
+一层简单包装，解释了 usize 各个比特段的含义。</p></li>
+<li><p>第 10 行使得我们可以从一个物理页号 <code class="docutils literal notranslate"><span class="pre">PhysPageNum</span></code> 和一个页表项标志位 <code class="docutils literal notranslate"><span class="pre">PTEFlags</span></code> 生成一个页表项
+<code class="docutils literal notranslate"><span class="pre">PageTableEntry</span></code> 实例；而第 20 行和第 23 行则分别可以从一个页表项将它们两个取出。</p></li>
+<li><p>第 15 行中，我们也可以通过 <code class="docutils literal notranslate"><span class="pre">empty</span></code> 方法生成一个全零的页表项，注意这隐含着该页表项的 V 标志位为 0 ，
+因此它是不合法的。</p></li>
+</ul>
+<p>后面我们还为 <code class="docutils literal notranslate"><span class="pre">PageTableEntry</span></code> 实现了一些工具函数，可以快速判断一个页表项的 V/R/W/X 标志位是否为 1，以 V
+标志位的判断为例：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/page_table.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">PageTableEntry</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">is_valid</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">flags</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">PTEFlags</span>::<span class="n">V</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">PTEFlags</span>::<span class="n">empty</span><span class="p">()</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>这里相当于判断两个集合的交集是否为空集，部分说明了 <code class="docutils literal notranslate"><span class="pre">bitflags</span></code> crate 的使用方法。</p>
+</div>
+<div class="section" id="id3">
+<h2>多级页表<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
 </div>
 </div>
 

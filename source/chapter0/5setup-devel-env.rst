@@ -126,13 +126,13 @@ Rust 开发环境配置
    rustup component add rust-src
    
 
-至于 Rust 开发环境，推荐JetBrains Clion + Rust插件 或者 Visual Studio Code 搭配 rust-analyzer 和 RISC-V Support 插件。
+至于 Rust 开发环境，推荐 JetBrains Clion + Rust插件 或者 Visual Studio Code 搭配 rust-analyzer 和 RISC-V Support 插件。
 
 .. note::
 
-   * JetBrains Clion是付费商业软件，但对于学生和教师，只要在JetBrains网网站注册账号，可以享受一定期限（半年左右）的免费使用的福利。
-   * Visual Studio Code是开源软件，不用付费就可使用。
-   * 当然，采用VIM，Emacs等传统的编辑器也是没有问题的。
+   * JetBrains Clion是付费商业软件，但对于学生和教师，只要在 JetBrains 网站注册账号，可以享受一定期限（半年左右）的免费使用的福利。
+   * Visual Studio Code 是开源软件，不用付费就可使用。
+   * 当然，采用 VIM，Emacs 等传统的编辑器也是没有问题的。
 
 Qemu 模拟器安装
 ----------------------------------------

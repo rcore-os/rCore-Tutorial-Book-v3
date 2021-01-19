@@ -11,7 +11,7 @@
 
 .. code-block::
 
-   // os/.cargo/config
+   # os/.cargo/config
    [build]
    target = "riscv64gc-unknown-none-elf"
 
