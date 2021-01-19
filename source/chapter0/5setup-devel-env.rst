@@ -16,10 +16,10 @@
 系统环境配置
 -------------------------------
 
-目前实验仅支持 Ubuntu18.04 +操作系统。对于 Windows10 和 macOS 上的用户，可以使用 VMware 或 
+目前实验仅支持 Ubuntu18.04 + 操作系统。对于 Windows10 和 macOS 上的用户，可以使用 VMware 或 
 VirtualBox 安装一台 Ubuntu18.04 虚拟机并在上面进行实验。
 
-特别的，Windows10 的用户可以通过系统内置的 WSL2 虚拟机（请不要使用 WSL1）来安装 Ubuntu 18.04 。
+特别的，Windows10 的用户可以通过系统内置的 WSL2 虚拟机（请不要使用 WSL1）来安装 Ubuntu 18.04 / 20.04 。
 步骤如下：
 
 - 升级 Windows 10 到最新版（Windows 10 版本 18917 或以后的内部版本）。注意，如果
@@ -44,7 +44,7 @@ VirtualBox 安装一台 Ubuntu18.04 虚拟机并在上面进行实验。
      >> wsl --set-default-version 2
 
 -  `下载 Linux 内核安装包 <https://docs.microsoft.com/zh-cn/windows/wsl/install-win10#step-4---download-the-linux-kernel-update-package>`_
--  在微软商店（Microsoft Store）中搜索并安装 Ubuntu18.04 。
+-  在微软商店（Microsoft Store）中搜索并安装 Ubuntu18.04 / 20.04。
 
 如果你打算使用 VMware 安装虚拟机的话，我们已经配置好了一个能直接运行 rCore-Tutorial-v3 的 
 Ubuntu18.04 镜像，它是一个 ``vmdk`` 格式的虚拟磁盘文件，只需要在 VMware 中新建一台虚拟机，
@@ -74,6 +74,14 @@ Rust 开发环境配置
    
    export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
    export RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rust-static/rustup
+   curl https://sh.rustup.rs -sSf | sh
+
+或者使用tuna源来加速 `参见 rustup 帮助 <https://mirrors.tuna.tsinghua.edu.cn/help/rustup/>`_：
+
+.. code-block:: bash
+   
+   export RUSTUP_DIST_SERVER=https://mirrors.tuna.edu.cn/rustup
+   export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.edu.cn/rustup/rustup
    curl https://sh.rustup.rs -sSf | sh
 
 或者也可以通过在运行前设置命令行中的科学上网代理来实现：
@@ -115,6 +123,15 @@ Rust 开发环境配置
    [source.ustc]
    registry = "git://mirrors.ustc.edu.cn/crates.io-index"
 
+同样，也可以使用tuna源 `参见 crates.io 帮助 <https://mirrors.tuna.tsinghua.edu.cn/help/crates.io-index.git/>`_：
+
+.. code-block:: toml
+
+   [source.crates-io]
+   replace-with = 'tuna'
+
+   [source.tuna]
+   registry = "https://mirrors.tuna.tsinghua.edu.cn/git/crates.io-index.git"
 
 接下来安装一些Rust相关的软件包
 
@@ -124,15 +141,18 @@ Rust 开发环境配置
    cargo install cargo-binutils
    rustup component add llvm-tools-preview
    rustup component add rust-src
-   
-
-至于 Rust 开发环境，推荐JetBrains Clion + Rust插件 或者 Visual Studio Code 搭配 rust-analyzer 和 RISC-V Support 插件。
 
 .. note::
 
-   * JetBrains Clion是付费商业软件，但对于学生和教师，只要在JetBrains网网站注册账号，可以享受一定期限（半年左右）的免费使用的福利。
-   * Visual Studio Code是开源软件，不用付费就可使用。
-   * 当然，采用VIM，Emacs等传统的编辑器也是没有问题的。
+   rCore-Tutorial 仓库中的 ``Makefile`` 包含了这些工具的安装，如果你使用 ``make run`` 也可以不手动安装。
+
+至于 Rust 开发环境，推荐 JetBrains Clion + Rust插件 或者 Visual Studio Code 搭配 rust-analyzer 和 RISC-V Support 插件。
+
+.. note::
+
+   * JetBrains Clion是付费商业软件，但对于学生和教师，只要在 JetBrains 网站注册账号，可以享受一定期限（半年左右）的免费使用的福利。
+   * Visual Studio Code 是开源软件，不用付费就可使用。
+   * 当然，采用 VIM，Emacs 等传统的编辑器也是没有问题的。
 
 Qemu 模拟器安装
 ----------------------------------------
