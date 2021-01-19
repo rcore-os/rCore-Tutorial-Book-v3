@@ -171,6 +171,7 @@ x86_64 换成 RISC-V。
 .. code-block:: console
 
    $ rustc --print target-list | grep riscv
+   riscv32gc-unknown-linux-gnu
    riscv32i-unknown-none-elf
    riscv32imac-unknown-none-elf
    riscv32imc-unknown-none-elf
