@@ -1,4 +1,4 @@
-重建用户态执行环境
+构建用户态执行环境
 =================================
 
 .. toctree::
@@ -92,7 +92,6 @@
     ; }
       11120: 82 80        	ret
 
-
 看起来是有内容(具有 ``ret`` 函数返回汇编指令）且合法的执行程序。但如果我们执行它，就发现有问题了：
 
 .. code-block:: console
@@ -109,7 +108,7 @@
 
 .. code-block:: rust
   
-  // os/src/main.rs 列出增加的部分
+  // os/src/main.rs
   #![feature(llvm_asm)]
 
   const SYSCALL_EXIT: usize = 93;
@@ -137,7 +136,7 @@
   }
 
 
-``main.rs`` 增加的内容不多，但还是有点与一般的应用程序有所不同，因为它引入了汇编和系统调用。如果你看不懂上面内容的细节，没关系，
+ ``main.rs`` 增加的内容不多，但还是有点与一般的应用程序有所不同，因为它引入了汇编和系统调用。如果你看不懂上面内容的细节，没关系，
 在第二章的第二节 :doc:`chapter2/2application` 会有详细的介绍。
 这里只需知道 ``_start`` 函数调用了一个 ``sys_exit`` 函数，来向操作系统发出一个退出服务的系统调用请求，并传递给OS的退出码为 ``9`` 。
 我们编译执行以下修改后的程序：
@@ -238,7 +237,7 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
 现在，我们编译执行以下。
 
 
-.. code-block:: rust
+.. code-block:: console
 
   $ cargo build --target riscv64gc-unknown-none-elf
      Compiling os v0.1.0 (/media/chyyuu/ca8c7ba6-51b7-41fc-8430-e29e31e5328f/thecode/rust/os_kernel_lab/os)
@@ -280,7 +279,8 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
 再次编译执行，可以看到正确的字符串输出，且程序也能正确结束！
 
 
+
+
 .. code-block:: rust
 
-  $ qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os
-    Hello, world!
+

@@ -1,4 +1,4 @@
-重建裸机上的最小化运行时执行环境
+构建裸机运行时执行环境
 =================================
 
 .. toctree::
@@ -11,6 +11,10 @@
 本节开始我们将着手自己来实现裸机上的最小执行环境，即我们的“三叶虫”操作系统，并能在裸机上运行 ``Hello, world!`` 程序。
 有了上一节实现的用户态的最小执行环境，我们可以稍加改造，就可以完成裸机上的最小执行环境了。
 
+
+
+了解裸机启动过程
+----------------------------
 
 在这一小节，我们介绍如何进行 **执行环境初始化** 。我们在上一小节提到过，一个应用程序的运行离不开下面多层执行环境栈的支撑。
 以 ``Hello, world!`` 程序为例，在目前广泛使用的操作系统上，它就至少需要经历以下层层递进的初始化过程：
@@ -59,39 +63,40 @@
   那么操作系统内核直接调用就好了。
 
 
-实现第一版的“三叶虫”操作系统
+.. warning::
+
+   **FIXME: 提供一下分析展示**
+
+实现关机功能
 ----------------------------
 
-这一版的基本要求是让“三叶虫”操作系统能够正常关机，这是需要调用SBI提供的关机功能 ``SBI_SHUTDOWN`` ，这与上一节的 ``SYSCALL_EXIT`` 类似，
-只是在具体参数上有所不同。修改后的代码如下：
+如果在裸机上的应用程序执行完毕并通知操作系统后，那么“三叶虫”操作系统就没事干了，实现正常关机是一个合理的选择。所以我们要让“三叶虫”操作系统能够正常关机，这是需要调用SBI提供的关机功能 ``SBI_SHUTDOWN`` ，这与上一节的 ``SYSCALL_EXIT`` 类似，
+只是在具体参数上有所不同。在上一节完成的没有显示功能的用户态最小化执行环境基础上，修改后的代码如下：
 
 
 .. code-block:: rust
 
-  //bootloader/rustsbi-qemu.bin 直接添加的二进制代码
+    //bootloader/rustsbi-qemu.bin 直接添加的SBI规范实现的二进制代码，给操作系统提供基本支持服务
 
-  //.cargo/config 添加内容
-  [build]
-  target = "riscv64gc-unknown-none-elf"
+    // os/src/main.rs
+    const SYSCALL_EXIT: usize = 93;
 
+    pub fn shutdown() -> ! {
+        syscall(SBI_SHUTDOWN, [0, 0, 0]);
+        panic!("It should shutdown!");
+    }
 
-  // os/src/main.rs
-  const SYSCALL_EXIT: usize = 93;
+    #[no_mangle]
+    extern "C" fn _start() {
+        shutdown();
+    }
 
-  pub fn shutdown() -> ! {
-      syscall(SBI_SHUTDOWN, [0, 0, 0]);
-      panic!("It should shutdown!");
-  }
-
-  #[no_mangle]
-  extern "C" fn _start() {
-      shutdown();
-  }
-
-也许有同学比较迷惑，应用程序访问操作系统提供的系统调用的指令是 ``ecall`` ，操作系统访问RustSBI提供的SBI服务的SBI调用的指令也是 ``ecall`` 。
+也许有同学比较迷惑，应用程序访问操作系统提供的系统调用的指令是 **ecall** ，
+操作系统访问RustSBI提供的SBI服务的SBI调用的指令也是 ``ecall`` 。
 这其实是没有问题的，虽然指令一样，但它们所在的特权级和特权级转换是不一样的。简单地说，应用程序位于最弱的用户特权级（User Mode），操作系统位于
 很强大的内核特权级（Supervisor Mode），RustSBI位于完全掌控机器的机器特权级（Machine Mode），通过 ``ecall`` 指令，可以完成从弱的特权级
-到强的特权级的转换。具体细节，可以看下一章的进一步描述。在这里，知道这么多就足够了。
+到强的特权级的转换。具体细节，可以看下一章的进一步描述。在这里，只要知道如果“三叶虫”操作系统正确地向RustSBI发出了停机的SBI服务请求，
+那么RustSBI能够通知QEMU模拟的RISC-V计算机停机（即 ``qemu-system-riscv64 `` 软件能正常退出）就行了。
 
 下面是编译执行，结果如下：
 
@@ -110,10 +115,10 @@
   # 无法退出，风扇狂转，感觉碰到死循环
 
 这样的结果是我们不期望的。问题在哪？仔细查看和思考，操作系统的入口地址不对！对 ``os`` ELF执行程序，通过rust-readobj分析，看到的入口地址不是
-RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的地址内存布局。
+RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的内存布局。
 
 
-实现第二版的“三叶虫”操作系统
+设置正确的程序内存布局
 ----------------------------
 
 .. _term-linker-script:
@@ -238,7 +243,7 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
 **栈 stack**出现了问题。我们没有设置好**栈 stack**！ 好吧，我们需要考虑如何合理设置**栈 stack**。
 
 
-实现第三版的“三叶虫”操作系统
+正确配置栈空间布局
 ----------------------------
 
 为了说明如何实现正确的栈，我们需要讨论这样一个问题：
@@ -340,20 +345,20 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
     [rustsbi] Kernel entry: 0x80020000
     $ #“优雅”地退出了。 
 
-我们可以松一口气了。接下来，我们要让“三叶虫”操作系统要实现“Hello, world”输出！
 
 
 
 
-
-
-
-手动清空 .bss 段
+清空 .bss 段
 ----------------------------------
 
-由于 ``.bss`` 段需要在程序正式开始运行之前被固定初始化为零，因此在 ELF 文件中，为了节省磁盘空间，只会记录 ``.bss`` 段的位置而并不是
-有一块长度相等的全为零的数据。在内核将可执行文件加载到内存的时候，它需要负责将 ``.bss`` 所分配到的内存区域全部清零。而我们这里需要在
-应用程序 ``rust_main`` 中，在访问任何 ``.bss`` 段的全局数据之前手动将其清零。
+与内存相关的部分太容易出错了。所以，我们再仔细检查代码后，发现在嵌入式系统中常见的 **清零 .bss段** 的工作并没有完成。
+
+由于一般应用程序的 ``.bss`` 段在程序正式开始运行之前会被执环境（系统库或操作系统内核）固定初始化为零，因此在 ELF 文件中，为了节省磁盘空间，只会记录 ``.bss`` 段的位置，且应用程序的假定在它执行前，其 ``.bss段`` 的数据内容都已是 ``全0`` 。
+如果这块区域不是全零，且执行环境也没提前清零，那么会与应用的假定矛盾，导致程序出错。对于在裸机上执行的应用程序，其执行环境（就是QEMU模拟硬件+“三叶虫”操作系统内核）将可执行文件加载到内存的时候，并负责将 ``.bss`` 所分配到的内存区域全部清零。
+
+落实到我们正在实现的“三叶虫”操作系统内核，我们需要提供清零的 ``clear_bss()`` 函数。此函数属于执行环境，并在执行环境调用
+应用程序的 ``rust_main`` 主函数前，把 ``.bss`` 段的全局数据清零。
 
 .. code-block:: rust
     :linenos:
@@ -371,3 +376,131 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
 
 在程序内自己进行清零的时候，我们就不用去解析 ELF（此时也没有 ELF 可供解析）了，而是通过链接脚本 ``linker.ld`` 中给出的全局符号 
 ``sbss`` 和 ``ebss`` 来确定 ``.bss`` 段的位置。
+
+
+
+我们可以松一口气了。接下来，我们要让“三叶虫”操作系统要实现“Hello, world”输出！
+
+
+添加裸机打印相关函数
+----------------------------------
+
+
+
+与上一节为输出字符实现的代码片段相比，裸机应用的执行环境支持字符输出的代码改动会很小。
+下面的代码基于上节有打印能力的执行环境的基础上做的变动。
+
+.. code-block:: rust
+
+    const SBI_CONSOLE_PUTCHAR: usize = 1;
+
+    pub fn console_putchar(c: usize) {
+        syscall(SBI_CONSOLE_PUTCHAR, [c, 0, 0]);
+    }
+
+    impl Write for Stdout {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+            //sys_write(STDOUT, s.as_bytes());
+            for c in s.chars() {
+                console_putchar(c as usize);
+            }
+            Ok(())
+        }
+    }
+
+
+可以看到主要就只是把之前的操作系统系统调用改为了SBI调用。然后我们再编译运行试试，
+
+.. code-block:: console
+
+    $ cargo build
+    $ rust-objcopy --binary-architecture=riscv64 target/riscv64gc-unknown-none-elf/debug/os --strip-all -O binary target/riscv64gc-unknown-none-elf/debug/os.bin
+    $ qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file=target/riscv64gc-unknown-none-elf/debug/os.bin,addr=0x80020000
+
+    [rustsbi] Version 0.1.0
+    .______       __    __      _______.___________.  _______..______   __
+    |   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
+    |  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
+    |      /     |  |  |  |    \   \       |  |      \   \    |   _  < |  |
+    |  |\  \----.|  `--'  |.----)   |      |  |  .----)   |   |  |_)  ||  |
+    | _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
+
+    [rustsbi] Platform: QEMU
+    [rustsbi] misa: RV64ACDFIMSU
+    [rustsbi] mideleg: 0x222
+    [rustsbi] medeleg: 0xb1ab
+    [rustsbi] Kernel entry: 0x80020000
+    Hello, world!
+
+    $
+
+可以看到，在裸机上输出了 ``Hello, world!`` ，而且qemu正常退出，表示RISC-V计算机也正常关机了。
+
+
+接着我们可提高“三叶虫”操作系统处理异常的能力，即给异常处理函数 ``panic`` 增加显示字符串能力。主要修改内容如下：
+
+.. code-block:: rust
+
+    // os/src/main.rs
+    #![feature(panic_info_message)]
+
+    #[panic_handler]
+    fn panic(info: &PanicInfo) -> ! {
+        if let Some(location) = info.location() {
+            println!("Panicked at {}:{} {}", location.file(), location.line(), info.message().unwrap());
+        } else {
+            println!("Panicked: {}", info.message().unwrap());
+        }
+        shutdown()
+    }
+
+我们尝试从传入的 ``PanicInfo`` 中解析 panic 发生的文件和行数。如果解析成功的话，就和 panic 的报错信息一起打印出来。我们需要在 
+``main.rs`` 开头加上 ``#![feature(panic_info_message)]`` 才能通过 ``PanicInfo::message`` 获取报错信息。
+
+但我们在 ``main.rs`` 的 ``rust_main`` 函数中调用 ``panic!("It should shutdown!");`` 宏时，整个模拟执行的结果是：
+
+.. code-block:: console
+
+    $ cargo build --release 
+    $ rust-objcopy --binary-architecture=riscv64 target/riscv64gc-unknown-none-elf/release/os \
+        --strip-all -O binary target/riscv64gc-unknown-none-elf/release/os.bin
+    $ qemu-system-riscv64 \
+        -machine virt \
+        -nographic \
+        -bios ../bootloader/rustsbi-qemu.bin \
+        -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80020000
+
+        [rustsbi] Version 0.1.0
+        .______       __    __      _______.___________.  _______..______   __
+        |   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
+        |  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
+        |      /     |  |  |  |    \   \       |  |      \   \    |   _  < |  |
+        |  |\  \----.|  `--'  |.----)   |      |  |  .----)   |   |  |_)  ||  |
+        | _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
+
+        [rustsbi] Platform: QEMU
+        [rustsbi] misa: RV64ACDFIMSU
+        [rustsbi] mideleg: 0x222
+        [rustsbi] medeleg: 0xb1ab
+        [rustsbi] Kernel entry: 0x80020000
+        Hello, world!
+        Panicked at src/main.rs:95 It should shutdown!
+    $
+
+可以看到产生panic的地点在 ``main.rs`` 的第95行，与源码中的实际位置一致！到这里，我们基本上算是完成了第一章的实验内容，
+实现了支持应用程序在裸机上显示字符串的“三叶虫”操作系统。但也能看出，这个操作系统很脆弱，只能支持一个简单的易用，在本质上
+是一个提供方便服务接口的库。“三叶虫”操作系统还需进化，提升能力。
+在下一章，我们将进入“敏迷龙”操作系统的设计与实现。
+
+
+.. note::
+
+    **Rust 小知识： 错误处理**
+
+    Rust 中常利用 ``Option<T>`` 和 ``Result<T, E>`` 进行方便的错误处理。它们都属于枚举结构：
+
+    - ``Option<T>`` 既可以有值 ``Option::Some<T>`` ，也有可能没有值 ``Option::None``；
+    - ``Result<T, E>`` 既可以保存某个操作的返回值 ``Result::Ok<T>`` ，也可以表明操作过程中出现了错误 ``Result::Err<E>`` 。
+
+    我们可以使用 ``Option/Result`` 来保存一个不能确定存在/不存在或是成功/失败的值。之后可以通过匹配 ``if let`` 或是在能够确定
+    的场合直接通过 ``unwrap`` 将里面的值取出。详细的内容可以参考 Rust 官方文档。

@@ -12,7 +12,6 @@
    3-1-mini-rt-usrland
    3-2-mini-rt-baremetal
    4understand-prog
-   5syscall-sbi-print
    6practice
 
 本章导读
