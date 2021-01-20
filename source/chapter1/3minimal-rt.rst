@@ -25,8 +25,6 @@
 .. _term-physical-address:
 .. _term-physical-memory:
 
-
-
 .. note::
 
    **物理内存与物理地址**
