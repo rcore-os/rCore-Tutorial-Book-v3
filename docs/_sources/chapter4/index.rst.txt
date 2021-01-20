@@ -7,8 +7,9 @@
 
    1address-space
    2rust-dynamic-allocation
-   3sv39-implementation
-   4kernel-app-spaces
+   3sv39-implementation-1
+   4sv39-implementation-2
+   5kernel-app-spaces
 
 .. _term-illusion:
 .. _term-time-division-multiplexing:

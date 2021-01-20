@@ -1,0 +1,582 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>实现 SV39 多级页表机制（下） &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script kind="utterances">
+
+    var commentsRunWhenDOMLoaded = cb => {
+    if (document.readyState != 'loading') {
+        cb()
+    } else if (document.addEventListener) {
+        document.addEventListener('DOMContentLoaded', cb)
+    } else {
+        document.attachEvent('onreadystatechange', function() {
+        if (document.readyState == 'complete') cb()
+        })
+    }
+}
+
+var addUtterances = () => {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = "https://utteranc.es/client.js";
+    script.async = "async";
+
+    script.setAttribute("repo", "rcore-os/rCore-Tutorial-Book-v3");
+    script.setAttribute("issue-term", "pathname");
+    script.setAttribute("theme", "github-light");
+    script.setAttribute("label", "comments");
+    script.setAttribute("crossorigin", "anonymous");
+
+    sections = document.querySelectorAll("div.section");
+    if (sections !== null) {
+        section = sections[sections.length-1];
+        section.appendChild(script);
+    }
+}
+commentsRunWhenDOMLoaded(addUtterances);
+</script>
+        <script src="../_static/translations.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="内核与应用的地址空间" href="5kernel-app-spaces.html" />
+    <link rel="prev" title="实现 SV39 多级页表机制（上）" href="3sv39-implementation-1.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第四章：地址空间（施工中）</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="1address-space.html">地址空间</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2rust-dynamic-allocation.html">Rust 中的动态内存分配</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3sv39-implementation-1.html">实现 SV39 多级页表机制（上）</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">实现 SV39 多级页表机制（下）</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">物理页帧管理</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">多级页表实现</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="5kernel-app-spaces.html">内核与应用的地址空间</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../chapter8/index.html">第八章：阻塞（暂定）</a></li>
+</ul>
+<p class="caption"><span class="caption-text">附录</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 快速入门</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-b/index.html">附录 B：常见工具的使用方法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-c/index.html">附录 C：深入机器模式：RustSBI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
+</ul>
+<p class="caption"><span class="caption-text">开发注记</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">rCore-Tutorial-Book-v3</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">第四章：地址空间（施工中）</a> &raquo;</li>
+        
+      <li>实现 SV39 多级页表机制（下）</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/chapter4/4sv39-implementation-2.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="sv39">
+<h1>实现 SV39 多级页表机制（下）<a class="headerlink" href="#sv39" title="永久链接至标题">¶</a></h1>
+<p>本节我们继续来实现 SV39 多级页表机制。</p>
+<div class="section" id="id1">
+<h2>物理页帧管理<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
+<p>从前面的介绍可以看出物理页帧的重要性：它既可以用来实际存放应用的数据，也能够用来存储某个应用多级页表中的一个节点。
+目前的物理内存上已经有一部分用于放置内核的代码和数据，我们需要将剩下可用的部分以单个物理页帧为单位管理起来，
+当需要存放应用数据或是应用的多级页表需要一个新节点的时候分配一个物理页帧，并在应用出错或退出的时候回收它占有
+的所有物理页帧。</p>
+<p>首先，我们需要知道物理内存的哪一部分是可用的。在 <code class="docutils literal notranslate"><span class="pre">os/src/linker.ld</span></code> 中，我们用符号 <code class="docutils literal notranslate"><span class="pre">ekernel</span></code> 指明了
+内核数据的终止物理地址，在它之后的物理内存都是可用的。而在 <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块中：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/config.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">MEMORY_END</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mh">0x80800000</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
+<p>我们硬编码整块物理内存的终止物理地址为 <code class="docutils literal notranslate"><span class="pre">0x80800000</span></code> 。 而 <a class="reference internal" href="../chapter1/3minimal-rt.html#term-physical-memory"><span class="std std-ref">之前</span></a> 提到过物理内存的
+起始物理地址为 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，这意味着我们将可用内存大小设置为 <span class="math notranslate nohighlight">\(8\text{MiB}\)</span> 。
+实际上在 Qemu 模拟器上可以通过设置使用更大的物理内存，但这里我们希望
+它和真实硬件 K210 的配置保持一致，因此设置为仅使用 <span class="math notranslate nohighlight">\(8\text{MiB}\)</span> 。我们用一个左闭右开的物理页号区间来表示
+可用的物理内存，则：</p>
+<ul class="simple">
+<li><p>区间的左端点应该是 <code class="docutils literal notranslate"><span class="pre">ekernel</span></code> 的物理地址以上取整方式转化成的物理页号；</p></li>
+<li><p>区间的右端点应该是 <code class="docutils literal notranslate"><span class="pre">MEMORY_END</span></code> 以下取整方式转化成的物理页号。</p></li>
+</ul>
+<p>这个区间将被传给我们后面实现的物理页帧管理器用于初始化。</p>
+<p>我们声明一个 <code class="docutils literal notranslate"><span class="pre">FrameAllocator</span></code> Trait 来描述一个物理页帧管理器需要提供哪些功能：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
+
+<span class="k">trait</span><span class="w"> </span><span class="n">FrameAllocator</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">alloc</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">PhysPageNum</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">dealloc</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">ppn</span>: <span class="nc">PhysPageNum</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>即创建一个实例，还有以物理页号为单位进行物理页帧的分配和回收。</p>
+<p>我们实现一种最简单的栈式物理页帧管理策略 <code class="docutils literal notranslate"><span class="pre">StackFrameAllocator</span></code> ：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">StackFrameAllocator</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">current</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">end</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">recycled</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">usize</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>其中各字段的含义是：物理页号区间 <span class="math notranslate nohighlight">\([\text{current},\text{end})\)</span> 此前均 <em>从未</em> 被分配出去过，而向量
+<code class="docutils literal notranslate"><span class="pre">recycled</span></code> 以后入先出的方式保存了被回收的物理页号（注意我们已经自然的将内核堆用起来了）。</p>
+<p>初始化非常简单。在通过 <code class="docutils literal notranslate"><span class="pre">FrameAllocator</span></code> 的 <code class="docutils literal notranslate"><span class="pre">new</span></code> 方法创建实例的时候，只需将区间两端均设为 <span class="math notranslate nohighlight">\(0\)</span> ，
+然后创建一个新的向量；而在它真正被使用起来之前，需要调用 <code class="docutils literal notranslate"><span class="pre">init</span></code> 方法将自身的 <span class="math notranslate nohighlight">\([\text{current},\text{end})\)</span>
+初始化为可用物理页号区间：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">FrameAllocator</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">StackFrameAllocator</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">current</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">end</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">recycled</span>: <span class="nb">Vec</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">StackFrameAllocator</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">init</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">l</span>: <span class="nc">PhysPageNum</span><span class="p">,</span><span class="w"> </span><span class="n">r</span>: <span class="nc">PhysPageNum</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">l</span><span class="p">.</span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>接下来我们来看核心的物理页帧分配和回收如何实现：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">FrameAllocator</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">StackFrameAllocator</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">alloc</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">PhysPageNum</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">ppn</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">recycled</span><span class="p">.</span><span class="n">pop</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="nb">Some</span><span class="p">(</span><span class="n">ppn</span><span class="p">.</span><span class="n">into</span><span class="p">())</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">end</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="nb">None</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">                </span><span class="nb">Some</span><span class="p">((</span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">).</span><span class="n">into</span><span class="p">())</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">dealloc</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">ppn</span>: <span class="nc">PhysPageNum</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ppn</span><span class="p">.</span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// validity check</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">ppn</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">recycled</span><span class="w"></span>
+<span class="w">            </span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"></span>
+<span class="w">            </span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="o">|&amp;</span><span class="n">v</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="o">*</span><span class="n">v</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ppn</span><span class="p">})</span><span class="w"></span>
+<span class="w">            </span><span class="p">.</span><span class="n">is_some</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Frame ppn={:#x} has not been allocated!&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">ppn</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// recycle</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">recycled</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">ppn</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<ul>
+<li><p>在分配 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 的时候，首先会检查栈 <code class="docutils literal notranslate"><span class="pre">recycled</span></code> 内有没有之前回收的物理页号，如果有的话直接弹出栈顶并返回；
+否则的话我们只能从之前从未分配过的物理页号区间 <span class="math notranslate nohighlight">\([\text{current},\text{end})\)</span> 上进行分配，我们分配它的
+左端点 <code class="docutils literal notranslate"><span class="pre">current</span></code> ，同时将管理器内部维护的 <code class="docutils literal notranslate"><span class="pre">current</span></code> 加一代表 <code class="docutils literal notranslate"><span class="pre">current</span></code> 此前已经被分配过了。在即将返回
+的时候，我们使用 <code class="docutils literal notranslate"><span class="pre">into</span></code> 方法将 usize 转换成了物理页号 <code class="docutils literal notranslate"><span class="pre">PhysPageNum</span></code> 。</p>
+<p>注意极端情况下可能出现内存耗尽分配失败的情况：即 <code class="docutils literal notranslate"><span class="pre">recycled</span></code> 为空且 <span class="math notranslate nohighlight">\(\text{current}==\text{end}\)</span> 。
+为了涵盖这种情况， <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 的返回值被 <code class="docutils literal notranslate"><span class="pre">Option</span></code> 包裹，我们返回 <code class="docutils literal notranslate"><span class="pre">None</span></code> 即可。</p>
+</li>
+<li><p>在回收 <code class="docutils literal notranslate"><span class="pre">dealloc</span></code> 的时候，我们需要检查回收页面的合法性，然后将其压入 <code class="docutils literal notranslate"><span class="pre">recycled</span></code> 栈中。回收页面合法有两个
+条件：</p>
+<ul class="simple">
+<li><p>该页面之前一定被分配出去过，因此它的物理页号一定 <span class="math notranslate nohighlight">\(&lt;\text{current}\)</span> ；</p></li>
+<li><p>该页面没有正处在回收状态，即它的物理页号不能在栈 <code class="docutils literal notranslate"><span class="pre">recycled</span></code> 中找到。</p></li>
+</ul>
+<p>我们通过 <code class="docutils literal notranslate"><span class="pre">recycled.iter()</span></code> 获取栈上内容的迭代器，然后通过迭代器的 <code class="docutils literal notranslate"><span class="pre">find</span></code> 方法试图
+寻找一个与输入物理页号相同的元素。其返回值是一个 <code class="docutils literal notranslate"><span class="pre">Option</span></code> ，如果找到了就会是一个 <code class="docutils literal notranslate"><span class="pre">Option::Some</span></code> ，
+这种情况说明我们内核其他部分实现有误，直接报错退出。</p>
+</li>
+</ul>
+<p>下面我们来创建 <code class="docutils literal notranslate"><span class="pre">StackFrameAllocator</span></code> 的全局实例 <code class="docutils literal notranslate"><span class="pre">FRAME_ALLOCATOR</span></code> ：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
+
+<span class="k">use</span><span class="w"> </span><span class="n">spin</span>::<span class="n">Mutex</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">type</span> <span class="nc">FrameAllocatorImpl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">StackFrameAllocator</span><span class="p">;</span><span class="w"></span>
+
+<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">FRAME_ALLOCATOR</span>: <span class="nc">Mutex</span><span class="o">&lt;</span><span class="n">FrameAllocatorImpl</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"></span>
+<span class="w">        </span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">FrameAllocatorImpl</span>::<span class="n">new</span><span class="p">());</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>这里我们使用互斥锁 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 来包裹栈式物理页帧分配器。每次对该分配器进行操作之前，我们都需要先通过
+<code class="docutils literal notranslate"><span class="pre">FRAME_ALLOCATOR.lock()</span></code> 拿到分配器的可变借用。注意 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 中并没有提供 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> ，它
+来自于一个我们在 <code class="docutils literal notranslate"><span class="pre">no_std</span></code> 的裸机环境下经常使用的名为 <code class="docutils literal notranslate"><span class="pre">spin</span></code> 的 crate ，它仅依赖 Rust 核心库
+<code class="docutils literal notranslate"><span class="pre">core</span></code> 提供一些可跨平台使用的同步原语，如互斥锁 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 和读写锁 <code class="docutils literal notranslate"><span class="pre">RwLock&lt;T&gt;</span></code> 等。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>Rust 语法卡片：在单核环境下使用 Mutex&lt;T&gt; 的原因</strong></p>
+<p>在编写一个多线程的应用时，加锁的目的是为了避免数据竞争，使得里层的共享数据结构同一时间只有一个线程
+在对它进行访问。然而，目前我们的内核运行在单 CPU 上，且 Trap 进入内核之后并没有手动打开中断，这也就
+使得同一时间最多只有一条 Trap 执行流并发访问内核的各数据结构，此时应该是并没有任何数据竞争风险的。那么
+加锁的原因其实有两点：</p>
+<ol class="arabic">
+<li><p>在不触及 <code class="docutils literal notranslate"><span class="pre">unsafe</span></code> 的情况下实现 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 语义。如果读者还有印象，
+<a class="reference internal" href="../chapter2/3batch-system.html#term-interior-mutability"><span class="std std-ref">前面章节</span></a> 我们使用 <code class="docutils literal notranslate"><span class="pre">RefCell&lt;T&gt;</span></code> 提供了内部可变性去掉了
+声明中的 <code class="docutils literal notranslate"><span class="pre">mut</span></code> ，然而麻烦的在于 <code class="docutils literal notranslate"><span class="pre">static</span></code> ，在 Rust 中一个类型想被实例化为一个全局变量，则
+该类型必须先告知编译器自己某种意义上是线程安全的，这个过程本身是 <code class="docutils literal notranslate"><span class="pre">unsafe</span></code> 的。</p>
+<p>因此我们直接使用 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> ，它既通过 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 方法提供了内部可变性，又已经在模块内部告知了
+编译器它的线程安全性。这样 <code class="docutils literal notranslate"><span class="pre">unsafe</span></code> 就被隐藏在了 <code class="docutils literal notranslate"><span class="pre">spin</span></code> crate 之内，我们无需关心。这种风格
+是 Rust 所推荐的。</p>
+</li>
+<li><p>方便后续拓展到真正存在数据竞争风险的多核环境下运行。</p></li>
+</ol>
+<p>这里引入了一些新概念，比如什么是线程，又如何定义线程安全？读者可以先不必深究，暂时有一个初步的概念即可。</p>
+</div>
+<p>我们需要添加该 crate 的依赖：</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/Cargo.toml</span>
+
+<span class="k">[dependencies]</span>
+<span class="n">spin</span> <span class="o">=</span> <span class="s">&quot;0.7.0&quot;</span>
+</pre></div>
+</div>
+<p>在正式分配物理页帧之前，我们需要将物理页帧全局管理器 <code class="docutils literal notranslate"><span class="pre">FRAME_ALLOCATOR</span></code> 初始化：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">init_frame_allocator</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">fn</span> <span class="nf">ekernel</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="n">FRAME_ALLOCATOR</span><span class="w"></span>
+<span class="w">        </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span><span class="w"></span>
+<span class="w">        </span><span class="p">.</span><span class="n">init</span><span class="p">(</span><span class="n">PhysAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">ekernel</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">ceil</span><span class="p">(),</span><span class="w"> </span><span class="n">PhysAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">MEMORY_END</span><span class="p">).</span><span class="n">floor</span><span class="p">());</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>这里我们调用物理地址 <code class="docutils literal notranslate"><span class="pre">PhysAddr</span></code> 的 <code class="docutils literal notranslate"><span class="pre">floor/ceil</span></code> 方法分别下/上取整获得可用的物理页号区间。</p>
+<p>然后是真正公开给其他子模块调用的分配/回收物理页帧的接口：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">frame_alloc</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">FrameTracker</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">FRAME_ALLOCATOR</span><span class="w"></span>
+<span class="w">        </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span><span class="w"></span>
+<span class="w">        </span><span class="p">.</span><span class="n">alloc</span><span class="p">()</span><span class="w"></span>
+<span class="w">        </span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">ppn</span><span class="o">|</span><span class="w"> </span><span class="n">FrameTracker</span>::<span class="n">new</span><span class="p">(</span><span class="n">ppn</span><span class="p">))</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">fn</span> <span class="nf">frame_dealloc</span><span class="p">(</span><span class="n">ppn</span>: <span class="nc">PhysPageNum</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">FRAME_ALLOCATOR</span><span class="w"></span>
+<span class="w">        </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span><span class="w"></span>
+<span class="w">        </span><span class="p">.</span><span class="n">dealloc</span><span class="p">(</span><span class="n">ppn</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>可以发现， <code class="docutils literal notranslate"><span class="pre">frame_alloc</span></code> 的返回值类型并不是 <code class="docutils literal notranslate"><span class="pre">FrameAllocator</span></code> 要求的物理页号 <code class="docutils literal notranslate"><span class="pre">PhysPageNum</span></code> ，而是将其
+进一步包装为一个 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code> 。这里借用了 RAII 的思想，将一个物理页帧的生命周期绑定到一个 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code>
+变量上，当一个 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code> 被创建的时候，我们需要从 <code class="docutils literal notranslate"><span class="pre">FRAME_ALLOCATOR</span></code> 中分配一个物理页帧：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">FrameTracker</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">FrameTracker</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">ppn</span>: <span class="nc">PhysPageNum</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// page cleaning</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">bytes_array</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ppn</span><span class="p">.</span><span class="n">get_bytes_array</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">bytes_array</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="o">*</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ppn</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>我们将分配来的物理页帧的物理页号作为参数传给 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code> 的 <code class="docutils literal notranslate"><span class="pre">new</span></code> 方法来创建一个 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code>
+实例。由于这个物理页帧之前可能被分配过并用做其他用途，我们在这里直接将这个物理页帧上的所有字节清零。这一过程并不
+那么显然，我们后面再详细介绍。</p>
+<p>当一个 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code> 生命周期结束被编译器回收的时候，我们需要将它控制的物理页帧回收掉 <code class="docutils literal notranslate"><span class="pre">FRAME_ALLOCATOR</span></code> 中：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="nb">Drop</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">FrameTracker</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">frame_dealloc</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">ppn</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>这里我们只需为 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code> 实现 <code class="docutils literal notranslate"><span class="pre">Drop</span></code> Trait 即可。当一个 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code> 实例被回收的时候，它的
+<code class="docutils literal notranslate"><span class="pre">drop</span></code> 方法会自动被编译器调用，通过之前实现的 <code class="docutils literal notranslate"><span class="pre">frame_dealloc</span></code> 我们就将它控制的物理页帧回收以供后续使用了。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>Rust 语法卡片：Drop Trait</strong></p>
+<p>Rust 中的 <code class="docutils literal notranslate"><span class="pre">Drop</span></code> Trait 是它的 RAII 内存管理风格可以被有效实践的关键。之前介绍的多种在堆上分配的 Rust
+数据结构便都是通过实现 <code class="docutils literal notranslate"><span class="pre">Drop</span></code> Trait 来进行被绑定资源的自动回收的。例如：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 的 <code class="docutils literal notranslate"><span class="pre">drop</span></code> 方法会回收它控制的分配在堆上的那个变量；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Rc&lt;T&gt;</span></code> 的 <code class="docutils literal notranslate"><span class="pre">drop</span></code> 方法会减少分配在堆上的那个引用计数，一旦变为零则分配在堆上的那个被计数的变量自身
+也会被回收；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 的 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 方法会获取锁并返回一个 <code class="docutils literal notranslate"><span class="pre">MutexGuard&lt;'a,</span> <span class="pre">T&gt;</span></code> ，它可以被当做一个 <code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">T</span></code>
+来使用；而 <code class="docutils literal notranslate"><span class="pre">MutexGuard&lt;'a,</span> <span class="pre">T&gt;</span></code> 的 <code class="docutils literal notranslate"><span class="pre">drop</span></code> 方法会将锁释放，从而允许其他线程获取锁并开始访问里层的
+数据结构。锁的实现原理我们先不介绍。</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code> 的设计也是基于同样的思想，有了它之后我们就不必手动回收物理页帧了，这在编译期就解决了很多
+潜在的问题。</p>
+</div>
+<p>最后做一个小结：从其他模块的视角看来，物理页帧分配的接口是调用 <code class="docutils literal notranslate"><span class="pre">frame_alloc</span></code> 函数得到一个 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code>
+（如果物理内存还有剩余），它就代表了一个物理页帧，当它的生命周期结束之后它所控制的物理页帧将被自动回收。下面是
+一段演示该接口使用方法的测试程序：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
+
+<span class="cp">#[allow(unused)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">frame_allocator_test</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FrameTracker</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">5</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">frame_alloc</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;{:?}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">);</span><span class="w"></span>
+<span class="hll"><span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">frame</span><span class="p">);</span><span class="w"></span>
+</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="n">v</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">5</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">frame_alloc</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;{:?}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">frame</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">v</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;frame_allocator_test passed!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>如果我们将第 9 行删去，则第一轮分配的 5 个物理页帧都是分配之后在循环末尾就被立即回收，因为循环作用域的临时变量
+<code class="docutils literal notranslate"><span class="pre">frame</span></code> 的生命周期在那时结束了。然而，如果我们将它们 move 到一个向量中，它们的生命周期便被延长了——直到第 11 行
+向量被清空的时候，这些 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code> 的生命周期才结束，它们控制的 5 个物理页帧才被回收。这种思想我们立即
+就会用到。</p>
+</div>
+<div class="section" id="id2">
+<h2>多级页表实现<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="5kernel-app-spaces.html" class="btn btn-neutral float-right" title="内核与应用的地址空间" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="3sv39-implementation-1.html" class="btn btn-neutral float-left" title="实现 SV39 多级页表机制（上）" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; 版权所有 2020, Yifan Wu
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
