@@ -239,7 +239,7 @@ Qemu 模拟器安装
 
 .. warning::
 
-   sd卡设备设置于Makefile中，默认值为/dev/sdb，如果sd卡并非此设备请在执行make sdcard前修改此处，否则可能导致其它磁盘数据丢失。
+   MicroSD 卡设备设置于 ``Makefile`` 中，默认值为 ``/dev/sdb`` ，如果 MicroSD 卡并非此设备请在执行 ``make sdcard`` 前修改此处，否则可能导致其它磁盘数据丢失。
 
 .. image:: prepare-sd.gif
 
