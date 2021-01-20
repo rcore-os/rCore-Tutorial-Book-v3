@@ -7,19 +7,11 @@
 
 
 
-.. _term-physical-address:
-.. _term-physical-memory:
-
-<<<<<<< HEAD:source/chapter1/4understand-prog.rst
-
 本节导读
 -------------------------------
 
 在前面几节，我们进行了大量的实验。接下来是要消化总结和归纳理解的时候了。
 本节主要会进一步归纳总结执行程序和执行环境相关的基础知识：
-=======
-.. note::
->>>>>>> e5afbae8467ead4a8b77c3e80d010ce124e8720b:source/chapter1/3minimal-rt.rst
 
  - 物理内存与物理地址
  - 函数调用与栈

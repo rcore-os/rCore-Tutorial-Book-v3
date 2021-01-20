@@ -97,6 +97,7 @@
    其中，容易看出与 ``Hello, world!`` 应用实际执行相关的只有两个系统调用：
 
    .. code-block::
+
       # 输出字符串
       write(1, "Hello, world!\n", 14)         = 14
       # 程序退出执行
@@ -152,15 +153,15 @@
 
       .. code-block:: console
 
-      $ rustc donothing.rs
-      $ ./donothing
-      $ #啥也没有
-      $ strace ./donothing
-      # 多达93行的输出，表明donothing向Linux操作系统内核发出了93次各种各样的系统调用
-         execve("./donothing", ["./donothing"], 0x7ffe02c9ca10 /* 67 vars */) = 0
-         brk(NULL)                               = 0x563ba0532000
-         arch_prctl(0x3001 /* ARCH_??? */, 0x7fff2da54360) = -1 EINVAL (无效的参数)
-         ......
+         $ rustc donothing.rs
+         $ ./donothing
+         $ #啥也没有
+         $ strace ./donothing
+         # 多达93行的输出，表明donothing向Linux操作系统内核发出了93次各种各样的系统调用
+            execve("./donothing", ["./donothing"], 0x7ffe02c9ca10 /* 67 vars */) = 0
+            brk(NULL)                               = 0x563ba0532000
+            arch_prctl(0x3001 /* ARCH_??? */, 0x7fff2da54360) = -1 EINVAL (无效的参数)
+            ......
 
 
 平台与目标三元组
