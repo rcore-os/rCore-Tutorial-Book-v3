@@ -237,12 +237,13 @@ Qemu 模拟器安装
 
 首先，我们需要将 MicroSD 插入 PC 来将文件系统镜像拷贝上去。
 
-.. warning::
-
-   MicroSD 卡设备设置于 ``Makefile`` 中，默认值为 ``/dev/sdb`` ，如果 MicroSD 卡并非此设备请在执行 ``make sdcard`` 前修改此处，否则可能导致其它磁盘数据丢失。
-
 .. image:: prepare-sd.gif
 
+.. warning::
+
+   在 ``os/Makefile`` 中我们默认设置 MicroSD 在当前操作系统中可以用设备 ``SDCARD=/dev/sdb`` 访问。你可以使用 ``df -hT`` 命令来确认在你的环境中 MicroSD 是哪个设备，
+   并在 ``make sdcard`` 之前对 ``os/Makefile`` 的 ``SDCARD`` 配置做出适当的修改。不然，这有可能导致 **设备 /dev/sdb 上数据丢失**！
+   
 随后，我们将 MicroSD 插入 K210 开发板，将 K210 开发板连接到 PC ，然后进入 ``os`` 目录 ``make run BOARD=k210`` 
 在 K210 开发板上跑 Tutorial 。 
 
