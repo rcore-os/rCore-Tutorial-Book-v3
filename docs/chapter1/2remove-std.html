@@ -72,7 +72,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
-    <link rel="next" title="重建最小化运行时" href="3minimal-rt.html" />
+    <link rel="next" title="构建用户态执行环境" href="3-1-mini-rt-usrland.html" />
     <link rel="prev" title="应用程序执行环境与平台支持" href="1app-ee-platform.html" /> 
 </head>
 
@@ -124,14 +124,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第一章：RV64 裸机应用</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html">应用程序执行环境与平台支持</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">移除标准库依赖</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#println">移除 println! 宏</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#panic-handler">提供语义项 panic_handler</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#main">移除 main 函数</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">分析被移除标准库的程序</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="3minimal-rt.html">重建最小化运行时</a></li>
-<li class="toctree-l2"><a class="reference internal" href="4load-manually.html">手动加载、运行应用程序</a></li>
-<li class="toctree-l2"><a class="reference internal" href="5sbi-print.html">格式化输出</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-1-mini-rt-usrland.html">构建用户态执行环境</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html">构建裸机运行时执行环境</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4understand-prog.html">理解应用程序和执行环境</a></li>
 <li class="toctree-l2"><a class="reference internal" href="6practice.html">练习一</a></li>
 </ul>
 </li>
@@ -228,7 +230,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>移除标准库依赖<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
-<p>本节我们尝试移除之前的 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 程序对于标准库的依赖，使得它能够编译到裸机平台 RV64GC 上。</p>
+<div class="section" id="id2">
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>为了很好地理解一个简单应用所需的服务如何体现，本节将尝试开始构造一个小的执行环境，可建立在Linux之上，也可直接建立在裸机之上，
+我们称为“三叶虫”操作系统。
+作为第一步，本节将尝试移除之前的 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 程序对于Rust std标准库的依赖，使得它能够编译到裸机平台 RV64GC 或Linux上。</p>
+</div>
+<div class="section" id="println">
+<h2>移除 println! 宏<a class="headerlink" href="#println" title="永久链接至标题">¶</a></h2>
 <p>我们首先在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录下新建 <code class="docutils literal notranslate"><span class="pre">.cargo</span></code> 目录，并在这个目录下创建 <code class="docutils literal notranslate"><span class="pre">config</span></code> 文件，并在里面输入如下内容：</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/.cargo/config</span>
 <span class="k">[build]</span>
@@ -239,8 +248,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 事实上，这是一种编译器运行所在的平台与编译器生成可执行文件的目标平台不同（分别是后者和前者）的情况。这是一种 <strong>交叉编译</strong> (Cross Compile)。</p>
 <p>当然，这只是使得我们之后在 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> 的时候不必再加上 <code class="docutils literal notranslate"><span class="pre">--target</span></code> 参数的一个小 trick。如果我们现在 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> ，还是会和
 上一小节一样出现找不到标准库 std 的错误。于是我们开始着手移除标准库。当然，这会产生一些副作用。</p>
-<div class="section" id="println">
-<h2>移除 println! 宏<a class="headerlink" href="#println" title="永久链接至标题">¶</a></h2>
 <p>我们在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的开头加上一行 <code class="docutils literal notranslate"><span class="pre">#![no_std]</span></code> 来告诉 Rust 编译器不使用 Rust 标准库 std 转而使用核心库 core。编译器报出如下错误：</p>
 <div class="admonition error">
 <p class="admonition-title">错误</p>
@@ -331,6 +338,36 @@ error: requires `start` lang_item
 <p>本小节我们固然脱离了标准库，通过了编译器的检验，但也是伤筋动骨，将原有的很多功能弱化甚至直接删除，看起来距离在 RV64GC 平台上打印
 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 相去甚远了（我们甚至连 println! 和 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数都删除了）。不要着急，接下来我们会以自己的方式来重塑这些
 功能，并最终完成我们的目标。</p>
+</div>
+<div class="section" id="id3">
+<h2>分析被移除标准库的程序<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<p>对于上面这个被移除标准库的应用程序，通过了编译器的检查和编译，形成了二进制代码。但这个二进制代码能执行吗？生成的代码结构是啥？我们可以通过一些工具来分析一下。</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span> 文件格式
+<span class="gp">$</span> file target/riscv64gc-unknown-none-elf/debug/os
+<span class="go">target/riscv64gc-unknown-none-elf/debug/os: ELF 64-bit LSB executable, UCB RISC-V, ......</span>
+<span class="gp">#</span> 文件头信息
+<span class="gp">$</span> rust-readobj -h target/riscv64gc-unknown-none-elf/debug/os
+<span class="go">   File: target/riscv64gc-unknown-none-elf/debug/os</span>
+<span class="go">   Format: elf64-littleriscv</span>
+<span class="go">   Arch: riscv64</span>
+<span class="go">   AddressSize: 64bit</span>
+<span class="go">   ......</span>
+<span class="go">   Type: Executable (0x2)</span>
+<span class="go">   Machine: EM_RISCV (0xF3)</span>
+<span class="go">   Version: 1</span>
+<span class="go">   Entry: 0x0</span>
+<span class="go">   ......</span>
+<span class="go">   }</span>
+<span class="gp">#</span>反汇编导出汇编程序
+<span class="gp">$</span> rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
+<span class="go">   target/riscv64gc-unknown-none-elf/debug/os:       file format elf64-littleriscv</span>
+</pre></div>
+</div>
+<p>通过 <code class="docutils literal notranslate"><span class="pre">file</span></code> 工具对二进制程序 <code class="docutils literal notranslate"><span class="pre">os</span></code> 的分析可以看到它好像是一个合法的RISC-V 64执行程序，但通过 <code class="docutils literal notranslate"><span class="pre">rust-readobj</span></code> 工具进一步分析，
+发现它的入口地址 <code class="docutils literal notranslate"><span class="pre">Entry</span></code> 是 <code class="docutils literal notranslate"><span class="pre">0</span></code> ，这就比较奇怪了，地址从0执行，好像不对。再通过 <code class="docutils literal notranslate"><span class="pre">rust-objdump</span></code> 工具把它反汇编，可以看到没有
+生成汇编代码。所以，我们可以断定，这个二进制程序虽然合法，但它是一个空程序。这不是我们希望的，我们希望有具体内容的执行程序。为什么会这样呢？
+原因是我们缺少了编译器需要找到的入口函数 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 。</p>
+<p>在下面几节，我们将建立有支持显示字符串的最小执行环境。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>在 x86_64 平台上移除标准库依赖</strong></p>
@@ -352,7 +389,7 @@ error: requires `start` lang_item
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="3minimal-rt.html" class="btn btn-neutral float-right" title="重建最小化运行时" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="3-1-mini-rt-usrland.html" class="btn btn-neutral float-right" title="构建用户态执行环境" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="1app-ee-platform.html" class="btn btn-neutral float-left" title="应用程序执行环境与平台支持" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

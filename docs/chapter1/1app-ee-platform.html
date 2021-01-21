@@ -123,16 +123,17 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第一章：RV64 裸机应用</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">应用程序执行环境与平台支持</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id2">执行应用程序</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id3">应用程序执行环境</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id4">平台与目标三元组</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">执行应用程序</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">应用程序执行环境</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">平台与目标三元组</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#rust">Rust 标准库与核心库</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="2remove-std.html">移除标准库依赖</a></li>
-<li class="toctree-l2"><a class="reference internal" href="3minimal-rt.html">重建最小化运行时</a></li>
-<li class="toctree-l2"><a class="reference internal" href="4load-manually.html">手动加载、运行应用程序</a></li>
-<li class="toctree-l2"><a class="reference internal" href="5sbi-print.html">格式化输出</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-1-mini-rt-usrland.html">构建用户态执行环境</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html">构建裸机运行时执行环境</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4understand-prog.html">理解应用程序和执行环境</a></li>
 <li class="toctree-l2"><a class="reference internal" href="6practice.html">练习一</a></li>
 </ul>
 </li>
@@ -230,7 +231,15 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="toctree-wrapper compound">
 </div>
 <div class="section" id="id2">
-<h2>执行应用程序<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>本节介绍了如何设计实现一个提供显示字符服务的用户态执行环境和裸机执行环境，以支持一个应用程序显示字符串。
+在某种程度上看，执行环境的软件主体就可称为是一种操作系统。一个有显示字符能力的操作系统自身就具有了基本的调试能力。
+本节进一步说明了不管执行环境是简单还是复杂，设计实现上是否容易，它都体现了不同操作系统的共性特征–给应用需求提供服务。
+同时，操作系统向下直接或间接与硬件关联，向上可通过系统级的函数库间接给应用提供服务，
+甚至可把系统函数库作为操作系统的一部分，来直接给应用提供服务。</p>
+</div>
+<div class="section" id="id3">
+<h2>执行应用程序<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
 <p>我们先开发并运行一个简单的“Hello, world”应用程序，看看一个简单应用程序从开发到执行的全过程。作为一切的开始，让我们使用 Cargo 工具来创建一个 Rust 项目。它看上去没有任何特别之处：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo new os --bin
 </pre></div>
@@ -247,8 +256,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>其中 <code class="docutils literal notranslate"><span class="pre">Cargo.toml</span></code> 中保存着项目的配置，包括作者的信息、联系方式以及库依赖等等。显而易见源代码保存在 <code class="docutils literal notranslate"><span class="pre">src</span></code> 目录下，目前为止只有 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code>
 一个文件，让我们看一下里面的内容：</p>
-<div class="literal-block-wrapper docutils container" id="id5">
-<div class="code-block-caption"><span class="caption-text">最简单的 Rust 应用</span><a class="headerlink" href="#id5" title="永久链接至代码">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text">最简单的 Rust 应用</span><a class="headerlink" href="#id6" title="永久链接至代码">¶</a></div>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
 2
 3</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -268,13 +277,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>如我们预想的一样，我们在屏幕上看到了一行 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 。但是，需要注意到我们所享受到的编程和执行程序的方便性并不是理所当然的，背后有着从硬件
 到软件的多种机制的支持。特别是对于应用程序的运行，是需要有一个强大的执行环境来帮助。接下来，我们就要看看有操作系统加持的强大的执行环境。</p>
 </div>
-<div class="section" id="id3">
-<h2>应用程序执行环境<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id4">
+<h2>应用程序执行环境<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
 <p>如下图所示，应用程序的运行需要下面一套执行环境栈的支持：</p>
-<div class="figure align-center" id="id6">
+<div class="figure align-center" id="id7">
 <span id="app-software-stack"></span><img alt="../_images/app-software-stack.png" src="../_images/app-software-stack.png" />
 <p class="caption"><span class="caption-text">应用程序执行环境栈：图中的白色块自上而下（越往下则越靠近底层，下层作为上层的执行环境支持上层代码的运行）表示各级执行环境，
-黑色块则表示相邻两层执行环境之间的接口。</span><a class="headerlink" href="#id6" title="永久链接至图片">¶</a></p>
+黑色块则表示相邻两层执行环境之间的接口。</span><a class="headerlink" href="#id7" title="永久链接至图片">¶</a></p>
 </div>
 <p id="term-execution-environment">我们的应用位于最上层，它可以通过调用编程语言提供的标准库或者其他三方库对外提供的功能强大的函数接口，使得仅需少量的源代码就能完成复杂的
 功能。但是这些库的功能不仅限于此，事实上它们属于应用程序的 <strong>执行环境</strong> (Execution Environment)，在我们通常不会注意到的地方，它
@@ -288,9 +297,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p><strong>Hello, world! 用到了哪些系统调用？</strong></p>
 <p>从之前的 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">run</span></code> 的输出可以看出之前构建的可执行文件是在 target/debug 目录下的 os 。
 在 Ubuntu 系统上，可以通过 <code class="docutils literal notranslate"><span class="pre">strace</span></code> 工具来运行一个程序并输出程序运行过程当中向内核请求的所有的系统调用及其返回值。
-我们只需输入 <code class="docutils literal notranslate"><span class="pre">strace</span> <span class="pre">target/debug/os</span></code> 即可看到一长串的系统调用。</p>
-<p>其中，真正容易看出与 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 相关的只有一个系统调用：</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">write</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;Hello, world!</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">14</span><span class="p">)</span>         <span class="o">=</span> <span class="mi">14</span>
+我们只需输入 <code class="docutils literal notranslate"><span class="pre">strace</span> <span class="pre">target/debug/os</span></code> 即可看到一长串的各种系统调用。</p>
+<p>其中，容易看出与 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 应用实际执行相关的只有两个系统调用：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># 输出字符串</span>
+<span class="n">write</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;Hello, world!</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">14</span><span class="p">)</span>         <span class="o">=</span> <span class="mi">14</span>
+<span class="c1"># 程序退出执行</span>
+<span class="n">exit_group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>其参数的具体含义我们暂且不在这里进行解释。</p>
@@ -305,22 +317,50 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="admonition note" id="term-abstraction">
 <p class="admonition-title">注解</p>
 <p><strong>多层执行环境都是必需的吗？</strong></p>
-<p>除了最上层的应用程序和最下层的硬件平台必须存在之外，作为中间层的函数库和内核并不是必须存在的：它们都是对下层资源进行了 <strong>抽象</strong> (Abstraction)，
-并为上层提供了一套执行环境。抽象的优点在于它让上层以较小的代价获得所需的功能，并同时可以提供一些保护。但抽象同时也是一种限制，会丧失一些
-应有的灵活性。比如，当你在考虑在项目中应该使用哪个函数库的时候，就常常需要这方面的权衡：过多的抽象和过少的抽象自然都是不合适的。</p>
-<p>实际上，我们通过应用程序的特征来判断它需要什么程度的抽象。</p>
+<p>除了最上层的应用程序和最下层的硬件平台必须存在之外，作为中间层的函数库和操作系统内核并不是必须存在的：
+它们都是对下层资源进行了 <strong>抽象</strong> (Abstraction)，
+并为上层提供了一套执行环境（也可理解为一些服务功能）。抽象的优点在于它让上层以较小的代价获得所需的功能，并同时可以提供一些保护。
+但抽象同时也是一种限制，会丧失一些
+应有的灵活性。比如，当你在考虑在项目中应该使用哪个函数库的时候，就常常需要这方面的权衡：过多的抽象和过少的抽象自然都是不合适的。
+理解应用的需求也很重要。一个能合理满足应用需求的操作系统设计是操作系统设计者需要深入考虑的问题。
+这也是一种权衡，过多的服务功能和过少的服务功能自然都是不合适的。</p>
+<p>实际上，我们通过应用程序的特征和需求来判断操作系统需要什么程度的抽象和功能。</p>
 <ul class="simple">
 <li><p>如果函数库和内核都不存在，那么我们就是在手写汇编代码，这种方式具有最高的灵活性，抽象能力则最低，基本等同于硬件。我们通常用这种方式来
 实现一些架构相关且仅通过编程语言无法描述的小模块或者代码片段。</p></li>
 <li><p>如果仅存在函数库而不存在内核，意味着我们不需要内核提供的抽象。在嵌入式场景就常常会出现这种情况。嵌入式设备虽然也包含 CPU、内存和 I/O
 设备，但是它上面通常只会同时运行一个或几个功能非常简单的小应用程序，其定位就是那种功能单一的场景，比如人脸识别打卡系统等。我们常用的
-操作系统如 Windows/Linux/macOS 等的抽象都支持同时运行很多应用程序，在嵌入式场景是过抽象的。因此，常见的解决方案是仅使用函数库构建
+操作系统如 Windows/Linux/macOS 等的抽象都支持同时运行很多应用程序，在嵌入式场景是过抽象或功能太多，用力过猛的。因此，常见的解决方案是仅使用函数库构建
 单独的应用程序或是用专为应用场景特别裁减过的轻量级内核管理少数应用程序。</p></li>
 </ul>
 </div>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p>对于如下更简单的小应用程序，</p>
+<blockquote>
+<div><div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">//ch1/donothing.rs</span>
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w">  </span><span class="p">{</span><span class="w"></span>
+<span class="w">   </span><span class="c1">//do nothing</span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
 </div>
-<div class="section" id="id4">
-<h2>平台与目标三元组<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<p>它只是想显示一下几乎感知不到的存在感。在编译后再运行，可以看到的情况是：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> rustc donothing.rs
+<span class="gp">$</span> ./donothing
+<span class="gp">$</span> <span class="c1">#啥也没有</span>
+<span class="gp">$</span> strace ./donothing
+<span class="gp">#</span> 多达93行的输出，表明donothing向Linux操作系统内核发出了93次各种各样的系统调用
+<span class="go">   execve(&quot;./donothing&quot;, [&quot;./donothing&quot;], 0x7ffe02c9ca10 /* 67 vars */) = 0</span>
+<span class="go">   brk(NULL)                               = 0x563ba0532000</span>
+<span class="go">   arch_prctl(0x3001 /* ARCH_??? */, 0x7fff2da54360) = -1 EINVAL (无效的参数)</span>
+<span class="go">   ......</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="id5">
+<h2>平台与目标三元组<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
 <p id="term-platform">对于一份用某种编程语言实现的源代码而言，编译器在将其通过编译、链接得到目标文件的时候需要知道程序要在哪个 <strong>平台</strong> (Platform) 上运行。这里 <strong>平台</strong> 主要是指CPU类型、操作系统类型和标准运行时库的组合。
 从上面给出的 <a class="reference internal" href="#app-software-stack"><span class="std std-ref">应用程序执行环境栈</span></a> 可以看出：</p>
 <ul class="simple">

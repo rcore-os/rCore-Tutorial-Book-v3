@@ -5,7 +5,15 @@
    :hidden:
    :maxdepth: 5
 
-本节我们尝试移除之前的 ``Hello world!`` 程序对于标准库的依赖，使得它能够编译到裸机平台 RV64GC 上。
+本节导读
+-------------------------------
+
+为了很好地理解一个简单应用所需的服务如何体现，本节将尝试开始构造一个小的执行环境，可建立在Linux之上，也可直接建立在裸机之上，
+我们称为“三叶虫”操作系统。
+作为第一步，本节将尝试移除之前的 ``Hello world!`` 程序对于Rust std标准库的依赖，使得它能够编译到裸机平台 RV64GC 或Linux上。
+
+移除 println! 宏
+----------------------------------
 
 我们首先在 ``os`` 目录下新建 ``.cargo`` 目录，并在这个目录下创建 ``config`` 文件，并在里面输入如下内容：
 
@@ -23,8 +31,7 @@
 当然，这只是使得我们之后在 ``cargo build`` 的时候不必再加上 ``--target`` 参数的一个小 trick。如果我们现在 ``cargo build`` ，还是会和
 上一小节一样出现找不到标准库 std 的错误。于是我们开始着手移除标准库。当然，这会产生一些副作用。
 
-移除 println! 宏
-----------------------------------
+
 
 我们在 ``main.rs`` 的开头加上一行 ``#![no_std]`` 来告诉 Rust 编译器不使用 Rust 标准库 std 转而使用核心库 core。编译器报出如下错误：
 
@@ -130,6 +137,43 @@
 本小节我们固然脱离了标准库，通过了编译器的检验，但也是伤筋动骨，将原有的很多功能弱化甚至直接删除，看起来距离在 RV64GC 平台上打印 
 ``Hello world!`` 相去甚远了（我们甚至连 println! 和 ``main`` 函数都删除了）。不要着急，接下来我们会以自己的方式来重塑这些
 功能，并最终完成我们的目标。
+
+
+分析被移除标准库的程序
+-----------------------------
+
+对于上面这个被移除标准库的应用程序，通过了编译器的检查和编译，形成了二进制代码。但这个二进制代码能执行吗？生成的代码结构是啥？我们可以通过一些工具来分析一下。
+
+.. code-block:: console
+
+   # 文件格式
+   $ file target/riscv64gc-unknown-none-elf/debug/os
+   target/riscv64gc-unknown-none-elf/debug/os: ELF 64-bit LSB executable, UCB RISC-V, ......
+   # 文件头信息
+   $ rust-readobj -h target/riscv64gc-unknown-none-elf/debug/os
+      File: target/riscv64gc-unknown-none-elf/debug/os
+      Format: elf64-littleriscv
+      Arch: riscv64
+      AddressSize: 64bit
+      ......
+      Type: Executable (0x2)
+      Machine: EM_RISCV (0xF3)
+      Version: 1
+      Entry: 0x0
+      ......
+      }
+   #反汇编导出汇编程序
+   $ rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
+      target/riscv64gc-unknown-none-elf/debug/os:	file format elf64-littleriscv
+
+
+
+通过 ``file`` 工具对二进制程序 ``os`` 的分析可以看到它好像是一个合法的RISC-V 64执行程序，但通过 ``rust-readobj`` 工具进一步分析，
+发现它的入口地址 ``Entry`` 是 ``0`` ，这就比较奇怪了，地址从0执行，好像不对。再通过 ``rust-objdump`` 工具把它反汇编，可以看到没有
+生成汇编代码。所以，我们可以断定，这个二进制程序虽然合法，但它是一个空程序。这不是我们希望的，我们希望有具体内容的执行程序。为什么会这样呢？
+原因是我们缺少了编译器需要找到的入口函数 ``_start`` 。
+
+在下面几节，我们将建立有支持显示字符串的最小执行环境。
 
 .. note::
 
