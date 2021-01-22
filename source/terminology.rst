@@ -370,6 +370,12 @@
    * - 大页
      - Huge Page
      - :ref:`实现 SV39 多级页表机制（上） <term-huge-page>`
+   * - 恒等映射
+     - Identical Mapping
+     - :ref:`实现 SV39 多级页表机制（下） <term-identical-mapping>`
+   * - 页表自映射
+     - Recursive Mapping
+     - :ref:`实现 SV39 多级页表机制（下） <term-recursive-mapping>`
     
     
   
