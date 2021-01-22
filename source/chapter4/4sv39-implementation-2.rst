@@ -317,7 +317,7 @@
 -----------------------------------
 
 我们知道，SV39 多级页表是以节点为单位进行管理的。每个节点恰好存储在一个物理页帧中，它的位置可以用一个物理页号来
-表示。无论一个节点是否是叶节点，它的内存布局都是一个线性表，也就是一个长度固定 :math:`512` 的页表项数组。
+表示。
 
 .. code-block:: rust
     :linenos:
@@ -339,8 +339,8 @@
         }
     }
 
-每个应用的地址空间都对应一个不同的页表，因此 ``PageTable`` 要保存它根节点的物理页号 ``root_ppn`` 用来区分。此外，
-向量 ``frames`` 以 ``FrameTracker`` 为代表保存了页表所有的节点（包括根节点）所在的物理页帧。这和物理页帧管理模块
+每个应用的地址空间都对应一个不同的多级页表，因此 ``PageTable`` 要保存它根节点的物理页号 ``root_ppn`` 用来区分。此外，
+向量 ``frames`` 以 ``FrameTracker`` 的形式保存了页表所有的节点（包括根节点）所在的物理页帧。这和物理页帧管理模块
 的测试程序是一个思路，即将这些 ``FrameTracker`` 的生命周期进一步绑定到 ``PageTable`` 下面。当 ``PageTable`` 
 生命周期结束后，向量 ``frames`` 里面的那些 ``FrameTracker`` 也会被回收，也就意味着存放多级页表节点的那些物理页帧
 被回收了。
@@ -348,4 +348,195 @@
 当我们通过 ``new`` 方法新建一个 ``PageTable`` 的时候，它只需有一个根节点。为此我们需要分配一个物理页帧 
 ``FrameTracker`` 并挂在向量 ``frames`` 下，然后更新根节点的物理页号 ``root_ppn`` 。
 
-我们需要修改
+多级页表并不是被创建出来之后就不再变化的，为了 MMU 能够通过地址转换正确找到应用地址空间中的数据实际被内核放在内存中
+位置，它需要动态维护一个虚拟页号到页表项的映射，支持插入/删除键值对，其方法签名如下：
+
+.. code-block:: rust
+
+    // os/src/mm/page_table.rs
+
+    impl PageTable {
+        pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags);
+        pub fn unmap(&mut self, vpn: VirtPageNum);
+    }
+
+- 我们通过 ``map`` 方法来在多级页表中插入一个键值对，注意这里我们将物理页号 ``ppn`` 和页表项标志位 ``flags`` 作为
+  不同的参数传入而不是整合为一个页表项；
+- 相对的，我们通过 ``unmap`` 方法来删除一个键值对，在调用时仅需给出作为索引的虚拟页号即可。
+
+在这些操作的过程中我们自然需要访问或修改多级页表节点的内容。每个节点都被保存在一个物理页帧中，在多级页表的架构中我们是以
+一个节点被存放在的物理页帧的物理页号作为指针指向该节点，这意味着，对于每个节点来说，一旦我们知道了指向它的物理页号，我们
+就需要能够修改这个节点的内容。前面我们在使用 ``frame_alloc`` 分配一个物理页帧之后便立即将它上面的数据清零其实也是一样
+的需求。总结一下也就是说，至少在操作某个多级页表或是管理物理页帧的时候，我们要能够自由的读写与一个给定的物理页号对应的
+物理页帧上的数据。
+
+在尚未启用分页模式之前，内核和应用的代码都可以通过物理地址直接访问内存。而在打开分页模式之后，分别运行在 S 特权级
+和 U 特权级的内核和应用的访存行为都会受到影响，它们的访存地址会被视为一个当前地址空间（ ``satp`` CSR 给出当前
+多级页表根节点的物理页号）中的一个虚拟地址，需要 MMU 
+查相应的多级页表完成地址转换变为物理地址，也就是地址空间中虚拟地址指向的数据真正被内核放在的物理内存中的位置，然后
+才能访问相应的数据。此时，如果想要访问一个特定的物理地址 ``pa`` 所指向的内存上的数据，就需要对应 **构造** 一个虚拟地址 
+``va`` ，使得当前地址空间的页表存在映射 :math:`\text{va}\rightarrow\text{pa}` ，且页表项中的保护位允许这种
+访问方式。于是，在代码中我们只需访问地址 ``va`` ，它便会被 MMU 通过地址转换变成 ``pa`` ，这样我们就做到了在启用
+分页模式的情况下也能从某种意义上直接访问内存。
+
+.. _term-identical-mapping:
+
+这就需要我们提前扩充多级页表维护的映射，使得对于每一个对应于某一特定物理页帧的物理页号 ``ppn`` ，均存在一个虚拟页号 
+``vpn`` 能够映射到它，而且要能够较为简单的针对一个 ``ppn`` 找到某一个能映射到它的 ``vpn`` 。这里我们采用一种最
+简单的 **恒等映射** (Identical Mapping) ，也就是说对于物理内存上的每个物理页帧，我们都在多级页表中用一个与其
+物理页号相等的虚拟页号映射到它。当我们想针对物理页号构造一个能映射到它的虚拟页号的时候，也只需使用一个和该物理页号
+相等的虚拟页号即可。
+
+.. _term-recursive-mapping:
+
+.. note::
+
+    **其他的映射方式**
+
+    为了达到这一目的还存在其他不同的映射方式，例如比较著名的 **页表自映射** (Recursive Mapping) 等。有兴趣的同学
+    可以进一步参考 `BlogOS 中的相关介绍 <https://os.phil-opp.com/paging-implementation/#accessing-page-tables>`_ 。
+
+这里需要说明的是，在下一节中我们可以看到，应用和内核的地址空间是隔离的。而直接访问物理页帧的操作只会在内核中进行，
+应用无法看到物理页帧管理器和多级页表等内核数据结构。因此，上述的恒等映射只需被附加到内核地址空间即可。
+
+于是，我们来看看在内核中应如何访问一个特定的物理页帧：
+
+.. code-block:: rust
+
+    // os/src/mm/address.rs
+
+    impl PhysPageNum {
+        pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
+            let pa: PhysAddr = self.clone().into();
+            unsafe {
+                core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512)
+            }
+        }
+        pub fn get_bytes_array(&self) -> &'static mut [u8] {
+            let pa: PhysAddr = self.clone().into();
+            unsafe {
+                core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096)
+            }
+        }
+        pub fn get_mut<T>(&self) -> &'static mut T {
+            let pa: PhysAddr = self.clone().into();
+            unsafe {
+                (pa.0 as *mut T).as_mut().unwrap()
+            }
+        }
+    }
+
+我们构造可变引用来直接访问一个物理页号 ``PhysPageNum`` 对应的物理页帧，不同的引用类型对应于物理页帧上的一种不同的
+内存布局，如 ``get_pte_array`` 返回的是一个页表项定长数组的可变引用，可以用来修改多级页表中的一个节点；而 
+``get_bytes_array`` 返回的是一个字节数组的可变引用，可以以字节为粒度对物理页帧上的数据进行访问，前面进行数据清零
+就用到了这个方法； ``get_mut`` 是个泛型函数，可以获取一个恰好放在一个物理页帧开头的类型为 ``T`` 的数据的可变引用。
+
+在实现方面，都是先把物理页号转为物理地址 ``PhysAddr`` ，然后再转成 usize 形式的物理地址。接着，我们直接将它
+转为裸指针用来访问物理地址指向的物理内存。在分页机制开启前，这样做自然成立；而开启之后，虽然裸指针被视为一个虚拟地址，
+但是上面已经提到这种情况下虚拟地址会映射到一个相同的物理地址，因此在这种情况下也成立。注意，我们在返回值类型上附加了
+静态生命周期泛型 ``'static`` ，这是为了绕过 Rust 编译器的借用检查，实质上可以将返回的类型也看成一个裸指针，因为
+它也只是标识数据存放的位置以及类型。但与裸指针不同的是，无需通过 ``unsafe`` 的解引用访问它指向的数据，而是可以像一个
+正常的可变引用一样直接访问。
+
+.. note::
+    
+    **unsafe 真的就是“不安全”吗？**
+
+    下面是笔者关于 ``unsafe`` 一点可能不太正确的理解，不感兴趣的读者可以跳过。
+
+    当我们在 Rust 中使用 unsafe 的时候，并不仅仅是为了绕过编译器检查，更是为了告知编译器和其他看到这段代码的程序员：
+    “ **我保证这样做是安全的** ” 。尽管，严格的 Rust 编译器暂时还不能确信这一点。从规范 Rust 代码编写的角度，
+    我们需要尽可能绕过 unsafe ，因为如果 Rust 编译器或者一些已有的接口就可以提供安全性，我们当然倾向于利用它们让我们
+    实现的功能仍然是安全的，可以避免一些无谓的心智负担；反之，就只能使用 unsafe ，同时最好说明如何保证这项功能是安全的。
+
+    这里简要从内存安全的角度来分析一下 ``PhysPageNum`` 的 ``get_*`` 系列方法的实现中 ``unsafe`` 的使用。为了方便
+    解释，我们可以将 ``PhysPageNum`` 也看成一种 RAII 的风格，即它控制着一个物理页帧资源的访问。首先，这不会导致 
+    use-after-free 的问题，因为在内核运行全期整块物理内存都是可以访问的，它不存在被释放后无法访问的可能性；其次，
+    也不会导致并发冲突。注意这不是在 ``PhysPageNum`` 这一层解决的，而是 ``PhysPageNum`` 的使用层要保证任意两个线程
+    不会同时对一个 ``PhysPageNum`` 进行操作。读者也应该可以感觉出这并不能算是一种好的设计，因为这种约束从代码层面是很
+    难直接保证的，而是需要系统内部的某种一致性。虽然如此，它对于我们这个极简的内核而言算是很合适了。
+
+接下来介绍 ``map`` 和 ``unmap`` 如何实现。它们都依赖于一个很重要的过程，也即在多级页表中找到一个虚拟对应的页表项。
+找到之后，只要修改页表项的内容即可完成键值对的插入和删除。在寻找页表项的时候，可能出现中间级节点还未被创建的情况，
+这个时候我们需要手动分配一个物理页帧来存放这个节点，并将这个节点接入到当前的多级页表中。
+
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/mm/address.rs
+
+    impl VirtPageNum {
+        pub fn indexes(&self) -> [usize; 3] {
+            let mut vpn = self.0;
+            let mut idx = [0usize; 3];
+            for i in (0..3).rev() {
+                idx[i] = vpn & 511;
+                vpn >>= 9;
+            }
+            idx
+        }
+    }
+
+    // os/src/mm/page_table.rs
+
+    impl PageTable {
+        fn find_pte_create(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+            let idxs = vpn.indexes();
+            let mut ppn = self.root_ppn;
+            let mut result: Option<&mut PageTableEntry> = None;
+            for i in 0..3 {
+                let pte = &mut ppn.get_pte_array()[idxs[i]];
+                if i == 2 {
+                    result = Some(pte);
+                    break;
+                }
+                if !pte.is_valid() {
+                    let frame = frame_alloc().unwrap();
+                    *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
+                    self.frames.push(frame);
+                }
+                ppn = pte.ppn();
+            }
+            result
+        }
+    }
+
+- ``VirtPageNum`` 的 ``indexes`` 可以取出虚拟页号的三级页索引，并按照从高到低的顺序返回。注意它里面包裹的 
+  usize 可能有 :math:`27` 位，也有可能有 :math:`64-12=52` 位，但这里我们是用来在多级页表上进行遍历，因此
+  只取出后 :math:`27` 位。
+- ``PageTable::find_pte_create`` 在多级页表找到一个虚拟页号对应的页表项的可变引用方便后续的读写。如果在
+  遍历的过程中发现有节点尚未创建则会新建一个节点。
+
+  变量 ``ppn`` 表示当前节点的物理页号，最开始指向多级页表的根节点。随后每次循环通过 ``get_pte_array`` 将
+  取出当前节点的页表项数组，并根据当前级页索引找到对应的页表项。如果当前节点是一个叶节点，那么直接返回这个页表项
+  的可变引用；否则尝试向下走。走不下去的话就新建一个节点，更新作为下级节点指针的页表项，并将新分配的物理页帧移动到
+  向量 ``frames`` 中方便后续的自动回收。注意在更新页表项的时候，不仅要更新物理页号，还要将标志位 V 置 1，
+  不然硬件在查多级页表的时候，会认为这个页表项不合法，从而触发 Page Fault 而不能向下走。
+
+于是， ``map/unmap`` 就非常容易实现了：
+
+.. code-block:: rust
+
+    // os/src/mm/page_table.rs
+
+    impl PageTable {
+        pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
+            let pte = self.find_pte_create(vpn).unwrap();
+            assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
+            *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
+        }
+        pub fn unmap(&mut self, vpn: VirtPageNum) {
+            let pte = self.find_pte_create(vpn).unwrap();
+            assert!(pte.is_valid(), "vpn {:?} is invalid before unmapping", vpn);
+            *pte = PageTableEntry::empty();
+        }
+    }
+
+只需根据虚拟页号找到页表项，然后修改或者直接清空其内容即可。
+
+.. warning::
+
+    目前的实现方式并不打算对物理页帧耗尽的情形做任何处理而是直接 ``panic`` 退出。因此在前面的代码中能够看到
+    很多 ``unwrap`` ，这种使用方式并不为 Rust 所推荐，只是由于简单起见暂且这样做。
+
