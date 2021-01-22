@@ -72,7 +72,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
-    <link rel="next" title="应用程序执行环境与平台支持" href="1app-ee-platform.html" />
+    <link rel="next" title="引言" href="0intro.html" />
     <link rel="prev" title="实验环境配置" href="../chapter0/5setup-devel-env.html" /> 
 </head>
 
@@ -122,6 +122,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">第一章：RV64 裸机应用</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html">应用程序执行环境与平台支持</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2remove-std.html">移除标准库依赖</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3-1-mini-rt-usrland.html">构建用户态执行环境</a></li>
@@ -220,63 +221,60 @@ commentsRunWhenDOMLoaded(addUtterances);
   <div class="section" id="rv64">
 <span id="link-chapter1"></span><h1>第一章：RV64 裸机应用<a class="headerlink" href="#rv64" title="永久链接至标题">¶</a></h1>
 <div class="toctree-wrapper compound">
-</div>
-<p><strong>本章导读</strong></p>
-<p>大多数程序员的第一行代码都从 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 开始，当我们满怀着好奇心在编辑器内键入仅仅数个字节，再经过几行命令编译（靠的是编译器）、运行（靠的是操作系统），终于在黑洞洞的终端窗口中看到期望中的结果的时候，一扇通往编程世界的大门已经打开。在本章第一节 <a class="reference internal" href="1app-ee-platform.html"><span class="doc">应用程序执行环境与平台支持</span></a> 中，可以看到用Rust语言编写的非常简单的“Hello, world”应用程序。</p>
-<p>不过我们能够隐约意识到编程工作能够如此方便简洁并不是理所当然的，实际上有着多层硬件和软件工具和支撑环境隐藏在它背后，才让我们不必付出那么多努力就能够创造出功能强大的应用程序。生成应用程序二进制执行代码所依赖的是以**编译器**为主的开发环境；运行应用程序执行码所依赖的是以**操作系统**为主的执行环境。</p>
-<p>本章主要是设计和实现建立在裸机上的执行环境，从中对应用程序和它所依赖的执行环境有一个全面和深入的理解。</p>
-<p>本章我们的目标仍然只是输出 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> ，但这一次，我们将离开舒适区，基于一个几乎空无一物的平台从零开始搭建我们自己的高楼大厦，
-而不是仅仅通过一行语句就完成任务。所以，在接下来的内容中，我们将描述如何让 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 应用程序逐步脱离对编译器、运行时和操作系统的依赖，最终在裸机上运行。这时，我们也可把这个能在裸机上运行的 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 应用程序称为一种支持输出字符串的非常初级的“三叶虫”操作系统，它其实就是一个给应用提供各种服务（比如输出字符串）的库，方便了单一应用程序在裸机上的开发与运行。</p>
-<p><strong>实践体验</strong></p>
-<p>本章设计实现了一个支持显示字符串应用的简单操作系统–“三叶虫”操作系统。</p>
-<p>获取本章代码：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
-<span class="gp">$</span> <span class="nb">cd</span> rCore-Tutorial-v3
-<span class="gp">$</span> git checkout ch1
-</pre></div>
-</div>
-<p>在 qemu 模拟器上运行本章代码，看看一个小应用程序是如何在QEMU模拟的计算机上运行的：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> os
-<span class="gp">$</span> make run
-</pre></div>
-</div>
-<p>将 Maix 系列开发版连接到 PC，并在上面运行本章代码，看看一个小应用程序是如何在真实计算机上运行的：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> os
-<span class="gp">$</span> make run <span class="nv">BOARD</span><span class="o">=</span>k210
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">警告</p>
-<p><strong>FIXME: 提供 wsl/macOS 等更多平台支持</strong></p>
-</div>
-<p>如果顺利的话，以 qemu 平台为例，将输出：</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[rustsbi] Version 0.1.0
-.______       __    __      _______.___________.  _______..______   __
-|   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
-|  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
-|      /     |  |  |  |    \   \       |  |      \   \    |   _  &lt; |  |
-|  |\  \----.|  `--&#39;  |.----)   |      |  |  .----)   |   |  |_)  ||  |
-| _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
-
-[rustsbi] Platform: QEMU
-[rustsbi] misa: RV64ACDFIMSU
-[rustsbi] mideleg: 0x222
-[rustsbi] medeleg: 0xb109
-[rustsbi] Kernel entry: 0x80020000
-Hello, world!
-.text [0x80020000, 0x80022000)
-.rodata [0x80022000, 0x80023000)
-.data [0x80023000, 0x80023000)
-boot_stack [0x80023000, 0x80033000)
-.bss [0x80033000, 0x80033000)
-Panicked at src/main.rs:46 Shutdown machine!
-</pre></div>
-</div>
-<p>除了 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 之外还有一些额外的信息，最后关机。</p>
-<div class="admonition note">
-<p class="admonition-title">注解</p>
-<p>RustSBI是啥？</p>
-<p>戳 <a class="reference internal" href="../appendix-c/index.html"><span class="doc">附录 C：深入机器模式：RustSBI</span></a> 可以进一步了解RustSBI。</p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="0intro.html">引言</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="0intro.html#id2">本章导读</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0intro.html#id3">实践体验</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="1app-ee-platform.html">应用程序执行环境与平台支持</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html#id2">本节导读</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html#id3">执行应用程序</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html#id4">应用程序执行环境</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html#id5">平台与目标三元组</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html#rust">Rust 标准库与核心库</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="2remove-std.html">移除标准库依赖</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="2remove-std.html#id2">本节导读</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2remove-std.html#println">移除 println! 宏</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2remove-std.html#panic-handler">提供语义项 panic_handler</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2remove-std.html#main">移除 main 函数</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2remove-std.html#id3">分析被移除标准库的程序</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="3-1-mini-rt-usrland.html">构建用户态执行环境</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="3-1-mini-rt-usrland.html#id2">本节导读</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-1-mini-rt-usrland.html#id3">用户态最小化执行环境</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-1-mini-rt-usrland.html#id4">有显示支持的用户态执行环境</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="3-1-mini-rt-usrland.html#id5">实现输出字符串的相关函数</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="3-2-mini-rt-baremetal.html">构建裸机运行时执行环境</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html#id2">本节导读</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html#id3">了解裸机启动过程</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html#id4">实现关机功能</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html#id5">设置正确的程序内存布局</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html#id6">正确配置栈空间布局</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html#bss">清空 .bss 段</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html#id7">添加裸机打印相关函数</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="4understand-prog.html">理解应用程序和执行环境</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="4understand-prog.html#id2">本节导读</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4understand-prog.html#term-physical-memory">物理内存与物理地址</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4understand-prog.html#function-call-and-stack">函数调用与栈</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4understand-prog.html#term-calling-convention">调用规范</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4understand-prog.html#id8">程序内存布局</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="6practice.html">练习一</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="6practice.html#backtrace">编程练习一：backtrace</a></li>
+</ul>
+</li>
+</ul>
 </div>
 </div>
 
@@ -288,7 +286,7 @@ Panicked at src/main.rs:46 Shutdown machine!
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="1app-ee-platform.html" class="btn btn-neutral float-right" title="应用程序执行环境与平台支持" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="0intro.html" class="btn btn-neutral float-right" title="引言" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="../chapter0/5setup-devel-env.html" class="btn btn-neutral float-left" title="实验环境配置" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

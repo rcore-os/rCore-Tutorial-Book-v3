@@ -58,7 +58,7 @@
       ......
       }
    
-   #反汇编导出汇编程序
+   # 反汇编导出汇编程序
    $ rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
       target/riscv64gc-unknown-none-elf/debug/os:	file format elf64-littleriscv
 
@@ -135,9 +135,9 @@
       sys_exit(9);
   }
 
-
- ``main.rs`` 增加的内容不多，但还是有点与一般的应用程序有所不同，因为它引入了汇编和系统调用。如果你看不懂上面内容的细节，没关系，
-在第二章的第二节 :doc:`chapter2/2application` 会有详细的介绍。
+ 
+``main.rs`` 增加的内容不多，但还是有点与一般的应用程序有所不同，因为它引入了汇编和系统调用。如果你看不懂上面内容的细节，没关系，
+在第二章的第二节 :doc:`/chapter2/2application` 会有详细的介绍。
 这里只需知道 ``_start`` 函数调用了一个 ``sys_exit`` 函数，来向操作系统发出一个退出服务的系统调用请求，并传递给OS的退出码为 ``9`` 。
 我们编译执行以下修改后的程序：
 
@@ -200,7 +200,7 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
       Stdout.write_fmt(args).unwrap();
   }
 
-最后，实现基于 ``print`` 函数，实现Rust语言**格式化宏**（[formatting macros](https://doc.rust-lang.org/std/fmt/#related-macros)）。
+最后，实现基于 ``print`` 函数，实现Rust语言 **格式化宏** ( `formatting macros <https://doc.rust-lang.org/std/fmt/#related-macros>`_ )。
 
 
 .. code-block:: rust
@@ -219,10 +219,10 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
       }
   }
 
-上面的代码没有读懂？没关系，你只要了解到应用程序发出的宏调用 ``println!`` 就是通过上面的实现，一步一步地调用，最终通过操作系统提供的
- ``SYSCALL_WRITE`` 系统调用服务，帮助我们完成了字符串显示输出。这就完成了有显示支持的用户态执行环境。
+上面的代码没有读懂？没关系，你只要了解到应用程序发出的宏调用 ``println!`` 就是通过上面的实现，一步一步地调用，最终通过操作系统提供的 
+``SYSCALL_WRITE`` 系统调用服务，帮助我们完成了字符串显示输出。这就完成了有显示支持的用户态执行环境。
 
- 接下来，我们调整一下应用程序，让它发出显示字符串和退出的请求：
+接下来，我们调整一下应用程序，让它发出显示字符串和退出的请求：
 
 
 .. code-block:: rust
@@ -248,7 +248,6 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
 
 系统崩溃了！借助老师以往的经验和与下一节调试kernel的成果经验，我们直接定位为是 **栈 stack** 没有设置的问题。我们需要添加建立栈的代码逻辑。
 
-
 .. code-block:: asm
 
       .section .text.entry
@@ -266,7 +265,6 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
 
 然后把汇编代码嵌入到 ``main.rs`` 中，并进行微调。
 
-
 .. code-block:: rust
 
   #![feature(global_asm)]
@@ -277,10 +275,3 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
   extern "C" fn rust_main() {
 
 再次编译执行，可以看到正确的字符串输出，且程序也能正确结束！
-
-
-
-
-.. code-block:: rust
-
-

@@ -73,10 +73,9 @@
 如果在裸机上的应用程序执行完毕并通知操作系统后，那么“三叶虫”操作系统就没事干了，实现正常关机是一个合理的选择。所以我们要让“三叶虫”操作系统能够正常关机，这是需要调用SBI提供的关机功能 ``SBI_SHUTDOWN`` ，这与上一节的 ``SYSCALL_EXIT`` 类似，
 只是在具体参数上有所不同。在上一节完成的没有显示功能的用户态最小化执行环境基础上，修改后的代码如下：
 
-
 .. code-block:: rust
 
-    //bootloader/rustsbi-qemu.bin 直接添加的SBI规范实现的二进制代码，给操作系统提供基本支持服务
+    // bootloader/rustsbi-qemu.bin 直接添加的SBI规范实现的二进制代码，给操作系统提供基本支持服务
 
     // os/src/main.rs
     const SYSCALL_EXIT: usize = 93;
@@ -91,23 +90,24 @@
         shutdown();
     }
 
-也许有同学比较迷惑，应用程序访问操作系统提供的系统调用的指令是 **ecall** ，
-操作系统访问RustSBI提供的SBI服务的SBI调用的指令也是 ``ecall`` 。
+
+也许有同学比较迷惑，应用程序访问操作系统提供的系统调用的指令是 **ecall** ，操作系统访问
+RustSBI提供的SBI服务的SBI调用的指令也是 ``ecall`` 。
 这其实是没有问题的，虽然指令一样，但它们所在的特权级和特权级转换是不一样的。简单地说，应用程序位于最弱的用户特权级（User Mode），操作系统位于
 很强大的内核特权级（Supervisor Mode），RustSBI位于完全掌控机器的机器特权级（Machine Mode），通过 ``ecall`` 指令，可以完成从弱的特权级
 到强的特权级的转换。具体细节，可以看下一章的进一步描述。在这里，只要知道如果“三叶虫”操作系统正确地向RustSBI发出了停机的SBI服务请求，
-那么RustSBI能够通知QEMU模拟的RISC-V计算机停机（即 ``qemu-system-riscv64 `` 软件能正常退出）就行了。
+那么RustSBI能够通知QEMU模拟的RISC-V计算机停机（即 ``qemu-system-riscv64`` 软件能正常退出）就行了。
 
 下面是编译执行，结果如下：
 
 
 .. code-block:: console
 
-  #编译生成ELF格式的执行文件
+  # 编译生成ELF格式的执行文件
   $ cargo build --release
    Compiling os v0.1.0 (/media/chyyuu/ca8c7ba6-51b7-41fc-8430-e29e31e5328f/thecode/rust/os_kernel_lab/os)
     Finished release [optimized] target(s) in 0.15s
-  #把ELF执行文件转成bianary文件
+  # 把ELF执行文件转成bianary文件
   $ rust-objcopy --binary-architecture=riscv64 target/riscv64gc-unknown-none-elf/release/os --strip-all -O binary target/riscv64gc-unknown-none-elf/release/os.bin
 
   #加载运行
@@ -229,36 +229,30 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
 
 .. code-block:: console
 
-  #在一个终端执行如下命令：
+  # 在一个终端执行如下命令：
   $ qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80020000 -S -s
 
-  #在另外一个终端执行如下命令：
+  # 在另外一个终端执行如下命令：
   $ rust-gdb target/riscv64gc-unknown-none-elf/release/os
   (gdb) target remote :1234
   (gdb) break *0x80020000
   (gdb) x /16i 0x80020000
   (gdb) si
 
-结果发现刚执行一条指令，整个系统就飞了（ ``pc`` 寄存器等已经变成为 ``0`` 了）。再一看， ``sp`` 寄存器是一个非常大的值 ``0xffffff...`` 。这就很清楚是
-**栈 stack**出现了问题。我们没有设置好**栈 stack**！ 好吧，我们需要考虑如何合理设置**栈 stack**。
+结果发现刚执行一条指令，整个系统就飞了（ ``pc`` 寄存器等已经变成为 ``0`` 了）。再一看， ``sp`` 寄存器是一个非常大的值 ``0xffffff...`` 。这就很清楚是 
+**栈 stack** 出现了问题。我们没有设置好 **栈 stack** ！ 好吧，我们需要考虑如何合理设置 **栈 stack** 。
 
 
 正确配置栈空间布局
 ----------------------------
 
-为了说明如何实现正确的栈，我们需要讨论这样一个问题：
-
-
-1. 应用函数调用所需的栈放在哪里？
+为了说明如何实现正确的栈，我们需要讨论这样一个问题：应用函数调用所需的栈放在哪里？
 
     需要有一段代码来分配并栈空间，并把 ``sp`` 寄存器指向栈空间的起始位置（注意：栈空间是从上向下 ``push`` 数据的）。
     所以，我们要写一小段汇编代码 ``entry.asm`` 来帮助建立好栈空间。
     从链接脚本第 32 行开始，我们可以看出 ``entry.asm`` 中分配的栈空间对应的段 ``.bss.stack`` 被放入到可执行文件中的 
     ``.bss`` 段中的低地址中。在后面虽然有一个通配符 ``.bss.*`` ，但是由于链接脚本的优先匹配规则它并不会被匹配到后面去。
     这里需要注意的是地址区间 :math:`[\text{sbss},\text{ebss})` 并不包括栈空间，其原因后面再进行说明。
-
-
-
 
 我们自己编写运行时初始化的代码：
 
@@ -319,7 +313,7 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
 名字进行混淆，不然的话在链接的时候， ``entry.asm`` 将找不到 ``main.rs`` 提供的外部符号 ``rust_main`` 从而导致链接失败。
 
 
-这样一来，我们就将“三叶虫”操作系统编写完毕了。再次使用上节中的编译，生成和运行操作，我们看到QEMU模拟的RISC-V 64计算机**优雅**地推出了！
+这样一来，我们就将“三叶虫”操作系统编写完毕了。再次使用上节中的编译，生成和运行操作，我们看到QEMU模拟的RISC-V 64计算机 **优雅** 地退出了！
 
 
 
@@ -343,7 +337,7 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
     [rustsbi] mideleg: 0x222
     [rustsbi] medeleg: 0xb1ab
     [rustsbi] Kernel entry: 0x80020000
-    $ #“优雅”地退出了。 
+    # “优雅”地退出了。 
 
 
 
@@ -432,8 +426,6 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
     [rustsbi] Kernel entry: 0x80020000
     Hello, world!
 
-    $
-
 可以看到，在裸机上输出了 ``Hello, world!`` ，而且qemu正常退出，表示RISC-V计算机也正常关机了。
 
 
@@ -485,7 +477,6 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
         [rustsbi] Kernel entry: 0x80020000
         Hello, world!
         Panicked at src/main.rs:95 It should shutdown!
-    $
 
 可以看到产生panic的地点在 ``main.rs`` 的第95行，与源码中的实际位置一致！到这里，我们基本上算是完成了第一章的实验内容，
 实现了支持应用程序在裸机上显示字符串的“三叶虫”操作系统。但也能看出，这个操作系统很脆弱，只能支持一个简单的易用，在本质上

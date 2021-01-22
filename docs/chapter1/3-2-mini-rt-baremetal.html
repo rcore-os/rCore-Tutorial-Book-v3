@@ -122,6 +122,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第一章：RV64 裸机应用</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html">应用程序执行环境与平台支持</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2remove-std.html">移除标准库依赖</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3-1-mini-rt-usrland.html">构建用户态执行环境</a></li>
@@ -129,10 +130,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id3">了解裸机启动过程</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id4">实现关机功能</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id7">设置正确的程序内存布局</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id8">正确配置栈空间布局</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">设置正确的程序内存布局</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">正确配置栈空间布局</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#bss">清空 .bss 段</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id9">添加裸机打印相关函数</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id7">添加裸机打印相关函数</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="4understand-prog.html">理解应用程序和执行环境</a></li>
@@ -285,7 +286,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>实现关机功能<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
 <p>如果在裸机上的应用程序执行完毕并通知操作系统后，那么“三叶虫”操作系统就没事干了，实现正常关机是一个合理的选择。所以我们要让“三叶虫”操作系统能够正常关机，这是需要调用SBI提供的关机功能 <code class="docutils literal notranslate"><span class="pre">SBI_SHUTDOWN</span></code> ，这与上一节的 <code class="docutils literal notranslate"><span class="pre">SYSCALL_EXIT</span></code> 类似，
 只是在具体参数上有所不同。在上一节完成的没有显示功能的用户态最小化执行环境基础上，修改后的代码如下：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">//bootloader/rustsbi-qemu.bin 直接添加的SBI规范实现的二进制代码，给操作系统提供基本支持服务</span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// bootloader/rustsbi-qemu.bin 直接添加的SBI规范实现的二进制代码，给操作系统提供基本支持服务</span>
 
 <span class="c1">// os/src/main.rs</span>
 <span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_EXIT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">93</span><span class="p">;</span><span class="w"></span>
@@ -301,18 +302,18 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>也许有同学比较迷惑，应用程序访问操作系统提供的系统调用的指令是 <strong>ecall</strong> ，
-操作系统访问RustSBI提供的SBI服务的SBI调用的指令也是 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 。
+<p>也许有同学比较迷惑，应用程序访问操作系统提供的系统调用的指令是 <strong>ecall</strong> ，操作系统访问
+RustSBI提供的SBI服务的SBI调用的指令也是 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 。
 这其实是没有问题的，虽然指令一样，但它们所在的特权级和特权级转换是不一样的。简单地说，应用程序位于最弱的用户特权级（User Mode），操作系统位于
 很强大的内核特权级（Supervisor Mode），RustSBI位于完全掌控机器的机器特权级（Machine Mode），通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令，可以完成从弱的特权级
 到强的特权级的转换。具体细节，可以看下一章的进一步描述。在这里，只要知道如果“三叶虫”操作系统正确地向RustSBI发出了停机的SBI服务请求，
-那么RustSBI能够通知QEMU模拟的RISC-V计算机停机（即 <a href="#id5"><span class="problematic" id="id6">``</span></a>qemu-system-riscv64 `` 软件能正常退出）就行了。</p>
+那么RustSBI能够通知QEMU模拟的RISC-V计算机停机（即 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 软件能正常退出）就行了。</p>
 <p>下面是编译执行，结果如下：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span>编译生成ELF格式的执行文件
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span> 编译生成ELF格式的执行文件
 <span class="gp">$</span> cargo build --release
 <span class="go"> Compiling os v0.1.0 (/media/chyyuu/ca8c7ba6-51b7-41fc-8430-e29e31e5328f/thecode/rust/os_kernel_lab/os)</span>
 <span class="go">  Finished release [optimized] target(s) in 0.15s</span>
-<span class="gp">#</span>把ELF执行文件转成bianary文件
+<span class="gp">#</span> 把ELF执行文件转成bianary文件
 <span class="gp">$</span> rust-objcopy --binary-architecture<span class="o">=</span>riscv64 target/riscv64gc-unknown-none-elf/release/os --strip-all -O binary target/riscv64gc-unknown-none-elf/release/os.bin
 
 <span class="gp">#</span>加载运行
@@ -323,8 +324,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>这样的结果是我们不期望的。问题在哪？仔细查看和思考，操作系统的入口地址不对！对 <code class="docutils literal notranslate"><span class="pre">os</span></code> ELF执行程序，通过rust-readobj分析，看到的入口地址不是
 RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 。我们需要修改 <code class="docutils literal notranslate"><span class="pre">os</span></code> ELF执行程序的内存布局。</p>
 </div>
-<div class="section" id="id7">
-<h2>设置正确的程序内存布局<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id5">
+<h2>设置正确的程序内存布局<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
 <p id="term-linker-script">我们可以通过 <strong>链接脚本</strong> (Linker Script) 调整链接器的行为，使得最终生成的可执行文件的内存布局符合我们的预期。
 我们修改 Cargo 的配置文件来使用我们自己的链接脚本 <code class="docutils literal notranslate"><span class="pre">os/src/linker.ld</span></code> 而非使用默认的内存布局：</p>
 <div class="highlight-default notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
@@ -465,10 +466,10 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 最终生成的可执行文件 <code class="docutils literal notranslate"><span class="pre">target/riscv64gc-unknown-none-elf/release/os</span></code> 。
 通过分析，我们看到 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 处的代码是我们预期的 <code class="docutils literal notranslate"><span class="pre">_start()</span></code> 函数的内容。我们采用刚才的编译运行方式进行试验，发现还是同样的错误结果。
 问题出在哪里？这时需要用上 <code class="docutils literal notranslate"><span class="pre">debug</span></code> 大法了。</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span>在一个终端执行如下命令：
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span> 在一个终端执行如下命令：
 <span class="gp">$</span> qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80020000 -S -s
 
-<span class="gp">#</span>在另外一个终端执行如下命令：
+<span class="gp">#</span> 在另外一个终端执行如下命令：
 <span class="gp">$</span> rust-gdb target/riscv64gc-unknown-none-elf/release/os
 <span class="gp gp-VirtualEnv">(gdb)</span> <span class="go">target remote :1234</span>
 <span class="gp gp-VirtualEnv">(gdb)</span> <span class="go">break *0x80020000</span>
@@ -477,13 +478,11 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 </pre></div>
 </div>
 <p>结果发现刚执行一条指令，整个系统就飞了（ <code class="docutils literal notranslate"><span class="pre">pc</span></code> 寄存器等已经变成为 <code class="docutils literal notranslate"><span class="pre">0</span></code> 了）。再一看， <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器是一个非常大的值 <code class="docutils literal notranslate"><span class="pre">0xffffff...</span></code> 。这就很清楚是
-<strong>栈 stack**出现了问题。我们没有设置好**栈 stack</strong>！ 好吧，我们需要考虑如何合理设置**栈 stack**。</p>
+<strong>栈 stack</strong> 出现了问题。我们没有设置好 <strong>栈 stack</strong> ！ 好吧，我们需要考虑如何合理设置 <strong>栈 stack</strong> 。</p>
 </div>
-<div class="section" id="id8">
-<h2>正确配置栈空间布局<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h2>
-<p>为了说明如何实现正确的栈，我们需要讨论这样一个问题：</p>
-<ol class="arabic">
-<li><p>应用函数调用所需的栈放在哪里？</p>
+<div class="section" id="id6">
+<h2>正确配置栈空间布局<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
+<p>为了说明如何实现正确的栈，我们需要讨论这样一个问题：应用函数调用所需的栈放在哪里？</p>
 <blockquote>
 <div><p>需要有一段代码来分配并栈空间，并把 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器指向栈空间的起始位置（注意：栈空间是从上向下 <code class="docutils literal notranslate"><span class="pre">push</span></code> 数据的）。
 所以，我们要写一小段汇编代码 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 来帮助建立好栈空间。
@@ -491,8 +490,6 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段中的低地址中。在后面虽然有一个通配符 <code class="docutils literal notranslate"><span class="pre">.bss.*</span></code> ，但是由于链接脚本的优先匹配规则它并不会被匹配到后面去。
 这里需要注意的是地址区间 <span class="math notranslate nohighlight">\([\text{sbss},\text{ebss})\)</span> 并不包括栈空间，其原因后面再进行说明。</p>
 </div></blockquote>
-</li>
-</ol>
 <p>我们自己编写运行时初始化的代码：</p>
 <div class="highlight-asm notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
@@ -563,7 +560,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <p>从第 10 行开始，
 我们声明了应用的入口点 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> ，这里需要注意的是需要通过宏将 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 标记为 <code class="docutils literal notranslate"><span class="pre">#[no_mangle]</span></code> 以避免编译器对它的
 名字进行混淆，不然的话在链接的时候， <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 将找不到 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 提供的外部符号 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 从而导致链接失败。</p>
-<p>这样一来，我们就将“三叶虫”操作系统编写完毕了。再次使用上节中的编译，生成和运行操作，我们看到QEMU模拟的RISC-V 64计算机**优雅**地推出了！</p>
+<p>这样一来，我们就将“三叶虫”操作系统编写完毕了。再次使用上节中的编译，生成和运行操作，我们看到QEMU模拟的RISC-V 64计算机 <strong>优雅</strong> 地退出了！</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> qemu-system-riscv64 <span class="se">\</span>
 &gt; -machine virt <span class="se">\</span>
 &gt; -nographic <span class="se">\</span>
@@ -582,7 +579,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <span class="go">[rustsbi] mideleg: 0x222</span>
 <span class="go">[rustsbi] medeleg: 0xb1ab</span>
 <span class="go">[rustsbi] Kernel entry: 0x80020000</span>
-<span class="gp">$</span> <span class="c1">#“优雅”地退出了。</span>
+<span class="gp">#</span> “优雅”地退出了。
 </pre></div>
 </div>
 </div>
@@ -618,8 +615,8 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <code class="docutils literal notranslate"><span class="pre">sbss</span></code> 和 <code class="docutils literal notranslate"><span class="pre">ebss</span></code> 来确定 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的位置。</p>
 <p>我们可以松一口气了。接下来，我们要让“三叶虫”操作系统要实现“Hello, world”输出！</p>
 </div>
-<div class="section" id="id9">
-<h2>添加裸机打印相关函数<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id7">
+<h2>添加裸机打印相关函数<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
 <p>与上一节为输出字符实现的代码片段相比，裸机应用的执行环境支持字符输出的代码改动会很小。
 下面的代码基于上节有打印能力的执行环境的基础上做的变动。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">const</span><span class="w"> </span><span class="n">SBI_CONSOLE_PUTCHAR</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
@@ -658,8 +655,6 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <span class="go">[rustsbi] medeleg: 0xb1ab</span>
 <span class="go">[rustsbi] Kernel entry: 0x80020000</span>
 <span class="go">Hello, world!</span>
-
-<span class="gp">$</span>
 </pre></div>
 </div>
 <p>可以看到，在裸机上输出了 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> ，而且qemu正常退出，表示RISC-V计算机也正常关机了。</p>
@@ -705,7 +700,6 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <span class="go">    [rustsbi] Kernel entry: 0x80020000</span>
 <span class="go">    Hello, world!</span>
 <span class="go">    Panicked at src/main.rs:95 It should shutdown!</span>
-<span class="gp">$</span>
 </pre></div>
 </div>
 <p>可以看到产生panic的地点在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的第95行，与源码中的实际位置一致！到这里，我们基本上算是完成了第一章的实验内容，
