@@ -1,20 +1,5 @@
-.. _link-chapter0:
-
-第零章：操作系统概述
-==============================================
-
-.. toctree::
-   :maxdepth: 4
-
-   0intro
-   1what-is-os
-   2os-interface
-   3os-hw-abstract
-   4os-features
-   5setup-devel-env
-
-
-**为何要写这本操作系统书**
+为何要写这本操作系统书
+===========================================================
 
 现在国内外已有一系列优秀的操作系统教材,例如William Stallings的《Operating Systems Internals and Design Principles》，Avi Silberschatz、Peter Baer Galvin 和 Greg Gagne 的《Operating System Concepts》，Remzi H. Arpaci-Dusseau 和 Andrea C. Arpaci-Dusseau 的《Operating Systems: Three Easy Pieces》等。然而,从我们从2000年以来的教学实践来看,某些经典教材对操作系统的概念和原理很重视，但还有如下一些问题有待改进：
 
@@ -45,7 +30,7 @@
    - 用Rust写OS的代价仅仅是学会用Rust编程。
 
    **目前常见的CPU是x86和ARM，为何要推荐RISC-V？**
-   
+
    - 没错，最常见的的CPU是x86和ARM，他们已广泛应用在服务器，台式机，移动终端和很多嵌入式系统中。它们需要支持非常多的软件系统和应用需求，导致它们越来越复杂。
    - x86的向过去兼容的策略确保了它的江湖地位，但导致其丢不掉很多已经比较过时的硬件设计，让操作系统疲于适配这些硬件特征。
    - x86和ARM都很成功，这主要是在商业上，其广泛使用是的其CPU硬件逻辑越来越复杂，且不够开放，不能改变，不是开源的，提高了操作系统开发者的学习难度。

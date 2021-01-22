@@ -122,6 +122,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第一章：RV64 裸机应用</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html">应用程序执行环境与平台支持</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2remove-std.html">移除标准库依赖</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">构建用户态执行环境</a><ul>
@@ -273,7 +274,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="go">   ......</span>
 <span class="go">   }</span>
 
-<span class="gp">#</span>反汇编导出汇编程序
+<span class="gp">#</span> 反汇编导出汇编程序
 <span class="gp">$</span> rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">   target/riscv64gc-unknown-none-elf/debug/os:       file format elf64-littleriscv</span>
 
@@ -312,38 +313,36 @@ commentsRunWhenDOMLoaded(addUtterances);
 回顾一下我们曾经写过的简单应用程序，好像入口函数名字是 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数， 编译时用的是标准的std库。执行起来没啥问题。再仔细想想，当一个应程序如果出错，
 有操作系统顶着的执行环境会把它给杀死。但如果一个应用的入口函数正常返回，执行环境应该优雅地让它退出才对。没错！目前的执行环境还缺了一个退出机制。
 先了解一下，操作系统会提供一个退出的系统调用服务接口，但应用程序调用这个接口，那这个程序就退出了。这里先给出代码：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span> // os/src/main.rs
- #![feature(llvm_asm)]
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
+<span class="cp">#![feature(llvm_asm)]</span><span class="w"></span>
 
- const SYSCALL_EXIT: usize = 93;
+<span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_EXIT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">93</span><span class="p">;</span><span class="w"></span>
 
- fn syscall(id: usize, args: [usize; 3]) -&gt; isize {
-     let mut ret: isize;
-     unsafe {
-         llvm_asm!(&quot;ecall&quot;
-             : &quot;={x10}&quot; (ret)
-             : &quot;{x10}&quot; (args[0]), &quot;{x11}&quot; (args[1]), &quot;{x12}&quot; (args[2]), &quot;{x17}&quot; (id)
-             : &quot;memory&quot;
-             : &quot;volatile&quot;
-         );
-     }
-     ret
- }
+<span class="k">fn</span> <span class="nf">syscall</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">args</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">3</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ret</span>: <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">llvm_asm</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;ecall&quot;</span><span class="w"></span>
+<span class="w">            </span>: <span class="s">&quot;={x10}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="p">)</span><span class="w"></span>
+<span class="w">            </span>: <span class="s">&quot;{x10}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x11}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x12}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x17}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"></span>
+<span class="w">            </span>: <span class="s">&quot;memory&quot;</span><span class="w"></span>
+<span class="w">            </span>: <span class="s">&quot;volatile&quot;</span><span class="w"></span>
+<span class="w">        </span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="n">ret</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
 
- pub fn sys_exit(xstate: i32) -&gt; isize {
-     syscall(SYSCALL_EXIT, [xstate as usize, 0, 0])
- }
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exit</span><span class="p">(</span><span class="n">xstate</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_EXIT</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">xstate</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
 
- #[no_mangle]
- extern &quot;C&quot; fn _start() {
-     sys_exit(9);
- }
-
-
-``main.rs`` 增加的内容不多，但还是有点与一般的应用程序有所不同，因为它引入了汇编和系统调用。如果你看不懂上面内容的细节，没关系，
+<span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">sys_exit</span><span class="p">(</span><span class="mi">9</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>在第二章的第二节 <span class="xref std std-doc">chapter2/2application</span> 会有详细的介绍。
+<p><code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 增加的内容不多，但还是有点与一般的应用程序有所不同，因为它引入了汇编和系统调用。如果你看不懂上面内容的细节，没关系，
+在第二章的第二节 <a class="reference internal" href="../chapter2/2application.html"><span class="doc">实现应用程序</span></a> 会有详细的介绍。
 这里只需知道 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 函数调用了一个 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 函数，来向操作系统发出一个退出服务的系统调用请求，并传递给OS的退出码为 <code class="docutils literal notranslate"><span class="pre">9</span></code> 。
 我们编译执行以下修改后的程序：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build --target riscv64gc-unknown-none-elf
@@ -389,7 +388,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>最后，实现基于 <code class="docutils literal notranslate"><span class="pre">print</span></code> 函数，实现Rust语言**格式化宏**（[formatting macros](<a class="reference external" href="https://doc.rust-lang.org/std/fmt/#related-macros">https://doc.rust-lang.org/std/fmt/#related-macros</a>)）。</p>
+<p>最后，实现基于 <code class="docutils literal notranslate"><span class="pre">print</span></code> 函数，实现Rust语言 <strong>格式化宏</strong> ( <a class="reference external" href="https://doc.rust-lang.org/std/fmt/#related-macros">formatting macros</a> )。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[macro_export]</span><span class="w"></span>
 <span class="n">macro_rules</span><span class="o">!</span><span class="w"> </span><span class="n">print</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="p">(</span><span class="cp">$fmt</span>: <span class="nc">literal</span><span class="w"> </span><span class="cp">$(,</span><span class="w"> </span><span class="cp">$($arg</span>: <span class="nc">tt</span><span class="p">)</span><span class="o">+</span><span class="p">)</span><span class="o">?</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -405,11 +404,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<dl>
-<dt>上面的代码没有读懂？没关系，你只要了解到应用程序发出的宏调用 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 就是通过上面的实现，一步一步地调用，最终通过操作系统提供的</dt><dd><p><code class="docutils literal notranslate"><span class="pre">SYSCALL_WRITE</span></code> 系统调用服务，帮助我们完成了字符串显示输出。这就完成了有显示支持的用户态执行环境。</p>
+<p>上面的代码没有读懂？没关系，你只要了解到应用程序发出的宏调用 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 就是通过上面的实现，一步一步地调用，最终通过操作系统提供的
+<code class="docutils literal notranslate"><span class="pre">SYSCALL_WRITE</span></code> 系统调用服务，帮助我们完成了字符串显示输出。这就完成了有显示支持的用户态执行环境。</p>
 <p>接下来，我们调整一下应用程序，让它发出显示字符串和退出的请求：</p>
-</dd>
-</dl>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Hello, world!&quot;</span><span class="p">);</span><span class="w"></span>
@@ -452,9 +449,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>再次编译执行，可以看到正确的字符串输出，且程序也能正确结束！</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span>
-</pre></div>
-</div>
 </div>
 </div>
 </div>

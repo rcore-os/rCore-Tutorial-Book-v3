@@ -162,7 +162,7 @@
       Entry: 0x0
       ......
       }
-   #反汇编导出汇编程序
+   # 反汇编导出汇编程序
    $ rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
       target/riscv64gc-unknown-none-elf/debug/os:	file format elf64-littleriscv
 
