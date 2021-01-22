@@ -273,7 +273,7 @@
     - ``Box<T>`` 的 ``drop`` 方法会回收它控制的分配在堆上的那个变量；
     - ``Rc<T>`` 的 ``drop`` 方法会减少分配在堆上的那个引用计数，一旦变为零则分配在堆上的那个被计数的变量自身
       也会被回收；
-    - ``Mutex<T>`` 的 ``lock`` 方法会获取锁并返回一个 ``MutexGuard<'a, T>`` ，它可以被当做一个 ``&mut T`` 
+    - ``Mutex<T>`` 的 ``lock`` 方法会获取互斥锁并返回一个 ``MutexGuard<'a, T>`` ，它可以被当做一个 ``&mut T`` 
       来使用；而 ``MutexGuard<'a, T>`` 的 ``drop`` 方法会将锁释放，从而允许其他线程获取锁并开始访问里层的
       数据结构。锁的实现原理我们先不介绍。
 
@@ -315,3 +315,37 @@
 
 多级页表实现
 -----------------------------------
+
+我们知道，SV39 多级页表是以节点为单位进行管理的。每个节点恰好存储在一个物理页帧中，它的位置可以用一个物理页号来
+表示。无论一个节点是否是叶节点，它的内存布局都是一个线性表，也就是一个长度固定 :math:`512` 的页表项数组。
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/mm/page_table.rs
+
+    pub struct PageTable {
+        root_ppn: PhysPageNum,
+        frames: Vec<FrameTracker>,
+    }
+
+    impl PageTable {
+        pub fn new() -> Self {
+            let frame = frame_alloc().unwrap();
+            PageTable {
+                root_ppn: frame.ppn,
+                frames: vec![frame],
+            }
+        }
+    }
+
+每个应用的地址空间都对应一个不同的页表，因此 ``PageTable`` 要保存它根节点的物理页号 ``root_ppn`` 用来区分。此外，
+向量 ``frames`` 以 ``FrameTracker`` 为代表保存了页表所有的节点（包括根节点）所在的物理页帧。这和物理页帧管理模块
+的测试程序是一个思路，即将这些 ``FrameTracker`` 的生命周期进一步绑定到 ``PageTable`` 下面。当 ``PageTable`` 
+生命周期结束后，向量 ``frames`` 里面的那些 ``FrameTracker`` 也会被回收，也就意味着存放多级页表节点的那些物理页帧
+被回收了。
+
+当我们通过 ``new`` 方法新建一个 ``PageTable`` 的时候，它只需有一个根节点。为此我们需要分配一个物理页帧 
+``FrameTracker`` 并挂在向量 ``frames`` 下，然后更新根节点的物理页号 ``root_ppn`` 。
+
+我们需要修改
