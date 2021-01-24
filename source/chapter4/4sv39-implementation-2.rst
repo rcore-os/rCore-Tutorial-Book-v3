@@ -540,3 +540,47 @@
     目前的实现方式并不打算对物理页帧耗尽的情形做任何处理而是直接 ``panic`` 退出。因此在前面的代码中能够看到
     很多 ``unwrap`` ，这种使用方式并不为 Rust 所推荐，只是由于简单起见暂且这样做。
 
+为了方便后面的实现，我们还需要 ``PageTable`` 提供一种不经过 MMU 而是手动查页表的方法：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/mm/page_table.rs
+
+    impl PageTable {
+        /// Temporarily used to get arguments from user space.
+        pub fn from_token(satp: usize) -> Self {
+            Self {
+                root_ppn: PhysPageNum::from(satp & ((1usize << 44) - 1)),
+                frames: Vec::new(),
+            }
+        }
+        fn find_pte(&self, vpn: VirtPageNum) -> Option<&PageTableEntry> {
+            let idxs = vpn.indexes();
+            let mut ppn = self.root_ppn;
+            let mut result: Option<&PageTableEntry> = None;
+            for i in 0..3 {
+                let pte = &ppn.get_pte_array()[idxs[i]];
+                if i == 2 {
+                    result = Some(pte);
+                    break;
+                }
+                if !pte.is_valid() {
+                    return None;
+                }
+                ppn = pte.ppn();
+            }
+            result
+        }
+        pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+            self.find_pte(vpn)
+                .map(|pte| {pte.clone()})
+        }
+    }
+
+- 第 5 行的 ``from_token`` 可以临时创建一个专用来手动查页表的 ``PageTable`` ，它仅有一个从传入的 ``satp`` token 
+  中得到的多级页表根节点的物理页号，它的 ``frames`` 字段为空，也即不实际控制任何资源；
+- 第 11 行的 ``find_pte`` 和之前的 ``find_pte_create`` 不同之处在于它不会试图分配物理页帧。一旦在多级页表上遍历
+  遇到空指针它就会直接返回 ``None`` 表示无法正确找到传入的虚拟页号对应的页表项；
+- 第 28 行的 ``translate`` 调用 ``find_pte`` 来实现，如果能够找到页表项，那么它会将页表项拷贝一份并返回，否则就
+  返回一个 ``None`` 。
