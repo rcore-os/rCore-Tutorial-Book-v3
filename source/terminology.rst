@@ -376,7 +376,15 @@
    * - 页表自映射
      - Recursive Mapping
      - :ref:`实现 SV39 多级页表机制（下） <term-recursive-mapping>`
-    
+   * - 跳板
+     - Trampoline
+     - :ref:`内核与应用的地址空间 <term-trampoline>`
+   * - 隔离
+     - Isolation
+     - :ref:`内核与应用的地址空间 <term-isolation>`
+   * - 保护页面
+     - Guard Page
+     - :ref:`内核与应用的地址空间 <term-guard-page>`
     
   
     
