@@ -2,7 +2,7 @@
 ================================================
 
 页表 ``PageTable`` 只能以页为单位帮助我们维护一个地址空间的地址转换关系，它对于整个地址空间并没有一个全局的掌控。本节
-我们就在内核中实现地址空间的抽象。
+我们就在内核中实现地址空间的抽象，并介绍内核和应用的地址空间中各需要包含哪些内容。
 
 实现地址空间抽象
 ------------------------------------------
@@ -270,7 +270,7 @@
 
 启用分页模式下，内核代码的访存地址也会被视为一个虚拟地址并需要经过 MMU 的地址转换，因此我们也需要为内核对应构造一个
 地址空间，它除了仍然需要允许内核的各数据段能够被正常访问之后，还需要包含所有应用的内核栈以及一个 
-**跳板** (Trampoline) 。我们会在本节的最后一部分，也即介绍地址空间切换的时候再深入介绍跳板的机制。
+**跳板** (Trampoline) 。我们会在本章的最后一节再深入介绍跳板的机制。
 
 下图是软件看到的 64 位地址空间在 SV39 分页模式下实际可能通过 MMU 检查的最高 :math:`256\text{GiB}` （之前在 
 :ref:`这里 <high-and-low-256gib>` 中解释过最高和最低 :math:`256\text{GiB}` 的问题）：
@@ -290,7 +290,7 @@ CPU 处于内核态访问，且只能读或写。
 空洞区域内的虚拟地址，然而它无法在多级页表中找到映射，便会触发异常，此时控制权会交给 trap handler 对这种情况进行
 处理。由于编译器会对访存顺序和局部变量在栈帧中的位置进行优化，我们难以确定一个已经溢出的栈帧中的哪些位置会先被访问，
 但总的来说，空洞区域被设置的越大，我们就能越早捕获到这一错误并避免它覆盖其他重要数据。由于我们的内核非常简单且内核栈
-的大小设置比较宽裕，因此我们仅将空洞区域的大小设置为单个页面。
+的大小设置比较宽裕，在当前的设计中我们仅将空洞区域的大小设置为单个页面。
 
 下面则给出了内核地址空间的低 :math:`256\text{GiB}` 的布局：
 
@@ -384,8 +384,7 @@ CPU 处于内核态访问，且只能读或写。
 ``new_kernel`` 将映射跳板和地址空间中最低 :math:`256\text{GiB}` 中的所有的逻辑段。第 3 行开始，我们从 
 ``os/src/linker.ld`` 中引用了很多表示了各个段位置的符号，而后在 ``new_kernel`` 中，我们从低地址到高地址
 依次创建 5 个逻辑段并通过 ``push`` 方法将它们插入到内核地址空间中，上面我们已经详细介绍过这 5 个逻辑段。跳板
-是通过 ``map_trampoline`` 方法来映射的，我们也将在本节最后一部分进行讲解。
-
+是通过 ``map_trampoline`` 方法来映射的，我们也将在本章最后一节进行讲解。
 
 应用地址空间
 ------------------------------------------
@@ -449,7 +448,7 @@ CPU 处于内核态访问，且只能读或写。
 各个逻辑段，最后放置带有一个保护页面的用户栈。这些逻辑段都是以 ``Framed`` 方式映射到物理内存的，从访问方式上来说都加上
 了 U 标志位代表 CPU 可以在 U 特权级也就是执行应用代码的时候访问它们。右侧则给出了最高的 :math:`256\text{GiB}` ，
 可以看出它只是和内核地址空间一样将跳板放置在最高页，还将 Trap 上下文放置在次高页中。这两个虚拟页面虽然位于应用地址空间，
-但是它们并不包含 U 标志位，事实上它们在地址空间切换的时候才会发挥作用。
+但是它们并不包含 U 标志位，事实上它们在地址空间切换的时候才会发挥作用，请同样参考本章的最后一节。
 
 在 ``os/src/build.rs`` 中，我们不再将丢弃了所有符号的应用二进制镜像链接进内核，而是直接使用 ELF 格式的可执行文件，
 因为在前者中内存布局中各个逻辑段的位置和访问限制等信息都被裁剪掉了。而 ``loader`` 子模块也变得极其精简：
@@ -571,74 +570,3 @@ CPU 处于内核态访问，且只能读或写。
 - 第 53 行则在应用地址空间中映射次高页面来存放 Trap 上下文。
 - 第 59 行返回的时候，我们不仅返回应用地址空间 ``memory_set`` ，也同时返回用户栈虚拟地址 ``user_stack_top`` 
   以及从解析 ELF 得到的该应用入口点地址，它们将被我们用来创建应用的任务控制块。
-
-任务控制块相比第三章也包含了更多内容：
-
-.. code-block:: rust
-    :linenos:
-    :emphasize-lines: 6,7,8
-
-    // os/src/task/task.rs
-
-    pub struct TaskControlBlock {
-        pub task_cx_ptr: usize,
-        pub task_status: TaskStatus,
-        pub memory_set: MemorySet,
-        pub trap_cx_ppn: PhysPageNum,
-        pub base_size: usize,
-    }
-
-除了应用的地址空间 ``memory_set`` 之外，还有位于应用地址空间次高页的 Trap 上下文被实际存放在物理页帧的物理页号 
-``trap_cx_ppn`` ，它能够方便我们对于 Trap 上下文进行访问。此外， ``base_size`` 统计了应用数据的大小，也就是
-在应用地址空间中从 :math:`\text{0x0}` 开始到用户栈结束一共包含多少字节。它后续还应该包含用于应用动态内存分配的
-堆空间的大小，但我们暂不支持。
-
-下面是任务控制块的创建：
-
-.. code-block:: rust
-    :linenos:
-    
-    // os/src/task/task.rs
-
-    impl TaskControlBlock {
-        pub fn new(elf_data: &[u8], app_id: usize) -> Self {
-            // memory_set with elf program headers/trampoline/trap context/user stack
-            let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
-            let trap_cx_ppn = memory_set
-                .translate(VirtAddr::from(TRAP_CONTEXT).into())
-                .unwrap()
-                .ppn();
-            let task_status = TaskStatus::Ready;
-            // map a kernel-stack in kernel space
-            let (kernel_stack_bottom, kernel_stack_top) = kernel_stack_position(app_id);
-            KERNEL_SPACE
-                .lock()
-                .insert_framed_area(
-                    kernel_stack_bottom.into(),
-                    kernel_stack_top.into(),
-                    MapPermission::R | MapPermission::W,
-                );
-            let task_cx_ptr = (kernel_stack_top - core::mem::size_of::<TaskContext>()) as *mut TaskContext;
-            unsafe { *task_cx_ptr = TaskContext::goto_trap_return(); }
-            let task_control_block = Self {
-                task_cx_ptr: task_cx_ptr as usize,
-                task_status,
-                memory_set,
-                trap_cx_ppn,
-                base_size: user_sp,
-            };
-            // prepare TrapContext in user space
-            let trap_cx = task_control_block.get_trap_cx();
-            *trap_cx = TrapContext::app_init_context(
-                entry_point,
-                user_sp,
-                KERNEL_SPACE.lock().token(),
-                kernel_stack_top,
-                trap_handler as usize,
-            );
-            task_control_block
-        }
-    }
-
-地址空间切换
-------------------------------------------

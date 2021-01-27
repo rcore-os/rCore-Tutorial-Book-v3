@@ -227,6 +227,21 @@ RAII 的含义是说，将一个使用前必须获取的资源的生命周期绑
   ``.bss`` 段中。 ``LockedHeap`` 也是一个被互斥锁保护的类型，在对它任何进行任何操作之前都要先获取锁以避免其他
   线程同时对它进行操作导致数据竞争。然后，调用 ``init`` 方法告知它能够用来分配的空间的起始地址和大小即可。
 
+我们还需要处理动态内存分配失败的情形，在这种情况下我们直接 panic ：
+
+.. code-block:: rust
+
+  // os/src/main.rs
+
+  #![feature(alloc_error_handler)]
+
+  // os/src/mm/heap_allocator.rs
+
+  #[alloc_error_handler]
+  pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
+      panic!("Heap allocation error, layout = {:?}", layout);
+  }
+
 最后，让我们尝试一下动态内存分配吧！
 
 .. code-block:: rust

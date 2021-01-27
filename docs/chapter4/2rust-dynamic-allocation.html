@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <title>Rust 中的动态内存分配 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
@@ -16,7 +16,10 @@
 
   
   
+
   
+  
+
   
 
   
@@ -29,7 +32,6 @@
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -87,7 +89,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
           
 
           
@@ -136,6 +138,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="3sv39-implementation-1.html">实现 SV39 多级页表机制（上）</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4sv39-implementation-2.html">实现 SV39 多级页表机制（下）</a></li>
 <li class="toctree-l2"><a class="reference internal" href="5kernel-app-spaces.html">内核与应用的地址空间</a></li>
+<li class="toctree-l2"><a class="reference internal" href="6multitasking-based-on-as.html">基于地址空间的分时多任务</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
@@ -151,6 +154,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 快速入门</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appendix-b/index.html">附录 B：常见工具的使用方法</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appendix-c/index.html">附录 C：深入机器模式：RustSBI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-d/index.html">附录 D：RISC-V相关信息</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
 </ul>
 <p class="caption"><span class="caption-text">开发注记</span></p>
@@ -197,6 +201,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -210,7 +216,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="../_sources/chapter4/2rust-dynamic-allocation.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -423,6 +429,19 @@ RAII 的含义是说，将一个使用前必须获取的资源的生命周期绑
 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段中。 <code class="docutils literal notranslate"><span class="pre">LockedHeap</span></code> 也是一个被互斥锁保护的类型，在对它任何进行任何操作之前都要先获取锁以避免其他
 线程同时对它进行操作导致数据竞争。然后，调用 <code class="docutils literal notranslate"><span class="pre">init</span></code> 方法告知它能够用来分配的空间的起始地址和大小即可。</p></li>
 </ul>
+<p>我们还需要处理动态内存分配失败的情形，在这种情况下我们直接 panic ：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
+
+<span class="cp">#![feature(alloc_error_handler)]</span><span class="w"></span>
+
+<span class="c1">// os/src/mm/heap_allocator.rs</span>
+
+<span class="cp">#[alloc_error_handler]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">handle_alloc_error</span><span class="p">(</span><span class="n">layout</span>: <span class="nc">core</span>::<span class="n">alloc</span>::<span class="n">Layout</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Heap allocation error, layout = {:?}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">layout</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
 <p>最后，让我们尝试一下动态内存分配吧！</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
@@ -461,19 +480,19 @@ RAII 的含义是说，将一个使用前必须获取的资源的生命周期绑
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">bss_range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sbss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="o">..</span><span class="n">ebss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Box</span>::<span class="n">new</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="n">assert</span><span class="o">!</span><span class="p">(</span><span class="n">bss_range</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="o">&amp;</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">as_ref</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)));</span><span class="w"></span>
+<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">bss_range</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="o">&amp;</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">as_ref</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)));</span><span class="w"></span>
 <span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">a</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">usize</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
 <span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">500</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">i</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">500</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="n">assert</span><span class="o">!</span><span class="p">(</span><span class="n">bss_range</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="o">&amp;</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)));</span><span class="w"></span>
+<span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">bss_range</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="o">&amp;</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)));</span><span class="w"></span>
 <span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">v</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;heap_test passed!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;heap_test passed!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </td></tr></table></div>
@@ -491,37 +510,29 @@ RAII 的含义是说，将一个使用前必须获取的资源的生命周期绑
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="3sv39-implementation-1.html" class="btn btn-neutral float-right" title="实现 SV39 多级页表机制（上）" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="1address-space.html" class="btn btn-neutral float-left" title="地址空间" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="3sv39-implementation-1.html" class="btn btn-neutral float-right" title="实现 SV39 多级页表机制（上）" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="1address-space.html" class="btn btn-neutral float-left" title="地址空间" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; 版权所有 2020, Yifan Wu
+        &#169; 版权所有 2020, Yifan Wu.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
