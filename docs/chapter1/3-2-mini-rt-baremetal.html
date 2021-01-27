@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <title>构建裸机运行时执行环境 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
@@ -16,7 +16,10 @@
 
   
   
+
   
+  
+
   
 
   
@@ -29,7 +32,6 @@
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -87,7 +89,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
           
 
           
@@ -156,6 +158,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 快速入门</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appendix-b/index.html">附录 B：常见工具的使用方法</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appendix-c/index.html">附录 C：深入机器模式：RustSBI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-d/index.html">附录 D：RISC-V相关信息</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
 </ul>
 <p class="caption"><span class="caption-text">开发注记</span></p>
@@ -202,6 +205,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -215,7 +220,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="../_sources/chapter1/3-2-mini-rt-baremetal.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -293,7 +298,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">shutdown</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SBI_SHUTDOWN</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">]);</span><span class="w"></span>
-<span class="w">    </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;It should shutdown!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;It should shutdown!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 
 <span class="cp">#[no_mangle]</span><span class="w"></span>
@@ -309,16 +314,16 @@ RustSBI提供的SBI服务的SBI调用的指令也是 <code class="docutils liter
 到强的特权级的转换。具体细节，可以看下一章的进一步描述。在这里，只要知道如果“三叶虫”操作系统正确地向RustSBI发出了停机的SBI服务请求，
 那么RustSBI能够通知QEMU模拟的RISC-V计算机停机（即 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 软件能正常退出）就行了。</p>
 <p>下面是编译执行，结果如下：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span> 编译生成ELF格式的执行文件
-<span class="gp">$</span> cargo build --release
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>编译生成ELF格式的执行文件
+<span class="gp">$ </span>cargo build --release
 <span class="go"> Compiling os v0.1.0 (/media/chyyuu/ca8c7ba6-51b7-41fc-8430-e29e31e5328f/thecode/rust/os_kernel_lab/os)</span>
 <span class="go">  Finished release [optimized] target(s) in 0.15s</span>
-<span class="gp">#</span> 把ELF执行文件转成bianary文件
-<span class="gp">$</span> rust-objcopy --binary-architecture<span class="o">=</span>riscv64 target/riscv64gc-unknown-none-elf/release/os --strip-all -O binary target/riscv64gc-unknown-none-elf/release/os.bin
+<span class="gp"># </span>把ELF执行文件转成bianary文件
+<span class="gp">$ </span>rust-objcopy --binary-architecture<span class="o">=</span>riscv64 target/riscv64gc-unknown-none-elf/release/os --strip-all -O binary target/riscv64gc-unknown-none-elf/release/os.bin
 
 <span class="gp">#</span>加载运行
-<span class="gp">$</span> qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80020000
-<span class="gp">#</span> 无法退出，风扇狂转，感觉碰到死循环
+<span class="gp">$ </span>qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80020000
+<span class="gp"># </span>无法退出，风扇狂转，感觉碰到死循环
 </pre></div>
 </div>
 <p>这样的结果是我们不期望的。问题在哪？仔细查看和思考，操作系统的入口地址不对！对 <code class="docutils literal notranslate"><span class="pre">os</span></code> ELF执行程序，通过rust-readobj分析，看到的入口地址不是
@@ -466,11 +471,11 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 最终生成的可执行文件 <code class="docutils literal notranslate"><span class="pre">target/riscv64gc-unknown-none-elf/release/os</span></code> 。
 通过分析，我们看到 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 处的代码是我们预期的 <code class="docutils literal notranslate"><span class="pre">_start()</span></code> 函数的内容。我们采用刚才的编译运行方式进行试验，发现还是同样的错误结果。
 问题出在哪里？这时需要用上 <code class="docutils literal notranslate"><span class="pre">debug</span></code> 大法了。</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span> 在一个终端执行如下命令：
-<span class="gp">$</span> qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80020000 -S -s
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>在一个终端执行如下命令：
+<span class="gp">$ </span>qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80020000 -S -s
 
-<span class="gp">#</span> 在另外一个终端执行如下命令：
-<span class="gp">$</span> rust-gdb target/riscv64gc-unknown-none-elf/release/os
+<span class="gp"># </span>在另外一个终端执行如下命令：
+<span class="gp">$ </span>rust-gdb target/riscv64gc-unknown-none-elf/release/os
 <span class="gp gp-VirtualEnv">(gdb)</span> <span class="go">target remote :1234</span>
 <span class="gp gp-VirtualEnv">(gdb)</span> <span class="go">break *0x80020000</span>
 <span class="gp gp-VirtualEnv">(gdb)</span> <span class="go">x /16i 0x80020000</span>
@@ -546,7 +551,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 </span>
 <span class="k">mod</span> <span class="nn">lang_items</span><span class="p">;</span><span class="w"></span>
 
-<span class="hll"><span class="n">global_asm</span><span class="o">!</span><span class="p">(</span><span class="n">include_str</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;entry.asm&quot;</span><span class="p">));</span><span class="w"></span>
+<span class="hll"><span class="fm">global_asm!</span><span class="p">(</span><span class="fm">include_str!</span><span class="p">(</span><span class="s">&quot;entry.asm&quot;</span><span class="p">));</span><span class="w"></span>
 </span>
 <span class="hll"><span class="cp">#[no_mangle]</span><span class="w"></span>
 </span><span class="hll"><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">rust_main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -561,7 +566,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 我们声明了应用的入口点 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> ，这里需要注意的是需要通过宏将 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 标记为 <code class="docutils literal notranslate"><span class="pre">#[no_mangle]</span></code> 以避免编译器对它的
 名字进行混淆，不然的话在链接的时候， <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 将找不到 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 提供的外部符号 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 从而导致链接失败。</p>
 <p>这样一来，我们就将“三叶虫”操作系统编写完毕了。再次使用上节中的编译，生成和运行操作，我们看到QEMU模拟的RISC-V 64计算机 <strong>优雅</strong> 地退出了！</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> qemu-system-riscv64 <span class="se">\</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>qemu-system-riscv64 <span class="se">\</span>
 &gt; -machine virt <span class="se">\</span>
 &gt; -nographic <span class="se">\</span>
 &gt; -bios ../bootloader/rustsbi-qemu.bin <span class="se">\</span>
@@ -579,7 +584,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <span class="go">[rustsbi] mideleg: 0x222</span>
 <span class="go">[rustsbi] medeleg: 0xb1ab</span>
 <span class="go">[rustsbi] Kernel entry: 0x80020000</span>
-<span class="gp">#</span> “优雅”地退出了。
+<span class="gp"># </span>“优雅”地退出了。
 </pre></div>
 </div>
 </div>
@@ -637,9 +642,9 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 </pre></div>
 </div>
 <p>可以看到主要就只是把之前的操作系统系统调用改为了SBI调用。然后我们再编译运行试试，</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build
-<span class="gp">$</span> rust-objcopy --binary-architecture<span class="o">=</span>riscv64 target/riscv64gc-unknown-none-elf/debug/os --strip-all -O binary target/riscv64gc-unknown-none-elf/debug/os.bin
-<span class="gp">$</span> qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/debug/os.bin,addr<span class="o">=</span>0x80020000
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build
+<span class="gp">$ </span>rust-objcopy --binary-architecture<span class="o">=</span>riscv64 target/riscv64gc-unknown-none-elf/debug/os --strip-all -O binary target/riscv64gc-unknown-none-elf/debug/os.bin
+<span class="gp">$ </span>qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/debug/os.bin,addr<span class="o">=</span>0x80020000
 
 <span class="go">[rustsbi] Version 0.1.0</span>
 <span class="go">.______       __    __      _______.___________.  _______..______   __</span>
@@ -665,9 +670,9 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <span class="cp">#[panic_handler]</span><span class="w"></span>
 <span class="k">fn</span> <span class="nf">panic</span><span class="p">(</span><span class="n">info</span>: <span class="kp">&amp;</span><span class="nc">PanicInfo</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">location</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">location</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Panicked at {}:{} {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">location</span><span class="p">.</span><span class="n">file</span><span class="p">(),</span><span class="w"> </span><span class="n">location</span><span class="p">.</span><span class="n">line</span><span class="p">(),</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">message</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Panicked at {}:{} {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">location</span><span class="p">.</span><span class="n">file</span><span class="p">(),</span><span class="w"> </span><span class="n">location</span><span class="p">.</span><span class="n">line</span><span class="p">(),</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">message</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Panicked: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">message</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Panicked: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">message</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="n">shutdown</span><span class="p">()</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
@@ -676,10 +681,10 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <p>我们尝试从传入的 <code class="docutils literal notranslate"><span class="pre">PanicInfo</span></code> 中解析 panic 发生的文件和行数。如果解析成功的话，就和 panic 的报错信息一起打印出来。我们需要在
 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 开头加上 <code class="docutils literal notranslate"><span class="pre">#![feature(panic_info_message)]</span></code> 才能通过 <code class="docutils literal notranslate"><span class="pre">PanicInfo::message</span></code> 获取报错信息。</p>
 <p>但我们在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 函数中调用 <code class="docutils literal notranslate"><span class="pre">panic!(&quot;It</span> <span class="pre">should</span> <span class="pre">shutdown!&quot;);</span></code> 宏时，整个模拟执行的结果是：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build --release
-<span class="gp">$</span> rust-objcopy --binary-architecture<span class="o">=</span>riscv64 target/riscv64gc-unknown-none-elf/release/os <span class="se">\</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build --release
+<span class="gp">$ </span>rust-objcopy --binary-architecture<span class="o">=</span>riscv64 target/riscv64gc-unknown-none-elf/release/os <span class="se">\</span>
     --strip-all -O binary target/riscv64gc-unknown-none-elf/release/os.bin
-<span class="gp">$</span> qemu-system-riscv64 <span class="se">\</span>
+<span class="gp">$ </span>qemu-system-riscv64 <span class="se">\</span>
     -machine virt <span class="se">\</span>
     -nographic <span class="se">\</span>
     -bios ../bootloader/rustsbi-qemu.bin <span class="se">\</span>
@@ -725,37 +730,29 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="4understand-prog.html" class="btn btn-neutral float-right" title="理解应用程序和执行环境" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="3-1-mini-rt-usrland.html" class="btn btn-neutral float-left" title="构建用户态执行环境" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="4understand-prog.html" class="btn btn-neutral float-right" title="理解应用程序和执行环境" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="3-1-mini-rt-usrland.html" class="btn btn-neutral float-left" title="构建用户态执行环境" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; 版权所有 2020, Yifan Wu
+        &#169; 版权所有 2020, Yifan Wu.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 

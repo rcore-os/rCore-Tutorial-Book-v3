@@ -49,6 +49,13 @@ rCore-Tutorial-Book 第三版
 
 欢迎来到 rCore-Tutorial-Book 第三版！
 
+项目简介
+---------------------
+
+这本教程旨在一步一步展示如何 **从零开始** 用 **Rust** 语言写一个基于 **RISC-V** 架构的类 Unix 内核。值得注意的是，
+本项目不仅支持模拟器环境（如 Qemu/terminus 等），还支持在真实硬件平台 Kendryte K210 上运行。
+
+
 导读
 ---------------------
 
@@ -56,6 +63,9 @@ rCore-Tutorial-Book 第三版
  
 在正式进行实验之前，请先按照第零章章末的 :doc:`/chapter0/5setup-devel-env` 中的说明完成环境配置，再从第一章开始
 阅读正文。
+
+如果已经对 RISC-V 架构、Rust 语言和内核的知识有较多了解，第零章章末的 :doc:`/chapter0/6hardware` 提供了我们
+采用的真实硬件平台 Kendryte K210 的一些信息。
 
 项目协作
 ----------------------
