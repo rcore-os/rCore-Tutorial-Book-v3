@@ -385,6 +385,9 @@
    * - 保护页面
      - Guard Page
      - :ref:`内核与应用的地址空间 <term-guard-page>`
+   * - 快表
+     - Translation Lookaside Buffer
+     - :ref:`基于地址空间的分时多任务 <term-tlb>`
     
   
     
