@@ -364,9 +364,6 @@ MMU 仅需单次访存就能找到页表项并完成地址转换，而多级页�
 它的虚拟地址是在地址空间中的最高页面之内，加上这个偏移量并不能正确的得到 ``trap_handler`` 的入口地址。问题的本质可以
 概括为：跳转指令实际被执行时的虚拟地址和在编译器进行链接时看到的它的地址不同。
 
-Trap 处理
-------------------------------------
-
 加载和执行应用程序
 ------------------------------------
 
@@ -453,6 +450,137 @@ Trap 处理
 - 第 22 行，我们根据传入的应用 ID ``app_id`` 调用在 ``config`` 子模块中定义的 ``kernel_stack_position`` 找到
   应用的内核栈预计放在内核地址空间 ``KERNEL_SPACE`` 中的哪个位置，并通过 ``insert_framed_area`` 实际将这个逻辑段
   加入到内核地址空间中；
+- 第 30~32 行，我们在应用的内核栈顶压入一个跳转到 ``trap_return`` 而不是 ``__restore`` 的任务上下文使得可以第一次
+  执行该应用。在构造方式上，只是将 ra 寄存器的值设置为 ``trap_return`` 的地址。 ``trap_return`` 是我们后面要介绍的
+  新版的 Trap 处理的一部分。
+
+  这里我们对裸指针解引用成立的原因在于：我们之前已经进入了内核地址空间，而我们要操作的内核栈也是在内核地址空间中的；
+- 第 33 行开始我们用上面的信息来创建任务控制块实例 ``task_control_block``；
+- 第 41 行我们需要初始化该应用的 Trap 上下文，由于它是在应用地址空间而不是在内核地址空间中，我们只能手动查页表找到 
+  Trap 上下文实际被放在的物理页帧，然后通过之前介绍的 :ref:`在内核地址空间读写特定物理页帧的能力 <access-frame-in-kernel-as>` 
+  获得在用户空间的 Trap 上下文的可变引用用于初始化：
+
+  .. code-block:: rust
+
+    // os/src/task/task.rs
+
+    impl TaskControlBlock {
+        pub fn get_trap_cx(&self) -> &'static mut TrapContext {
+            self.trap_cx_ppn.get_mut()
+        }
+    }
+  
+  此处需要说明的是，返回 ``'static`` 的可变引用和之前一样可以看成一个绕过 unsafe 的裸指针；而 ``PhysPageNum::get_mut`` 
+  是一个泛型函数，由于我们已经声明了总体返回 ``TrapContext`` 的可变引用，则编译器会给 ``get_mut`` 针对 ``T=TrapContext`` 
+  的情况生成一个版本的实现，在 ``get_trap_cx`` 中则会静态调用该实现。
+- 第 42 行我们正式通过 Trap 上下文的可变引用来进行初始化：
+
+  .. code-block:: rust
+      :linenos:
+      :emphasize-lines: 8,9,10,18,19,20
+
+      // os/src/trap/context.rs
+
+      impl TrapContext {
+          pub fn set_sp(&mut self, sp: usize) { self.x[2] = sp; }
+          pub fn app_init_context(
+              entry: usize,
+              sp: usize,
+              kernel_satp: usize,
+              kernel_sp: usize,
+              trap_handler: usize,
+          ) -> Self {
+              let mut sstatus = sstatus::read();
+              sstatus.set_spp(SPP::User);
+              let mut cx = Self {
+                  x: [0; 32],
+                  sstatus,
+                  sepc: entry,
+                  kernel_satp,
+                  kernel_sp,
+                  trap_handler,
+              };
+              cx.set_sp(sp);
+              cx
+          }
+      }
+
+  和之前相比 ``TrapContext::app_init_context`` 需要补充上让应用在 ``__alltraps`` 能够顺利进入到内核地址空间
+  并跳转到 trap handler 入口点的相关信息。
+
+在内核初始化的时候，需要将所有的应用加载到全局应用管理器中：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/mod.rs
+
+    struct TaskManagerInner {
+        tasks: Vec<TaskControlBlock>,
+        current_task: usize,
+    }
+
+    lazy_static! {
+        pub static ref TASK_MANAGER: TaskManager = {
+            println!("init TASK_MANAGER");
+            let num_app = get_num_app();
+            println!("num_app = {}", num_app);
+            let mut tasks: Vec<TaskControlBlock> = Vec::new();
+            for i in 0..num_app {
+                tasks.push(TaskControlBlock::new(
+                    get_app_data(i),
+                    i,
+                ));
+            }
+            TaskManager {
+                num_app,
+                inner: RefCell::new(TaskManagerInner {
+                    tasks,
+                    current_task: 0,
+                }),
+            }
+        };
+    }
+
+可以看到，在 ``TaskManagerInner`` 中我们使用向量 ``Vec`` 来保存任务控制块。在全局任务管理器 ``TASK_MANAGER`` 
+初始化的时候，只需使用 ``loader`` 子模块提供的 ``get_num_app`` 和 ``get_app_data`` 分别获取链接到内核的应用
+数量和每个应用的 ELF 格式数据，然后依次给每个应用创建任务控制块并加入到向量中即可。我们还将 ``current_task`` 设置
+为 0 ，于是将从第 0 个应用开始执行。
+
+为了方便后续的实现，全局任务管理器还需要提供关于当前应用与地址空间有关的一些信息：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/mod.rs
+
+    impl TaskManager {
+            fn get_current_token(&self) -> usize {
+            let inner = self.inner.borrow();
+            let current = inner.current_task;
+            inner.tasks[current].get_user_token()
+        }
+
+        fn get_current_trap_cx(&self) -> &mut TrapContext {
+            let inner = self.inner.borrow();
+            let current = inner.current_task;
+            inner.tasks[current].get_trap_cx()
+        }
+    }
+
+    pub fn current_user_token() -> usize {
+        TASK_MANAGER.get_current_token()
+    }
+
+    pub fn current_trap_cx() -> &'static mut TrapContext {
+        TASK_MANAGER.get_current_trap_cx()
+    }
+
+通过 ``current_user_token`` 和 ``current_trap_cx`` 分别可以获得当前正在执行的应用的地址空间的 token 和可以在
+内核地址空间中修改位于该应用地址空间中的 Trap 上下文的可变引用。
+
+Trap 处理
+------------------------------------
 
 sys_write 的改动
 ------------------------------------
