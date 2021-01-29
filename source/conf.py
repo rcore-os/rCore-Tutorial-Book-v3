@@ -108,7 +108,8 @@ class RVLexer(RegexLexer):
             # Other operators
             (r'[,\+\*\-\(\)\\%]', token.Text),
             # Hacks
-            (r'(?:SAVE_GP|trap_handler|__switch|LOAD_GP|SAVE_SN|LOAD_SN)', token.Name.Builtin),
+            (r'(?:SAVE_GP|trap_handler|__switch|LOAD_GP|SAVE_SN|LOAD_SN|__alltraps|__restore)', token.Name.Builtin),
+            (r'(?:.trampoline)', token.Name.Function),
             (r'(?:n)', token.Name.Entity),
             (r'(?:x)', token.Text),
         ],

@@ -388,6 +388,9 @@
    * - 快表
      - Translation Lookaside Buffer
      - :ref:`基于地址空间的分时多任务 <term-tlb>`
+   * - 熔断
+     - Meltdown
+     - :ref:`基于地址空间的分时多任务 <term-meltdown>`
     
   
     
