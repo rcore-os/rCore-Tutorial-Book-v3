@@ -125,12 +125,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第一章：RV64 裸机应用</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">引言</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id2"><strong>实践体验</strong></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id3">实践体验</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2"><strong>本章导读</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3"><strong>实践体验</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">实践体验</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html">应用程序执行环境与平台支持</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2remove-std.html">移除标准库依赖</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-1-mini-rt-usrland.html">构建用户态执行环境</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html">构建裸机运行时执行环境</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4understand-prog.html">理解应用程序和执行环境</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
@@ -227,18 +231,10 @@ commentsRunWhenDOMLoaded(addUtterances);
             
   <div class="section" id="id1">
 <h1>引言<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
-<p>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD:source/chapter1/0intro.rst
-<strong>本章导读</strong>
-=======
-本章导读
-&gt;&gt;&gt;&gt;&gt;&gt;&gt; wyf:source/chapter1/0intro.rst
-————————–</p>
+<div class="section" id="id2">
+<h2><strong>本章导读</strong><a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
 <p>大多数程序员的第一行代码都从 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 开始，当我们满怀着好奇心在编辑器内键入仅仅数个字节，再经过几行命令编译（靠的是编译器）、运行（靠的是操作系统），终于在黑洞洞的终端窗口中看到期望中的结果的时候，一扇通往编程世界的大门已经打开。在本章第一节 <a class="reference internal" href="1app-ee-platform.html"><span class="doc">应用程序执行环境与平台支持</span></a> 中，可以看到用Rust语言编写的非常简单的“Hello, world”应用程序。</p>
-<p>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD:source/chapter1/0intro.rst
-不过我们能够隐约意识到编程工作能够如此方便简洁并不是理所当然的，实际上有着多层硬件和软件工具和支撑环境隐藏在它背后，才让我们不必付出那么多努力就能够创造出功能强大的应用程序。生成应用程序二进制执行代码所依赖的是以 <strong>编译器</strong> 为主的开发环境；运行应用程序执行码所依赖的是以 <strong>操作系统</strong> 为主的执行环境。
-=======
-不过我们能够隐约意识到编程工作能够如此方便简洁并不是理所当然的，实际上有着多层硬件和软件工具和支撑环境隐藏在它背后，才让我们不必付出那么多努力就能够创造出功能强大的应用程序。生成应用程序二进制执行代码所依赖的是以**编译器**为主的开发环境；运行应用程序执行码所依赖的是以**操作系统**为主的执行环境。
-&gt;&gt;&gt;&gt;&gt;&gt;&gt; wyf:source/chapter1/0intro.rst</p>
+<p>不过我们能够隐约意识到编程工作能够如此方便简洁并不是理所当然的，实际上有着多层硬件和软件工具和支撑环境隐藏在它背后，才让我们不必付出那么多努力就能够创造出功能强大的应用程序。生成应用程序二进制执行代码所依赖的是以 <strong>编译器</strong> 为主的开发环境；运行应用程序执行码所依赖的是以 <strong>操作系统</strong> 为主的执行环境。</p>
 <p>本章主要是设计和实现建立在裸机上的执行环境，从中对应用程序和它所依赖的执行环境有一个全面和深入的理解。</p>
 <p>本章我们的目标仍然只是输出 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> ，但这一次，我们将离开舒适区，基于一个几乎空无一物的平台从零开始搭建我们自己的高楼大厦，
 而不是仅仅通过一行语句就完成任务。所以，在接下来的内容中，我们将描述如何让 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 应用程序逐步脱离对编译器、运行时和操作系统的现有复杂依赖，最终以最小的依赖需求能在裸机上运行。这时，我们也可把这个能在裸机上运行的 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 应用程序称为一种支持输出字符串的非常初级的寒武纪“三叶虫”操作系统，它其实就是一个给应用提供各种服务（比如输出字符串）的库，方便了单一应用程序在裸机上的开发与运行。输出字符串功能好比是三叶虫的眼睛，有了它，我们就有了最基本的调试功能，即通过在代码中的不同位置插入特定内容的输出语句来实现对程序运行的调试。</p>
@@ -246,12 +242,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p class="admonition-title">注解</p>
 <p>在操作系统发展历史上，在1956年就诞生了操作系统GM-NAA I/O，并且被实际投入使用，它的一个主要任务就是”自动加载运行一个接一个的程序”。</p>
 </div>
-<div class="section" id="id2">
-<h2><strong>实践体验</strong><a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
-<p>本章设计实现了一个支持显示字符串应用的简单操作系统–“三叶虫”操作系统。</p>
 </div>
 <div class="section" id="id3">
-<h2>实践体验<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<h2><strong>实践体验</strong><a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<p>本章设计实现了一个支持显示字符串应用的简单操作系统–“三叶虫”操作系统。</p>
+</div>
+<div class="section" id="id4">
+<h2>实践体验<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
 <p>本章设计实现了一个支持显示字符串应用的简单操作系统–“三叶虫”操作系统。</p>
 <p>获取本章代码：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git clone https://github.com/rcore-os/rCore-Tutorial-v3.git

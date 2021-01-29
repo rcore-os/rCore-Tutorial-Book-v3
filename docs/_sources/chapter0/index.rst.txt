@@ -12,7 +12,5 @@
    3os-hw-abstract
    4os-features
    5setup-devel-env
-<<<<<<< HEAD
    6hardware
-=======
->>>>>>> wyf
+
