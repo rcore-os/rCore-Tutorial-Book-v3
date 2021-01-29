@@ -32,8 +32,8 @@
 提供丰富的功能和资源。在第三个阶段，应用程序的执行环境就变成了 **函数库+操作系统+计算机硬件** 。
 在后面又出现了基于java语言的应用程序，在函数库和操作系统之间，多了一层 *java虚拟机* ，此时java应用
 程序的执行环境就变成了 **函数库+java虚拟机+操作系统+计算机硬件** 。在云计算时代，在传统操作系统与
-计算机硬件之间多了一层Hypervisor/VMM，此时应用程序的执行环境变成了 **函数库+java虚拟机+操作系统+Hypervisor/VMM+计算机硬件** 。另外，执行环境的不同层次通过 **Program Interface** 或
- **Binary Interface** 进行交互，而且彼此之间也有一定的交集，并不一定具有严格区分的界面。
+计算机硬件之间多了一层Hypervisor/VMM，此时应用程序的执行环境变成了 **函数库+java虚拟机+操作系统+Hypervisor/VMM+计算机硬件** 。另外，执行环境的不同层次通过 **Program Interface** 或 
+**Binary Interface** 进行交互，而且彼此之间也有一定的交集，并不一定具有严格区分的界面。
 
 .. image:: complex-EE.png
    :align: center
