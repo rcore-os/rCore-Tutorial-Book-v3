@@ -450,6 +450,9 @@ MMU 仅需单次访存就能找到页表项并完成地址转换，而多级页�
 - 第 22 行，我们根据传入的应用 ID ``app_id`` 调用在 ``config`` 子模块中定义的 ``kernel_stack_position`` 找到
   应用的内核栈预计放在内核地址空间 ``KERNEL_SPACE`` 中的哪个位置，并通过 ``insert_framed_area`` 实际将这个逻辑段
   加入到内核地址空间中；
+
+.. _trap-return-intro:
+
 - 第 30~32 行，我们在应用的内核栈顶压入一个跳转到 ``trap_return`` 而不是 ``__restore`` 的任务上下文使得可以第一次
   执行该应用。在构造方式上，只是将 ra 寄存器的值设置为 ``trap_return`` 的地址。 ``trap_return`` 是我们后面要介绍的
   新版的 Trap 处理的一部分。
@@ -582,5 +585,172 @@ MMU 仅需单次访存就能找到页表项并完成地址转换，而多级页�
 Trap 处理
 ------------------------------------
 
+让我们来看现在 ``trap_handler`` 的实现：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/trap/mod.rs
+
+    fn set_kernel_trap_entry() {
+        unsafe {
+            stvec::write(trap_from_kernel as usize, TrapMode::Direct);
+        }
+    }
+
+    #[no_mangle]
+    pub fn trap_from_kernel() -> ! {
+        panic!("a trap from kernel!");
+    }
+
+    #[no_mangle]
+    pub fn trap_handler() -> ! {
+        set_kernel_trap_entry();
+        let cx = current_trap_cx();
+        let scause = scause::read();
+        let stval = stval::read();
+        match scause.cause() {
+            ...
+        }
+        trap_return();
+    }
+
+由于应用的 Trap 上下文不在内核地址空间，因此我们调用 ``current_trap_cx`` 来获取当前应用的 Trap 上下文的可变引用
+而不是像之前那样作为参数传入 ``trap_handler`` 。至于 Trap 处理的过程则没有发生什么变化。
+
+注意到，在 ``trap_handler`` 的开头还调用 ``set_kernel_trap_entry`` 将 ``stvec`` 修改为同模块下另一个函数 
+``trap_from_kernel`` 的地址。这就是说，一旦进入内核后再次触发到 S 的 Trap，则会在硬件设置一些 CSR 之后跳过寄存器
+的保存过程直接跳转到 ``trap_from_kernel`` 函数，在这里我们直接 ``panic`` 退出。这是因为内核和应用的地址空间分离
+之后，从 U 还是从 S Trap 到 S 的 Trap 上下文保存与恢复实现方式和 Trap 处理逻辑有很大差别，我们不得不实现两遍而
+不太可能将二者整合起来。这里简单起见我们弱化了从 S 到 S 的 Trap ，省略了 Trap 上下文保存过程而直接 ``panic`` 。
+
+在 ``trap_handler`` 完成 Trap 处理之后，我们需要调用 ``trap_return`` 返回用户态：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/trap/mod.rs
+
+    fn set_user_trap_entry() {
+        unsafe {
+            stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
+        }
+    }
+
+    #[no_mangle]
+    pub fn trap_return() -> ! {
+        set_user_trap_entry();
+        let trap_cx_ptr = TRAP_CONTEXT;
+        let user_satp = current_user_token();
+        extern "C" {
+            fn __alltraps();
+            fn __restore();
+        }
+        let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
+        unsafe {
+            llvm_asm!("fence.i" :::: "volatile");
+            llvm_asm!("jr $0" 
+                :: "r"(restore_va), "{a0}"(trap_cx_ptr), "{a1}"(user_satp) 
+                :: "volatile"
+            );
+        }
+        panic!("Unreachable in back_to_user!");
+    }
+
+- 第 11 行，在 ``trap_return`` 的开头我们调用 ``set_user_trap_entry`` 来让应用 Trap 到 S 的时候可以跳转到 
+  ``__alltraps`` 。注意我们把 ``stvec`` 设置为内核和应用地址空间共享的跳板页面的起始地址 ``TRAMPOLINE`` 而不是
+  编译器在链接时看到的 ``__alltraps`` 的地址，因为启用分页模式之后我们只能通过跳板页面上的虚拟地址来实际取得 
+  ``__alltraps`` 和 ``__restore`` 的汇编代码。
+- 之前介绍的时候提到过 ``__restore`` 需要两个参数：分别是 Trap 上下文在应用地址空间中的虚拟地址和要继续执行的应用
+  地址空间的 token 。第 12 和第 13 行则分别准备好这两个参数。
+- 最后我们需要跳转到 ``__restore`` 切换到应用地址空间从 Trap 上下文中恢复通用寄存器并 ``sret`` 继续执行应用。它的
+  关键在于如何找到 ``__restore`` 在内核/应用地址空间中共同的虚拟地址。第 18 行我们展示了计算它的过程：由于 
+  ``__alltraps`` 是对齐到地址空间跳板页面的起始地址 ``TRAMPOLINE`` 上的， 则 ``__restore`` 的虚拟地址只需在 
+  ``TRAMPOLINE`` 基础上加上 ``__restore`` 相对于 ``__alltraps`` 的偏移量即可。这里 ``__alltraps`` 和 
+  ``__restore`` 都是指编译器在链接时看到的内核内存布局中的地址。在第 21 行我们使用 ``jr`` 指令完成了跳转的任务。
+- 在开始执行应用之前，第 20 行我们需要使用 ``fence.i`` 指令清空指令缓存 i-cache 。这是因为，在内核中进行的一些操作
+  可能导致一些原先存放某个应用代码的物理页帧如今用来存放数据或者是其他应用的代码，i-cache 中可能还保存着该物理页帧的
+  错误快照。因此我们直接将整个 i-cache 清空避免错误。
+
+当每个应用第一次获得 CPU 使用权即将进入用户态执行的时候，它的内核栈顶放置着我们在 
+:ref:`内核加载应用的时候 <trap-return-intro>` 构造的一个任务上下文：
+
+.. code-block:: rust
+
+    // os/src/task/context.rs
+
+    impl TaskContext {
+        pub fn goto_trap_return() -> Self {
+            Self {
+                ra: trap_return as usize,
+                s: [0; 12],
+            }
+        }
+    }
+
+在 ``__switch`` 切换到它的时候，这将会跳转到 ``trap_return`` 并第一次返回用户态。
+
 sys_write 的改动
 ------------------------------------
+
+同样由于内核和应用地址空间的隔离， ``sys_write`` 不再能够直接访问位于应用空间中的数据，而需要手动查页表才能知道那些
+数据被放置在哪些物理页帧上并进行访问。
+
+为此，页表模块 ``page_table`` 提供了将应用地址空间中一个缓冲区转化为在内核空间中能够直接访问的形式的工具函数：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/mm/page_table.rs
+
+    pub fn translated_byte_buffer(
+        token: usize,
+        ptr: *const u8,
+        len: usize
+    ) -> Vec<&'static [u8]> {
+        let page_table = PageTable::from_token(token);
+        let mut start = ptr as usize;
+        let end = start + len;
+        let mut v = Vec::new();
+        while start < end {
+            let start_va = VirtAddr::from(start);
+            let mut vpn = start_va.floor();
+            let ppn = page_table
+                .translate(vpn)
+                .unwrap()
+                .ppn();
+            vpn.step();
+            let mut end_va: VirtAddr = vpn.into();
+            end_va = end_va.min(VirtAddr::from(end));
+            v.push(&ppn.get_bytes_array()[start_va.page_offset()..end_va.page_offset()]);
+            start = end_va.into();
+        }
+        v
+    }
+
+参数中的 ``token`` 是某个应用地址空间的 token ， ``ptr`` 和 ``len`` 则分别表示该地址空间中的一段缓冲区的起始地址
+和长度。 ``translated_byte_buffer`` 会以向量的形式返回一组可以在内核空间中直接访问的字节数组切片，具体实现在这里
+不再赘述。
+
+进而，我们完成对 ``sys_write`` 系统调用的改造：
+
+.. code-block:: rust
+
+    // os/src/syscall/fs.rs
+
+    pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+        match fd {
+            FD_STDOUT => {
+                let buffers = translated_byte_buffer(current_user_token(), buf, len);
+                for buffer in buffers {
+                    print!("{}", core::str::from_utf8(buffer).unwrap());
+                }
+                len as isize
+            },
+            _ => {
+                panic!("Unsupported fd in sys_write!");
+            }
+        }
+    }
+
+我们尝试将每个字节数组切片转化为字符串 ``&str`` 然后输出即可。
