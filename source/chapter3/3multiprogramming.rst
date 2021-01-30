@@ -463,6 +463,41 @@ Trap 上下文和任务上下文，切换机制可以正常工作。但是如果
 ``sp`` 就已经正确指向了我们需要的 Trap 上下文地址。
 
 
+在 ``rust_main`` 中我们调用 ``task::run_first_task`` 来开始应用的执行：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/mod.rs
+
+    impl TaskManager {
+        fn run_first_task(&self) {
+            self.inner.borrow_mut().tasks[0].task_status = TaskStatus::Running;
+            let next_task_cx_ptr2 = self.inner.borrow().tasks[0].get_task_cx_ptr2();
+            let _unused: usize = 0;
+            unsafe {
+                __switch(
+                    &_unused as *const _,
+                    next_task_cx_ptr2,
+                );
+            }
+        }
+    }
+
+    pub fn run_first_task() {
+        TASK_MANAGER.run_first_task();
+    }
+
+这里我们取出即将最先执行的编号为 0 的应用的 ``task_cx_ptr2`` 并希望能够切换过去。注意 ``__switch`` 有两个参数
+分别表示当前应用和即将切换到的应用的 ``task_cx_ptr2`` ，其第一个参数存在的意义是记录当前应用的任务上下文被保存在
+哪里，也就是当前应用内核栈的栈顶，这样之后才能继续执行该应用。但在 ``run_first_task`` 的时候，我们并没有执行任何
+应用， ``__switch`` 前半部分的保存仅仅是在启动栈上保存了一些之后不会用到的数据，自然也无需记录启动栈栈顶的位置。
+
+因此，我们显式声明了一个 ``_unused`` 变量，并将它的地址作为第一个参数传给 ``__switch`` ，这样保存一些寄存器之后的
+启动栈栈顶的位置将会保存在此变量中。然而无论是此变量还是启动栈我们之后均不会涉及到，一旦应用开始运行，我们就开始在应用
+的用户栈和内核栈之间开始切换了。这里声明此变量的意义仅仅是为了避免覆盖到其他数据。
+
+
 三叠纪“始初龙”协作式操作系统
 ---------------------------------
 

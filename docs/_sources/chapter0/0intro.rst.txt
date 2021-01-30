@@ -1,5 +1,5 @@
-**为何要写这本操作系统书**
-===============================
+为何要写这本操作系统书
+==================================================
 
 现在国内外已有一系列优秀的操作系统教材,例如William Stallings的《Operating Systems Internals and Design Principles》，Avi Silberschatz、Peter Baer Galvin 和 Greg Gagne 的《Operating System Concepts》，Remzi H. Arpaci-Dusseau 和 Andrea C. Arpaci-Dusseau 的《Operating Systems: Three Easy Pieces》等。然而,从我们从2000年以来的教学实践来看,某些经典教材对操作系统的概念和原理很重视，但还有如下一些问题有待改进：
 

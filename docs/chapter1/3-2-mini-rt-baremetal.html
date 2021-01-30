@@ -130,22 +130,25 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="3-1-mini-rt-usrland.html">构建用户态执行环境</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">构建裸机运行时执行环境</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id3">了解裸机启动过程</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id4">实现关机功能</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">设置正确的程序内存布局</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id6">正确配置栈空间布局</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">了解硬件组成和裸机启动过程</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id4">硬件组成</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#term-bootloader">裸机启动过程</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">实现关机功能</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id7">设置正确的程序内存布局</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id8">正确配置栈空间布局</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#bss">清空 .bss 段</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id7">添加裸机打印相关函数</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id9">添加裸机打印相关函数</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="4understand-prog.html">理解应用程序和执行环境</a></li>
-<li class="toctree-l2"><a class="reference internal" href="6practice.html">练习一</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间（施工中）</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用(施工)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
 </ul>
@@ -241,10 +244,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
 <p>本节开始我们将着手自己来实现裸机上的最小执行环境，即我们的“三叶虫”操作系统，并能在裸机上运行 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序。
-有了上一节实现的用户态的最小执行环境，我们可以稍加改造，就可以完成裸机上的最小执行环境了。</p>
+有了上一节实现的用户态的最小执行环境，我们可以稍加改造，就可以完成裸机上的最小执行环境了。与上节不同，需要关注地方主要是：
+- 物理内存的DRAM为止（放应用程序的地方）和应用程序的内存布局（如何咋DRAM中放置应用程序的各个部分）
+- SBI的字符输出接口（执行环境提供的输出字符服务，可以被应用程序使用）
+- 应用程序的初始化（起始的指令位置，对 <code class="docutils literal notranslate"><span class="pre">栈</span> <span class="pre">stack</span></code> 和 <code class="docutils literal notranslate"><span class="pre">bss</span></code> 的初始化）</p>
 </div>
 <div class="section" id="id3">
-<h2>了解裸机启动过程<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<h2>了解硬件组成和裸机启动过程<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
 <p>在这一小节，我们介绍如何进行 <strong>执行环境初始化</strong> 。我们在上一小节提到过，一个应用程序的运行离不开下面多层执行环境栈的支撑。
 以 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序为例，在目前广泛使用的操作系统上，它就至少需要经历以下层层递进的初始化过程：</p>
 <ul class="simple">
@@ -255,9 +261,54 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>不过我们的目标是实现在裸机上执行的应用。由于目标平台 <code class="docutils literal notranslate"><span class="pre">riscv64gc-unknown-none-elf</span></code> 没有任何操作系统支持，我们只能禁用标准库并移除默认的 main 函数
 入口。但是最终我们还是要将 main 函数恢复回来并且输出 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 的。因此，我们需要知道具体需要做哪些初始化工作才能支持
 应用程序在裸机上的运行。</p>
-<p>而这又需要明确两点：首先是系统在做这些初始化工作之前处于什么状态，在做完初始化工作也就是即将执行 main 函数之前又处于什么状态。比较二者
+<p>而这又需要明确三点：首先，应用程序的裸机硬件系统是啥样子的？其次，系统在做这些初始化工作之前处于什么状态；最后，在做完初始化工作也就是即将执行 main 函数之前又处于什么状态。比较二者
 即可得出答案。</p>
-<div class="admonition note" id="term-bootloader">
+<div class="section" id="id4">
+<h3>硬件组成<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
+<dl class="simple">
+<dt>我们采用的是QEMU软件 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 来模拟一台RISC-V 64计算机，具体的硬件规格是：</dt><dd><ul class="simple">
+<li><p>外设：16550A UART，virtio-net/block/console/gpu等和设备树</p></li>
+<li><p>硬件特权级：priv v1.10， user v2.2</p></li>
+<li><p>中断控制器：可参数化的CLINT（核心本地中断器）、可参数化的PLIC（平台级中断控制器）</p></li>
+<li><p>可参数化的RAM内存</p></li>
+<li><p>可配置的多核 RV64GC M/S/U mode CPU</p></li>
+</ul>
+</dd>
+</dl>
+<p>这里列出的硬件功能很多还用不上，不过在后面的章节中会逐步用到上面的硬件功能，以支持更加强大的操作系统能力。</p>
+<p>在QEMU模拟的硬件中，物理内存和外设都是通过对内存读写的方式来进行访问，下面列出了QEMU模拟的物理内存空间。</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">// qemu/hw/riscv/virt.c</span>
+<span class="k">static</span> <span class="k">const</span> <span class="k">struct</span> <span class="nc">MemmapEntry</span> <span class="p">{</span>
+    <span class="n">hwaddr</span> <span class="n">base</span><span class="p">;</span>
+    <span class="n">hwaddr</span> <span class="n">size</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">virt_memmap</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="p">[</span><span class="n">VIRT_DEBUG</span><span class="p">]</span> <span class="o">=</span>       <span class="p">{</span>        <span class="mh">0x0</span><span class="p">,</span>         <span class="mh">0x100</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_MROM</span><span class="p">]</span> <span class="o">=</span>        <span class="p">{</span>     <span class="mh">0x1000</span><span class="p">,</span>        <span class="mh">0xf000</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_TEST</span><span class="p">]</span> <span class="o">=</span>        <span class="p">{</span>   <span class="mh">0x100000</span><span class="p">,</span>        <span class="mh">0x1000</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_RTC</span><span class="p">]</span> <span class="o">=</span>         <span class="p">{</span>   <span class="mh">0x101000</span><span class="p">,</span>        <span class="mh">0x1000</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_CLINT</span><span class="p">]</span> <span class="o">=</span>       <span class="p">{</span>  <span class="mh">0x2000000</span><span class="p">,</span>       <span class="mh">0x10000</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_PCIE_PIO</span><span class="p">]</span> <span class="o">=</span>    <span class="p">{</span>  <span class="mh">0x3000000</span><span class="p">,</span>       <span class="mh">0x10000</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_PLIC</span><span class="p">]</span> <span class="o">=</span>        <span class="p">{</span>  <span class="mh">0xc000000</span><span class="p">,</span> <span class="n">VIRT_PLIC_SIZE</span><span class="p">(</span><span class="n">VIRT_CPUS_MAX</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_UART0</span><span class="p">]</span> <span class="o">=</span>       <span class="p">{</span> <span class="mh">0x10000000</span><span class="p">,</span>         <span class="mh">0x100</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_VIRTIO</span><span class="p">]</span> <span class="o">=</span>      <span class="p">{</span> <span class="mh">0x10001000</span><span class="p">,</span>        <span class="mh">0x1000</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_FLASH</span><span class="p">]</span> <span class="o">=</span>       <span class="p">{</span> <span class="mh">0x20000000</span><span class="p">,</span>     <span class="mh">0x4000000</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_PCIE_ECAM</span><span class="p">]</span> <span class="o">=</span>   <span class="p">{</span> <span class="mh">0x30000000</span><span class="p">,</span>    <span class="mh">0x10000000</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_PCIE_MMIO</span><span class="p">]</span> <span class="o">=</span>   <span class="p">{</span> <span class="mh">0x40000000</span><span class="p">,</span>    <span class="mh">0x40000000</span> <span class="p">},</span>
+    <span class="p">[</span><span class="n">VIRT_DRAM</span><span class="p">]</span> <span class="o">=</span>        <span class="p">{</span> <span class="mh">0x80000000</span><span class="p">,</span>           <span class="mh">0x0</span> <span class="p">},</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>到现在为止，其中比较重要的两个是：</dt><dd><ul class="simple">
+<li><p>VIRT_DRAM：DRAM的内存起始地址是 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，缺省大小为128MB。在本书中一般限制为8MB。</p></li>
+<li><p>VIRT_UART0：串口相关的寄存器起始地址是 <code class="docutils literal notranslate"><span class="pre">0x10000000</span></code> ，范围是 <code class="docutils literal notranslate"><span class="pre">0x1000</span></code> ，我们通过访问这段特殊的区域来实现字符输入输出的管理与控制。</p></li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="section" id="term-bootloader">
+<span id="id5"></span><h3>裸机启动过程<a class="headerlink" href="#term-bootloader" title="永久链接至标题">¶</a></h3>
+<div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>QEMU模拟CPU加电的执行过程是啥？</strong></p>
 <p>CPU加电后的执行细节与具体硬件相关，我们这里以QEMU模拟器为具体例子简单介绍一下。</p>
@@ -287,8 +338,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p><strong>FIXME: 提供一下分析展示</strong></p>
 </div>
 </div>
-<div class="section" id="id4">
-<h2>实现关机功能<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+</div>
+<div class="section" id="id6">
+<h2>实现关机功能<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
 <p>如果在裸机上的应用程序执行完毕并通知操作系统后，那么“三叶虫”操作系统就没事干了，实现正常关机是一个合理的选择。所以我们要让“三叶虫”操作系统能够正常关机，这是需要调用SBI提供的关机功能 <code class="docutils literal notranslate"><span class="pre">SBI_SHUTDOWN</span></code> ，这与上一节的 <code class="docutils literal notranslate"><span class="pre">SYSCALL_EXIT</span></code> 类似，
 只是在具体参数上有所不同。在上一节完成的没有显示功能的用户态最小化执行环境基础上，修改后的代码如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// bootloader/rustsbi-qemu.bin 直接添加的SBI规范实现的二进制代码，给操作系统提供基本支持服务</span>
@@ -329,8 +381,8 @@ RustSBI提供的SBI服务的SBI调用的指令也是 <code class="docutils liter
 <p>这样的结果是我们不期望的。问题在哪？仔细查看和思考，操作系统的入口地址不对！对 <code class="docutils literal notranslate"><span class="pre">os</span></code> ELF执行程序，通过rust-readobj分析，看到的入口地址不是
 RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 。我们需要修改 <code class="docutils literal notranslate"><span class="pre">os</span></code> ELF执行程序的内存布局。</p>
 </div>
-<div class="section" id="id5">
-<h2>设置正确的程序内存布局<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id7">
+<h2>设置正确的程序内存布局<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
 <p id="term-linker-script">我们可以通过 <strong>链接脚本</strong> (Linker Script) 调整链接器的行为，使得最终生成的可执行文件的内存布局符合我们的预期。
 我们修改 Cargo 的配置文件来使用我们自己的链接脚本 <code class="docutils literal notranslate"><span class="pre">os/src/linker.ld</span></code> 而非使用默认的内存布局：</p>
 <div class="highlight-default notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
@@ -485,8 +537,8 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <p>结果发现刚执行一条指令，整个系统就飞了（ <code class="docutils literal notranslate"><span class="pre">pc</span></code> 寄存器等已经变成为 <code class="docutils literal notranslate"><span class="pre">0</span></code> 了）。再一看， <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器是一个非常大的值 <code class="docutils literal notranslate"><span class="pre">0xffffff...</span></code> 。这就很清楚是
 <strong>栈 stack</strong> 出现了问题。我们没有设置好 <strong>栈 stack</strong> ！ 好吧，我们需要考虑如何合理设置 <strong>栈 stack</strong> 。</p>
 </div>
-<div class="section" id="id6">
-<h2>正确配置栈空间布局<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id8">
+<h2>正确配置栈空间布局<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h2>
 <p>为了说明如何实现正确的栈，我们需要讨论这样一个问题：应用函数调用所需的栈放在哪里？</p>
 <blockquote>
 <div><p>需要有一段代码来分配并栈空间，并把 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器指向栈空间的起始位置（注意：栈空间是从上向下 <code class="docutils literal notranslate"><span class="pre">push</span></code> 数据的）。
@@ -620,8 +672,8 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <code class="docutils literal notranslate"><span class="pre">sbss</span></code> 和 <code class="docutils literal notranslate"><span class="pre">ebss</span></code> 来确定 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的位置。</p>
 <p>我们可以松一口气了。接下来，我们要让“三叶虫”操作系统要实现“Hello, world”输出！</p>
 </div>
-<div class="section" id="id7">
-<h2>添加裸机打印相关函数<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id9">
+<h2>添加裸机打印相关函数<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h2>
 <p>与上一节为输出字符实现的代码片段相比，裸机应用的执行环境支持字符输出的代码改动会很小。
 下面的代码基于上节有打印能力的执行环境的基础上做的变动。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">const</span><span class="w"> </span><span class="n">SBI_CONSOLE_PUTCHAR</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>

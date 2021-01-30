@@ -12,5 +12,3 @@
    3batch-system
    4trap-handling
 
-
-

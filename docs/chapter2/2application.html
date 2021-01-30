@@ -74,8 +74,8 @@ commentsRunWhenDOMLoaded(addUtterances);
     
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
-    <link rel="next" title="实现批处理系统" href="3batch-system.html" />
-    <link rel="prev" title="RISC-V 特权级架构" href="1rv-privilege.html" /> 
+    <link rel="next" title="实现批处理操作系统" href="3batch-system.html" />
+    <link rel="prev" title="特权级机制" href="1rv-privilege.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -126,21 +126,25 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第二章：批处理系统</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
-<li class="toctree-l2"><a class="reference internal" href="1rv-privilege.html">RISC-V 特权级架构</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1rv-privilege.html">特权级机制</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">实现应用程序</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id2">项目结构</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id3">内存布局</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id4">系统调用</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">自动构建</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">应用程序设计</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id4">项目结构</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5">内存布局</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6">系统调用</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="3batch-system.html">实现批处理系统</a></li>
-<li class="toctree-l2"><a class="reference internal" href="4trap-handling.html">处理 Trap</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id7">编译生成应用程序二进制码</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="3batch-system.html">实现批处理操作系统</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4trap-handling.html">实现特权级的切换</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间（施工中）</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用(施工)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
 </ul>
@@ -233,11 +237,18 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>实现应用程序<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
-<p>本节我们来实现被批处理系统逐个加载并运行的应用程序，它们是在认为自己会在 U 模式运行的前提下而设计、编写的，但实际上它们完全可能在其他特权级
-运行。事实上，保证应用程序的代码在 U 模式运行是我们接下来将实现的批处理系统的任务。</p>
-<p>应用程序的实现放在项目根目录的 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下，它和第一章的裸机应用不同之处在于以下几点。</p>
 <div class="section" id="id2">
-<h2>项目结构<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>本节主要讲解如何设计实现被批处理系统逐个加载并运行的应用程序。它们是假定在 U 特权级模式运行的前提下而设计、编写的（实际上它们完全可能在其他特权级运行）。保证应用程序的代码在 U 模式运行是我们接下来将实现的批处理系统的任务。其涉及的设计实现要点是：
+- 应用程序的内存布局
+- 应用程序发出的系统调用</p>
+<p>从某种程度上讲，这里设计的应用程序与第一章中的最小用户态执行环境有很多相同的地方。即设计一个应用程序，能够在用户态通过操作系统提供的服务完成自身的功能。</p>
+</div>
+<div class="section" id="id3">
+<h2>应用程序设计<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<p>应用程序的实现放在项目根目录的 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下，它和第一章的裸机应用不同之处在于以下几点。</p>
+<div class="section" id="id4">
+<h3>项目结构<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
 <p>我们看到 <code class="docutils literal notranslate"><span class="pre">user/src</span></code> 目录下面多出了一个 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录。<code class="docutils literal notranslate"><span class="pre">bin</span></code> 里面有多个文件，每个文件都是一个用户程序，目前里面有三个程序，分别是：</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">00hello_world</span></code>：在屏幕上打印一行 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code>；</p></li>
@@ -295,8 +306,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 </div>
-<div class="section" id="id3">
-<h2>内存布局<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id5">
+<h3>内存布局<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
 <p>在 <code class="docutils literal notranslate"><span class="pre">user/.cargo/config</span></code> 中，我们和第一章一样设置链接时使用链接脚本 <code class="docutils literal notranslate"><span class="pre">user/src/linker.ld</span></code> 。在其中我们做的重要的事情是：</p>
 <ul class="simple">
 <li><p>将程序的起始物理地址调整为 <code class="docutils literal notranslate"><span class="pre">0x80040000</span></code> ，三个应用程序都会被加载到这个物理地址上运行；</p></li>
@@ -306,15 +317,15 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>其余的部分和第一章基本相同。</p>
 </div>
-<div class="section" id="id4">
-<h2>系统调用<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id6">
+<h3>系统调用<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h3>
 <p>在子模块 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 中我们作为应用程序来通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 调用批处理系统提供的接口，由于应用程序运行在 U 模式， <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令会触发
 名为 <code class="docutils literal notranslate"><span class="pre">Environment</span> <span class="pre">call</span> <span class="pre">from</span> <span class="pre">U-mode</span></code> 的异常，并 Trap 进入 S 模式执行批处理系统针对这个异常特别提供的服务代码。由于这个接口处于
 S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们可以知道，这个接口可以被称为 ABI 或者系统调用。现在我们不关心底层的批处理系统如何
 提供应用程序所需的功能，只是站在应用程序的角度去使用即可。</p>
 <p>在本章中，应用程序和批处理系统之间约定如下两个系统调用：</p>
-<div class="literal-block-wrapper docutils container" id="id6">
-<div class="code-block-caption"><span class="caption-text">第二章新增系统调用</span><a class="headerlink" href="#id6" title="永久链接至代码">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id8">
+<div class="code-block-caption"><span class="caption-text">第二章新增系统调用</span><a class="headerlink" href="#id8" title="永久链接至代码">¶</a></div>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：将内存中缓冲区中的数据写入文件。</span>
 <span class="sd">/// 参数：`fd` 表示待写入文件的文件描述符；</span>
 <span class="sd">///      `buf` 表示内存中缓冲区的起始地址；</span>
@@ -464,8 +475,9 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <p><code class="docutils literal notranslate"><span class="pre">exit</span></code> 接口则在用户库中的 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 内使用，当应用程序主逻辑 <code class="docutils literal notranslate"><span class="pre">main</span></code> 返回之后，使用它退出应用程序并将返回值告知
 底层的批处理系统。</p>
 </div>
-<div class="section" id="id5">
-<h2>自动构建<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+</div>
+<div class="section" id="id7">
+<h2>编译生成应用程序二进制码<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
 <p>这里简要介绍一下应用程序的自动构建。只需要在 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">build</span></code> 即可：</p>
 <ol class="arabic simple">
 <li><p>对于 <code class="docutils literal notranslate"><span class="pre">src/bin</span></code> 下的每个应用程序，在 <code class="docutils literal notranslate"><span class="pre">target/riscv64gc-unknown-none-elf/release</span></code> 目录下生成一个同名的 ELF 可执行文件；</p></li>
@@ -481,8 +493,8 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
           </div>
           <footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="3batch-system.html" class="btn btn-neutral float-right" title="实现批处理系统" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="1rv-privilege.html" class="btn btn-neutral float-left" title="RISC-V 特权级架构" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="3batch-system.html" class="btn btn-neutral float-right" title="实现批处理操作系统" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="1rv-privilege.html" class="btn btn-neutral float-left" title="特权级机制" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>

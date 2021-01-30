@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>处理 Trap &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>实现特权级的切换 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
@@ -75,7 +75,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
     <link rel="next" title="第三章：多道程序与分时多任务" href="../chapter3/index.html" />
-    <link rel="prev" title="实现批处理系统" href="3batch-system.html" /> 
+    <link rel="prev" title="实现批处理操作系统" href="3batch-system.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -126,22 +126,31 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第二章：批处理系统</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
-<li class="toctree-l2"><a class="reference internal" href="1rv-privilege.html">RISC-V 特权级架构</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1rv-privilege.html">特权级机制</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2application.html">实现应用程序</a></li>
-<li class="toctree-l2"><a class="reference internal" href="3batch-system.html">实现批处理系统</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">处理 Trap</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#trap-hw-mechanism">Trap 的硬件机制</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id2">软件实现执行流切换</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#trap-context-save-restore">Trap 上下文保存与恢复</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id4">Trap 分发与处理</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">执行应用程序</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3batch-system.html">实现批处理操作系统</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">实现特权级的切换</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#risc-v">RISC-V特权级切换的执行流</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id3">特权级切换的起因</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id4">特权级切换相关的控制状态寄存器</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5">执行流切换</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#trap-hw-mechanism">特权级切换的硬件控制机制</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#trap">Trap 管理</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id7">Trap 上下文的保存与恢复</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id8">Trap 分发与处理</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#id9">执行应用程序</a></li>
 </ul>
 </li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间（施工中）</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用(施工)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
 </ul>
@@ -211,7 +220,7 @@ commentsRunWhenDOMLoaded(addUtterances);
         
           <li><a href="index.html">第二章：批处理系统</a> &raquo;</li>
         
-      <li>处理 Trap</li>
+      <li>实现特权级的切换</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -230,25 +239,38 @@ commentsRunWhenDOMLoaded(addUtterances);
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="trap">
-<h1>处理 Trap<a class="headerlink" href="#trap" title="永久链接至标题">¶</a></h1>
+  <div class="section" id="id1">
+<h1>实现特权级的切换<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
-<p>我们知道，批处理系统被设计为运行在 S 模式，这是由作为它运行环境的 SEE 所保证的；而应用程序被设计为运行在 U 模式，这个则是我们的批处理系统
-所保证的。批处理系统作为应用程序的执行环境，需要在执行应用程序之前进行一些初始化工作，并监控应用程序的执行，具体体现在：</p>
+<div class="section" id="id2">
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>由于有特权级机制的存在，应用程序在用户态特权级运行时，是无法直接通过函数调用访问处于内核态特权级的批处理操作系统内核中的函数的。所以会通过某种机制进行特权级之间的切换，使得用户态应用程序可以得到内核态操作系统函数的服务。本节将讲解在RISC-V 64处理器提供的U/S特权级下，批处理操作系统和应用程序如何相互配合，完成特权级切换的。</p>
+</div>
+<div class="section" id="risc-v">
+<h2>RISC-V特权级切换的执行流<a class="headerlink" href="#risc-v" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id3">
+<h3>特权级切换的起因<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
+<p>我们知道，批处理操作系统被设计为运行在 S 模式，这是由作为它运行环境的 SEE 所保证的；而应用程序被设计为运行在 U 模式，这个则是我们的批处理操作系统
+所保证的。批处理操作系统作为应用程序的执行环境，需要在执行应用程序之前进行一些初始化工作，并监控应用程序的执行，具体体现在：</p>
 <ul class="simple">
-<li><p>当应用程序发起系统调用之后，需要到批处理系统中进行处理；</p></li>
-<li><p>当应用程序执行出错的时候，需要到批处理系统中杀死该应用并加载运行下一个应用；</p></li>
-<li><p>当应用程序执行结束的时候，需要到批处理系统中加载运行下一个应用（实际上也是通过系统调用 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 来实现的）。</p></li>
+<li><p>当启动应用程序的时候，需要初始化应用程序的用户态上下文，并能切换到用户态执行应用程序；</p></li>
+<li><p>当应用程序发起系统调用（即发出Trap ）之后，需要到批处理操作系统中进行处理；</p></li>
+<li><p>当应用程序执行出错的时候，需要到批处理操作系统中杀死该应用并加载运行下一个应用；</p></li>
+<li><p>当应用程序执行结束的时候，需要到批处理操作系统中加载运行下一个应用（实际上也是通过系统调用 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 来实现的）。</p></li>
 </ul>
-<p>这些处理都涉及到特权级切换，因此都需要硬件提供的 Trap 机制。当从一般意义上讨论 RISC-V 架构的 Trap 机制时，通常需要注意两点：在
+<p>这些处理都涉及到特权级切换，因此都需要硬件和操作系统协同提供的特权级切换机制。</p>
+</div>
+<div class="section" id="id4">
+<h3>特权级切换相关的控制状态寄存器<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
+<p>当从一般意义上讨论 RISC-V 架构的 Trap 机制时，通常需要注意两点：在
 触发 Trap 之前 CPU 运行在哪个特权级；以及 CPU 需要切换到哪个特权级来处理该 Trap 并在处理完成之后返回原特权级。但本章中我们仅考虑
-当 CPU 在 U 特权级运行用户程序的时候触发 Trap，并切换到 S 特权级的批处理系统的对应服务代码来进行处理。</p>
+当 CPU 在 U 特权级运行用户程序的时候触发 Trap，并切换到 S 特权级的批处理操作系统的对应服务代码来进行处理。</p>
 <p>在 RISC-V 架构中，关于 Trap 有一条重要的规则：在 Trap 前后特权级不会下降。因此如果触发 Trap 之后切换到 S 特权级（下称 Trap 到 S），
-说明 Trap 发生之前 CPU 只能运行在 S/U 特权级。但无论如何，只要是 Trap 到 S，硬件就会使用 S 特权级与 Trap 相关的 CSR 来辅助 Trap
-处理。我们在编写运行在 S 特权级的批处理系统中的 Trap 处理相关代码的时候，也需要使用它们。</p>
-<table class="colwidths-given docutils align-center" id="id6">
-<caption><span class="caption-text">进入 S 特权级 Trap 的相关 CSR</span><a class="headerlink" href="#id6" title="永久链接至表格">¶</a></caption>
+说明 Trap 发生之前 CPU 只能运行在 S/U 特权级。但无论如何，只要是 Trap 到 S，硬件就会使用 S 特权级与 Trap 相关的 <strong>控制状态寄存器</strong> (CSR, Control and Status Register) 来辅助 Trap
+处理。我们在编写运行在 S 特权级的批处理操作系统中的 Trap 处理相关代码的时候，也需要使用它们。</p>
+<table class="colwidths-given docutils align-center" id="id10">
+<caption><span class="caption-text">进入 S 特权级 Trap 的相关 CSR</span><a class="headerlink" href="#id10" title="永久链接至表格">¶</a></caption>
 <colgroup>
 <col style="width: 23%" />
 <col style="width: 77%" />
@@ -281,14 +303,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p><strong>多功能的 sstatus</strong></p>
 <p>注意 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 是 S 特权级最重要的 CSR，可以从很多方面控制 S 特权级的行为并描述其状态。我们在这里先给出它对 Trap 处理的作用。</p>
 </div>
-<p>大多数的 Trap 发生的场景都是在执行某条指令之后，CPU 发现触发了一个 Trap 并需要进行处理。异常是 Trap 的一种，它与某条指令的执行有关，
-但这条触发 Trap 的指令和进入 Trap 之前执行的最后一条指令不一定是同一条。如果这个异常并非不可恢复的错误，比如只是通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令
-向底层执行环境请求某项功能，那么上层软件期待底层环境处理完成后，还能够从上层软件被打断的位置继续执行，参考 <a class="reference internal" href="1rv-privilege.html#environment-call-flow"><span class="std std-ref">图示</span></a> 。</p>
+</div>
+<div class="section" id="id5">
+<h3>执行流切换<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
+<p>大多数的 Trap (陷入) 发生的场景都是在执行某条指令（如 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> ）之后，CPU 发现触发了一个 Trap并需要进行处理。这条触发 Trap 的指令和进入 Trap 之前执行的最后一条指令不一定是同一条。比如代表上层软件的应用程序只是通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令
+向代表底层执行环境的操作系统请求某项功能，那么上层软件期待底层环境处理完成后，还能够从上层软件被打断的位置继续执行，参考 <a class="reference internal" href="1rv-privilege.html#environment-call-flow"><span class="std std-ref">图示</span></a> 。</p>
 <p id="term-execution-of-thread">回顾第一章的 <a class="reference internal" href="../chapter1/4understand-prog.html#function-call-and-stack"><span class="std std-ref">函数调用与栈</span></a> ，我们知道在一个固定的 CPU 上，只要有一个栈作为存储空间，我们就能以多种
 普通控制流（顺序、分支、循环结构和多层嵌套函数调用）组合的方式，来一行一行的执行源代码（以编程语言级的视角），也是一条一条的执行汇编指令
 （以汇编语言级的视角）。只考虑普通控制流，那么从某条指令开始记录，该 CPU 可用的所有资源，包括自带的所有通用寄存器（包括虚拟的描述当前执行
 指令地址的寄存器 pc ）和当前特权级可用的 CSR 以及位于内存中的一块栈空间，它们会随着指令的执行而逐渐发生变化。这种局限在普通控制流之内的
-连续指令执行和与之同步的对相关资源的改变我们用一个新名词 <strong>执行流</strong> (Execution of thread) 来命名。执行流的状态是一个由它衍生出来的
+连续指令执行和与之同步的对相关资源的改变我们用一个新名词 <strong>执行流</strong> (Execution Flow) 来命名。执行流的状态是一个由它衍生出来的
 概念，表示截止到某条指令执行完毕所有相关资源（包括寄存器、栈）的状态集合，它完整描述了自记录起始之后该执行流的指令执行历史。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
@@ -302,7 +326,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>让我们从 U 特权级 Trap 到 S 的情况（这是一个特例，实际上在 Trap 前后特权级可能不变）来分析一下在 Trap 前后发生了哪些事情。首先，
 我们目前唯一的 CPU 正处在 U 特权级运行着一个执行流跑着应用程序的代码。在执行完某一条指令之后， CPU 发现一个
-中断/异常被触发，于是必须将应用执行流暂停，先 Trap 到更高的 S 特权级去执行批处理系统提供的相应服务代码，等待执行
+中断/异常被触发，于是必须将应用执行流暂停，先 Trap 到更高的 S 特权级去执行批处理操作系统提供的相应服务代码，等待执行
 完了之后再回过头来恢复并继续执行应用执行流。</p>
 <p>我们可以将 CPU 中间在 S 特权级执行的那一段也看成一个执行流，因为它全程只是以普通控制流的模式在 S 特权级执行。这个执行流的意义就在于
 处理 Trap ，我们可以将其称之为 Trap 执行流，它在 Trap 触发的时候生成，并于 Trap 处理完毕之后消亡。于是，可以从从执行流的角度来看待
@@ -323,8 +347,10 @@ CSR，比如 CPU 所在的特权级。我们要保证它们的变化在我们的
 特权级，返回之后又需要回到 U 特权级。而对于栈问题则相对简单，只要两个执行流用来记录执行历史的栈所对应的内存区域不相交，就不会产生令我们
 头痛的覆盖问题，也就无需进行保存/恢复。</p>
 <p>执行流切换的相关机制一部分由硬件帮我们完成，另一部分则需要由我们自己软件实现。</p>
+</div>
+</div>
 <div class="section" id="trap-hw-mechanism">
-<span id="id1"></span><h2>Trap 的硬件机制<a class="headerlink" href="#trap-hw-mechanism" title="永久链接至标题">¶</a></h2>
+<span id="id6"></span><h2>特权级切换的硬件控制机制<a class="headerlink" href="#trap-hw-mechanism" title="永久链接至标题">¶</a></h2>
 <p>当 CPU 执行完一条指令并准备 Trap 到 S 特权级的时候，硬件会自动帮我们做这些事情：</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 的 <code class="docutils literal notranslate"><span class="pre">SPP</span></code> 字段会被修改为 CPU 当前的特权级（U/S）。</p></li>
@@ -352,13 +378,16 @@ CSR，比如 CPU 所在的特权级。我们要保证它们的变化在我们的
 </ul>
 <p>从上面可以看出硬件主要负责特权级切换、跳转到正确的处理入口（要经过我们的设置才能正确）以及在 CSR 中保存一些只有硬件才能探测到的 Trap
 相关信息。这基本上都是硬件不得不完成的事情，剩下的工作都交给软件，让软件能有更大的灵活性。</p>
-</div>
-<div class="section" id="id2">
-<h2>软件实现执行流切换<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+特权级切换的软件控制机制
+=======
+用户栈与内核栈
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; wyf
+——————————–</p>
 <p>在 Trap 触发的一瞬间， CPU 就会切换到 S 特权级并跳转到 <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 所指示的位置。但是在正式进入 S 特权级的 Trap 处理之前，上面
 提到过我们必须保存原执行流的寄存器状态，还需要换栈。我们在一个作为用户栈的特别留出的内存区域上保存应用程序执行流的历史信息，而 Trap
 执行流则使用另一个内核栈。这样使用两个不同的栈是为了安全性：如果两个执行流使用同一个栈，在返回之后应用程序就有能力看到 Trap 执行流的
-历史信息，比如内核一些函数的地址，这样会带来安全隐患。于是，我们要做的是，在批处理系统中加入一段汇编代码中，实现从用户栈切换到内核栈，
+历史信息，比如内核一些函数的地址，这样会带来安全隐患。于是，我们要做的是，在批处理操作系统中加入一段汇编代码中，实现从用户栈切换到内核栈，
 并在内核栈上保存应用程序执行流的寄存器状态。</p>
 <p>我们声明两个类型 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> 和 <code class="docutils literal notranslate"><span class="pre">UserStack</span></code> 分别表示用户栈和内核栈，它们都只是字节数组的简单包装：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
@@ -397,7 +426,7 @@ CSR，比如 CPU 所在的特权级。我们要保证它们的变化在我们的
 </pre></div>
 </td></tr></table></div>
 <p>常数 <code class="docutils literal notranslate"><span class="pre">USER_STACK_SIZE</span></code> 和 <code class="docutils literal notranslate"><span class="pre">KERNEL_STACK_SIZE</span></code> 指出内核栈和用户栈的大小分别为 <span class="math notranslate nohighlight">\(8\text{KiB}\)</span> 。两个类型是以全局变量
-的形式实例化在批处理系统的 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段中的。</p>
+的形式实例化在批处理操作系统的 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段中的。</p>
 <p>我们为两个类型实现了 <code class="docutils literal notranslate"><span class="pre">get_sp</span></code> 方法来获取栈顶地址。由于在 RISC-V 中栈是向下增长的，我们只需返回包裹的数组的终止地址，以用户栈
 类型 <code class="docutils literal notranslate"><span class="pre">UserStack</span></code> 为例：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
@@ -442,11 +471,18 @@ CSR，比如 CPU 所在的特权级。我们要保证它们的变化在我们的
 而对于 <code class="docutils literal notranslate"><span class="pre">sstatus/sepc</span></code> 而言，它们会在 Trap 处理的全程有意义（在 Trap 执行流最后 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 的时候还用到了它们），而且确实会出现
 Trap 嵌套的情况使得它们的值被覆盖掉。所以我们需要将它们也一起保存下来，并在 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 之前恢复原样。</p></li>
 </ul>
-<p>接下来我们具体实现 Trap 上下文保存和恢复的汇编代码。</p>
 </div>
-<div class="section" id="trap-context-save-restore">
-<span id="id3"></span><h2>Trap 上下文保存与恢复<a class="headerlink" href="#trap-context-save-restore" title="永久链接至标题">¶</a></h2>
-<p>在批处理系统初始化的时候，我们需要修改 <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 寄存器来指向正确的 Trap 处理入口点。</p>
+<div class="section" id="trap">
+<h2>Trap 管理<a class="headerlink" href="#trap" title="永久链接至标题">¶</a></h2>
+<p>特权级切换的核心是对Trap的管理。这主要涉及到如下一下内容：
+- 应用程序通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 进入到内核状态时，操作系统保存被打断的应用程序的Trap 上下文。
+- 操作系统根据与Trap相关的CSR寄存器内容，完成系统调用服务的分发与处理。
+- 操作系统完成系统调用服务后，需要回复被打断的应用程序的Trap 上下文，并通 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 让应用程序继续执行。</p>
+<p>接下来我们具体介绍上述内容。</p>
+<div class="section" id="id7">
+<h3>Trap 上下文的保存与恢复<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h3>
+<p>首先是具体实现 Trap 上下文保存和恢复的汇编代码。</p>
+<p id="trap-context-save-restore">在批处理操作系统初始化的时候，我们需要修改 <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 寄存器来指向正确的 Trap 处理入口点。</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
  3
@@ -651,8 +687,8 @@ Trap 嵌套的情况使得它们的值被覆盖掉。所以我们需要将它们
 <code class="docutils literal notranslate"><span class="pre">csrrw</span></code> 指令就完成了从用户栈到内核栈的切换，这是一种极其精巧的实现。</p>
 </div>
 </div>
-<div class="section" id="id4">
-<h2>Trap 分发与处理<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id8">
+<h3>Trap 分发与处理<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h3>
 <p>Trap 在使用 Rust 实现的 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 函数中完成分发和处理：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
@@ -731,7 +767,7 @@ sepc，让其增加 4。这是因为我们知道这是一个由 <code class="doc
 </li>
 <li><p>第 12~20 行，分别处理应用程序出现访存错误和非法指令错误的情形。此时需要打印错误信息并调用 <code class="docutils literal notranslate"><span class="pre">run_next_app</span></code> 直接切换并运行下一个
 应用程序。</p></li>
-<li><p>第 21 行开始，当遇到目前还不支持的 Trap 类型的时候，我们的批处理系统整个 panic 报错退出。</p></li>
+<li><p>第 21 行开始，当遇到目前还不支持的 Trap 类型的时候，我们的批处理操作系统整个 panic 报错退出。</p></li>
 </ul>
 <p>对于系统调用而言， <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 函数并不会实际处理系统调用而只是会根据 syscall ID 分发到具体的处理函数：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
@@ -804,14 +840,15 @@ sepc，让其增加 4。这是因为我们知道这是一个由 <code class="doc
 </pre></div>
 </td></tr></table></div>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 我们将传入的位于应用程序内的缓冲区的开始地址和长度转化为一个字符串 <code class="docutils literal notranslate"><span class="pre">&amp;str</span></code> ，然后使用批处理系统已经实现的 <code class="docutils literal notranslate"><span class="pre">print!</span></code>
+<li><p><code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 我们将传入的位于应用程序内的缓冲区的开始地址和长度转化为一个字符串 <code class="docutils literal notranslate"><span class="pre">&amp;str</span></code> ，然后使用批处理操作系统已经实现的 <code class="docutils literal notranslate"><span class="pre">print!</span></code>
 宏打印出来。注意这里我们并没有检查传入参数的安全性，即使会在出错严重的时候 panic，还是会存在安全隐患。这里我们出于实现方便暂且不做修补。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 打印退出的应用程序的返回值并同样调用 <code class="docutils literal notranslate"><span class="pre">run_next_app</span></code> 切换到下一个应用程序。</p></li>
 </ul>
 </div>
-<div class="section" id="id5">
-<h2>执行应用程序<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<p>当批处理系统初始化完成，或者是某个应用程序运行结束或出错的时候，我们要调用 <code class="docutils literal notranslate"><span class="pre">run_next_app</span></code> 函数切换到下一个应用程序。此时 CPU 运行在
+</div>
+<div class="section" id="id9">
+<h2>执行应用程序<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h2>
+<p>当批处理操作系统初始化完成，或者是某个应用程序运行结束或出错的时候，我们要调用 <code class="docutils literal notranslate"><span class="pre">run_next_app</span></code> 函数切换到下一个应用程序。此时 CPU 运行在
 S 特权级，而它希望能够切换到 U 特权级。在 RISC-V 架构中，唯一一种能够使得 CPU 特权级下降的方法就是通过 Trap 返回系列指令，比如
 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 。事实上，我们大概在运行应用程序之前要完成这些工作：</p>
 <ul class="simple">
@@ -910,7 +947,7 @@ S 特权级，而它希望能够切换到 U 特权级。在 RISC-V 架构中，�
           <footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
         <a href="../chapter3/index.html" class="btn btn-neutral float-right" title="第三章：多道程序与分时多任务" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="3batch-system.html" class="btn btn-neutral float-left" title="实现批处理系统" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="3batch-system.html" class="btn btn-neutral float-left" title="实现批处理操作系统" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>

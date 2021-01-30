@@ -138,13 +138,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 </li>
 <li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html">构建裸机运行时执行环境</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4understand-prog.html">理解应用程序和执行环境</a></li>
-<li class="toctree-l2"><a class="reference internal" href="6practice.html">练习一</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间（施工中）</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用(施工)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
 </ul>
@@ -241,9 +240,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
 <p>本节开始我们将着手自己来实现之前被我们移除的 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序中执行环境的功能。
 在这一小节，我们介绍如何进行 <strong>执行环境初始化</strong> 。</p>
-<p>其实，我们发现先理解和实现一个最小执行环境以支持最简单的用户态 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序，再改进这个最小执行环境，支持对裸机应用程序，
-能帮助我们理解二者的相同和不同之处，并对后续写自己的OS和运行在OS上的应用程序都有很大帮助。
-所以，本节将先建立一个用户态的执行环境。</p>
+<p>在这里，我们先设计实现一个最小执行环境以支持最简单的用户态 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序，再改进这个最小执行环境，支持对裸机应用程序。这样设计实现的原因是，
+它能帮助我们理解这两个不同的执行环境在支持同样一个应用程序时的的相同和不同之处，这将加深对执行环境的理解，并对后续写自己的OS和运行在OS上的应用程序都有帮助。
+所以，本节将先建立一个用户态的最小执行环境，即 <strong>恐龙虾</strong> 操作系统。</p>
 </div>
 <div class="section" id="id3">
 <h2>用户态最小化执行环境<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
@@ -314,7 +313,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="go">  段错误 (核心已转储)</span>
 </pre></div>
 </div>
-<p>`` 段错误 (核心已转储)`` 是常见的一种应用程序出错，我们不知道这个应用程序导致了用户态硬件模拟程序 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 崩溃了！为什么会这样？
+<p>`` 段错误 (核心已转储)`` 是常见的一种应用程序出错，而我们这个非常简单的应用程序导致了用户态硬件模拟程序 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 崩溃了！为什么会这样？
 回顾一下我们曾经写过的简单应用程序，好像入口函数名字是 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数， 编译时用的是标准的std库。执行起来没啥问题。再仔细想想，当一个应程序如果出错，
 有操作系统顶着的执行环境会把它给杀死。但如果一个应用的入口函数正常返回，执行环境应该优雅地让它退出才对。没错！目前的执行环境还缺了一个退出机制。
 先了解一下，操作系统会提供一个退出的系统调用服务接口，但应用程序调用这个接口，那这个程序就退出了。这里先给出代码：</p>
@@ -361,7 +360,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>可以看到，返回的结果确实是 <code class="docutils literal notranslate"><span class="pre">9</span></code> 。这样，我们在没有任何显示功能的情况下，勉强完成了一个简陋的用户态最小化执行环境。</p>
 <p>上面实现的最小化执行环境貌似能够在Linux操作系统上支持只调用一个 <code class="docutils literal notranslate"><span class="pre">SYSCALL_EXIT</span></code> 系统调用服务的程序，但这也说明了
 在操作系统的支持下，实现一个基本的用户态执行环境还是比较容易的。其中的原因是，操作系统帮助用户态执行环境完成了程序加载、程序退出、
-资源分配、资源回收等各种琐事。如果没有操作系统，那么实现一个支持在裸机上运行应用程序的执行环境，就要考虑更多的事情了。
+资源分配、资源回收等各种琐事。如果没有操作系统，那么实现一个支持在裸机上运行应用程序的执行环境，就要考虑更多的事情了，或者干脆简化一切可以不必干的事情（比如对于单个应用，不需要调度功能等）。
 在裸机上的执行环境，其实就是之前提到的“三叶虫”操作系统。</p>
 </div>
 <div class="section" id="id4">
@@ -429,7 +428,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="go">  段错误 (核心已转储)</span>
 </pre></div>
 </div>
-<p>系统崩溃了！借助老师以往的经验和与下一节调试kernel的成果经验，我们直接定位为是 <strong>栈 stack</strong> 没有设置的问题。我们需要添加建立栈的代码逻辑。</p>
+<p>系统崩溃了！借助以往的操作系统内核编程经验和与下一节调试kernel的成果经验，我们直接定位为是 <strong>栈 stack</strong> 没有设置的问题。我们需要添加建立栈的代码逻辑。</p>
 <div class="highlight-asm notranslate"><div class="highlight"><pre><span></span>    <span class="na">.section</span> <span class="no">.text.entry</span>
     <span class="na">.globl</span> <span class="no">_start</span>
 <span class="nl">_start:</span>

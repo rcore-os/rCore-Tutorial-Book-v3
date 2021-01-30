@@ -140,8 +140,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="4time-sharing-system.html">分时多任务系统与抢占式调度</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间（施工中）</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用(施工)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
 </ul>
@@ -711,6 +711,53 @@ Trap 上下文和任务上下文，切换机制可以正常工作。但是如果
 情况一样了。</p>
 <p>需要注意的是， <code class="docutils literal notranslate"><span class="pre">__restore</span></code> 的实现需要做出变化：它不再需要在开头 <code class="docutils literal notranslate"><span class="pre">mv</span> <span class="pre">sp,</span> <span class="pre">a0</span></code> 了。因为在 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 之后，
 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 就已经正确指向了我们需要的 Trap 上下文地址。</p>
+<p>在 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 中我们调用 <code class="docutils literal notranslate"><span class="pre">task::run_first_task</span></code> 来开始应用的执行：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/mod.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">TaskManager</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">run_first_task</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">().</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Running</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">next_task_cx_ptr2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow</span><span class="p">().</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">get_task_cx_ptr2</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">_unused</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">__switch</span><span class="p">(</span><span class="w"></span>
+<span class="w">                </span><span class="o">&amp;</span><span class="n">_unused</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">_</span><span class="p">,</span><span class="w"></span>
+<span class="w">                </span><span class="n">next_task_cx_ptr2</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">run_first_task</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">TASK_MANAGER</span><span class="p">.</span><span class="n">run_first_task</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>这里我们取出即将最先执行的编号为 0 的应用的 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr2</span></code> 并希望能够切换过去。注意 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 有两个参数
+分别表示当前应用和即将切换到的应用的 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr2</span></code> ，其第一个参数存在的意义是记录当前应用的任务上下文被保存在
+哪里，也就是当前应用内核栈的栈顶，这样之后才能继续执行该应用。但在 <code class="docutils literal notranslate"><span class="pre">run_first_task</span></code> 的时候，我们并没有执行任何
+应用， <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 前半部分的保存仅仅是在启动栈上保存了一些之后不会用到的数据，自然也无需记录启动栈栈顶的位置。</p>
+<p>因此，我们显式声明了一个 <code class="docutils literal notranslate"><span class="pre">_unused</span></code> 变量，并将它的地址作为第一个参数传给 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> ，这样保存一些寄存器之后的
+启动栈栈顶的位置将会保存在此变量中。然而无论是此变量还是启动栈我们之后均不会涉及到，一旦应用开始运行，我们就开始在应用
+的用户栈和内核栈之间开始切换了。这里声明此变量的意义仅仅是为了避免覆盖到其他数据。</p>
 </div>
 </div>
 

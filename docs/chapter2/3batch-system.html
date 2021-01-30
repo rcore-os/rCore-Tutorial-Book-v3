@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>实现批处理系统 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>实现批处理操作系统 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
@@ -74,7 +74,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
-    <link rel="next" title="处理 Trap" href="4trap-handling.html" />
+    <link rel="next" title="实现特权级的切换" href="4trap-handling.html" />
     <link rel="prev" title="实现应用程序" href="2application.html" /> 
 </head>
 
@@ -126,19 +126,20 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第二章：批处理系统</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
-<li class="toctree-l2"><a class="reference internal" href="1rv-privilege.html">RISC-V 特权级架构</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1rv-privilege.html">特权级机制</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2application.html">实现应用程序</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">实现批处理系统</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id2">将应用程序链接到内核</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id3">应用管理器</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">实现批处理操作系统</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">将应用程序链接到内核</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">能够找到并加载应用程序二进制码的应用管理器</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="4trap-handling.html">处理 Trap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4trap-handling.html">实现特权级的切换</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间（施工中）</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用(施工)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
 </ul>
@@ -208,7 +209,7 @@ commentsRunWhenDOMLoaded(addUtterances);
         
           <li><a href="index.html">第二章：批处理系统</a> &raquo;</li>
         
-      <li>实现批处理系统</li>
+      <li>实现批处理操作系统</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -228,11 +229,18 @@ commentsRunWhenDOMLoaded(addUtterances);
            <div itemprop="articleBody">
             
   <div class="section" id="id1">
-<h1>实现批处理系统<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<h1>实现批处理操作系统<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
 <div class="section" id="id2">
-<h2>将应用程序链接到内核<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>目前本章设计的批处理操作系统–泥盆纪“邓式鱼”操作系统，还没有文件/文件系统的机制与设计实现，所以还缺少一种类似文件系统那样的松耦合灵活放置应用程序和加载执行应用程序的机制。这就需要设计一种简洁的程序放置和加载方式，能够在批处理操作系统与应用程序之间建立联系的纽带。这主要包括两个方面：
+- 静态编码：通过一定的编程技巧，把应用程序代码和批处理操作系统代码“绑定”在一起。
+- 动态加载：基于静态编码留下的“绑定”信息，操作系统可以找到应用程序文件二进制代码的起始地址和长度，并能加载到内存中运行。</p>
+<p>这里与硬件相关且比较困难的地方是如何让在内核态的批处理操作系统启动应用程序，且能让应用程序在用户态正常执行。本节会讲大致过程，而具体细节将放到下一节具体讲解。</p>
+</div>
+<div class="section" id="id3">
+<h2>将应用程序链接到内核<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
 <p>在本章中，我们把应用程序的二进制镜像文件作为内核的数据段链接到内核里面，因此内核需要知道内含的应用程序的数量和它们的位置，这样才能够在运行时
 对它们进行管理并能够加载到物理内存。</p>
 <p>在 <code class="docutils literal notranslate"><span class="pre">os/src/main.rs</span></code> 中能够找到这样一行：</p>
@@ -312,9 +320,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 同样也由全局符号 <code class="docutils literal notranslate"><span class="pre">_num_app</span></code> 所指示。</p>
 <p>这个文件是在 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> 的时候，由脚本 <code class="docutils literal notranslate"><span class="pre">os/build.rs</span></code> 控制生成的。有兴趣的读者可以参考其代码。</p>
 </div>
-<div class="section" id="id3">
-<h2>应用管理器<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
-<p>我们在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 的 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块中实现一个应用管理器，它的功能是：保存应用数量和各自的位置信息，以及当前执行到第几个应用了。结构体定义
+<div class="section" id="id4">
+<h2>能够找到并加载应用程序二进制码的应用管理器<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<p>能够找到并加载应用程序二进制码的应用管理器 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 是“邓式鱼”操作系统的核心组件。我们在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 的 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块中实现一个应用管理器，它的主要功能是：
+- 保存应用数量和各自的位置信息，以及当前执行到第几个应用了。
+- 根据应用程序位置信息，初始化好应用所需内存空间，并加载应用执行。</p>
+<p>应用管理器 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 结构体定义
 如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="nc">AppManager</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="n">inner</span>: <span class="nc">RefCell</span><span class="o">&lt;</span><span class="n">AppManagerInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
@@ -426,9 +437,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </td></tr></table></div>
-<p>这个方法负责将参数 <code class="docutils literal notranslate"><span class="pre">app_id</span></code> 对应的应用程序的二进制镜像加载到物理内存以 <code class="docutils literal notranslate"><span class="pre">0x80040000</span></code> 开头的位置，这个位置是批处理系统和应用程序
+<p>这个方法负责将参数 <code class="docutils literal notranslate"><span class="pre">app_id</span></code> 对应的应用程序的二进制镜像加载到物理内存以 <code class="docutils literal notranslate"><span class="pre">0x80040000</span></code> 开头的位置，这个位置是批处理操作系统和应用程序
 之间约定的常数，回忆上一小节中，我们也调整应用程序的内存布局以同一个地址开头。第 8 行开始，我们首先将一块内存清空，然后找到待加载应用
-二进制镜像的位置，并将它复制到正确的位置。它本质上是数据从一块内存复制到另一块内存，从批处理系统的角度来看是将它数据段的一部分复制到了它
+二进制镜像的位置，并将它复制到正确的位置。它本质上是数据从一块内存复制到另一块内存，从批处理操作系统的角度来看是将它数据段的一部分复制到了它
 程序之外未知的地方。</p>
 <p id="term-icache"><span id="term-dcache"></span>注意第 7 行我们插入了一条奇怪的汇编指令 <code class="docutils literal notranslate"><span class="pre">fence.i</span></code> ，它是用来清理 i-cache 的。我们知道缓存是存储层级结构中提高访存速度的很重要一环。
 而 CPU 对物理内存所做的缓存又分成 <strong>数据缓存</strong> (d-cache) 和 <strong>指令缓存</strong> (i-cache) 两部分，分别在 CPU 访存和取指的时候使用。在取指
@@ -445,7 +456,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p><code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块对外暴露出如下接口：</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">init</span></code> ：调用 <code class="docutils literal notranslate"><span class="pre">print_app_info</span></code> 的时候第一次用到了全局变量 <code class="docutils literal notranslate"><span class="pre">APP_MANAGER</span></code> ，它也是在这个时候完成初始化；</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">run_next_app</span></code> ：批处理系统的核心操作，即加载并运行下一个应用程序。当批处理系统完成初始化或者一个应用程序运行结束或出错之后会调用
+<li><p><code class="docutils literal notranslate"><span class="pre">run_next_app</span></code> ：批处理操作系统的核心操作，即加载并运行下一个应用程序。当批处理操作系统完成初始化或者一个应用程序运行结束或出错之后会调用
 该函数。我们下节再介绍其具体实现。</p></li>
 </ul>
 </div>
@@ -457,7 +468,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           </div>
           <footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="4trap-handling.html" class="btn btn-neutral float-right" title="处理 Trap" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="4trap-handling.html" class="btn btn-neutral float-right" title="实现特权级的切换" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
         <a href="2application.html" class="btn btn-neutral float-left" title="实现应用程序" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
