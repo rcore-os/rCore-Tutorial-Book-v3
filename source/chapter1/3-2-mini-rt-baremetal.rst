@@ -47,6 +47,7 @@
 在QEMU模拟的硬件中，物理内存和外设都是通过对内存读写的方式来进行访问，下面列出了QEMU模拟的物理内存空间。
 
 .. code-block:: c
+
     // qemu/hw/riscv/virt.c
     static const struct MemmapEntry {
         hwaddr base;

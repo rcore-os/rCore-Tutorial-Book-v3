@@ -5,8 +5,8 @@
    :maxdepth: 4
 
    0intro
-   1address-space
-   2rust-dynamic-allocation
+   1rust-dynamic-allocation   
+   2address-space
    3sv39-implementation-1
    4sv39-implementation-2
    5kernel-app-spaces
