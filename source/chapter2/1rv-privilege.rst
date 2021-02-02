@@ -199,8 +199,8 @@ RISC-V的特权指令
 
 在RISC-V中，会有两类低优先级U模式下运行高优先级S模式的指令：
 
-- 指令本身是就高优先级的特权指令，如 ``sret`` 指令（表示从S模式返回到U模式）。
-- 指令访问了高优先级的寄存器或内存，如表示S模式系统状态的 **控制状态寄存器** ``sstatus``等。 
+- 指令本身属于高特权级的指令，如 ``sret`` 指令（表示从S模式返回到U模式）。
+- 指令访问了 :ref:`S模式特权级下才能访问的寄存器 <term-s-mod-csr>` 或内存，如表示S模式系统状态的 **控制状态寄存器** ``sstatus``等。
 
 .. list-table:: RISC-V S模式特权指令
    :align: center
@@ -216,7 +216,7 @@ RISC-V的特权指令
    * - sfence.vma
      - 刷新TLB缓存。在U模式下执行会尝试非法指令异常     
    * - 访问S模式CSR的指令
-     - 通过访问sepc/stvec/scause/sscartch/stval/sstatus/satp等CSR改变系统状态。在U模式下执行会尝试非法指令异常
+     - 通过访问 :ref:`sepc/stvec/scause/sscartch/stval/sstatus/satp等CSR <term-s-mod-csr>` 来改变系统状态。在U模式下执行会尝试非法指令异常
 
 在下一节中，我们将看到 :ref:`在U模式下的用户态应用程序 <term-csr-instr-app>` ，如果执行上述S模式特权指令指令，将会产生非法指令异常，从而看出RISC-V的特权模式设计在一定程度上提供了对操作系统的保护。
 

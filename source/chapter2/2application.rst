@@ -278,12 +278,15 @@ Rust 中的 ``llvm_asm!`` 宏的完整格式如下：
 .. note::
 
    下载编译特权指令的应用需要获取
+
    .. code-block:: console
-    $ git clone -bv4-illegal-priv-code-csr-in-u-mode-app git@github.com:chyyuu/os_kernel_lab.git
+
+    $ git clone -b v4-illegal-priv-code-csr-in-u-mode-app git@github.com:chyyuu/os_kernel_lab.git
     $ cd os_kernel_lab/user
     $ make build
 
 我们先看看代码：
+
 .. code-block:: rust
     :linenos:
 
@@ -312,6 +315,7 @@ Rust 中的 ``llvm_asm!`` 宏的完整格式如下：
 在上述代码中，在显示 ``Hello, world`` 字符串后，会读写 ``sstatus`` 特权CSR。
 
 .. code-block:: console
+
    $ cd user
    $ cd target/riscv64gc-unknown-none-elf/release/ 
    $ ls
@@ -331,6 +335,7 @@ Rust 中的 ``llvm_asm!`` 宏的完整格式如下：
 看来RV64的特权级机制确实有用。那对于一般的应用程序，在 ``qemu-riscv64`` 模拟器下能正确执行吗？
 
 .. code-block:: console
+
    $ cd user
    $ cd target/riscv64gc-unknown-none-elf/release/ 
    $ ls
