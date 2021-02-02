@@ -260,3 +260,105 @@ Rust 中的 ``llvm_asm!`` 宏的完整格式如下：
 1. 对于 ``src/bin`` 下的每个应用程序，在 ``target/riscv64gc-unknown-none-elf/release`` 目录下生成一个同名的 ELF 可执行文件；
 2. 使用 objcopy 二进制工具将上一步中生成的 ELF 文件删除所有 ELF header 和符号得到 ``.bin`` 后缀的纯二进制镜像文件。它们将被链接
    进内核并由内核在合适的时机加载到内存。
+
+实现操作系统前执行应用程序
+----------------------------------- 
+
+我们还没有实现操作系统，能提前执行或测试应用程序吗？可以！ 这是因为我们除了一个能模拟一台RISC-V 64 计算机的全系统模拟器 ``qemu-system-riscv64`` 外，还有一个直接支持运行RISC-V64 用户程序的半系统模拟器 ``qemu-riscv64`` 。 ``qemu-riscv64`` 模拟器的特点是，它可以直接解析ELF 可执行文件，并加载执行RISC-V64 用户程序（ELF 可执行文件）中的指令，如果碰到系统调用，就把系统调用转换成本机（如x86-64）的系统调用格式，再发给本机的Linux内核来完成系统调用, 再把结果转换成RISC-V64的格式，这样RISC-V64 用户程序就可以得到结果，并继续执行。整个过程就好像这个RISC-V64 用户程序直接运行在一台安装了RV64 Linux的RV64的计算机上。
+
+.. note::
+
+   如果想让用户态应用程序在Linux和在我们自己写的OS上执行效果一样，需要做到二者的系统调用的接口是一样的（包括系统调用编号，参数约定的具体的寄存器和栈等）。
+
+
+.. _term-csr-instr-app:
+
+假定我们已经完成了编译并生成了ELF 可执行文件格式的应用程序，我们就可以来试试。首先看看应用程序执行 :ref:`RV64的S模式特权指令 <term-csr-instr>` 会出现什么情况。
+
+.. note::
+
+   下载编译特权指令的应用需要获取
+   .. code-block:: console
+    $ git clone -bv4-illegal-priv-code-csr-in-u-mode-app git@github.com:chyyuu/os_kernel_lab.git
+    $ cd os_kernel_lab/user
+    $ make build
+
+我们先看看代码：
+.. code-block:: rust
+    :linenos:
+
+    // usr/src/bin/03priv_intr.rs
+    ...
+        println!("Hello, world!");
+        unsafe {
+            llvm_asm!("sret"
+                : : : :
+            );
+        }
+    ...
+
+在上述代码中，在显示 ``Hello, world`` 字符串后，会执行 ``sret`` 特权指令。
+
+.. code-block:: rust
+    :linenos:
+
+    // usr/src/bin/03priv_intr.rs
+    ...
+        println!("Hello, world!");
+        let mut sstatus = sstatus::read();
+        sstatus.set_spp(SPP::User);
+    ...
+
+在上述代码中，在显示 ``Hello, world`` 字符串后，会读写 ``sstatus`` 特权CSR。
+
+.. code-block:: console
+   $ cd user
+   $ cd target/riscv64gc-unknown-none-elf/release/ 
+   $ ls
+    00hello_world      01store_fault      02power   
+    03priv_intr      04priv_csr
+    ...
+   # 上面的文件就是ELF格式的应用程序
+   $ qemu-riscv64 ./03priv_intr
+     Hello, world!
+     非法指令 (核心已转储)
+   # 执行特权指令出错
+   $ qemu-riscv64 ./04priv_csr
+     Hello, world!
+     非法指令 (核心已转储)
+   # 执行访问特权级CSR的指令出错
+
+看来RV64的特权级机制确实有用。那对于一般的应用程序，在 ``qemu-riscv64`` 模拟器下能正确执行吗？
+
+.. code-block:: console
+   $ cd user
+   $ cd target/riscv64gc-unknown-none-elf/release/ 
+   $ ls
+    00hello_world      01store_fault      02power   
+    03priv_intr      04priv_csr
+    ...
+   # 上面的文件就是ELF格式的应用程序
+   $ qemu-riscv64 ./00hello_world
+     Hello, world!
+   # 正确显示了字符串   
+   $ qemu-riscv64 01store_fault
+     qemu-riscv64 01store_fault
+     Into Test store_fault, we will insert an invalid store operation...
+     Kernel should kill this application!
+     段错误 (核心已转储)
+   # 故意访问了一个非法地址，导致应用和qemu-riscv64被Linux内核杀死
+   $ qemu-riscv64 02power
+    3^10000=5079
+    3^20000=8202
+    3^30000=8824
+    3^40000=5750
+    3^50000=3824
+    3^60000=8516
+    3^70000=2510
+    3^80000=9379
+    3^90000=2621
+    3^100000=2749
+    Test power OK!
+   # 正确地完成了计算
+
+三个应用都能够执行并顺利结束！是由于得到了本机操作系统Linux的支持。我们期望我们在下一节开始实现的泥盆纪“邓式鱼”操作系统也能够正确上面的应用程序。
