@@ -132,11 +132,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2 current"><a class="current reference internal" href="#">多道程序与协作式调度</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2"><strong>本节导读</strong></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#yield">多道程序背景与 yield 系统调用</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id7">任务控制块与任务运行状态</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id8">任务管理器</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">任务控制块与任务运行状态</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">任务管理器</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sys-yield-sys-exit">实现 sys_yield 和 sys_exit</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id9">第一次进入用户态</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id10">三叠纪“始初龙”协作式操作系统</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">第一次进入用户态</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">三叠纪“始初龙”协作式操作系统</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="4time-sharing-system.html">分时多任务系统与抢占式调度</a></li>
@@ -238,11 +238,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2><strong>本节导读</strong><a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
 <p>上一节我们已经介绍了任务切换是如何实现的，最终我们将其封装为一个函数 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 。但是在实际使用的时候，我们需要知道何时调用该函数，
 以及如何确定传入函数的两个参数——分别代表正待换出和即将被换入的两条 Trap 执行流。本节我们就来介绍任务切换的第一种实际应用场景：多道程序。</p>
-<p>本节的一个重点是展示进一步增强的操作系统管理能力的和对处理器资源的相对高效利用。为此，对 <code class="docutils literal notranslate"><span class="pre">任务</span></code> 的概念进行进一步扩展和延伸：形成了</p>
+<p>本节的一个重点是展示进一步增强的操作系统管理能力的和对处理器资源的相对高效利用。为此，对 <strong>任务</strong> 的概念进行进一步扩展和延伸：形成了</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">任务运行状态</span></code> ：任务宠开始到结束执行过程中所处的不同运行状态：未初始化、准备执行、正在执行、已退出</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">任务控制块</span></code> ：管理程序的执行过程的任务上下文，控制程序的执行与暂停</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">任务相关系统调用</span></code> ：应用程序和操作系统直接的接口，用于程序主动暂停 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 和 主动退出 <a href="#id3"><span class="problematic" id="id4">``</span></a>sys_exit <a href="#id5"><span class="problematic" id="id6">``</span></a>。</p></li>
+<li><p>任务运行状态：任务从开始到结束执行过程中所处的不同运行状态：未初始化、准备执行、正在执行、已退出</p></li>
+<li><p>任务控制块：管理程序的执行过程的任务上下文，控制程序的执行与暂停</p></li>
+<li><p>任务相关系统调用：应用程序和操作系统直接的接口，用于程序主动暂停 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 和主动退出 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code></p></li>
 </ul>
 <p>本节的代码可以在 <code class="docutils literal notranslate"><span class="pre">ch3-coop</span></code> 分支上找到。</p>
 </div>
@@ -287,8 +287,8 @@ CPU 便可以从外设读到请求的处理结果。比如在从作为外部存�
 <p>但也请不要担心，我们后面会有更加优雅的解决方案。</p>
 </div>
 <p>我们给出 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 的标准接口：</p>
-<div class="literal-block-wrapper docutils container" id="id11">
-<div class="code-block-caption"><span class="caption-text">第三章新增系统调用（一）</span><a class="headerlink" href="#id11" title="永久链接至代码">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id7">
+<div class="code-block-caption"><span class="caption-text">第三章新增系统调用（一）</span><a class="headerlink" href="#id7" title="永久链接至代码">¶</a></div>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：应用主动交出 CPU 所有权并切换到其他应用。</span>
 <span class="sd">/// 返回值：总是返回 0。</span>
 <span class="sd">/// syscall ID：124</span>
@@ -311,8 +311,8 @@ CPU 便可以从外设读到请求的处理结果。比如在从作为外部存�
 <p>注意 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 是 Rust 的关键字，因此我们只能将应用直接调用的接口命名为 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 。</p>
 <p>接下来我们介绍内核应如何实现该系统调用。</p>
 </div>
-<div class="section" id="id7">
-<h2>任务控制块与任务运行状态<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id3">
+<h2>任务控制块与任务运行状态<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
 <p>在第二章批处理系统中我们只需知道目前执行到第几个应用就行了，因为同一时间内核只管理一个应用，当它出错或退出之后内核会
 将其替换为另一个。然而，一旦引入了任务切换机制就没有那么简单了，同一时间内核需要管理多个未完成的应用，而且我们不能对
 应用完成的顺序做任何假定，并不是先加入的应用就一定会先完成。这种情况下，我们必须在内核中对每个应用分别维护它的运行
@@ -379,8 +379,8 @@ CPU 便可以从外设读到请求的处理结果。比如在从作为外部存�
 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 还提供了获取这个指针的指针 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr2</span></code> 的方法 <code class="docutils literal notranslate"><span class="pre">get_task_cx_ptr2</span></code> 。</p>
 <p>任务控制块非常重要。在内核中，它就是应用的管理单位。在后面的章节我们还会不断向里面添加更多内容。</p>
 </div>
-<div class="section" id="id8">
-<h2>任务管理器<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id4">
+<h2>任务管理器<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
 <p>我们还需要一个全局的任务管理器来管理这些用任务控制块描述的应用：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/mod.rs</span>
 
@@ -661,8 +661,8 @@ CPU 便可以从外设读到请求的处理结果。比如在从作为外部存�
 <p>我们可以总结一下应用的运行状态变化图：</p>
 <img alt="../_images/fsm-coop.png" src="../_images/fsm-coop.png" />
 </div>
-<div class="section" id="id9">
-<h2>第一次进入用户态<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id5">
+<h2>第一次进入用户态<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
 <p>在应用真正跑起来之前，需要 CPU 第一次从内核态进入用户态。我们在第二章批处理系统中也介绍过实现方法，只需在内核栈上
 压入构造好的 Trap 上下文，然后 <code class="docutils literal notranslate"><span class="pre">__restore</span></code> 即可。本章的思路大致相同，但是有一些变化。</p>
 <p>当一个应用即将被运行的时候，它会被 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 过来。如果它是之前被切换出去的话，那么此时它的内核栈上应该有
@@ -770,8 +770,8 @@ Trap 上下文和任务上下文，切换机制可以正常工作。但是如果
 启动栈栈顶的位置将会保存在此变量中。然而无论是此变量还是启动栈我们之后均不会涉及到，一旦应用开始运行，我们就开始在应用
 的用户栈和内核栈之间开始切换了。这里声明此变量的意义仅仅是为了避免覆盖到其他数据。</p>
 </div>
-<div class="section" id="id10">
-<h2>三叠纪“始初龙”协作式操作系统<a class="headerlink" href="#id10" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id6">
+<h2>三叠纪“始初龙”协作式操作系统<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
 <p>简介与画图！！！</p>
 </div>
 </div>
