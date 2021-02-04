@@ -18,7 +18,7 @@
 用户态最小化执行环境
 ----------------------------
 
-在上一节，我们构造的二进制程序是一个空程序，其原因是Rust编译器找不到执行环境的入口函数，于是就没有生产后续的代码。所以，我们首先要把入口函数
+在上一节，我们构造的二进制程序是一个空程序，其原因是 Rust 编译器找不到执行环境的入口函数，于是就没有生产后续的代码。所以，我们首先要把入口函数
 找到。通过查找资料，发现Rust编译器要找的入口函数是 ``_start()`` ，于是我们可以在 ``main.rs`` 中添加如下内容：
 
 
@@ -40,11 +40,11 @@
       Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)
        Finished dev [unoptimized + debuginfo] target(s) in 0.06s
 
-   # 文件格式
+   [文件格式]
    $ file target/riscv64gc-unknown-none-elf/debug/os
    target/riscv64gc-unknown-none-elf/debug/os: ELF 64-bit LSB executable, UCB RISC-V, ......
 
-   # 文件头信息
+   [文件头信息]
    $ rust-readobj -h target/riscv64gc-unknown-none-elf/debug/os
       File: target/riscv64gc-unknown-none-elf/debug/os
       Format: elf64-littleriscv
@@ -58,7 +58,7 @@
       ......
       }
    
-   # 反汇编导出汇编程序
+   [反汇编导出汇编程序]
    $ rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
       target/riscv64gc-unknown-none-elf/debug/os:	file format elf64-littleriscv
 
@@ -70,11 +70,11 @@
         11122: 01 a0        	j	0 <_start+0x2>
 
 
-通过 ``file`` 工具对二进制程序 ``os`` 的分析可以看到它依然是一个合法的RISC-V 64执行程序，但通过 ``rust-readobj`` 工具进一步分析，
-发现它的入口地址 ``Entry`` 是 ``0x11120`` ，这好像是一个合法的地址。再通过 ``rust-objdump`` 工具把它反汇编，可以看到生成汇编代码！
+通过 ``file`` 工具对二进制程序 ``os`` 的分析可以看到它依然是一个合法的 RV64 执行程序，但通过 ``rust-readobj`` 工具进一步分析，发现它的入口地址 Entry 是 ``0x11120`` ，这好像是一个合法的地址。再通过 ``rust-objdump`` 工具把它反汇编，可以看到生成汇编代码！
+
 所以，我们可以断定，这个二进制程序虽然合法，但它是一个空程序。这不是我们希望的，我们希望有具体内容的执行程序。为什么会这样呢？
-仔细读读这两条指令，发现就是一个死循环的汇编代码，且其第一条指令的地址与入口地址 ``Entry`` 的值一致。这已经是一个合理的程序了。如果我们
-用 ``qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os`` 执行这个程序，可以看到好像就是在执行死循环。
+
+仔细读读这两条指令，发现就是一个死循环的汇编代码，且其第一条指令的地址与入口地址 Entry 的值一致。这已经是一个合理的程序了。如果我们用 ``qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os`` 执行这个程序，可以看到好像就是在执行死循环。
 
 我们能让程序正常退出吗？我们把 ``_start()`` 函数中的循环语句注释掉，重新编译并分析，看到其汇编代码是：
 
@@ -99,12 +99,11 @@
   $ qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os
     段错误 (核心已转储)
 
-`` 段错误 (核心已转储)`` 是常见的一种应用程序出错，而我们这个非常简单的应用程序导致了用户态硬件模拟程序 ``qemu-riscv64`` 崩溃了！为什么会这样？
-回顾一下我们曾经写过的简单应用程序，好像入口函数名字是 ``main`` 函数， 编译时用的是标准的std库。执行起来没啥问题。再仔细想想，当一个应程序如果出错，
-有操作系统顶着的执行环境会把它给杀死。但如果一个应用的入口函数正常返回，执行环境应该优雅地让它退出才对。没错！目前的执行环境还缺了一个退出机制。
+*段错误 (核心已转储)* 是常见的一种应用程序出错，而我们这个非常简单的应用程序导致了 Linux 环境模拟程序 ``qemu-riscv64`` 崩溃了！为什么会这样？
+
+回顾一下最开始的输出 ``Hello, world!`` 的简单应用程序，其入口函数名字是 ``main`` ，编译时用的是标准库 std 。它可以正常执行。再仔细想想，当一个应用程序出错的时候，最上层为操作系统的执行环境会把它给杀死。但如果一个应用的入口函数正常返回，执行环境应该优雅地让它退出才对。没错！目前的执行环境还缺了一个退出机制。
+
 先了解一下，操作系统会提供一个退出的系统调用服务接口，但应用程序调用这个接口，那这个程序就退出了。这里先给出代码：
-
-
 
 .. code-block:: rust
   
@@ -134,11 +133,9 @@
   extern "C" fn _start() {
       sys_exit(9);
   }
-
  
-``main.rs`` 增加的内容不多，但还是有点与一般的应用程序有所不同，因为它引入了汇编和系统调用。如果你看不懂上面内容的细节，没关系，
-在第二章的第二节 :doc:`/chapter2/2application` 会有详细的介绍。
-这里只需知道 ``_start`` 函数调用了一个 ``sys_exit`` 函数，来向操作系统发出一个退出服务的系统调用请求，并传递给OS的退出码为 ``9`` 。
+``main.rs`` 增加的内容不多，但还是有点与一般的应用程序有所不同，因为它引入了汇编和系统调用。如果你看不懂上面内容的细节，没关系，在第二章的第二节 :doc:`/chapter2/2application` 会有详细的介绍。这里只需知道 ``_start`` 函数调用了一个 ``sys_exit`` 函数，来向操作系统发出一个退出服务的系统调用请求，并传递给OS的退出码为 ``9`` 。
+
 我们编译执行以下修改后的程序：
 
 .. code-block:: console
@@ -146,33 +143,31 @@
     $ cargo build --target riscv64gc-unknown-none-elf
       Compiling os v0.1.0 (/media/chyyuu/ca8c7ba6-51b7-41fc-8430-e29e31e5328f/thecode/rust/os_kernel_lab/os)
         Finished dev [unoptimized + debuginfo] target(s) in 0.26s
-    # $?表示执行程序的退出码    
-    os$ qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os; echo $?
+    
+    [$?表示执行程序的退出码，它会被告知 OS]    
+    $ qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os; echo $?
     9
-
 
 可以看到，返回的结果确实是 ``9`` 。这样，我们在没有任何显示功能的情况下，勉强完成了一个简陋的用户态最小化执行环境。
 
+上面实现的最小化执行环境貌似能够在 Linux 操作系统上支持只调用一个 ``SYSCALL_EXIT`` 系统调用服务的程序，但这也说明了
+在操作系统的支持下，实现一个基本的用户态执行环境还是比较容易的。其中的原因是，操作系统帮助用户态执行环境完成了程序加载、程序退出、资源分配、资源回收等各种琐事。如果没有操作系统，那么实现一个支持在裸机上运行应用程序的执行环境，就要考虑更多的事情了，或者干脆简化一切可以不必干的事情（比如对于单个应用，不需要调度功能等）。
 
-
-上面实现的最小化执行环境貌似能够在Linux操作系统上支持只调用一个 ``SYSCALL_EXIT`` 系统调用服务的程序，但这也说明了
-在操作系统的支持下，实现一个基本的用户态执行环境还是比较容易的。其中的原因是，操作系统帮助用户态执行环境完成了程序加载、程序退出、
-资源分配、资源回收等各种琐事。如果没有操作系统，那么实现一个支持在裸机上运行应用程序的执行环境，就要考虑更多的事情了，或者干脆简化一切可以不必干的事情（比如对于单个应用，不需要调度功能等）。
 在裸机上的执行环境，其实就是之前提到的“三叶虫”操作系统。
 
 
 有显示支持的用户态执行环境
 ----------------------------
 
-没有显示功能，终究觉得缺了点啥。在没有通常开发应用程序时常用的动态调试工具的情况下，其实能显示字符串，就已经是“穷人”最有力的调试方法了。
+没有显示功能，终究觉得缺了点啥。在没有通常开发应用程序时常用的动态调试工具的情况下，其实能显示字符串，就已经能够满足绝大多数情况下的调试需求了。
 
-Rust的core库内建了以一系列帮助实现显示字符的基本trait和数据结构，函数等，我们可以对其中的关键部分进行扩展，就可以实现定制的 ``println!`` 功能。
+Rust 的 core 库内建了以一系列帮助实现显示字符的基本 Trait 和数据结构，函数等，我们可以对其中的关键部分进行扩展，就可以实现定制的 ``println!`` 功能。
 
 
 实现输出字符串的相关函数
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-首先封装一下对 ``SYSCALL_WRITE`` 系统调用。这个是Linux操作系统内核提供的系统调用，其 ``ID`` 就是 ``SYSCALL_WRITE``。
+首先封装一下对 ``SYSCALL_WRITE`` 系统调用。这个是 Linux 操作系统内核提供的系统调用，其 ``ID`` 就是 ``SYSCALL_WRITE``。
 
 .. code-block:: rust
   
@@ -182,7 +177,7 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
     syscall(SYSCALL_WRITE, [fd, buffer.as_ptr() as usize, buffer.len()])
   }
 
-然后实现基于 ``Write trait`` 的数据结构，并完成 ``Write trait`` 所需要的  ``write_str`` 函数，并用 ``print`` 函数进行包装。
+然后实现基于 ``Write`` Trait 的数据结构，并完成 ``Write`` Trait 所需要的  ``write_str`` 函数，并用 ``print`` 函数进行包装。
 
 
 .. code-block:: rust
@@ -191,7 +186,7 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
 
   impl Write for Stdout {
       fn write_str(&mut self, s: &str) -> fmt::Result {
-          sys_write(STDOUT, s.as_bytes());
+          sys_write(1, s.as_bytes());
           Ok(())
       }
   }
@@ -219,11 +214,9 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
       }
   }
 
-上面的代码没有读懂？没关系，你只要了解到应用程序发出的宏调用 ``println!`` 就是通过上面的实现，一步一步地调用，最终通过操作系统提供的 
-``SYSCALL_WRITE`` 系统调用服务，帮助我们完成了字符串显示输出。这就完成了有显示支持的用户态执行环境。
+上面的代码没有读懂？没关系，你只要了解到应用程序发出的宏调用 ``println!`` 就是通过上面的实现，一步一步地调用，最终通过操作系统提供的 ``SYSCALL_WRITE`` 系统调用服务，帮助我们完成了字符串显示输出。这就完成了有显示支持的用户态执行环境。
 
 接下来，我们调整一下应用程序，让它发出显示字符串和退出的请求：
-
 
 .. code-block:: rust
 
@@ -234,7 +227,8 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
   } 
 
 整体工作完成！当然，我们实现的很简陋，用户态执行环境和应用程序都放在一个文件里面，以后会通过我们学习的软件工程的知识，进行软件重构，让代码更清晰和模块化。
-现在，我们编译执行以下。
+
+现在，我们编译执行一下。
 
 
 .. code-block:: console
@@ -246,10 +240,12 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
   $ qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os
     段错误 (核心已转储)
 
-系统崩溃了！借助以往的操作系统内核编程经验和与下一节调试kernel的成果经验，我们直接定位为是 **栈 stack** 没有设置的问题。我们需要添加建立栈的代码逻辑。
+系统崩溃了！借助以往的操作系统内核编程经验和与下一节调试kernel的成果经验，我们直接定位为是 **栈** (Stack) 没有设置的问题。我们需要添加建立栈的代码逻辑。
 
 .. code-block:: asm
 
+  # entry.asm
+  
       .section .text.entry
       .globl _start
   _start:
@@ -268,6 +264,7 @@ Rust的core库内建了以一系列帮助实现显示字符的基本trait和数�
 .. code-block:: rust
 
   #![feature(global_asm)]
+
   global_asm!(include_str!("entry.asm"));
 
   #[no_mangle]
