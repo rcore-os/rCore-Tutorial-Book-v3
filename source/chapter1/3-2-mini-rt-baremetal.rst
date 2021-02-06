@@ -71,15 +71,17 @@
 
 到现在为止，其中比较重要的两个是：
  - VIRT_DRAM：DRAM的内存起始地址是 ``0x80000000`` ，缺省大小为128MB。在本书中一般限制为8MB。
- - VIRT_UART0：串口相关的寄存器起始地址是 ``0x10000000`` ，范围是 ``0x1000`` ，我们通过访问这段特殊的区域来实现字符输入输出的管理与控制。
+ - VIRT_UART0：串口相关的寄存器起始地址是 ``0x10000000`` ，范围是 ``0x100`` ，我们通过访问这段特殊的区域来实现字符输入输出的管理与控制。
 
 .. _term-bootloader:
 
 
 裸机启动过程
 ^^^^^^^^^^^^^^^^^^
+
 .. note::
-  **QEMU模拟CPU加电的执行过程是啥？**
+
+  **QEMU 模拟 CPU 加电的执行过程**
 
   CPU加电后的执行细节与具体硬件相关，我们这里以QEMU模拟器为具体例子简单介绍一下。
   
@@ -101,6 +103,7 @@
 
 
 .. note::
+
   **操作系统与SBI之间是啥关系？**
 
   SBI是RISC-V的一种底层规范，操作系统内核与实现SBI规范的RustSBI的关系有点象应用与操作系统内核的关系，后者向前者提供一定的服务。只是SBI提供的服务很少，
@@ -123,10 +126,10 @@
     // bootloader/rustsbi-qemu.bin 直接添加的SBI规范实现的二进制代码，给操作系统提供基本支持服务
 
     // os/src/main.rs
-    const SYSCALL_EXIT: usize = 93;
+    const SBI_SHUTDOWN: usize = 8;
 
     pub fn shutdown() -> ! {
-        syscall(SBI_SHUTDOWN, [0, 0, 0]);
+        sbi_call(SBI_SHUTDOWN, [0, 0, 0]);
         panic!("It should shutdown!");
     }
 
