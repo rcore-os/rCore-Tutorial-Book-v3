@@ -301,7 +301,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <dl class="simple">
 <dt>到现在为止，其中比较重要的两个是：</dt><dd><ul class="simple">
 <li><p>VIRT_DRAM：DRAM的内存起始地址是 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，缺省大小为128MB。在本书中一般限制为8MB。</p></li>
-<li><p>VIRT_UART0：串口相关的寄存器起始地址是 <code class="docutils literal notranslate"><span class="pre">0x10000000</span></code> ，范围是 <code class="docutils literal notranslate"><span class="pre">0x1000</span></code> ，我们通过访问这段特殊的区域来实现字符输入输出的管理与控制。</p></li>
+<li><p>VIRT_UART0：串口相关的寄存器起始地址是 <code class="docutils literal notranslate"><span class="pre">0x10000000</span></code> ，范围是 <code class="docutils literal notranslate"><span class="pre">0x100</span></code> ，我们通过访问这段特殊的区域来实现字符输入输出的管理与控制。</p></li>
 </ul>
 </dd>
 </dl>
@@ -310,7 +310,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span id="id5"></span><h3>裸机启动过程<a class="headerlink" href="#term-bootloader" title="永久链接至标题">¶</a></h3>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p><strong>QEMU模拟CPU加电的执行过程是啥？</strong></p>
+<p><strong>QEMU 模拟 CPU 加电的执行过程</strong></p>
 <p>CPU加电后的执行细节与具体硬件相关，我们这里以QEMU模拟器为具体例子简单介绍一下。</p>
 <p>这需要从 CPU 加电后如何初始化，如何执行第一条指令开始讲起。对于我们采用的QEMU模拟器而言，它模拟了一台标准的RISC-V64计算机。我们启动QEMU时，可设置一些参数，在RISC-V64计算机启动执行前，先在其模拟的内存中放置好BootLoader程序和操作系统的二进制代码。这可以通过查看 <code class="docutils literal notranslate"><span class="pre">os/Makefile</span></code> 文件中包含 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 的相关内容来了解。</p>
 <ul class="simple">
@@ -346,10 +346,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// bootloader/rustsbi-qemu.bin 直接添加的SBI规范实现的二进制代码，给操作系统提供基本支持服务</span>
 
 <span class="c1">// os/src/main.rs</span>
-<span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_EXIT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">93</span><span class="p">;</span><span class="w"></span>
+<span class="k">const</span><span class="w"> </span><span class="n">SBI_SHUTDOWN</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">;</span><span class="w"></span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">shutdown</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SBI_SHUTDOWN</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">]);</span><span class="w"></span>
+<span class="w">    </span><span class="n">sbi_call</span><span class="p">(</span><span class="n">SBI_SHUTDOWN</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">]);</span><span class="w"></span>
 <span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;It should shutdown!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 
