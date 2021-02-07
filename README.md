@@ -9,4 +9,4 @@ If you cannot access `github.io` normally due to network problems, please visit 
 
 - [ ] code tree in introduction
 - [ ] rust module system in chapter1
-- [ ] update rustsbi to 0.1.1 with qemu patch
+- [x] update rustsbi to 0.1.1
