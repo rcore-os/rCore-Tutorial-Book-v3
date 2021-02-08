@@ -8,7 +8,7 @@
 
 - 介绍进程的概念以及它和一些其他相近的概念的比较；
 - 从应用开发者或是用户的角度介绍我们的实现中一种简单的类 Unix 进程模型；
-- 介绍三个最重要的进程相关的系统调用并给出一些例子。
+- 介绍三个最重要的进程相关的系统调用并给出一些用例。
 
 进程概念
 -------------------------
@@ -102,6 +102,15 @@ exec 系统调用
     /// syscall ID：221
     pub fn sys_exec(path: &str) -> isize;
 
+注意，我们知道 ``path`` 作为 ``&str`` 类型是一个胖指针，既有起始地址又包含长度信息。在实际进行系统调用的时候，我们只会将起始地址传给内核（对标 C 语言仅会传入一个 ``char*`` ）。这就需要应用负责在传入的字符串的末尾加上一个 ``\0`` ，这样内核才能知道字符串的长度。下面给出了用户库 ``user_lib`` 中的调用方式：
+
+.. code-block:: rust
+
+    // user/src/exec.rs
+
+    pub fn sys_exec(path: &str) -> isize {
+        syscall(SYSCALL_EXEC, [path.as_ptr() as usize, 0, 0])
+    }
 
 这样，利用 ``fork`` 和 ``exec`` 的组合，我们很容易在一个进程内 ``fork`` 出一个子进程并执行一个特定的可执行文件。
 
@@ -204,3 +213,128 @@ exec 系统调用
 
 用户终端
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+由于用户终端需要捕获我们的输入并进行解析处理，我们需要加入一个新的用于输入的系统调用：
+
+.. code-block:: rust
+
+    /// 功能：从文件中读取一段内容到缓冲区。
+    /// 参数：fd 是待读取文件的文件描述符，切片 buffer 则给出缓冲区。
+    /// 返回值：如果出现了错误则返回 -1，否则返回实际读到的字节数。
+    pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize;
+
+在实际调用的时候我们必须要同时向内核提供缓冲区的起始地址及长度：
+
+.. code-block:: rust
+
+    // user/src/syscall.rs
+
+    pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {
+        syscall(SYSCALL_READ, [fd, buffer.as_mut_ptr() as usize, buffer.len()])
+    }
+
+我们在用户库中将其进一步封装成每次能够从 **标准输入** 中获取一个字符的 ``getchar`` 函数：
+
+.. code-block:: rust
+
+    // user/src/lib.rs
+
+    pub fn read(fd: usize, buf: &mut [u8]) -> isize { sys_read(fd, buf) }
+
+    // user/src/console.rs
+
+    const STDIN: usize = 0;
+
+    pub fn getchar() -> u8 {
+        let mut c = [0u8; 1];
+        read(STDIN, &mut c);
+        c[0]
+    }
+
+其中，我们每次临时声明一个长度为 1 的缓冲区。
+
+接下来就可以介绍用户终端 ``user_shell`` 是如何实现的了：
+
+.. code-block:: rust
+    :linenos:
+    :emphasize-lines: 28,53,61
+
+    // user/src/bin/user_shell.rs
+
+    #![no_std]
+    #![no_main]
+
+    extern crate alloc;
+
+    #[macro_use]
+    extern crate user_lib;
+
+    const LF: u8 = 0x0au8;
+    const CR: u8 = 0x0du8;
+    const DL: u8 = 0x7fu8;
+    const BS: u8 = 0x08u8;
+
+    use alloc::string::String;
+    use user_lib::{fork, exec, waitpid, yield_};
+    use user_lib::console::getchar;
+
+    #[no_mangle]
+    pub fn main() -> i32 {
+        println!("Rust user shell");
+        let mut line: String = String::new();
+        print!(">> ");
+        loop {
+            let c = getchar();
+            match c {
+                LF | CR => {
+                    println!("");
+                    if !line.is_empty() {
+                        line.push('\0');
+                        let pid = fork();
+                        if pid == 0 {
+                            // child process
+                            if exec(line.as_str()) == -1 {
+                                println!("Error when executing!");
+                                return -4;
+                            }
+                            unreachable!();
+                        } else {
+                            let mut exit_code: i32 = 0;
+                            let exit_pid = waitpid(pid as usize, &mut exit_code);
+                            assert_eq!(pid, exit_pid);
+                            println!(
+                                "Shell: Process {} exited with code {}",
+                                pid, exit_code
+                            );
+                        }
+                        line.clear();
+                    }
+                    print!(">> ");
+                }
+                BS | DL => {
+                    if !line.is_empty() {
+                        print!("{}", BS as char);
+                        print!(" ");
+                        print!("{}", BS as char);
+                        line.pop();
+                    }
+                }
+                _ => {
+                    print!("{}", c as char);
+                    line.push(c as char);
+                }
+            }
+        }
+    }
+
+可以看到，在以第 25 行开头的主循环中，每次都是调用 ``getchar`` 获取一个用户输入的字符，并根据它相应进行一些动作。第 23 行声明的字符串 ``line`` 则维护着用户当前输入的命令内容，它也在不断发生变化。
+
+- 如果用户输入回车键（第 28 行），那么终端 fork 出一个子进程（第 34 行开始）并试图通过 ``exec`` 系统调用执行一个应用，应用的名字在字符串 ``line`` 中给出。这里我们需要注意的是由于子进程是从终端 fork 出来的，它们除了 fork 的返回值不同之外均相同，自然也可以看到一个和终端维护的版本相同的字符串 ``line`` 。第 35 行对 ``exec`` 的返回值进行了判断，如果返回值为 -1 的话目前说明在应用管理器中找不到名字相同的应用，此时子进程就直接打印错误信息并退出；反之 ``exec`` 则根本不会返回，而是开始执行目标应用。
+
+  fork 之后终端自己的逻辑可以在第 41 行找到。可以看出它只是在等待 fork 出来的子进程结束并回收掉它的资源，还会顺带收集子进程的退出状态并打印出来。
+- 如果用户输入退格键（第 53 行），首先我们需要将屏幕上当前行的最后一个字符用空格替换掉，这可以通过输入一个特殊的退格字节 ``BS`` 来实现。其次，终端内维护的 ``line`` 也需要弹出最后一个字符。
+- 如果用户输入了一个其他字符（第 61 行），它将会被视为用户的正常输入，我们直接将它打印在屏幕上并加入到 ``line`` 中。
+
+当内核初始化完毕之后，它会从可执行文件 ``initproc`` 中加载并执行初始进程，而初始进程中又会 ``fork`` 并 ``exec`` 来运行用户终端。这两个应用虽然都是在 CPU 的 U 特权级执行的，但是相比其他应用它们要更加基础，原则上应该将它们作为一个组件打包在操作系统中。但这里为了实现更加简单，我们并不将它们和其他应用进行区分。
+
+除此之外，我们还从 :math:`\mu\text{core}` 中借鉴了很多应用测例。它们可以做到同一时间 **并发** 多个进程并能够有效检验我们内核实现的正确性。感兴趣的读者可以参考 ``matrix`` 和 ``forktree`` 等应用。
