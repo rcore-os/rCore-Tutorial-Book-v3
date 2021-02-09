@@ -7,6 +7,6 @@ If you cannot access `github.io` normally due to network problems, please visit 
 
 ## Todo List
 
-- [ ] code tree in introduction
+- [x] code tree in introduction
 - [ ] rust module system in chapter1
 - [x] update rustsbi to 0.1.1
