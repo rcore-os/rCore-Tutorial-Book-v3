@@ -106,3 +106,87 @@
     >> 
 
 当应用执行完毕后，将继续回到用户终端的命令输入模式。
+
+本章代码树
+--------------------------------------
+
+.. code-block::
+   :linenos:
+
+   ├── bootloader
+   │   ├── rustsbi-k210.bin
+   │   └── rustsbi-qemu.bin
+   ├── LICENSE
+   ├── os
+   │   ├── build.rs(修改：基于应用名的应用链接器)
+   │   ├── Cargo.toml
+   │   ├── Makefile
+   │   └── src
+   │       ├── config.rs
+   │       ├── console.rs
+   │       ├── entry.asm
+   │       ├── lang_items.rs
+   │       ├── link_app.S
+   │       ├── linker-k210.ld
+   │       ├── linker-qemu.ld
+   │       ├── loader.rs(修改：基于应用名的应用加载器)
+   │       ├── main.rs(修改)
+   │       ├── mm(修改：为了支持本章的系统调用对此模块做若干增强)
+   │       │   ├── address.rs
+   │       │   ├── frame_allocator.rs
+   │       │   ├── heap_allocator.rs
+   │       │   ├── memory_set.rs
+   │       │   ├── mod.rs
+   │       │   └── page_table.rs
+   │       ├── sbi.rs
+   │       ├── syscall
+   │       │   ├── fs.rs(修改：新增 sys_read)
+   │       │   ├── mod.rs(修改：新的系统调用的分发处理)
+   │       │   └── process.rs（修改：新增 sys_getpid/fork/exec/waitpid）
+   │       ├── task
+   │       │   ├── context.rs
+   │       │   ├── manager.rs(新增：任务管理器，为上一章任务管理器功能的一部分)
+   │       │   ├── mod.rs(修改：调整原来的接口实现以支持进程)
+   │       │   ├── pid.rs(新增：进程标识符和内核栈的 Rust 抽象)
+   │       │   ├── processor.rs(新增：处理器管理器，为上一章任务管理器功能的一部分)
+   │       │   ├── switch.rs
+   │       │   ├── switch.S
+   │       │   └── task.rs(修改：支持进程机制的任务控制块)
+   │       ├── timer.rs
+   │       └── trap
+   │           ├── context.rs
+   │           ├── mod.rs(修改：对于系统调用的实现进行修改以支持进程系统调用)
+   │           └── trap.S
+   ├── README.md
+   ├── rust-toolchain
+   ├── tools
+   │   ├── kflash.py
+   │   ├── LICENSE
+   │   ├── package.json
+   │   ├── README.rst
+   │   └── setup.py
+   └── user(对于用户库 user_lib 进行修改，替换了一套新的测例)
+      ├── Cargo.toml
+      ├── Makefile
+      └── src
+         ├── bin
+         │   ├── exit.rs
+         │   ├── fantastic_text.rs
+         │   ├── forktest2.rs
+         │   ├── forktest.rs
+         │   ├── forktest_simple.rs
+         │   ├── forktree.rs
+         │   ├── hello_world.rs
+         │   ├── initproc.rs
+         │   ├── matrix.rs
+         │   ├── sleep.rs
+         │   ├── sleep_simple.rs
+         │   ├── stack_overflow.rs
+         │   ├── user_shell.rs
+         │   ├── usertests.rs
+         │   └── yield.rs
+         ├── console.rs
+         ├── lang_items.rs
+         ├── lib.rs
+         ├── linker.ld
+         └── syscall.rs
