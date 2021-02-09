@@ -130,6 +130,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2 current"><a class="current reference internal" href="#">引言</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">本章导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id3">实践体验</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">本章代码树</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="1rust-dynamic-allocation.html">Rust 中的动态内存分配</a></li>
@@ -241,25 +242,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>通过页表的虚实内存映射机制，加强了应用之间，应用与内核之间的内存隔离，增强了系统安全</p></li>
 <li><p>通过页表的虚实内存映射机制，可以实现空分复用（提出，但没有实现）</p></li>
 </ul>
-<p id="term-transparent"><span id="term-time-division-multiplexing"></span><span id="term-illusion"></span>上一章，我们分别实现了多道程序和分时多任务系统，它们的核心机制都是任务切换。由于它们的设计初衷不同，它们切换
-的时机和策略也不同。有趣的一点是，任务切换机制对于应用是完全 <strong>透明</strong> (Transparent) 的，应用可以不对内核
-实现该机制的策略做任何假定
-（除非要进行某些针对性优化），甚至可以完全不知道这机制的存在。在大多数应用（也就是应用开发者）的视角中，它们会独占
-一整个 CPU 直到执行完毕。当然，通过上一章的学习，我们知道在现代操作系统中，出于公平性的考虑，我们极少会让这种情况
-发生。所以应用自认为的独占只是内核想让应用看到的一种 <strong>幻象</strong> (Illusion) ，而 CPU 计算资源被 <strong>时分复用</strong>
-(TDM, Time-Division Multiplexing) 的实质被内核通过恰当的抽象隐藏了起来，对应用不可见。</p>
-<p>与之相对，我们目前还没有对内存管理功能进行有效的管理，仅仅是把程序放到某处的物理内存中。在上一章中，出于任务切换的需要，所有的应用都在初始化阶段被加载到
-内存中并同时驻留下去直到它们全部运行结束。而且，所有的应用都直接通过物理地址访问物理内存。这会带来以下问题：</p>
+<p id="term-transparent"><span id="term-time-division-multiplexing"></span><span id="term-illusion"></span>上一章，我们分别实现了多道程序和分时多任务系统，它们的核心机制都是任务切换。由于它们的设计初衷不同，它们切换的时机和策略也不同。有趣的一点是，任务切换机制对于应用是完全 <strong>透明</strong> (Transparent) 的，应用可以不对内核实现该机制的策略做任何假定（除非要进行某些针对性优化），甚至可以完全不知道这机制的存在。在大多数应用（也就是应用开发者）的视角中，它们会独占一整个 CPU 直到执行完毕。当然，通过上一章的学习，我们知道在现代操作系统中，出于公平性的考虑，我们极少会让这种情况发生。所以应用自认为的独占只是内核想让应用看到的一种 <strong>幻象</strong> (Illusion) ，而 CPU 计算资源被 <strong>时分复用</strong> (TDM, Time-Division Multiplexing) 的实质被内核通过恰当的抽象隐藏了起来，对应用不可见。</p>
+<p>与之相对，我们目前还没有对内存管理功能进行有效的管理，仅仅是把程序放到某处的物理内存中。在上一章中，出于任务切换的需要，所有的应用都在初始化阶段被加载到内存中并同时驻留下去直到它们全部运行结束。而且，所有的应用都直接通过物理地址访问物理内存。这会带来以下问题：</p>
 <ul class="simple">
-<li><p>首先，内核提供给应用的内存访问接口不够透明，也不好用。由于应用直接访问物理内存，
-这需要它在构建的时候就需要规划自己需要被加载到哪个地址运行。为了避免冲突可能还需要应用的开发者们对此进行协商，
-这显然是一件在今天看来不可理喻且极端麻烦的事情。</p></li>
-<li><p>其次，内核并没有对应用的访存行为进行任何保护措施，每个应用都有整块物理内存的读写权力。即使应用被限制在 U 特权级
-下运行，它还是能够造成很多麻烦：比如它可以读写其他应用的数据来窃取信息或者破坏它的正常运行；甚至它还可以修改内核
-的代码段来替换掉原本的 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 来挟持内核执行恶意代码。总之，这造成系统既不安全、也不稳定。</p></li>
+<li><p>首先，内核提供给应用的内存访问接口不够透明，也不好用。由于应用直接访问物理内存，这需要它在构建的时候就需要规划自己需要被加载到哪个地址运行。为了避免冲突可能还需要应用的开发者们对此进行协商，这显然是一件在今天看来不可理喻且极端麻烦的事情。</p></li>
+<li><p>其次，内核并没有对应用的访存行为进行任何保护措施，每个应用都有整块物理内存的读写权力。即使应用被限制在 U 特权级下运行，它还是能够造成很多麻烦：比如它可以读写其他应用的数据来窃取信息或者破坏它的正常运行；甚至它还可以修改内核的代码段来替换掉原本的 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 来挟持内核执行恶意代码。总之，这造成系统既不安全、也不稳定。</p></li>
 <li><p>再次，目前应用的内存使用空间在其运行前已经限定死了，内核不能灵活地给应用程序提供的运行时动态可用内存空间。比如一个应用结束后，这个应用所占的空间就被释放了，但这块空间无法动态地给其它还在运行的应用使用。</p></li>
 </ul>
-<p>因此，为了防止应用胡作非为，本章将更好的管理物理内存，并提供给应用一个抽象出来的更加透明易用、也更加安全的访存接口，就和上一章我们对 CPU 资源所做的事情一样，这就是我们要设计实现的具有超强防护能力的侏罗纪“头甲龙”操作系统。 并可归纳抽象出 <code class="docutils literal notranslate"><span class="pre">地址空间</span> <span class="pre">Address</span> <span class="pre">Space</span></code> ， <code class="docutils literal notranslate"><span class="pre">物理地址</span></code> ， <code class="docutils literal notranslate"><span class="pre">虚拟地址</span></code> 等操作系统的概念。</p>
+<p>因此，为了防止应用胡作非为，本章将更好的管理物理内存，并提供给应用一个抽象出来的更加透明易用、也更加安全的访存接口，就和上一章我们对 CPU 资源所做的事情一样，这就是我们要设计实现的具有超强防护能力的侏罗纪“头甲龙”操作系统。 并可归纳抽象出地址空间，虚拟地址等操作系统的概念。</p>
 <p>而对于灵活使用动态内存空间的问题，将在后续章节中进一步描述。</p>
 </div>
 <div class="section" id="id3">
@@ -400,6 +390,140 @@ Test sleep OK!
 [rustsbi] reset triggered! todo: shutdown all harts on k210; program halt
 </pre></div>
 </div>
+</div>
+<div class="section" id="id4">
+<h2>本章代码树<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<div class="highlight-default notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65</pre></div></td><td class="code"><div class="highlight"><pre><span></span>├── bootloader
+│   ├── rustsbi-k210.bin
+│   └── rustsbi-qemu.bin
+├── LICENSE
+├── os
+│   ├── build.rs
+│   ├── Cargo.lock
+│   ├── Cargo.toml
+│   ├── Makefile
+│   └── src
+│       ├── config.rs(修改，新增一些内存管理的相关配置)
+│       ├── console.rs
+│       ├── entry.asm
+│       ├── lang_items.rs
+│       ├── link_app.S
+│       ├── linker-k210.ld(修改，将跳板页引入内存布局)
+│       ├── linker-qemu.ld(修改，将跳板页引入内存布局)
+│       ├── loader.rs(修改，仅保留获取应用数量和数据的功能)
+│       ├── main.rs(修改)
+│       ├── mm(新增，内存管理的 mm 子模块)
+│       │   ├── address.rs(新增，物理/虚拟 地址/页号的 Rust 抽象)
+│       │   ├── frame_allocator.rs(新增，物理页帧分配器)
+│       │   ├── heap_allocator.rs(新增，内核动态内存分配器)
+│       │   ├── memory_set.rs(新增，引入地址空间 MemorySet 及逻辑段 MemoryArea 等)
+│       │   ├── mod.rs(新增，定义了 mm 模块初始化方法 init)
+│       │   └── page_table.rs(新增，多级页表抽象 PageTable 以及其他内容)
+│       ├── sbi.rs
+│       ├── syscall
+│       │   ├── fs.rs(修改，基于地址空间的 sys_write 实现)
+│       │   ├── mod.rs
+│       │   └── process.rs
+│       ├── task
+│       │   ├── context.rs(修改，构造一个跳转到不同位置的初始任务上下文)
+│       │   ├── mod.rs(修改，详见文档)
+│       │   ├── switch.rs
+│       │   ├── switch.S
+│       │   └── task.rs(修改，详见文档)
+│       ├── timer.rs
+│       └── trap
+│           ├── context.rs(修改，在 Trap 上下文中加入了更多内容)
+│           ├── mod.rs(修改，基于地址空间修改了 Trap 机制，详见文档)
+│           └── trap.S(修改，基于地址空间修改了 Trap 上下文保存与恢复汇编代码)
+├── README.md
+├── rust-toolchain
+├── tools
+│   ├── kflash.py
+│   ├── LICENSE
+│   ├── package.json
+│   ├── README.rst
+│   └── setup.py
+└── user
+<span class="hll">    ├── build.py(移除)
+</span>    ├── Cargo.toml
+    ├── Makefile
+    └── src
+        ├── bin
+        │   ├── 00power_3.rs
+        │   ├── 01power_5.rs
+        │   ├── 02power_7.rs
+        │   └── 03sleep.rs
+        ├── console.rs
+        ├── lang_items.rs
+        ├── lib.rs
+        ├── linker.ld(修改，将所有应用放在各自地址空间中固定的位置)
+        └── syscall.rs
+</pre></div>
+</td></tr></table></div>
 </div>
 </div>
 

@@ -329,6 +329,38 @@ exec 系统调用
 
 可以看到，在以第 25 行开头的主循环中，每次都是调用 ``getchar`` 获取一个用户输入的字符，并根据它相应进行一些动作。第 23 行声明的字符串 ``line`` 则维护着用户当前输入的命令内容，它也在不断发生变化。
 
+.. note::
+
+    **在应用中使能动态内存分配**
+
+    我们知道，在 Rust 中可变长字符串类型 ``String`` 是基于动态内存分配的。因此本章我们还要在用户库 ``user_lib`` 中支持动态内存分配，与第四章的做法相同，只需加入以下内容即可：
+
+    .. code-block:: rust
+
+        use buddy_system_allocator::LockedHeap;
+
+        const USER_HEAP_SIZE: usize = 16384;
+
+        static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
+
+        #[global_allocator]
+        static HEAP: LockedHeap = LockedHeap::empty();
+
+        #[alloc_error_handler]
+        pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
+            panic!("Heap allocation error, layout = {:?}", layout);
+        }
+
+        #[no_mangle]
+        #[link_section = ".text.entry"]
+        pub extern "C" fn _start() -> ! {
+            unsafe {
+                HEAP.lock()
+                    .init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
+            }
+            exit(main());
+        }
+
 - 如果用户输入回车键（第 28 行），那么终端 fork 出一个子进程（第 34 行开始）并试图通过 ``exec`` 系统调用执行一个应用，应用的名字在字符串 ``line`` 中给出。这里我们需要注意的是由于子进程是从终端 fork 出来的，它们除了 fork 的返回值不同之外均相同，自然也可以看到一个和终端维护的版本相同的字符串 ``line`` 。第 35 行对 ``exec`` 的返回值进行了判断，如果返回值为 -1 的话目前说明在应用管理器中找不到名字相同的应用，此时子进程就直接打印错误信息并退出；反之 ``exec`` 则根本不会返回，而是开始执行目标应用。
 
   fork 之后终端自己的逻辑可以在第 41 行找到。可以看出它只是在等待 fork 出来的子进程结束并回收掉它的资源，还会顺带收集子进程的退出状态并打印出来。

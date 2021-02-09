@@ -632,6 +632,36 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </td></tr></table></div>
 <p>可以看到，在以第 25 行开头的主循环中，每次都是调用 <code class="docutils literal notranslate"><span class="pre">getchar</span></code> 获取一个用户输入的字符，并根据它相应进行一些动作。第 23 行声明的字符串 <code class="docutils literal notranslate"><span class="pre">line</span></code> 则维护着用户当前输入的命令内容，它也在不断发生变化。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>在应用中使能动态内存分配</strong></p>
+<p>我们知道，在 Rust 中可变长字符串类型 <code class="docutils literal notranslate"><span class="pre">String</span></code> 是基于动态内存分配的。因此本章我们还要在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中支持动态内存分配，与第四章的做法相同，只需加入以下内容即可：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">buddy_system_allocator</span>::<span class="n">LockedHeap</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">USER_HEAP_SIZE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">16384</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">HEAP_SPACE</span>: <span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="n">USER_HEAP_SIZE</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">USER_HEAP_SIZE</span><span class="p">];</span><span class="w"></span>
+
+<span class="cp">#[global_allocator]</span><span class="w"></span>
+<span class="k">static</span><span class="w"> </span><span class="n">HEAP</span>: <span class="nc">LockedHeap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LockedHeap</span>::<span class="n">empty</span><span class="p">();</span><span class="w"></span>
+
+<span class="cp">#[alloc_error_handler]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">handle_alloc_error</span><span class="p">(</span><span class="n">layout</span>: <span class="nc">core</span>::<span class="n">alloc</span>::<span class="n">Layout</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Heap allocation error, layout = {:?}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">layout</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="cp">#[link_section = </span><span class="s">&quot;.text.entry&quot;</span><span class="cp">]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">HEAP</span><span class="p">.</span><span class="n">lock</span><span class="p">()</span><span class="w"></span>
+<span class="w">            </span><span class="p">.</span><span class="n">init</span><span class="p">(</span><span class="n">HEAP_SPACE</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">USER_HEAP_SIZE</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">());</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
 <ul>
 <li><p>如果用户输入回车键（第 28 行），那么终端 fork 出一个子进程（第 34 行开始）并试图通过 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 系统调用执行一个应用，应用的名字在字符串 <code class="docutils literal notranslate"><span class="pre">line</span></code> 中给出。这里我们需要注意的是由于子进程是从终端 fork 出来的，它们除了 fork 的返回值不同之外均相同，自然也可以看到一个和终端维护的版本相同的字符串 <code class="docutils literal notranslate"><span class="pre">line</span></code> 。第 35 行对 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 的返回值进行了判断，如果返回值为 -1 的话目前说明在应用管理器中找不到名字相同的应用，此时子进程就直接打印错误信息并退出；反之 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 则根本不会返回，而是开始执行目标应用。</p>
 <p>fork 之后终端自己的逻辑可以在第 41 行找到。可以看出它只是在等待 fork 出来的子进程结束并回收掉它的资源，还会顺带收集子进程的退出状态并打印出来。</p>
