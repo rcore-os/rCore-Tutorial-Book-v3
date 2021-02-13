@@ -234,31 +234,31 @@
    │   ├── Cargo.toml
    │   ├── Makefile
    │   └── src
-   │       ├── batch.rs(移除，功能分别拆分到 loader 和 task 两个子模块)
-   │       ├── config.rs(新增，保存内核的一些配置)
+   │       ├── batch.rs(移除：功能分别拆分到 loader 和 task 两个子模块)
+   │       ├── config.rs(新增：保存内核的一些配置)
    │       ├── console.rs
    │       ├── entry.asm
    │       ├── lang_items.rs
    │       ├── link_app.S
    │       ├── linker-k210.ld
    │       ├── linker-qemu.ld
-   │       ├── loader.rs(新增，将应用加载到内存并进行管理)
-   │       ├── main.rs(修改，主函数进行了修改)
-   │       ├── sbi.rs(修改，引入新的 sbi call set_timer)
-   │       ├── syscall(修改，新增若干 syscall)
+   │       ├── loader.rs(新增：将应用加载到内存并进行管理)
+   │       ├── main.rs(修改：主函数进行了修改)
+   │       ├── sbi.rs(修改：引入新的 sbi call set_timer)
+   │       ├── syscall(修改：新增若干 syscall)
    │       │   ├── fs.rs
    │       │   ├── mod.rs
    │       │   └── process.rs
-   │       ├── task(新增 task 子模块，主要负责任务管理)
-   │       │   ├── context.rs(新增，引入 Task 上下文 TaskContext)
-   │       │   ├── mod.rs(新增，全局任务管理器和提供给其他模块的接口)
-   │       │   ├── switch.rs(新增，将任务切换的汇编代码解释为 Rust 接口 __switch)
-   │       │   ├── switch.S(新增，任务切换的汇编代码)
-   │       │   └── task.rs(新增，任务控制块 TaskControlBlock 和任务状态 TaskStatus 的定义)
-   │       ├── timer.rs(新增，计时器相关)
+   │       ├── task(新增：task 子模块，主要负责任务管理)
+   │       │   ├── context.rs(引入 Task 上下文 TaskContext)
+   │       │   ├── mod.rs(全局任务管理器和提供给其他模块的接口)
+   │       │   ├── switch.rs(将任务切换的汇编代码解释为 Rust 接口 __switch)
+   │       │   ├── switch.S(任务切换的汇编代码)
+   │       │   └── task.rs(任务控制块 TaskControlBlock 和任务状态 TaskStatus 的定义)
+   │       ├── timer.rs(新增：计时器相关)
    │       └── trap
    │           ├── context.rs
-   │           ├── mod.rs(修改，时钟中断相应处理)
+   │           ├── mod.rs(修改：时钟中断相应处理)
    │           └── trap.S
    ├── README.md
    ├── rust-toolchain
@@ -269,11 +269,11 @@
    │   ├── README.rst
    │   └── setup.py
    └── user
-      ├── build.py(新增，使用 build.py 构建应用使得它们占用的物理地址区间不相交)
+      ├── build.py(新增：使用 build.py 构建应用使得它们占用的物理地址区间不相交)
       ├── Cargo.toml
-      ├── Makefile(修改，使用 build.py 构建应用)
+      ├── Makefile(修改：使用 build.py 构建应用)
       └── src
-         ├── bin(修改，换成第三章测例)
+         ├── bin(修改：换成第三章测例)
          │   ├── 00power_3.rs
          │   ├── 01power_5.rs
          │   ├── 02power_7.rs
