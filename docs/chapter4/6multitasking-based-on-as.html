@@ -973,6 +973,11 @@ Trap 上下文实际被放在的物理页帧，然后通过之前介绍的 <a cl
 初始化的时候，只需使用 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 子模块提供的 <code class="docutils literal notranslate"><span class="pre">get_num_app</span></code> 和 <code class="docutils literal notranslate"><span class="pre">get_app_data</span></code> 分别获取链接到内核的应用
 数量和每个应用的 ELF 格式数据，然后依次给每个应用创建任务控制块并加入到向量中即可。我们还将 <code class="docutils literal notranslate"><span class="pre">current_task</span></code> 设置
 为 0 ，于是将从第 0 个应用开始执行。</p>
+<p>回过头来介绍一下应用链接器 <code class="docutils literal notranslate"><span class="pre">os/build.rs</span></code> 的改动：</p>
+<ul class="simple">
+<li><p>首先，我们在 <code class="docutils literal notranslate"><span class="pre">.incbin</span></code> 中不再插入清除全部符号的应用二进制镜像 <code class="docutils literal notranslate"><span class="pre">*.bin</span></code> ，而是将构建得到的 ELF 格式文件直接链接进来；</p></li>
+<li><p>其次，在链接每个 ELF 格式文件之前我们都加入一行 <code class="docutils literal notranslate"><span class="pre">.align</span> <span class="pre">3</span></code> 来确保它们对齐到 8 字节，这是由于如果不这样做， <code class="docutils literal notranslate"><span class="pre">xmas-elf</span></code> crate 可能会在解析 ELF 的时候进行不对齐的内存读写，例如使用 <code class="docutils literal notranslate"><span class="pre">ld</span></code> 指令从内存的一个没有对齐到 8 字节的地址加载一个 64 位的值到一个通用寄存器。而在 k210 平台上，由于其硬件限制，这会触发一个内存读写不对齐的异常，导致解析无法正常完成。</p></li>
+</ul>
 <p>为了方便后续的实现，全局任务管理器还需要提供关于当前应用与地址空间有关的一些信息：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
