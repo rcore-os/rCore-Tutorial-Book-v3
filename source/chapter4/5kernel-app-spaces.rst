@@ -292,6 +292,7 @@
 :ref:`这里 <high-and-low-256gib>` 中解释过最高和最低 :math:`256\text{GiB}` 的问题）：
 
 .. image:: kernel-as-high.png
+    :name: kernel-as-high
     :align: center
     :height: 400
 
