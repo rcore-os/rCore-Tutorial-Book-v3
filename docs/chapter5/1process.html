@@ -457,7 +457,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </td></tr></table></div>
 <ul class="simple">
-<li><p>第 19 行为 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 返回值为 0 的分支，表示子进程，此行直接通过 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 执行用户终端 <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> ，注意我们需要在字符串末尾手动加入 <code class="docutils literal notranslate"><span class="pre">\0</span></code> ，因为 Rust 再将这些字符串连接到只读数据段的时候不会插入 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 。</p></li>
+<li><p>第 19 行为 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 返回值为 0 的分支，表示子进程，此行直接通过 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 执行用户终端 <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> ，注意我们需要在字符串末尾手动加入 <code class="docutils literal notranslate"><span class="pre">\0</span></code> ，因为 Rust 在将这些字符串连接到只读数据段的时候不会插入 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 。</p></li>
 <li><p>第 21 行开始则为返回值不为 0 的分支，表示调用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 的初始进程自身。可以看到它在不断循环调用 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 来等待那些被移交到它下面的子进程并回收它们占据的资源。如果回收成功的话则会打印一条报告信息给出被回收子进程的 PID 和返回值；否则就 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 交出 CPU 资源并在下次轮到它执行的时候再回收看看。这也可以看出，初始进程对于资源的回收并不算及时，但是对于已经退出的僵尸进程，初始进程最终总能够成功回收它们的资源。</p></li>
 </ul>
 </div>
