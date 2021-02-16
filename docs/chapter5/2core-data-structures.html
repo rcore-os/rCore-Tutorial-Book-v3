@@ -127,7 +127,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">第五章：进程及重要系统调用(施工)</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第五章：进程及重要系统调用</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1process.html">进程概念及重要系统调用</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">进程机制核心数据结构</a><ul>
@@ -150,7 +150,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="3implement-process-mechanism.html">实现进程机制</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信(施工)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
@@ -218,7 +218,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-          <li><a href="index.html">第五章：进程及重要系统调用(施工)</a> &raquo;</li>
+          <li><a href="index.html">第五章：进程及重要系统调用</a> &raquo;</li>
         
       <li>进程机制核心数据结构</li>
     
@@ -570,6 +570,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p><code class="docutils literal notranslate"><span class="pre">memory_set</span></code> 表示应用地址空间。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">parent</span></code> 指向当前进程的父进程（如果存在的话）。注意我们使用 <code class="docutils literal notranslate"><span class="pre">Weak</span></code> 而非 <code class="docutils literal notranslate"><span class="pre">Arc</span></code> 来包裹另一个任务控制块，因此这个智能指针将不会影响父进程的引用计数。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">children</span></code> 则将当前进程的所有子进程的任务控制块以 <code class="docutils literal notranslate"><span class="pre">Arc</span></code> 智能指针的形式保存在一个向量中，这样才能够更方便的找到它们。</p></li>
+<li><p>当进程调用 exit 系统调用主动退出或者执行出错由内核终止的时候，它的退出码 <code class="docutils literal notranslate"><span class="pre">exit_code</span></code> 会被内核保存在它的任务控制块中，并等待它的父进程通过 waitpid 回收它的资源的同时也收集它的 PID 以及退出码。</p></li>
 </ul>
 <p>注意我们在维护父子进程关系的时候大量用到了引用计数 <code class="docutils literal notranslate"><span class="pre">Arc/Weak</span></code> 。子进程的进程控制块并不会被直接放到父进程控制块下面，因为子进程完全有可能在父进程退出后仍然存在。因此进程控制块的本体是被放到内核堆上面的，对于它的一切访问都是通过智能指针 <code class="docutils literal notranslate"><span class="pre">Arc/Weak</span></code> 来进行的。当且仅当它的引用计数变为 0 的时候，进程控制块以及被绑定到它上面的各类资源才会被回收。</p>
 <p><code class="docutils literal notranslate"><span class="pre">TaskControlBlockInner</span></code> 提供的方法主要是对于它内部的字段的快捷访问：</p>
@@ -868,7 +869,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="simple">
 <li><p>第 11 行得到 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的第一个参数，也就是当前 idle 执行流的 task_cx_ptr2，这调用了第 4 行的 <code class="docutils literal notranslate"><span class="pre">get_idle_task_cx_ptr2</span></code> 方法。</p></li>
 <li><p>第 13~16 行需要先获取从任务管理器中取出的任务的互斥锁再对对应的任务控制块进行操作，因为在多核环境下有可能会产生并发冲突。在里面我们获取任务的 task_cx_ptr2 作为 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的第二个参数并修改任务的状态。第 16 行我们需要手动释放互斥锁，这样才能划分出更加精确的临界区。如果依赖编译器在循环的末尾自动释放的话，相当于扩大了临界区，有可能会导致死锁。</p></li>
-<li><p>第 18 行我们修改当前 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 正在执行的任务为我们取出的任务。注意这里相当于 <code class="docutils literal notranslate"><span class="pre">Arc&lt;TaskControlBlock&gt;</span></code> 形式的任务从任务管理器流动到了处理器监视器中。也就是说，在稳定的情况下，每个进程的任务控制块都只能被引用一次，要么在任务管理器中，要么这是在某个处理器的 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 中。</p></li>
+<li><p>第 18 行我们修改当前 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 正在执行的任务为我们取出的任务。注意这里相当于 <code class="docutils literal notranslate"><span class="pre">Arc&lt;TaskControlBlock&gt;</span></code> 形式的任务从任务管理器流动到了处理器监视器中。也就是说，在稳定的情况下，每个尚未结束的进程的任务控制块都只能被引用一次，要么在任务管理器中，要么则是在某个处理器的 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 中。</p></li>
 <li><p>第 20 行我们调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 来从当前的 idle 执行流切换到接下来要执行的任务。</p></li>
 </ul>
 <p>上面介绍了从 idle 执行流通过任务调度切换到某个任务开始执行的过程。而反过来，当一个应用用尽了内核本轮分配给它的时间片或者它主动调用 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 系统调用交出 CPU 使用权之后，进入内核后它会调用 <code class="docutils literal notranslate"><span class="pre">schedule</span></code> 函数来切换到 idle 执行流并开启新一轮的任务调度。</p>
