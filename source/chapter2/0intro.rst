@@ -63,8 +63,8 @@
 如果顺利的话，我们可以看到批处理系统自动加载并运行所有的程序并且正确在程序出错的情况下保护了自身：
 
 .. code-block:: 
-   
-   [rustsbi] Version 0.1.0
+
+   [rustsbi] RustSBI version 0.1.1
    .______       __    __      _______.___________.  _______..______   __
    |   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
    |  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
@@ -72,16 +72,17 @@
    |  |\  \----.|  `--'  |.----)   |      |  |  .----)   |   |  |_)  ||  |
    | _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
 
-   [rustsbi] Platform: QEMU
+   [rustsbi] Platform: QEMU (Version 0.1.0)
    [rustsbi] misa: RV64ACDFIMSU
    [rustsbi] mideleg: 0x222
    [rustsbi] medeleg: 0xb1ab
-   [rustsbi] Kernel entry: 0x80020000
+   [rustsbi-dtb] Hart count: cluster0 with 1 cores
+   [rustsbi] Kernel entry: 0x80200000
    [kernel] Hello, world!
    [kernel] num_app = 3
-   [kernel] app_0 [0x8002b028, 0x8002c328)
-   [kernel] app_1 [0x8002c328, 0x8002d6c0)
-   [kernel] app_2 [0x8002d6c0, 0x8002eb98)
+   [kernel] app_0 [0x8020b028, 0x8020c048)
+   [kernel] app_1 [0x8020c048, 0x8020d100)
+   [kernel] app_2 [0x8020d100, 0x8020e4b8)
    [kernel] Loading app_0
    Hello, world!
    [kernel] Application exited with code 0

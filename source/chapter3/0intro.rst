@@ -135,7 +135,7 @@
 
 .. code-block::
 
-   [rustsbi] Version 0.1.0
+   [rustsbi] RustSBI version 0.1.1
    .______       __    __      _______.___________.  _______..______   __
    |   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
    |  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
@@ -143,9 +143,9 @@
    |  |\  \----.|  `--'  |.----)   |      |  |  .----)   |   |  |_)  ||  |
    | _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
 
-   [rustsbi] Platform: K210
+   [rustsbi] Platform: K210 (Version 0.1.0)
    [rustsbi] misa: RV64ACDFIMSU
-   [rustsbi] mideleg: 0x222
+   [rustsbi] mideleg: 0x22
    [rustsbi] medeleg: 0x1ab
    [rustsbi] Kernel entry: 0x80020000
    [kernel] Hello, world!
@@ -210,8 +210,8 @@
    [kernel] Application exited with code 0
    Test sleep OK!
    [kernel] Application exited with code 0
-   [kernel] Panicked at src/task/mod.rs:97 All applications completed!
-   [rustsbi] reset triggered! todo: shutdown all harts on k210; program halt
+   [kernel] Panicked at src/task/mod.rs:98 All applications completed!
+   [rustsbi] reset triggered! todo: shutdown all harts on k210; program halt. Type: 0, reason: 0
 
 输出结果看上去有一些混乱，原因是用户程序的每个 ``println!`` 往往会被拆分成多个 ``sys_write`` 系统调用提交给内核。有兴趣的同学可以参考 
 ``println!`` 宏的实现。

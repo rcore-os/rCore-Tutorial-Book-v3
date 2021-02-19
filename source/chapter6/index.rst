@@ -2,7 +2,10 @@
 ==============================================
 
 .. toctree::
-   :hidden:
    :maxdepth: 4
+
+   0intro
+   1file-descriptor
+   2pipe
 
 有团队协作能力的“迅猛龙”操作系统。

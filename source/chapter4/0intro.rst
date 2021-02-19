@@ -67,7 +67,7 @@
 
 .. code-block::
 
-   [rustsbi] Version 0.1.0
+   [rustsbi] RustSBI version 0.1.1
    .______       __    __      _______.___________.  _______..______   __
    |   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
    |  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
@@ -75,16 +75,16 @@
    |  |\  \----.|  `--'  |.----)   |      |  |  .----)   |   |  |_)  ||  |
    | _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
 
-   [rustsbi] Platform: K210
+   [rustsbi] Platform: K210 (Version 0.1.0)
    [rustsbi] misa: RV64ACDFIMSU
-   [rustsbi] mideleg: 0x222
+   [rustsbi] mideleg: 0x22
    [rustsbi] medeleg: 0x1ab
    [rustsbi] Kernel entry: 0x80020000
    [kernel] Hello, world!
    .text [0x80020000, 0x8002b000)
    .rodata [0x8002b000, 0x8002e000)
-   .data [0x8002e000, 0x8004d000)
-   .bss [0x8004d000, 0x8035e000)
+   .data [0x8002e000, 0x8004c000)
+   .bss [0x8004c000, 0x8035d000)
    mapping .text section
    mapping .rodata section
    mapping .data section
@@ -94,94 +94,94 @@
    remap_test passed!
    init TASK_MANAGER
    num_app = 4
-   power_3 [10000/300000]
-   power_3 [20000/300000]
-   power_3 [power_5 [10000/210000]
+   power_3 [10000/300000power_5 [10000/210000]
    power_5 [20000/210000]
    power_5 [30000/210000]
-   power_5 [40000/210000]
-   power_5 [50000/210000power_7 [10000/240000]
+   power_7 [10000/240000]
    power_7 [20000/240000]
    power_7 [30000/240000]
-   power_7 [40000/240000]
-   power_7 [5000030000/300000]
+   ]
+   power_3 [20000/300000]
+   power_3 [30000/300000]
    power_3 [40000/300000]
+   power_5 [40000/210000]
+   power_5 [50000/210000]
+   power_5 [60000/210000]
+   power_7 [40000/240000]
+   power_7 [50000/240000]
+   power_7 [60000/240000]
    power_3 [50000/300000]
    power_3 [60000/300000]
    power_3 [70000/300000]
-   ]
-   power_5 [60000/210000]
    power_5 [70000/210000]
    power_5 [80000/210000]
    power_5 [90000/210000]
-   power_5 [100000//240000]
-   power_7 [60000/240000]
    power_7 [70000/240000]
    power_7 [80000/240000]
    power_7 [90000/240000]
    power_3 [80000/300000]
    power_3 [90000/300000]
    power_3 [100000/300000]
-   power_3 [110000/300000]
-   power_3 [120000/300000]
-   210000]
+   power_5 [100000/210000]
    power_5 [110000/210000]
    power_5 [120000/210000]
-   power_5 [130000/210000]
-   power_5 [140000/210000]
    power_7 [100000/240000]
    power_7 [110000/240000]
    power_7 [120000/240000]
+   power_3 [110000/300000]
+   power_3 [120000/300000]
+   power_3 [130000/300000]
+   power_5 [130000/210000]
+   power_5 [140000/210000]
+   power_5 [150000/210000]
    power_7 [130000/240000]
-   power_7 [140000/240000power_3 [130000/300000]
+   power_7 [140000/240000]
+   power_7 [150000/240000]
    power_3 [140000/300000]
    power_3 [150000/300000]
    power_3 [160000/300000]
-   power_3 [170000power_5 [150000/210000]
    power_5 [160000/210000]
    power_5 [170000/210000]
    power_5 [180000/210000]
-   power_5 [190000/210000]
-   power_7 [150000/240000]
    power_7 [160000/240000]
    power_7 [170000/240000]
    power_7 [180000/240000]
-   power_7 [/300000]
+   power_3 [170000/300000]
    power_3 [180000/300000]
    power_3 [190000/300000]
-   power_3 [200000/300000]
-   power_3 [210000/300000]
-   ]
+   power_5 [190000/210000]
    power_5 [200000/210000]
    power_5 [210000/210000]
-   5^210000 = 527227302(mod 998244353)
+   5^210000power_7 [190000/240000]
+   power_7 [200000/240000]
+   power_7 [210000/240000]
+   power_3 [200000/300000]
+   power_3 [210000/300000]
+   power_3 [220000/300000]
+   = 527227302(mod 998244353)
    Test power_5 OK!
    [kernel] Application exited with code 0
-   power_3 [220000/300000]
    power_3 [230000/300000]
    power_3 [240000/300000]
    power_3 [250000/300000]
-   power_3 [260000/300000190000/240000]
-   power_7 [200000/240000]
-   power_7 [210000/240000]
    power_7 [220000/240000]
    power_7 [230000/240000]
-   ]
+   power_7 [240000/240000]
+   7^240000 = 304164893power_3 [260000/300000]
    power_3 [270000/300000]
    power_3 [280000/300000]
-   power_3 [290000/300000]
-   power_3 [300000/300000]
-   3^300000 = 612461288power_7 [240000/240000]
-   7^240000 = 304164893(mod 998244353)
+   (mod 998244353)
    Test power_7 OK!
    [kernel] Application exited with code 0
-   (mod 998244353)
+   power_3 [290000/300000]
+   power_3 [300000/300000]
+   3^300000 = 612461288(mod 998244353)
    Test power_3 OK!
    [kernel] Application exited with code 0
    Test sleep OK!
    [kernel] Application exited with code 0
    [kernel] Panicked at src/task/mod.rs:112 All applications completed!
-   [rustsbi] reset triggered! todo: shutdown all harts on k210; program halt
+   [rustsbi] reset triggered! todo: shutdown all harts on k210; program halt. Type: 0, reason: 0
 
 本章代码树
 -----------------------------------------------------
