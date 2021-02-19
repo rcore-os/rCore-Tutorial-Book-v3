@@ -57,7 +57,7 @@
 
 .. code-block::
 
-   [rustsbi] Version 0.1.0
+   [rustsbi] RustSBI version 0.1.1
    .______       __    __      _______.___________.  _______..______   __
    |   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
    |  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
@@ -65,17 +65,18 @@
    |  |\  \----.|  `--'  |.----)   |      |  |  .----)   |   |  |_)  ||  |
    | _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
 
-   [rustsbi] Platform: QEMU
+   [rustsbi] Platform: QEMU (Version 0.1.0)
    [rustsbi] misa: RV64ACDFIMSU
    [rustsbi] mideleg: 0x222
-   [rustsbi] medeleg: 0xb109
-   [rustsbi] Kernel entry: 0x80020000
+   [rustsbi] medeleg: 0xb1ab
+   [rustsbi-dtb] Hart count: cluster0 with 1 cores
+   [rustsbi] Kernel entry: 0x80200000
    Hello, world!
-   .text [0x80020000, 0x80022000)
-   .rodata [0x80022000, 0x80023000)
-   .data [0x80023000, 0x80023000)
-   boot_stack [0x80023000, 0x80033000)
-   .bss [0x80033000, 0x80033000)
+   .text [0x80200000, 0x80202000)
+   .rodata [0x80202000, 0x80203000)
+   .data [0x80203000, 0x80203000)
+   boot_stack [0x80203000, 0x80213000)
+   .bss [0x80213000, 0x80213000)
    Panicked at src/main.rs:46 Shutdown machine!
 
 除了 ``Hello, world!`` 之外还有一些额外的信息，最后关机。

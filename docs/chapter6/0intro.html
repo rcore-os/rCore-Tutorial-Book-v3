@@ -74,8 +74,8 @@ commentsRunWhenDOMLoaded(addUtterances);
     
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
-    <link rel="next" title="特权级机制" href="1rv-privilege.html" />
-    <link rel="prev" title="第二章：批处理系统" href="index.html" /> 
+    <link rel="next" title="文件与文件描述符" href="1file-descriptor.html" />
+    <link rel="prev" title="第六章：文件描述符与进程间通信(施工)" href="index.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -124,23 +124,21 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">第二章：批处理系统</a><ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第六章：文件描述符与进程间通信(施工)</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">引言</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">本章导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id3">实践体验</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id4">本章代码树</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="1rv-privilege.html">特权级机制</a></li>
-<li class="toctree-l2"><a class="reference internal" href="2application.html">实现应用程序</a></li>
-<li class="toctree-l2"><a class="reference internal" href="3batch-system.html">实现批处理操作系统</a></li>
-<li class="toctree-l2"><a class="reference internal" href="4trap-handling.html">实现特权级的切换</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html">文件与文件描述符</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2pipe.html">管道</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信(施工)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
@@ -208,7 +206,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-          <li><a href="index.html">第二章：批处理系统</a> &raquo;</li>
+          <li><a href="index.html">第六章：文件描述符与进程间通信(施工)</a> &raquo;</li>
         
       <li>引言</li>
     
@@ -216,7 +214,7 @@ commentsRunWhenDOMLoaded(addUtterances);
       <li class="wy-breadcrumbs-aside">
         
           
-            <a href="../_sources/chapter2/0intro.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/chapter6/0intro.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -233,26 +231,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>引言<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="section" id="id2">
 <h2>本章导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
-<p>本章展现了操作系统一系列功能：</p>
-<ul class="simple">
-<li><p>通过批处理支持多个程序的自动加载和运行</p></li>
-<li><p>操作系统利用硬件特权级机制，实现对操作系统自身的保护</p></li>
-</ul>
-<p>上一章，我们在 RV64 裸机平台上成功运行起来了 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 。看起来这个过程非常顺利，只需要一条命令就能全部完成。但实际上，在那个计算机刚刚诞生的年代，很多事情并不像我们想象的那么简单。 当时，程序被记录在打孔的卡片上，使用汇编语言甚至机器语言来编写。而稀缺且昂贵的计算机由专业的管理员负责操作，就和我们在上一章所做的事情一样，他们手动将卡片输入计算机，等待程序运行结束或者终止程序的运行。最后，他们从计算机的输出端——也就是打印机中取出程序的输出并交给正在休息室等待的程序提交者。</p>
-<p>实际上，这样做是一种对于珍贵的计算资源的浪费。因为当时的计算机和今天的个人计算机不同，它的体积极其庞大，能够占满一整个空调房间，像巨大的史前生物。管理员在房间的各个地方跑来跑去、或是等待打印机的输出的这些时间段，计算机都并没有在工作。于是，人们希望计算机能够不间断的工作且专注于计算任务本身。</p>
-<p id="term-batch-system"><strong>批处理系统</strong> (Batch System) 应运而生。它的核心思想是：将多个程序打包到一起输入计算机。而当一个程序运行结束后，计算机会 <em>自动</em> 加载下一个程序到内存并开始执行。这便是最早的真正意义上的操作系统。</p>
-<p id="term-privilege">程序总是难免出现错误。但人们希望一个程序的错误不要影响到操作系统本身，它只需要终止出错的程序，转而运行执行序列中的下一个程序即可。如果后面的程序都无法运行就太糟糕了。这种 <em>保护</em> 操作系统不受有意或无意出错的程序破坏的机制被称为 <strong>特权级</strong> (Privilege) 机制，它实现了用户态和内核态的隔离，需要软件和硬件的共同努力。</p>
-<p>本章主要是设计和实现建立支持批处理系统的泥盆纪“邓式鱼”操作系统，从而对可支持运行一批应用程序的执行环境有一个全面和深入的理解。</p>
-<p>本章我们的目标让泥盆纪“邓式鱼”操作系统能够感知多个应用程序的存在，并一个接一个地运行这些应用程序，当一个应用程序执行完毕后，会启动下一个应用程序，直到所有的应用程序都执行完毕。</p>
-<img alt="../_images/deng-fish.png" class="align-center" id="fish-os" src="../_images/deng-fish.png" />
+<p>在上一章中，我们引入了非常重要的进程的概念。截止到目前为止，进程能够进行交互的 I/O 资源还非常有限。它只能接受用户在键盘上的输入，并将字符输出到屏幕上。我们一般将它们分别称为标准输入和标准输出。</p>
+<p>本章我们会引入操作系统中的另一个概念——文件描述符。每个进程都在它自己的文件描述符表中保存着多个文件描述符，而进程通过每个文件描述符均可对一个它已经请求内核打开的 I/O 资源（也即文件）进行读写。文件描述符可以描述包括标准输入/标准输出在内的多种不同的 I/O 资源。</p>
+<p>本章我们首先将标准输入/标准输出的访问改造为基于文件描述符，然后同样基于文件描述符实现一种父子进程之间的通信机制——管道。</p>
 </div>
 <div class="section" id="id3">
 <h2>实践体验<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
-<p>本章我们的批处理系统将连续运行三个应用程序，放在 <code class="docutils literal notranslate"><span class="pre">user/src/bin</span></code> 目录下。</p>
 <p>获取本章代码：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
 <span class="gp">$ </span><span class="nb">cd</span> rCore-Tutorial-v3
-<span class="gp">$ </span>git checkout ch2
+<span class="gp">$ </span>git checkout ch6
 </pre></div>
 </div>
 <p>在 qemu 模拟器上运行本章代码：</p>
@@ -265,47 +253,19 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="gp">$ </span>make run <span class="nv">BOARD</span><span class="o">=</span>k210
 </pre></div>
 </div>
-<p>如果顺利的话，我们可以看到批处理系统自动加载并运行所有的程序并且正确在程序出错的情况下保护了自身：</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[rustsbi] RustSBI version 0.1.1
-.______       __    __      _______.___________.  _______..______   __
-|   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
-|  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
-|      /     |  |  |  |    \   \       |  |      \   \    |   _  &lt; |  |
-|  |\  \----.|  `--&#39;  |.----)   |      |  |  .----)   |   |  |_)  ||  |
-| _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
-
-[rustsbi] Platform: QEMU (Version 0.1.0)
-[rustsbi] misa: RV64ACDFIMSU
-[rustsbi] mideleg: 0x222
-[rustsbi] medeleg: 0xb1ab
-[rustsbi-dtb] Hart count: cluster0 with 1 cores
-[rustsbi] Kernel entry: 0x80200000
-[kernel] Hello, world!
-[kernel] num_app = 3
-[kernel] app_0 [0x8020b028, 0x8020c048)
-[kernel] app_1 [0x8020c048, 0x8020d100)
-[kernel] app_2 [0x8020d100, 0x8020e4b8)
-[kernel] Loading app_0
-Hello, world!
-[kernel] Application exited with code 0
-[kernel] Loading app_1
-Into Test store_fault, we will insert an invalid store operation...
-Kernel should kill this application!
-[kernel] PageFault in application, core dumped.
-[kernel] Loading app_2
-3^10000=5079
-3^20000=8202
-3^30000=8824
-3^40000=5750
-3^50000=3824
-3^60000=8516
-3^70000=2510
-3^80000=9379
-3^90000=2621
-3^100000=2749
-Test power OK!
-[kernel] Application exited with code 0
-[kernel] Panicked at src/batch.rs:61 All applications completed!
+<p>进入用户终端后，可以运行管道机制的简单测例 <code class="docutils literal notranslate"><span class="pre">pipetest</span></code> 和比较复杂的测例 <code class="docutils literal notranslate"><span class="pre">pipe_large_test</span></code> 。 <code class="docutils literal notranslate"><span class="pre">pipetest</span></code> 需要保证父进程通过管道传输给子进程的字符串不会发生变化；而 <code class="docutils literal notranslate"><span class="pre">pipe_large_test</span></code> 中，父进程将一个长随机字符串传给子进程，随后父子进程同时计算该字符串的某种 Hash 值（逐字节求和），子进程会将计算后的 Hash 值传回父进程，而父进程接受到之后，需要验证两个 Hash 值相同，才算通过测试。</p>
+<p>运行两个测例的输出可能如下：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>&gt;&gt; pipetest
+Read OK, child process exited!
+pipetest passed!
+Shell: Process 2 exited with code 0
+&gt;&gt; pipe_large_test
+sum = 369114(parent)
+sum = 369114(child)
+Child process exited!
+pipe_large_test passed!
+Shell: Process 2 exited with code 0
+&gt;&gt;
 </pre></div>
 </div>
 </div>
@@ -316,27 +276,50 @@ Test power OK!
 │   └── rustsbi-qemu.bin
 ├── LICENSE
 ├── os
-│   ├── build.rs(新增：生成 link_app.S 将应用作为一个数据段链接到内核)
+│   ├── build.rs
+│   ├── Cargo.lock
 │   ├── Cargo.toml
-│   ├── Makefile(修改：构建内核之前先构建应用)
+│   ├── Makefile
 │   └── src
-│       ├── batch.rs(新增：实现了一个简单的批处理系统)
+│       ├── config.rs
 │       ├── console.rs
 │       ├── entry.asm
+│       ├── fs(新增：文件系统子模块 fs)
+│       │   ├── mod.rs(包含已经打开且可以被进程读写的文件的抽象 File Trait)
+│       │   ├── pipe.rs(实现了 File Trait 的第一个分支——可用来进程间通信的管道)
+│       │   └── stdio.rs(实现了 File Trait 的第二个分支——标准输入/输出)
 │       ├── lang_items.rs
-│       ├── link_app.S(构建产物，由 os/build.rs 输出)
+│       ├── link_app.S
 │       ├── linker-k210.ld
 │       ├── linker-qemu.ld
-│       ├── main.rs(修改：主函数中需要初始化 Trap 处理并加载和执行应用)
+│       ├── loader.rs
+│       ├── main.rs
+│       ├── mm
+│       │   ├── address.rs
+│       │   ├── frame_allocator.rs
+│       │   ├── heap_allocator.rs
+│       │   ├── memory_set.rs
+│       │   ├── mod.rs
+│       │   └── page_table.rs(新增：应用地址空间的缓冲区抽象 UserBuffer 及其迭代器实现)
 │       ├── sbi.rs
-│       ├── syscall(新增：系统调用子模块 syscall)
-│       │   ├── fs.rs(包含文件 I/O 相关的 syscall)
-│       │   ├── mod.rs(提供 syscall 方法根据 syscall ID 进行分发处理)
-│       │   └── process.rs(包含任务处理相关的 syscall)
-│       └── trap(新增：Trap 相关子模块 trap)
-│           ├── context.rs(包含 Trap 上下文 TrapContext)
-│           ├── mod.rs(包含 Trap 处理入口 trap_handler)
-│           └── trap.S(包含 Trap 上下文保存与恢复的汇编代码)
+│       ├── syscall
+│       │   ├── fs.rs(修改：调整 sys_read/write 的实现，新增 sys_close/pipe)
+│       │   ├── mod.rs(修改：调整 syscall 分发)
+│       │   └── process.rs
+│       ├── task
+│       │   ├── context.rs
+│       │   ├── manager.rs
+│       │   ├── mod.rs
+│       │   ├── pid.rs
+│       │   ├── processor.rs
+│       │   ├── switch.rs
+│       │   ├── switch.S
+│       │   └── task.rs(修改：在任务控制块中加入文件描述符表相关机制)
+│       ├── timer.rs
+│       └── trap
+│           ├── context.rs
+│           ├── mod.rs
+│           └── trap.S
 ├── README.md
 ├── rust-toolchain
 ├── tools
@@ -345,20 +328,35 @@ Test power OK!
 │   ├── package.json
 │   ├── README.rst
 │   └── setup.py
-└── user(新增：应用测例保存在 user 目录下)
-   ├── Cargo.toml
-   ├── Makefile
-   └── src
-      ├── bin(基于用户库 user_lib 开发的应用，每个应用放在一个源文件中)
-      │   ├── 00hello_world.rs
-      │   ├── 01store_fault.rs
-      │   └── 02power.rs
-      ├── console.rs
-      ├── lang_items.rs
-      ├── lib.rs(用户库 user_lib)
-      ├── linker.ld(应用的链接脚本)
-      └── syscall.rs(包含 syscall 方法生成实际用于系统调用的汇编指令，
-                     各个具体的 syscall 都是通过 syscall 来实现的)
+└── user
+    ├── Cargo.lock
+    ├── Cargo.toml
+    ├── Makefile
+    └── src
+        ├── bin
+        │   ├── exit.rs
+        │   ├── fantastic_text.rs
+        │   ├── forktest2.rs
+        │   ├── forktest.rs
+        │   ├── forktest_simple.rs
+        │   ├── forktree.rs
+        │   ├── hello_world.rs
+        │   ├── initproc.rs
+        │   ├── matrix.rs
+        │   ├── pipe_large_test.rs(新增)
+        │   ├── pipetest.rs(新增)
+        │   ├── run_pipe_test.rs(新增)
+        │   ├── sleep.rs
+        │   ├── sleep_simple.rs
+        │   ├── stack_overflow.rs
+        │   ├── user_shell.rs
+        │   ├── usertests.rs
+        │   └── yield.rs
+        ├── console.rs
+        ├── lang_items.rs
+        ├── lib.rs(新增两个系统调用：sys_close/sys_pipe)
+        ├── linker.ld
+        └── syscall.rs(新增两个系统调用：sys_close/sys_pipe)
 </pre></div>
 </div>
 </div>
@@ -370,8 +368,8 @@ Test power OK!
           </div>
           <footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="1rv-privilege.html" class="btn btn-neutral float-right" title="特权级机制" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="index.html" class="btn btn-neutral float-left" title="第二章：批处理系统" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="1file-descriptor.html" class="btn btn-neutral float-right" title="文件与文件描述符" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index.html" class="btn btn-neutral float-left" title="第六章：文件描述符与进程间通信(施工)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>
