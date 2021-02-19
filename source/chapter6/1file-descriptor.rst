@@ -1,6 +1,11 @@
 文件与文件描述符
 ===========================================
 
+本节导读
+-------------------------------------------
+
+本节我们介绍文件和文件描述符概念，并在进程中加入文件描述符表，同时将进程对于标准输入输出的访问的修改为基于文件抽象接口的实现。
+
 文件
 -------------------------------------------
 
@@ -148,3 +153,144 @@
 可以看到 ``fd_table`` 的类型包含多层嵌套，我们从外到里分别说明：
 
 - ``Vec`` 的动态长度特性使得我们无需设置一个固定的文件描述符数量上限，我们可以更加灵活的使用内存，而不必操心内存管理问题；
+- ``Option`` 使得我们可以区分一个文件描述符当前是否空闲，当它是 ``None`` 的时候是空闲的，而 ``Some`` 则代表它已被占用；
+- ``Arc`` 首先提供了共享引用能力。后面我们会提到，可能会有多个进程共享同一个文件对它进行读写。此外被它包裹的内容会被放到内核堆而不是栈上，于是它便不需要在编译期有着确定的大小；
+- ``dyn`` 关键字表明 ``Arc`` 里面的类型实现了 ``File/Send/Sync`` 三个 Trait ，但是编译期无法知道它具体是哪个类型（可能是任何实现了 ``File`` Trait 的类型如 ``Stdin/Stdout`` ，故而它所占的空间大小自然也无法确定），需要等到运行时才能知道它的具体类型，对于一些抽象方法的调用也是在那个时候才能找到该类型实现的版本的地址并跳转过去。
+
+.. note::
+
+    **Rust 语法卡片：Rust 中的多态**
+
+    在编程语言中， **多态** (Polymorphism) 指的是在同一段代码中可以隐含多种不同类型的特征。在 Rust 中主要通过泛型和 Trait 来实现多态。
+    
+    泛型是一种 **编译期多态** (Static Polymorphism)，在编译一个泛型函数的时候，编译器会对于所有可能用到的类型进行实例化并对应生成一个版本的汇编代码，在编译期就能知道选取哪个版本并确定函数地址，这可能会导致生成的二进制文件体积较大；而 Trait 对象（也即上面提到的 ``dyn`` 语法）是一种 **运行时多态** (Dynamic Polymorphism)，需要在运行时查一种类似于 C++ 中的 **虚表** (Virtual Table) 才能找到实际类型对于抽象接口实现的函数地址并进行调用，这样会带来一定的运行时开销，但是更为灵活。
+
+当新建一个进程的时候，我们需要按照先前的说明为进程打开标准输入输出：
+
+.. code-block:: rust
+    :linenos:
+    :emphasize-lines: 18-25
+
+    // os/src/task/task.rs
+
+    impl TaskControlBlock {
+        pub fn new(elf_data: &[u8]) -> Self {
+            ...
+            let task_control_block = Self {
+                pid: pid_handle,
+                kernel_stack,
+                inner: Mutex::new(TaskControlBlockInner {
+                    trap_cx_ppn,
+                    base_size: user_sp,
+                    task_cx_ptr: task_cx_ptr as usize,
+                    task_status: TaskStatus::Ready,
+                    memory_set,
+                    parent: None,
+                    children: Vec::new(),
+                    exit_code: 0,
+                    fd_table: vec![
+                        // 0 -> stdin
+                        Some(Arc::new(Stdin)),
+                        // 1 -> stdout
+                        Some(Arc::new(Stdout)),
+                        // 2 -> stderr
+                        Some(Arc::new(Stdout)),
+                    ],
+                }),
+            };
+            ...
+        }
+    }
+
+此外，在 fork 的时候，子进程需要完全继承父进程的文件描述符表来和父进程共享所有文件：
+
+.. code-block:: rust
+    :linenos:
+    :emphasize-lines: 8-16,29
+
+    // os/src/task/task.rs
+
+    impl TaskControlBlock {
+        pub fn fork(self: &Arc<TaskControlBlock>) -> Arc<TaskControlBlock> {
+            ...
+            // push a goto_trap_return task_cx on the top of kernel stack
+            let task_cx_ptr = kernel_stack.push_on_top(TaskContext::goto_trap_return());
+            // copy fd table
+            let mut new_fd_table: Vec<Option<Arc<dyn File + Send + Sync>>> = Vec::new();
+            for fd in parent_inner.fd_table.iter() {
+                if let Some(file) = fd {
+                    new_fd_table.push(Some(file.clone()));
+                } else {
+                    new_fd_table.push(None);
+                }
+            }
+            let task_control_block = Arc::new(TaskControlBlock {
+                pid: pid_handle,
+                kernel_stack,
+                inner: Mutex::new(TaskControlBlockInner {
+                    trap_cx_ppn,
+                    base_size: parent_inner.base_size,
+                    task_cx_ptr: task_cx_ptr as usize,
+                    task_status: TaskStatus::Ready,
+                    memory_set,
+                    parent: Some(Arc::downgrade(self)),
+                    children: Vec::new(),
+                    exit_code: 0,
+                    fd_table: new_fd_table,
+                }),
+            });
+            // add child
+            ...
+        }
+    }
+
+这样，即使我们仅手动为初始进程 ``initproc`` 打开了标准输入输出，所有进程也都可以访问它们。
+
+文件读写系统调用
+---------------------------------------------------
+
+基于文件抽象接口和文件描述符表，我们终于可以让文件读写系统调用 ``sys_read/write`` 变得更加具有普适性，不仅仅局限于标准输入输出：
+
+.. code-block:: rust
+
+    // os/src/syscall/fs.rs
+
+    pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+        let token = current_user_token();
+        let task = current_task().unwrap();
+        let inner = task.acquire_inner_lock();
+        if fd >= inner.fd_table.len() {
+            return -1;
+        }
+        if let Some(file) = &inner.fd_table[fd] {
+            let file = file.clone();
+            // release Task lock manually to avoid deadlock
+            drop(inner);
+            file.write(
+                UserBuffer::new(translated_byte_buffer(token, buf, len))
+            ) as isize
+        } else {
+            -1
+        }
+    }
+
+    pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
+        let token = current_user_token();
+        let task = current_task().unwrap();
+        let inner = task.acquire_inner_lock();
+        if fd >= inner.fd_table.len() {
+            return -1;
+        }
+        if let Some(file) = &inner.fd_table[fd] {
+            let file = file.clone();
+            // release Task lock manually to avoid deadlock
+            drop(inner);
+            file.read(
+                UserBuffer::new(translated_byte_buffer(token, buf, len))
+            ) as isize
+        } else {
+            -1
+        }
+    }
+
+我们都是在当前进程的文件描述符表中通过文件描述符找到某个文件，无需关心文件具体的类型，只要知道它一定实现了 ``File`` Trait 的 ``read/write`` 方法即可。Trait 对象提供的运行时多态能力会在运行的时候帮助我们定位到 ``read/write`` 的符合实际类型的实现。
