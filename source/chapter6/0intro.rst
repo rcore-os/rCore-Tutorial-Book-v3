@@ -28,7 +28,7 @@
    $ cd os
    $ make run
 
-将 Maix 系列开发版连接到 PC，并在上面运行本章代码：
+将 Maix 系列开发板连接到 PC，并在上面运行本章代码：
 
 .. code-block:: console
 
