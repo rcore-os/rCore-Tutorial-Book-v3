@@ -245,15 +245,15 @@ commentsRunWhenDOMLoaded(addUtterances);
 子模块中实现，应用的执行和切换则交给 <code class="docutils literal notranslate"><span class="pre">task</span></code> 子模块。</p>
 <p>注意，我们需要调整每个应用被构建时候使用的链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中的起始地址 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 为它实际
 会被内核加载并运行的地址。也就是要做到：应用知道自己会被加载到某个地址运行，而内核也确实能做到将它加载到那个
-地址。这算是应用和内核在某种意义上达成的一种协议。之所以要有这么苛刻的条件，是因为应用和内核的能力都很弱，泛用性很低。
-事实上，目前我们的应用是绝对位置而并不是位置无关的，内核也没有提供相应的重定位机制。</p>
+地址。这算是应用和内核在某种意义上达成的一种协议。之所以要有这么苛刻的条件，是因为应用和内核的能力都很弱，通用性很低。
+事实上，目前应用程序的编址方式是基于绝对位置的而并没做到与位置无关，内核也没有提供相应的重定位机制。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p>可以在 <a class="reference external" href="https://nju-projectn.github.io/ics-pa-gitbook/ics2020/4.2.html">这里</a> 找到更多有关
+<p>对于编址方式，需要再回顾一下编译原理课讲解的后端代码生成技术，以及计算机组成原理课的指令寻址方式的内容。可以在 <a class="reference external" href="https://nju-projectn.github.io/ics-pa-gitbook/ics2020/4.2.html">这里</a> 找到更多有关
 位置无关和重定位的说明。</p>
 </div>
-<p>由于每个应用被加载到的位置都不同，也就导致它们 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 都是不同的。实际上，
-我们写了一个脚本 <code class="docutils literal notranslate"><span class="pre">build.py</span></code> 而不是直接 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> 构建应用：</p>
+<p>由于每个应用被加载到的位置都不同，也就导致它们的链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 都是不同的。实际上，
+我们写了一个脚本 <code class="docutils literal notranslate"><span class="pre">build.py</span></code> 而不是直接用 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> 构建应用的链接脚本：</p>
 <div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
 <span class="normal"> 2</span>
 <span class="normal"> 3</span>
@@ -319,7 +319,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id5">
 <h2>多道程序加载<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<p>应用的加载方式也和上一章不同。上一章中讲解的加载方法是所有应用都共享同一个固定的加载物理地址，也是因为这个原因，内存中同时最多只能驻留一个应用，当它运行完毕或者出错退出的时候由 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块加载一个新的应用来替换掉它。本章中，所有的应用在内核初始化的时候就一并被加载到内存中。为了避免覆盖，它们自然需要被加载到不同的物理地址。这是通过
+<p>应用的加载方式也和上一章的有所不同。上一章中讲解的加载方法是让所有应用都共享同一个固定的加载物理地址。也是因为这个原因，内存中同时最多只能驻留一个应用，当它运行完毕或者出错退出的时候由操作系统的 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块加载一个新的应用来替换掉它。本章中，所有的应用在内核初始化的时候就一并被加载到内存中。为了避免覆盖，它们自然需要被加载到不同的物理地址。这是通过
 调用 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">load_apps</span></code> 函数实现的：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
 <span class="normal"> 2</span>
@@ -405,7 +405,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id6">
 <h2>执行应用程序<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
-<p>当多道程序的初始化放置工作完成，或者是某个应用程序运行结束或出错的时候，我们要调用 run_next_app 函数切换到下一个应用程序。此时 CPU 运行在 S 特权级的操作系统中，而操作系统希望能够切换到 U 特权级去运行应用程序。这一过程与上章的 <a class="reference internal" href="../chapter2/4trap-handling.html#ch2-app-execution"><span class="std std-ref">执行应用程序</span></a> 一节的描述类似。相对不同的是,操作系统知道每个应用程序加载在内存中的位置，要设置应用程序返回的不同 Trap 上下文：</p>
+<p>当多道程序的初始化放置工作完成，或者是某个应用程序运行结束或出错的时候，我们要调用 run_next_app 函数切换到下一个应用程序。此时 CPU 运行在 S 特权级的操作系统中，而操作系统希望能够切换到 U 特权级去运行应用程序。这一过程与上章的 <a class="reference internal" href="../chapter2/4trap-handling.html#ch2-app-execution"><span class="std std-ref">执行应用程序</span></a> 一节的描述类似。相对不同的是，操作系统知道每个应用程序预先加载在内存中的位置，这就需要设置应用程序返回的不同 Trap 上下文（Trap上下文中保存了 放置程序起始地址的``epc`` 寄存器内容）：</p>
 <ul class="simple">
 <li><p>跳转到应用程序（编号 <span class="math notranslate nohighlight">\(i\)</span> ）的入口点 <span class="math notranslate nohighlight">\(\text{entry}_i\)</span></p></li>
 <li><p>将使用的栈切换到用户栈 <span class="math notranslate nohighlight">\(\text{stack}_i\)</span></p></li>

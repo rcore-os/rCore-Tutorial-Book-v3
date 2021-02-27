@@ -143,7 +143,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="4understand-prog.html">理解应用程序和执行环境</a></li>
-<li class="toctree-l2"><a class="reference internal" href="5exercise.html">训练</a></li>
+<li class="toctree-l2"><a class="reference internal" href="5exercise.html">chapter1练习</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
@@ -345,7 +345,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>实现关机功能<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
 <p>如果在裸机上的应用程序执行完毕并通知操作系统后，那么“三叶虫”操作系统就没事干了，实现正常关机是一个合理的选择。所以我们要让“三叶虫”操作系统能够正常关机，这是需要调用SBI提供的关机功能 <code class="docutils literal notranslate"><span class="pre">SBI_SHUTDOWN</span></code> ，这与上一节的 <code class="docutils literal notranslate"><span class="pre">SYSCALL_EXIT</span></code> 类似，
 只是在具体参数上有所不同。在上一节完成的没有显示功能的用户态最小化执行环境基础上，修改后的代码如下：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// bootloader/rustsbi-qemu.bin 直接添加的SBI规范实现的二进制代码，给操作系统提供基本支持服务</span>
+<div class="highlight-rust notranslate" id="term-llvm-sbicall"><div class="highlight"><pre><span></span><span class="c1">// bootloader/rustsbi-qemu.bin 直接添加的SBI规范实现的二进制代码，给操作系统提供基本支持服务</span>
+
+<span class="c1">// os/src/sbi.rs</span>
+<span class="k">fn</span> <span class="nf">sbi_call</span><span class="p">(</span><span class="n">which</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">arg0</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">arg1</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">arg2</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ret</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="fm">llvm_asm!</span><span class="p">(</span><span class="s">&quot;ecall&quot;</span><span class="w"></span>
+<span class="w">            </span>: <span class="s">&quot;={x10}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="p">)</span><span class="w"></span>
+<span class="w">            </span>: <span class="s">&quot;{x10}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">arg0</span><span class="p">),</span><span class="w"> </span><span class="s">&quot;{x11}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">arg1</span><span class="p">),</span><span class="w"> </span><span class="s">&quot;{x12}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">arg2</span><span class="p">),</span><span class="w"> </span><span class="s">&quot;{x17}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">which</span><span class="p">)</span><span class="w"></span>
+<span class="o">..</span><span class="p">.</span><span class="w"></span>
 
 <span class="c1">// os/src/main.rs</span>
 <span class="k">const</span><span class="w"> </span><span class="n">SBI_SHUTDOWN</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">;</span><span class="w"></span>

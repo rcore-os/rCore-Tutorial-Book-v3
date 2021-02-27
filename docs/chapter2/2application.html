@@ -406,8 +406,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 的汇编代码中的过程中会发生变化。我们这里则是告诉编译器在执行嵌入汇编代码中的时候会修改内存。这能给编译器提供更多信息。</p>
 <p>第 10 行用于告知编译器将我们在程序中给出的嵌入汇编代码保持原样放到最终构建的可执行文件中。如果不这样做的话，编译器可能会把它和其他代码
 一视同仁并放在一起进行一些我们期望之外的优化。为了保证语义的正确性，一些比较关键的汇编代码需要加上该选项。</p>
-<p>第一章中的输出到屏幕的操作也同样是使用内联汇编调用 SEE 提供的 SBI 接口来实现的。有兴趣的读者可以回顾第一章的 <code class="docutils literal notranslate"><span class="pre">console.rs</span></code> 和
-<code class="docutils literal notranslate"><span class="pre">sbi.rs</span></code> 。</p>
+<p>上面这一段汇编代码的含义和内容与第一章中的 <a class="reference internal" href="../chapter1/3-1-mini-rt-usrland.html#term-llvm-syscall"><span class="std std-ref">第一章中U-Mode应用程序中的系统调用汇编代码</span></a> 的是一致的。与 <a class="reference internal" href="../chapter1/3-2-mini-rt-baremetal.html#term-llvm-sbicall"><span class="std std-ref">第一章中的RustSBI输出到屏幕的SBI调用汇编代码</span></a> 涉及的汇编指令一样，但传递参数的寄存器的含义是不同的。有兴趣的读者可以回顾第一章的 <code class="docutils literal notranslate"><span class="pre">console.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sbi.rs</span></code> 。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>Rust 语法卡片：内联汇编</strong></p>
@@ -491,7 +490,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 </div>
 <div class="section" id="id8">
 <h2>实现操作系统前执行应用程序<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h2>
-<p>我们还没有实现操作系统，能提前执行或测试应用程序吗？可以！ 这是因为我们除了一个能模拟一台RISC-V 64 计算机的全系统模拟器 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 外，还有一个直接支持运行RISC-V64 用户程序的半系统模拟器 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 。 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 模拟器的特点是，它可以直接解析ELF 可执行文件，并加载执行RISC-V64 用户程序（ELF 可执行文件）中的指令，如果碰到系统调用，就把系统调用转换成本机（如x86-64）的系统调用格式，再发给本机的Linux内核来完成系统调用, 再把结果转换成RISC-V64的格式，这样RISC-V64 用户程序就可以得到结果，并继续执行。整个过程就好像这个RISC-V64 用户程序直接运行在一台安装了RV64 Linux的RV64的计算机上。</p>
+<p>我们还没有实现操作系统，能提前执行或测试应用程序吗？可以！ 这是因为我们除了一个能模拟一台RISC-V 64 计算机的全系统模拟器 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 外，还有一个 <a class="reference internal" href="../chapter1/3-1-mini-rt-usrland.html#term-qemu-riscv64"><span class="std std-ref">直接支持运行RISC-V64 用户程序的半系统模拟器qemu-riscv64</span></a> 。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p>如果想让用户态应用程序在Linux和在我们自己写的OS上执行效果一样，需要做到二者的系统调用的接口是一样的（包括系统调用编号，参数约定的具体的寄存器和栈等）。</p>
@@ -532,7 +531,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <span class="normal">3</span>
 <span class="normal">4</span>
 <span class="normal">5</span>
-<span class="normal">6</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// usr/src/bin/03priv_intr.rs</span>
+<span class="normal">6</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// usr/src/bin/04priv_intr.rs</span>
 <span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Hello, world!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">sstatus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sstatus</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
