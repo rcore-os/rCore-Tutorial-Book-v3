@@ -304,7 +304,7 @@ Rust 中的 ``llvm_asm!`` 宏的完整格式如下：
 .. code-block:: rust
     :linenos:
 
-    // usr/src/bin/03priv_intr.rs
+    // usr/src/bin/04priv_intr.rs
     ...
         println!("Hello, world!");
         let mut sstatus = sstatus::read();
