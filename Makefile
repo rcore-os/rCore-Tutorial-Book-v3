@@ -19,6 +19,9 @@ help:
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
+view:
+	make html && firefox build/html/index.html
+
 deploy:
 	@make clean
 	@make html
