@@ -121,9 +121,20 @@
 如果在裸机上的应用程序执行完毕并通知操作系统后，那么“三叶虫”操作系统就没事干了，实现正常关机是一个合理的选择。所以我们要让“三叶虫”操作系统能够正常关机，这是需要调用SBI提供的关机功能 ``SBI_SHUTDOWN`` ，这与上一节的 ``SYSCALL_EXIT`` 类似，
 只是在具体参数上有所不同。在上一节完成的没有显示功能的用户态最小化执行环境基础上，修改后的代码如下：
 
+.. _term-llvm-sbicall:
+
 .. code-block:: rust
 
     // bootloader/rustsbi-qemu.bin 直接添加的SBI规范实现的二进制代码，给操作系统提供基本支持服务
+
+    // os/src/sbi.rs
+    fn sbi_call(which: usize, arg0: usize, arg1: usize, arg2: usize) -> usize {
+        let mut ret;
+        unsafe {
+            llvm_asm!("ecall"
+                : "={x10}" (ret)
+                : "{x10}" (arg0), "{x11}" (arg1), "{x12}" (arg2), "{x17}" (which)
+    ...
 
     // os/src/main.rs
     const SBI_SHUTDOWN: usize = 8;
@@ -139,7 +150,9 @@
     }
 
 
-也许有同学比较迷惑，应用程序访问操作系统提供的系统调用的指令是 **ecall** ，操作系统访问
+
+
+也许有同学比较迷惑，应用程序访问操作系统提供的系统调用的指令是 ``ecall`` ，操作系统访问
 RustSBI提供的SBI服务的SBI调用的指令也是 ``ecall`` 。
 这其实是没有问题的，虽然指令一样，但它们所在的特权级和特权级转换是不一样的。简单地说，应用程序位于最弱的用户特权级（User Mode），操作系统位于
 很强大的内核特权级（Supervisor Mode），RustSBI位于完全掌控机器的机器特权级（Machine Mode），通过 ``ecall`` 指令，可以完成从弱的特权级

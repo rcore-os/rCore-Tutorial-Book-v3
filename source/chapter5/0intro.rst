@@ -40,7 +40,7 @@
    $ cd os
    $ make run
 
-将 Maix 系列开发版连接到 PC，并在上面运行本章代码：
+将 Maix 系列开发板连接到 PC，并在上面运行本章代码：
 
 .. code-block:: console
 
@@ -51,43 +51,51 @@
 
 .. code-block::
 
-    [rustsbi] Platform: K210
-    [rustsbi] misa: RV64ACDFIMSU
-    [rustsbi] mideleg: 0x22
-    [rustsbi] medeleg: 0x1ab
-    [rustsbi] Kernel entry: 0x80020000
-    [kernel] Hello, world!
-    last 800 Physical Frames.
-    .text [0x80020000, 0x8002e000)
-    .rodata [0x8002e000, 0x80032000)
-    .data [0x80032000, 0x800cf000)
-    .bss [0x800cf000, 0x802e0000)
-    mapping .text section
-    mapping .rodata section
-    mapping .data section
-    mapping .bss section
-    mapping physical memory
-    remap_test passed!
-    after initproc!
-    /**** APPS ****
-    exit
-    fantastic_text
-    forktest
-    forktest2
-    forktest_simple
-    forktree
-    hello_world
-    initproc
-    matrix
-    sleep
-    sleep_simple
-    stack_overflow
-    user_shell
-    usertests
-    yield
-    **************/
-    Rust user shell
-    >> 
+   [rustsbi] RustSBI version 0.1.1
+   .______       __    __      _______.___________.  _______..______   __
+   |   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
+   |  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
+   |      /     |  |  |  |    \   \       |  |      \   \    |   _  < |  |
+   |  |\  \----.|  `--'  |.----)   |      |  |  .----)   |   |  |_)  ||  |
+   | _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
+
+   [rustsbi] Platform: K210 (Version 0.1.0)
+   [rustsbi] misa: RV64ACDFIMSU
+   [rustsbi] mideleg: 0x22
+   [rustsbi] medeleg: 0x1ab
+   [rustsbi] Kernel entry: 0x80020000
+   [kernel] Hello, world!
+   last 808 Physical Frames.
+   .text [0x80020000, 0x8002e000)
+   .rodata [0x8002e000, 0x80032000)
+   .data [0x80032000, 0x800c7000)
+   .bss [0x800c7000, 0x802d8000)
+   mapping .text section
+   mapping .rodata section
+   mapping .data section
+   mapping .bss section
+   mapping physical memory
+   remap_test passed!
+   after initproc!
+   /**** APPS ****
+   exit
+   fantastic_text
+   forktest
+   forktest2
+   forktest_simple
+   forktree
+   hello_world
+   initproc
+   matrix
+   sleep
+   sleep_simple
+   stack_overflow
+   user_shell
+   usertests
+   yield
+   **************/
+   Rust user shell
+   >>  
 
 其中 ``usertests`` 打包了很多应用，只要执行它就能够自动执行一系列应用。
 
