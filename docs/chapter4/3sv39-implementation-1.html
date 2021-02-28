@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>实现 SV39 多级页表机制（上） &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
@@ -16,10 +16,7 @@
 
   
   
-
   
-  
-
   
 
   
@@ -32,6 +29,7 @@
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -89,7 +87,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
           
 
           
@@ -133,7 +131,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2 current"><a class="current reference internal" href="#">实现 SV39 多级页表机制（上）</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id1">本节导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id2">虚拟地址和物理地址</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#csr">内存控制的CSR寄存器</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#csr">内存控制相关的CSR寄存器</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id3">地址格式与组成</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id4">地址相关的数据结构抽象与类型定义</a></li>
 </ul>
@@ -208,8 +206,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
-
-
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -223,7 +219,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="../_sources/chapter4/3sv39-implementation-1.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -246,11 +242,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="id2">
 <h2>虚拟地址和物理地址<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
 <div class="section" id="csr">
-<h3>内存控制的CSR寄存器<a class="headerlink" href="#csr" title="永久链接至标题">¶</a></h3>
+<h3>内存控制相关的CSR寄存器<a class="headerlink" href="#csr" title="永久链接至标题">¶</a></h3>
 <p>默认情况下 MMU 未被使能，此时无论 CPU 位于哪个特权级，访存的地址都会作为一个物理地址交给对应的内存控制单元来直接
 访问物理内存。我们可以通过修改 S 特权级的一个名为 <code class="docutils literal notranslate"><span class="pre">satp</span></code> 的 CSR 来启用分页模式，在这之后 S 和 U 特权级的访存
-地址会被视为一个虚拟地址，它需要经过 MMU 的地址转换变为一个物理地址，再通过它来访问物理内存；而 M 特权级的访存地址
-被视为一个物理地址还是一个需要经历和 S/U 特权级相同的地址转换的虚拟地址则取决于配置，在这里我们并不深入。</p>
+地址会被视为一个虚拟地址，它需要经过 MMU 的地址转换变为一个物理地址，再通过它来访问物理内存；而 M 特权级的访存地址，我们可设定是内存的物理地址。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p>M 特权级的访存地址被视为一个物理地址还是一个需要经历和 S/U 特权级相同的地址转换的虚拟地址取决于硬件配置，在这里我们不会进一步探讨。</p>
+</div>
 <img alt="../_images/satp.png" id="satp-layout" src="../_images/satp.png" />
 <p>上图是 RV64 架构下 <code class="docutils literal notranslate"><span class="pre">satp</span></code> 的字段分布。当 <code class="docutils literal notranslate"><span class="pre">MODE</span></code> 设置为 0 的时候，代表所有访存都被视为物理地址；而设置为 8
 的时候，SV39 分页机制被启用，所有 S/U 特权级的访存被视为一个 39 位的虚拟地址，它们需要先经过 MMU 的地址转换流程，
@@ -271,17 +270,17 @@ commentsRunWhenDOMLoaded(addUtterances);
 它的虚拟页号 VPN，同理物理地址的高 44 位，即 <span class="math notranslate nohighlight">\([55:12]\)</span> 为它的物理页号 PPN，页号可以用来定位一个虚拟/物理地址
 属于哪一个虚拟页面/物理页帧。</p>
 <p>地址转换是以页为单位进行的，在地址转换的前后地址的页内偏移部分不变。可以认为 MMU 只是从虚拟地址中取出 27 位虚拟页号，
-在页表中查到其对应的物理页号（如果存在的话），最后将得到的物理页号与虚拟地址的页内偏移依序拼接到一起就变成了物理地址。</p>
+在页表中查到其对应的物理页号（如果存在的话），最后将得到的44位的物理页号与虚拟地址的12位页内偏移依序拼接到一起就变成了56位的物理地址。</p>
 <div class="admonition note" id="high-and-low-256gib">
 <p class="admonition-title">注解</p>
 <p><strong>RV64 架构中虚拟地址为何只有 39 位？</strong></p>
-<p>在 64 位架构上虚拟地址长度确实应该和位宽一致为 64 位，但是在启用 SV39 分页模式下，只有后 39 位是真正有意义的。
+<p>在 64 位架构上虚拟地址长度确实应该和位宽一致为 64 位，但是在启用 SV39 分页模式下，只有低 39 位是真正有意义的。
 SV39 分页模式规定 64 位虚拟地址的 <span class="math notranslate nohighlight">\([63:39]\)</span> 这 25 位必须和第 38 位相同，否则 MMU 会直接认定它是一个
-不合法的虚拟地址。通过这个检查之后 MMU 再取出后 39 位尝试将其转化为一个 56 位的物理地址。</p>
+不合法的虚拟地址。通过这个检查之后 MMU 再取出低 39 位尝试将其转化为一个 56 位的物理地址。</p>
 <p>也就是说，所有 <span class="math notranslate nohighlight">\(2^{64}\)</span> 个虚拟地址中，只有最低的 <span class="math notranslate nohighlight">\(256\text{GiB}\)</span> （当第 38 位为 0 时）
 以及最高的 <span class="math notranslate nohighlight">\(256\text{GiB}\)</span> （当第 38 位为 1 时）是可能通过 MMU 检查的。当我们写软件代码的时候，一个
 地址的位宽毋庸置疑就是 64 位，我们要清楚可用的只有最高和最低这两部分，尽管它们已经巨大的超乎想象了；而本节中
-我们专注于介绍 MMU 的机制，强调 MMU 看到的真正用来地址转换的虚拟地址，这只有 39 位。</p>
+我们专注于介绍 MMU 的机制，强调 MMU 看到的真正用来地址转换的虚拟地址只有 39 位。</p>
 </div>
 </div>
 <div class="section" id="id4">
@@ -311,7 +310,7 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/address.rs</span>
 
 <span class="k">impl</span><span class="w"> </span><span class="nb">From</span><span class="o">&lt;</span><span class="kt">usize</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">PhysAddr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">from</span><span class="p">(</span><span class="n">v</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="bp">Self</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from</span><span class="p">(</span><span class="n">v</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Self</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 
 <span class="k">impl</span><span class="w"> </span><span class="nb">From</span><span class="o">&lt;</span><span class="n">PhysAddr</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -342,22 +341,22 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 了很多数值溢出或精度损失问题。Rust 不会进行这种隐式类型转换，它会在编译期直接报错，提示两个操作数类型不匹配。</p>
 </div>
 <p>其次，地址和页号之间可以相互转换。我们这里仍以物理地址和物理页号之间的转换为例：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/address.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/address.rs</span>
 
 <span class="k">impl</span><span class="w"> </span><span class="n">PhysAddr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">page_offset</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">PAGE_SIZE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
@@ -365,13 +364,13 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 
 <span class="k">impl</span><span class="w"> </span><span class="nb">From</span><span class="o">&lt;</span><span class="n">PhysAddr</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">PhysPageNum</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">fn</span> <span class="nf">from</span><span class="p">(</span><span class="n">v</span>: <span class="nc">PhysAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">page_offset</span><span class="p">(),</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">page_offset</span><span class="p">(),</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">floor</span><span class="p">()</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 
 <span class="k">impl</span><span class="w"> </span><span class="nb">From</span><span class="o">&lt;</span><span class="n">PhysPageNum</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">PhysAddr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">from</span><span class="p">(</span><span class="n">v</span>: <span class="nc">PhysPageNum</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="bp">Self</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">PAGE_SIZE_BITS</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">from</span><span class="p">(</span><span class="n">v</span>: <span class="nc">PhysPageNum</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Self</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">PAGE_SIZE_BITS</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </td></tr></table></div>
@@ -435,39 +434,39 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 <p><a class="reference external" href="https://docs.rs/bitflags/1.2.1/bitflags/">bitflags</a> 是一个 Rust 中常用来比特标志位的 crate 。它提供了
 一个 <code class="docutils literal notranslate"><span class="pre">bitflags!</span></code> 宏，如上面的代码段所展示的那样，可以将一个 <code class="docutils literal notranslate"><span class="pre">u8</span></code> 封装成一个标志位的集合类型，支持一些常见的集合
 运算。它的一些使用细节这里不展开，请读者自行参考它的官方文档。注意，在使用之前我们需要引入该 crate 的依赖：</p>
-<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/Cargo.toml</span>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span># os/Cargo.toml
 
-<span class="k">[dependencies]</span>
-<span class="n">bitflags</span> <span class="o">=</span> <span class="s">&quot;1.2.1&quot;</span>
+[dependencies]
+bitflags = &quot;1.2.1&quot;
 </pre></div>
 </div>
 <p>接下来我们实现页表项 <code class="docutils literal notranslate"><span class="pre">PageTableEntry</span></code> ：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span>
-<span class="normal">18</span>
-<span class="normal">19</span>
-<span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span>
-<span class="normal">23</span>
-<span class="normal">24</span>
-<span class="normal">25</span>
-<span class="normal">26</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/page_table.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/page_table.rs</span>
 
 <span class="cp">#[derive(Copy, Clone)]</span><span class="w"></span>
 <span class="cp">#[repr(C)]</span><span class="w"></span>
@@ -534,7 +533,7 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 使用到的只是其中极小的一个子集（本教程中的应用内存使用量约在数十~数百 <span class="math notranslate nohighlight">\(\text{KiB}\)</span> 量级），也就导致
 有意义并能在页表中查到实际的物理页号的虚拟页号在 <span class="math notranslate nohighlight">\(2^{27}\)</span> 中也只是很小的一部分。由此线性表的绝大部分空间
 其实都是被浪费掉的。</p>
-<p>那么如何进行优化呢？核心思想就在于按需分配，也就是说：有多少合法的虚拟页号，我们就维护一个多大的映射，并为此使用
+<p>那么如何进行优化呢？核心思想就在于 <strong>按需分配</strong> ，也就是说：有多少合法的虚拟页号，我们就维护一个多大的映射，并为此使用
 多大的内存用来保存映射。这是因为，每个应用的地址空间最开始都是空的，或者说所有的虚拟页号均不合法，那么这样的页表
 自然不需要占用任何内存， MMU 在地址转换的时候无需关心页表的内容而是将所有的虚拟页号均判为不合法即可。而在后面，
 内核已经决定好了一个应用的各逻辑段存放位置之后，它就需要负责从零开始以虚拟页面为单位来让该应用的地址空间的某些部分
@@ -570,12 +569,15 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 <p id="term-page-index"><span id="term-multi-level-page-table"></span>这种页表实现被称为 <strong>多级页表</strong> (Multi-Level Page-Table) 。由于 SV39 中虚拟页号被分为三级 <strong>页索引</strong>
 (Page Index) ，因此这是一种三级页表。</p>
 <p>非叶节点的页表项标志位含义和叶节点相比有一些不同：</p>
-<ul>
-<li><p>当 V 为 0 的时候，代表当前字符指针是一个空指针，无法走向下一级节点；</p></li>
-<li><p>只有当 R/W/X 均为 0 的时候才能向下走。在这里我们给出 SV39 中的 R/W/X 组合的含义：</p>
-<a class="reference internal image-reference" href="../_images/pte-rwx.png"><img alt="../_images/pte-rwx.png" class="align-center" src="../_images/pte-rwx.png" style="height: 250px;" /></a>
-</li>
+<ul class="simple">
+<li><p>当 V 为 0 的时候，代表当前指针是一个空指针，无法走向下一级节点，即该页表项对应的虚拟地址范围是无效的；</p></li>
+<li><p>只有当V 为1 且 R/W/X 均为 0 时，表示是一个合法的页目录表项，其包含的指针会指向下一级的页表。</p></li>
+<li><p>注意: 当V 为1 且 R/W/X 不全为 0 时，表示是一个合法的页表项，其包含了虚地址对应的物理页号。</p></li>
 </ul>
+<p>在这里我们给出 SV39 中的 R/W/X 组合的含义：</p>
+<blockquote>
+<div><a class="reference internal image-reference" href="../_images/pte-rwx.png"><img alt="../_images/pte-rwx.png" class="align-center" src="../_images/pte-rwx.png" style="height: 250px;" /></a>
+</div></blockquote>
 <div class="admonition note" id="term-huge-page">
 <p class="admonition-title">注解</p>
 <p><strong>大页</strong> (Huge Page)</p>
@@ -641,29 +643,37 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
            
           </div>
           <footer>
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="4sv39-implementation-2.html" class="btn btn-neutral float-right" title="实现 SV39 多级页表机制（下）" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="2address-space.html" class="btn btn-neutral float-left" title="地址空间" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+      
+        <a href="4sv39-implementation-2.html" class="btn btn-neutral float-right" title="实现 SV39 多级页表机制（下）" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="2address-space.html" class="btn btn-neutral float-left" title="地址空间" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
     </div>
+  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &#169; 版权所有 2020, Yifan Wu.
+        
+        &copy; 版权所有 2020, Yifan Wu
 
     </p>
   </div>
     
     
     
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
+
         </div>
       </div>
 

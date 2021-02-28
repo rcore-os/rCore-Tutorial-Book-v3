@@ -129,6 +129,9 @@ Rust 开发环境配置
 
    rustc 1.46.0-nightly (7750c3d46 2020-06-26)
 
+.. warning::
+   目前用于操作系统实验开发的rustc编译器的版本不局限在1.46.0这样的数字上，你可以选择更新的rustc编译器。但注意只能用rustc的nightly版本。
+
 我们最好把软件包管理器 cargo 所用的软件包镜像地址 crates.io 也换成中国科学技术大学的镜像服务器来加速三方库的下载。
 我们打开（如果没有就新建） ``~/.cargo/config`` 文件，并把内容修改为：
 
@@ -159,8 +162,8 @@ Rust 开发环境配置
    rustup component add llvm-tools-preview
    rustup component add rust-src
 
-.. note::
-
+.. warning::
+   如果你换了另外一个rustc编译器（必须是nightly版的），需要重新安装上述rustc所需软件包。
    rCore-Tutorial 仓库中的 ``Makefile`` 包含了这些工具的安装，如果你使用 ``make run`` 也可以不手动安装。
 
 至于 Rust 开发环境，推荐 JetBrains Clion + Rust插件 或者 Visual Studio Code 搭配 rust-analyzer 和 RISC-V Support 插件。

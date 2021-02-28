@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>移除标准库依赖 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
@@ -16,10 +16,7 @@
 
   
   
-
   
-  
-
   
 
   
@@ -32,6 +29,7 @@
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -67,6 +65,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -88,7 +87,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
           
 
           
@@ -203,8 +202,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
-
-
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -218,7 +215,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="../_sources/chapter1/2remove-std.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -243,9 +240,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="println">
 <h2>移除 println! 宏<a class="headerlink" href="#println" title="永久链接至标题">¶</a></h2>
 <p>我们首先在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录下新建 <code class="docutils literal notranslate"><span class="pre">.cargo</span></code> 目录，并在这个目录下创建 <code class="docutils literal notranslate"><span class="pre">config</span></code> 文件，并在里面输入如下内容：</p>
-<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/.cargo/config</span>
-<span class="k">[build]</span>
-<span class="n">target</span> <span class="o">=</span> <span class="s">&quot;riscv64gc-unknown-none-elf&quot;</span>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span># os/.cargo/config
+[build]
+target = &quot;riscv64gc-unknown-none-elf&quot;
 </pre></div>
 </div>
 <p id="term-cross-compile">这会对于 Cargo 工具在 os 目录下的行为进行调整：现在默认会使用 riscv64gc 作为目标平台而不是原先的默认 x86_64-unknown-linux-gnu。事实上，这是一种编译器运行所在的平台与编译器生成可执行文件的目标平台不同（分别是后者和前者）的情况。这是一种 <strong>交叉编译</strong> (Cross Compile)。</p>
@@ -253,7 +250,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>我们在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的开头加上一行 <code class="docutils literal notranslate"><span class="pre">#![no_std]</span></code> 来告诉 Rust 编译器不使用 Rust 标准库 std 转而使用核心库 core。编译器报出如下错误：</p>
 <div class="admonition error">
 <p class="admonition-title">错误</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">error: cannot find macro `println` in this scope</span>
 <span class="go">--&gt; src/main.rs:4:5</span>
@@ -269,7 +266,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>提供语义项 panic_handler<a class="headerlink" href="#panic-handler" title="永久链接至标题">¶</a></h2>
 <div class="admonition error">
 <p class="admonition-title">错误</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">error: `#[panic_handler]` function required, but not found</span>
 </pre></div>
@@ -307,7 +304,7 @@ error: requires `start` lang_item
 <p>编译器提醒我们缺少一个名为 <code class="docutils literal notranslate"><span class="pre">start</span></code> 的语义项。我们回忆一下，之前提到语言标准库和三方库作为应用程序的执行环境，需要负责在执行应用程序之前进行一些初始化工作，然后才跳转到应用程序的入口点（也就是跳转到我们编写的 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数）开始执行。事实上 <code class="docutils literal notranslate"><span class="pre">start</span></code> 语义项正代表着标准库 std 在执行应用程序之前需要进行的一些初始化工作。由于我们禁用了标准库，编译器也就找不到这项功能的实现了。</p>
 <p>最简单的解决方案就是压根不让编译器使用这项功能。我们在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的开头加入设置 <code class="docutils literal notranslate"><span class="pre">#![no_main]</span></code> 告诉编译器我们没有一般意义上的 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数，并将原来的 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数删除。在失去了 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数的情况下，编译器也就不需要完成所谓的初始化工作了。</p>
 <p>至此，我们成功移除了标准库的依赖并完成裸机平台上的构建。</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">    Finished dev [unoptimized + debuginfo] target(s) in 0.06s</span>
 </pre></div>
@@ -334,11 +331,11 @@ error: requires `start` lang_item
 <h2>分析被移除标准库的程序<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
 <p>对于上面这个被移除标准库的应用程序，通过了编译器的检查和编译，形成了二进制代码。但这个二进制代码是怎样的，它能否被正常执行呢？我们可以通过一些工具来分析一下。</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">[文件格式]</span>
-<span class="gp">$ </span>file target/riscv64gc-unknown-none-elf/debug/os
+<span class="gp">$</span> file target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">target/riscv64gc-unknown-none-elf/debug/os: ELF 64-bit LSB executable, UCB RISC-V, ......</span>
 
 <span class="go">[文件头信息]</span>
-<span class="gp">$ </span>rust-readobj -h target/riscv64gc-unknown-none-elf/debug/os
+<span class="gp">$</span> rust-readobj -h target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">   File: target/riscv64gc-unknown-none-elf/debug/os</span>
 <span class="go">   Format: elf64-littleriscv</span>
 <span class="go">   Arch: riscv64</span>
@@ -352,7 +349,7 @@ error: requires `start` lang_item
 <span class="go">   }</span>
 
 <span class="go">[反汇编导出汇编程序]</span>
-<span class="gp">$ </span>rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
+<span class="gp">$</span> rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">   target/riscv64gc-unknown-none-elf/debug/os:       file format elf64-littleriscv</span>
 </pre></div>
 </div>
@@ -376,29 +373,37 @@ error: requires `start` lang_item
            
           </div>
           <footer>
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="3-1-mini-rt-usrland.html" class="btn btn-neutral float-right" title="构建用户态执行环境" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="1app-ee-platform.html" class="btn btn-neutral float-left" title="应用程序执行环境与平台支持" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+      
+        <a href="3-1-mini-rt-usrland.html" class="btn btn-neutral float-right" title="构建用户态执行环境" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="1app-ee-platform.html" class="btn btn-neutral float-left" title="应用程序执行环境与平台支持" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
     </div>
+  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &#169; 版权所有 2020, Yifan Wu.
+        
+        &copy; 版权所有 2020, Yifan Wu
 
     </p>
   </div>
     
     
     
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
+
         </div>
       </div>
 
