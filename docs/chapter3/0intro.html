@@ -67,7 +67,6 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -144,8 +143,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信(施工)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储(施工)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
 <ul>
@@ -244,21 +243,22 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>通抢占机制支持程序被动放弃处理器，提高不同程序对处理器资源使用的公平性，也进一步提高了应用对I/O事件的响应效率</p></li>
 </ul>
 <p>上一章，我们实现了一个简单的批处理系统。首先，它能够自动按照顺序加载并运行序列中的每一个应用，当一个应用运行结束之后无需操作员的手动替换；
-另一方面，在硬件提供的特权级机制的帮助下，运行在更高特权级的它不会受到有意或者无意出错的应用的影响，可以全方位监控应用的执行，一旦应用越过了
-硬件所设置的界限，就会触发 Trap 并进入到批处理系统中进行处理。无论原因是应用出错或是应用声明自己执行完毕，批处理系统都只需要加载序列中
+另一方面，在硬件提供的特权级机制的帮助下，运行在更高特权级的它不会受到有意或者无意出错的应用的影响，可以全方位监控运行在用户态特权级的应用的执行，一旦应用越过了
+硬件所设置特权级界限或主动申请获得操作系统的服务，就会触发 Trap 并进入到批处理系统中进行处理。无论原因是应用出错或是应用声明自己执行完毕，批处理系统都只需要加载序列中
 的下一个应用并进入执行。可以看到批处理系统的特性是：在内存中同一时间最多只需驻留一个应用。这是因为只有当一个应用出错或退出之后，批处理系统才会去将另一个应用加载到
 相同的一块内存区域。</p>
-<p>而计算机在发展，内存容量在逐渐增大，处理器的速度也在增加，IO方面的进展不大。这就使得以往内存只能放下一个程序的情况得到很大改善，处理器的空闲程度加大。于是科学家就开始考虑在内存中尽量同时驻留多个应用，这样处理器的利用率就会提高。但只有一个程序执行完毕后，才能执行另外一个程序。这种运行方式称为 <strong>多道程序</strong> 。</p>
+<p>而计算机硬件在快速发展，内存容量在逐渐增大，处理器的速度也在增加，外设IO性能方面的进展不大。这就使得以往内存只能放下一个程序的情况得到很大改善，但处理器的空闲程度加大了。于是科学家就开始考虑在内存中尽量同时驻留多个应用，这样处理器的利用率就会提高。但只有一个程序执行完毕后或主动放弃执行，处理器才能执行另外一个程序。这种运行方式称为 <strong>多道程序</strong> 。</p>
 <div class="section" id="id3">
 <h3><strong>协作式操作系统</strong><a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<p>当处理器进一步发展后，它与IO的速度差距也进一步拉大。这时计算机科学家发现，在 <strong>多道程序</strong> 运行方式下，一个程序如果不让出处理器，其他程序是无法执行的。如果一个应用由于IO操作让处理器空闲下来或让处理器忙等，那其他需要处理器资源进行计算的应用还是没法使用空闲的处理器资源。于是就想到，让应用在执行IO操作时，可以主动释放处理器，让其他应用继续执行。当然执行 <strong>放弃处理器</strong> 的操作算是一种处理器资源的直接管理，应该有操作系统来具体完成。这旸的操作系统就是支持 <strong>多道程序</strong> 协作式操作系统。</p>
+<p>早期的计算机系统大部分是单处理器计算机系统。当处理器进一步发展后，它与IO的速度差距也进一步拉大。这时计算机科学家发现，在 <strong>多道程序</strong> 运行方式下，一个程序如果不让出处理器，其他程序是无法执行的。如果一个应用由于IO操作让处理器空闲下来或让处理器忙等，那其他需要处理器资源进行计算的应用还是没法使用空闲的处理器资源。于是就想到，让应用在执行IO操作时，可以主动 <strong>释放处理器</strong> ，让其他应用继续执行。当然执行 <strong>放弃处理器</strong> 的操作算是一种对处理器资源的直接管理，所以应用程序可以发出这样的系统调用，让操作系统来具体完成。这样的操作系统就是支持 <strong>多道程序</strong> 协作式操作系统。</p>
 </div>
 <div class="section" id="id4">
 <h3><strong>抢占式操作系统</strong><a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
-<p>但计算机科学家很快发现，编写应用程序的科学家（简称应用程序员）来自不同的领域，他们不一定有友好互助的意识，也不了解其他程序的执行情况，很难（也没必要）有提高整个系统利用率上的大局观。这导致应用程序员在编写程序时，无法有效做到在合适位置放置 <strong>放弃处理器的系统调用请求</strong> 的编程代码。在他们的脑海里，整个计算机就应该是为他们自己的应用准备的，不用考虑其他程序的运行。</p>
-<p>所以，站在系统的层面，还是需要有一种办法能强制打断应用程序的执行，来提高整个系统的效率，让在整个系统中执行的多个程序之间占用计算机资源的情况相对公平一些。于是就想到了，通过时钟中断来强制打断一个程序的执行，这样一个程序只能运行一段时间（可以简称为一个时间片, Time Slice）就一定会让出处理器，且操作系统可以通过一个程序占用处理器的执行时间来评估程序对资源的消耗。</p>
-<p>我们可以把一个程序的在一个时间片上的执行过程称为一个 <strong>任务</strong> (Task)，让操作系统对程序的执行时间进行管理，通过平衡各个程序在整个时间段上的任务数，就达到一定程度的系统公平。这样的操作系统就是支持 <strong>分时多任务</strong> 的抢占式操作系统。</p>
-<p>本章所介绍的多道程序和分时多任务系统都有一些共同的特点：在内存中同一时间可以驻留多个应用。所有的应用都是在系统启动的时候分别加载到内存的不同区域中。由于目前计算机系统中只有一个处理器，则同一时间最多只有一个应用在执行，剩下的应用则处于就绪状态，需要内核将处理器分配给它们才能开始执行。</p>
+<p>计算机科学家很快发现，编写应用程序的科学家（简称应用程序员）来自不同的领域，他们不一定有友好互助的意识，也不了解其他程序的执行情况，很难（也没必要）有提高整个系统利用率上的大局观。在他们的脑海里，整个计算机就应该是为他们自己的应用准备的，不用考虑其他程序的运行。这导致应用程序员在编写程序时，无法做到在程序的合适位置放置 <strong>放弃处理器的系统调用请求</strong> ，这样系统的整体利用率还是无法提高。</p>
+<p>所以，站在系统的层面，还是需要有一种办法能强制打断应用程序的执行，来提高整个系统的效率，让在整个系统中执行的多个程序之间占用计算机资源的情况相对公平一些。根据计算机系统的硬件设计，为提高I/O效率，外设可以通过硬件中断机制来与处理机进行I/O交互操作。这种硬件中断机制·可随时打断应用程序的执行，并让操作系统来完成对外设的I/O响应。</p>
+<p>而操作系统可进一步利用某种以固定时长为时间间隔的外设中断（比如时钟中断）来强制打断一个程序的执行，这样一个程序只能运行一段时间（可以简称为一个时间片, Time Slice）就一定会让出处理器，且操作系统可以在处理外设的I/O响应后，让不同应用程序分时占用处理器执行，并可通过程序占用处理器的总执行时间来评估运行的程序对处理器资源的消耗。</p>
+<p id="term-task">我们可以把一个程序在一个时间片上占用处理器执行的过程称为一个 <strong>任务</strong> (Task)，让操作系统对不同程序的 <strong>任务</strong> 进行管理。通过平衡各个程序在整个时间段上的任务数，就达到一定程度的系统公平和高效的系统效率。在一个包含多个时间片的时间段上，会有属于不同程序的多个任务在轮流占用处理器执行，这样的操作系统就是支持 <strong>分时多任务</strong> 的抢占式操作系统。</p>
+<p>本章所介绍的多道程序和分时多任务系统都有一些共同的特点：在内存中同一时间可以驻留多个应用。所有的应用都是在系统启动的时候分别加载到内存的不同区域中。由于目前计算机系统中只有一个处理器，则同一时间最多只有一个应用在执行，剩下的应用则处于就绪状态，需要内核将处理器分配给它们才能开始执行。一旦应用开始执行，它就处于运行状态了。</p>
 <p>本章主要是设计和实现建立支持 <strong>多道程序</strong> 的二叠纪“锯齿螈”初级操作系统、支持多道程序的三叠纪“始初龙”协作式操作系统和支持 <strong>分时多任务</strong> 的三叠纪“腔骨龙”抢占式操作系统，从而对可支持运行一批应用程序的多种执行环境有一个全面和深入的理解，并可归纳抽象出 <strong>任务</strong> ， <strong>任务切换</strong> 等操作系统的概念。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
@@ -289,7 +289,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="gp">$ </span>make run
 </pre></div>
 </div>
-<p>将 Maix 系列开发版连接到 PC，并在上面运行本章代码：</p>
+<p>将 Maix 系列开发板连接到 PC，并在上面运行本章代码：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> os
 <span class="gp">$ </span>make run <span class="nv">BOARD</span><span class="o">=</span>k210
 </pre></div>
@@ -332,7 +332,7 @@ Test write_a OK!
 <p>分时多任务系统应用分为两种。编号为 00/01/02 的应用分别会计算质数 3/5/7 的幂次对一个大质数取模的余数，并会将结果阶段性输出。编号为 03 的
 应用则会等待三秒钟之后再退出。以 k210 平台为例，我们将会看到 00/01/02 三个应用分段完成它们的计算任务，而应用 03 由于等待时间过长总是
 最后一个结束执行。</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[rustsbi] Version 0.1.0
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[rustsbi] RustSBI version 0.1.1
 .______       __    __      _______.___________.  _______..______   __
 |   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
 |  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
@@ -340,9 +340,9 @@ Test write_a OK!
 |  |\  \----.|  `--&#39;  |.----)   |      |  |  .----)   |   |  |_)  ||  |
 | _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
 
-[rustsbi] Platform: K210
+[rustsbi] Platform: K210 (Version 0.1.0)
 [rustsbi] misa: RV64ACDFIMSU
-[rustsbi] mideleg: 0x222
+[rustsbi] mideleg: 0x22
 [rustsbi] medeleg: 0x1ab
 [rustsbi] Kernel entry: 0x80020000
 [kernel] Hello, world!
@@ -407,8 +407,8 @@ Test power_3 OK!
 [kernel] Application exited with code 0
 Test sleep OK!
 [kernel] Application exited with code 0
-[kernel] Panicked at src/task/mod.rs:97 All applications completed!
-[rustsbi] reset triggered! todo: shutdown all harts on k210; program halt
+[kernel] Panicked at src/task/mod.rs:98 All applications completed!
+[rustsbi] reset triggered! todo: shutdown all harts on k210; program halt. Type: 0, reason: 0
 </pre></div>
 </div>
 <p>输出结果看上去有一些混乱，原因是用户程序的每个 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 往往会被拆分成多个 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 系统调用提交给内核。有兴趣的同学可以参考
@@ -417,64 +417,64 @@ Test sleep OK!
 </div>
 <div class="section" id="id6">
 <h2>本章代码树<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
-<div class="highlight-default notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
- 2
- 3
- 4
- 5
- 6
- 7
- 8
- 9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58</pre></div></td><td class="code"><div class="highlight"><pre><span></span>├── bootloader
+<div class="highlight-default notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span>├── bootloader
 │   ├── rustsbi-k210.bin
 │   └── rustsbi-qemu.bin
 ├── LICENSE

@@ -67,7 +67,6 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -141,13 +140,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 </li>
 <li class="toctree-l2"><a class="reference internal" href="3batch-system.html">实现批处理操作系统</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4trap-handling.html">实现特权级的切换</a></li>
+<li class="toctree-l2"><a class="reference internal" href="5exercise.html">训练</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信(施工)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储(施工)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
 <ul>
@@ -270,13 +270,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 所在的目录的名字 <code class="docutils literal notranslate"><span class="pre">user</span></code> ，是因为在 <code class="docutils literal notranslate"><span class="pre">user/Cargo.toml</span></code> 中我们对于库的名字进行了设置： <code class="docutils literal notranslate"><span class="pre">name</span> <span class="pre">=</span>&#160; <span class="pre">&quot;user_lib&quot;</span></code> 。它作为
 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录下的源程序所依赖的用户库，等价于其他编程语言提供的标准库。</p>
 <p>在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 中我们定义了用户库的入口点 <code class="docutils literal notranslate"><span class="pre">_start</span></code> ：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
-2
-3
-4
-5
-6
-7</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span>
+<span class="normal">6</span>
+<span class="normal">7</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="cp">#[link_section = </span><span class="s">&quot;.text.entry&quot;</span><span class="cp">]</span><span class="w"></span>
 <span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="n">clear_bss</span><span class="p">();</span><span class="w"></span>
@@ -291,11 +291,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 没有这个能力，所以我们只能在用户库中完成），然后是调用 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数得到一个类型为 <code class="docutils literal notranslate"><span class="pre">i32</span></code> 的返回值。</p>
 <p>第 5 行我们调用后面会提到的用户库提供的 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 接口退出应用程序并将这个返回值告知批处理系统。</p>
 <p>我们还在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 中看到了另一个 <code class="docutils literal notranslate"><span class="pre">main</span></code> ：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
-2
-3
-4
-5</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="cp">#[linkage = </span><span class="s">&quot;weak&quot;</span><span class="cp">]</span><span class="w"></span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="cp">#[linkage = </span><span class="s">&quot;weak&quot;</span><span class="cp">]</span><span class="w"></span>
 <span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Cannot find main!&quot;</span><span class="p">);</span><span class="w"></span>
@@ -352,20 +352,20 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <p>在 RISC-V 调用规范中，和函数调用的情形类似，约定寄存器 <code class="docutils literal notranslate"><span class="pre">a0~a6</span></code> 保存系统调用的参数， <code class="docutils literal notranslate"><span class="pre">a0~a1</span></code> 保存系统调用的返回值。有些许不同的是
 寄存器 <code class="docutils literal notranslate"><span class="pre">a7</span></code> 用来传递 syscall ID，这是因为所有的 syscall 都是通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令触发的，除了各输入参数之外我们还额外需要一个寄存器
 来保存要请求哪个系统调用。由于这超出了 Rust 语言的表达能力，我们需要在代码中使用内嵌汇编来完成参数/返回值绑定和 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令的插入：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
- 2
- 3
- 4
- 5
- 6
- 7
- 8
- 9
-10
-11
-12
-13
-14</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/syscall.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/syscall.rs</span>
 
 <span class="k">fn</span> <span class="nf">syscall</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">args</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">3</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ret</span>: <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
@@ -406,8 +406,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 的汇编代码中的过程中会发生变化。我们这里则是告诉编译器在执行嵌入汇编代码中的时候会修改内存。这能给编译器提供更多信息。</p>
 <p>第 10 行用于告知编译器将我们在程序中给出的嵌入汇编代码保持原样放到最终构建的可执行文件中。如果不这样做的话，编译器可能会把它和其他代码
 一视同仁并放在一起进行一些我们期望之外的优化。为了保证语义的正确性，一些比较关键的汇编代码需要加上该选项。</p>
-<p>第一章中的输出到屏幕的操作也同样是使用内联汇编调用 SEE 提供的 SBI 接口来实现的。有兴趣的读者可以回顾第一章的 <code class="docutils literal notranslate"><span class="pre">console.rs</span></code> 和
-<code class="docutils literal notranslate"><span class="pre">sbi.rs</span></code> 。</p>
+<p>上面这一段汇编代码的含义和内容与第一章中的 <a class="reference internal" href="../chapter1/3-1-mini-rt-usrland.html#term-llvm-syscall"><span class="std std-ref">第一章中U-Mode应用程序中的系统调用汇编代码</span></a> 的是一致的。与 <a class="reference internal" href="../chapter1/3-2-mini-rt-baremetal.html#term-llvm-sbicall"><span class="std std-ref">第一章中的RustSBI输出到屏幕的SBI调用汇编代码</span></a> 涉及的汇编指令一样，但传递参数的寄存器的含义是不同的。有兴趣的读者可以回顾第一章的 <code class="docutils literal notranslate"><span class="pre">console.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sbi.rs</span></code> 。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>Rust 语法卡片：内联汇编</strong></p>
@@ -415,18 +414,18 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <p>在未来的 Rust 版本推荐使用功能更加强大且方便易用的 <code class="docutils literal notranslate"><span class="pre">asm!</span></code> 宏，但是目前还未稳定，可以查看 <a class="reference external" href="https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html">inline-asm RFC</a> 了解最新进展。</p>
 </div>
 <p>于是 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 只需将 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 进行包装：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
- 2
- 3
- 4
- 5
- 6
- 7
- 8
- 9
-10
-11
-12</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/syscall.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/syscall.rs</span>
 
 <span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_WRITE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="p">;</span><span class="w"></span>
 <span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_EXIT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">93</span><span class="p">;</span><span class="w"></span>
@@ -443,11 +442,11 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <p id="term-fat-pointer">注意 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 使用一个 <code class="docutils literal notranslate"><span class="pre">&amp;[u8]</span></code> 切片类型来描述缓冲区，这是一个 <strong>胖指针</strong> (Fat Pointer)，里面既包含缓冲区的起始地址，还
 包含缓冲区的长度。我们可以分别通过 <code class="docutils literal notranslate"><span class="pre">as_ptr</span></code> 和 <code class="docutils literal notranslate"><span class="pre">len</span></code> 方法取出它们并独立的作为实际的系统调用参数。</p>
 <p>我们将上述两个系统调用在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中进一步封装，从而更加接近在 Linux 等平台的实际体验：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
-2
-3
-4
-5</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
 <span class="k">use</span><span class="w"> </span><span class="n">syscall</span>::<span class="o">*</span><span class="p">;</span><span class="w"></span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
@@ -457,15 +456,15 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <p>我们把 <code class="docutils literal notranslate"><span class="pre">console</span></code> 子模块中 <code class="docutils literal notranslate"><span class="pre">Stdout::write_str</span></code> 改成基于 <code class="docutils literal notranslate"><span class="pre">write</span></code> 的实现，且传入的 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 参数设置为 1，它代表标准输出，
 也就是输出到屏幕。目前我们不需要考虑其他的 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 选取情况。这样，应用程序的 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏借助系统调用变得可用了。
 参考下面的代码片段：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/console.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span>
+<span class="normal">6</span>
+<span class="normal">7</span>
+<span class="normal">8</span>
+<span class="normal">9</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/console.rs</span>
 <span class="k">const</span><span class="w"> </span><span class="n">STDOUT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
 
 <span class="k">impl</span><span class="w"> </span><span class="n">Write</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Stdout</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -491,7 +490,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 </div>
 <div class="section" id="id8">
 <h2>实现操作系统前执行应用程序<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h2>
-<p>我们还没有实现操作系统，能提前执行或测试应用程序吗？可以！ 这是因为我们除了一个能模拟一台RISC-V 64 计算机的全系统模拟器 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 外，还有一个直接支持运行RISC-V64 用户程序的半系统模拟器 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 。 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 模拟器的特点是，它可以直接解析ELF 可执行文件，并加载执行RISC-V64 用户程序（ELF 可执行文件）中的指令，如果碰到系统调用，就把系统调用转换成本机（如x86-64）的系统调用格式，再发给本机的Linux内核来完成系统调用, 再把结果转换成RISC-V64的格式，这样RISC-V64 用户程序就可以得到结果，并继续执行。整个过程就好像这个RISC-V64 用户程序直接运行在一台安装了RV64 Linux的RV64的计算机上。</p>
+<p>我们还没有实现操作系统，能提前执行或测试应用程序吗？可以！ 这是因为我们除了一个能模拟一台RISC-V 64 计算机的全系统模拟器 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 外，还有一个 <a class="reference internal" href="../chapter1/3-1-mini-rt-usrland.html#term-qemu-riscv64"><span class="std std-ref">直接支持运行RISC-V64 用户程序的半系统模拟器qemu-riscv64</span></a> 。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p>如果想让用户态应用程序在Linux和在我们自己写的OS上执行效果一样，需要做到二者的系统调用的接口是一样的（包括系统调用编号，参数约定的具体的寄存器和栈等）。</p>
@@ -507,15 +506,15 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 </div>
 </div>
 <p>我们先看看代码：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
-2
-3
-4
-5
-6
-7
-8
-9</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// usr/src/bin/03priv_intr.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span>
+<span class="normal">6</span>
+<span class="normal">7</span>
+<span class="normal">8</span>
+<span class="normal">9</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// usr/src/bin/03priv_intr.rs</span>
 <span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Hello, world!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -527,12 +526,12 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 </pre></div>
 </td></tr></table></div>
 <p>在上述代码中，在显示 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world</span></code> 字符串后，会执行 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 特权指令。</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
-2
-3
-4
-5
-6</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// usr/src/bin/03priv_intr.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span>
+<span class="normal">6</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// usr/src/bin/04priv_intr.rs</span>
 <span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Hello, world!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">sstatus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sstatus</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>

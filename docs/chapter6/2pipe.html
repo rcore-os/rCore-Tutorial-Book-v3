@@ -1,0 +1,744 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>管道 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script kind="utterances">
+
+    var commentsRunWhenDOMLoaded = cb => {
+    if (document.readyState != 'loading') {
+        cb()
+    } else if (document.addEventListener) {
+        document.addEventListener('DOMContentLoaded', cb)
+    } else {
+        document.attachEvent('onreadystatechange', function() {
+        if (document.readyState == 'complete') cb()
+        })
+    }
+}
+
+var addUtterances = () => {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = "https://utteranc.es/client.js";
+    script.async = "async";
+
+    script.setAttribute("repo", "rcore-os/rCore-Tutorial-Book-v3");
+    script.setAttribute("issue-term", "pathname");
+    script.setAttribute("theme", "github-light");
+    script.setAttribute("label", "comments");
+    script.setAttribute("crossorigin", "anonymous");
+
+    sections = document.querySelectorAll("div.section");
+    if (sections !== null) {
+        section = sections[sections.length-1];
+        section.appendChild(script);
+    }
+}
+commentsRunWhenDOMLoaded(addUtterances);
+</script>
+        <script src="../_static/translations.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="第七章：数据持久化存储(施工)" href="../chapter7/index.html" />
+    <link rel="prev" title="文件与文件描述符" href="1file-descriptor.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第六章：文件描述符与进程间通信</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html">文件与文件描述符</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">管道</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">管道的系统调用原型及使用方法</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sys-close">通过 sys_close 关闭文件</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">管道的实现</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id5">管道创建</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6">管道读写</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储(施工)</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../chapter8/index.html">第八章：阻塞（暂定）</a></li>
+</ul>
+<p class="caption"><span class="caption-text">附录</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 快速入门</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-b/index.html">附录 B：常见工具的使用方法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-c/index.html">附录 C：深入机器模式：RustSBI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-d/index.html">附录 D：RISC-V相关信息</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
+</ul>
+<p class="caption"><span class="caption-text">开发注记</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../log.html">更新日志</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">rCore-Tutorial-Book-v3</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">第六章：文件描述符与进程间通信</a> &raquo;</li>
+        
+      <li>管道</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/chapter6/2pipe.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="id1">
+<h1>管道<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<div class="section" id="id2">
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>本节我们基于上一节介绍的抽象文件接口 <code class="docutils literal notranslate"><span class="pre">File</span></code> 实现一种父子进程间的单向进程间通信机制——管道，同时实现两个新的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_pipe</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sys_close</span></code> 。</p>
+</div>
+<div class="section" id="id3">
+<h2>管道的系统调用原型及使用方法<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<p>首先来介绍什么是 <strong>管道</strong> (Pipe) 。我们可以将管道看成一个有一定缓冲区大小的字节队列，它分为读和写两端，需要通过不同的文件描述符来访问。读端只能用来从管道中读取，而写端只能用来将数据写入管道。由于管道是一个队列，读取的时候会从队头读取并弹出，而写入的时候则会写入到队列的队尾。同时，管道的缓冲区大小是有限的，一旦整个缓冲区都被填满就不能再继续写入，需要等到读端读取并从队列中弹出一些字符之后才能继续写入。当缓冲区为空的时候自然也不能继续从里面读取，需要等到写端写入了一些数据之后才能继续读取。</p>
+<p>我们新增一个系统调用来为当前进程打开一个管道：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：为当前进程打开一个管道。</span>
+<span class="sd">/// 参数：pipe 表示应用地址空间中的一个长度为 2 的 usize 数组的起始地址，内核需要按顺序将管道读端</span>
+<span class="sd">/// 和写端的文件描述符写入到数组中。</span>
+<span class="sd">/// 返回值：如果出现了错误则返回 -1，否则返回 0 。可能的错误原因是：传入的地址不合法。</span>
+<span class="sd">/// syscall ID：59</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_pipe</span><span class="p">(</span><span class="n">pipe</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
+<p>在用户库中会将其包装为 <code class="docutils literal notranslate"><span class="pre">pipe</span></code> 函数：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/syscall.rs</span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_PIPE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">59</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_pipe</span><span class="p">(</span><span class="n">pipe</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">usize</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_PIPE</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">pipe</span><span class="p">.</span><span class="n">as_mut_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="c1">// user/src/lib.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">pipe</span><span class="p">(</span><span class="n">pipe_fd</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">usize</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_pipe</span><span class="p">(</span><span class="n">pipe_fd</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>只有当一个管道的所有读端/写端都被关闭之后，管道占用的资源才会被回收，因此我们需要通过关闭文件的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_close</span></code> 来尽可能早的关闭之后不再用到的读端和写端。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：当前进程关闭一个文件。</span>
+<span class="sd">/// 参数：fd 表示要关闭的文件的文件描述符。</span>
+<span class="sd">/// 返回值：如果成功关闭则返回 0 ，否则返回 -1 。可能的出错原因：传入的文件描述符并不对应一个打开的文件。</span>
+<span class="sd">/// syscall ID：57</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_close</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
+<p>它会在用户库中被包装为 <code class="docutils literal notranslate"><span class="pre">close</span></code> 函数。</p>
+<p>我们来从简单的管道测例 <code class="docutils literal notranslate"><span class="pre">pipetest</span></code> 中介绍管道的使用方法：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// user/src/bin/pipetest.rs</span>
+
+<span class="cp">#![no_std]</span><span class="w"></span>
+<span class="cp">#![no_main]</span><span class="w"></span>
+
+<span class="cp">#[macro_use]</span><span class="w"></span>
+<span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span><span class="n">fork</span><span class="p">,</span><span class="w"> </span><span class="n">close</span><span class="p">,</span><span class="w"> </span><span class="n">pipe</span><span class="p">,</span><span class="w"> </span><span class="n">read</span><span class="p">,</span><span class="w"> </span><span class="n">write</span><span class="p">,</span><span class="w"> </span><span class="n">wait</span><span class="p">};</span><span class="w"></span>
+
+<span class="k">static</span><span class="w"> </span><span class="n">STR</span>: <span class="kp">&amp;</span><span class="kt">str</span> <span class="o">=</span><span class="w"> </span><span class="s">&quot;Hello, world!&quot;</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// create pipe</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">pipe_fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="k">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">2</span><span class="p">];</span><span class="w"></span>
+<span class="w">    </span><span class="n">pipe</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">pipe_fd</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// read end</span>
+<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">pipe_fd</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// write end</span>
+<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">pipe_fd</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">fork</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// child process, read from parent</span>
+<span class="w">        </span><span class="c1">// close write_end</span>
+<span class="w">        </span><span class="n">close</span><span class="p">(</span><span class="n">pipe_fd</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">32</span><span class="p">];</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">len_read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read</span><span class="p">(</span><span class="n">pipe_fd</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// close read_end</span>
+<span class="w">        </span><span class="n">close</span><span class="p">(</span><span class="n">pipe_fd</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span><span class="w"></span>
+<span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">core</span>::<span class="kt">str</span>::<span class="n">from_utf8</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buffer</span><span class="p">[</span><span class="o">..</span><span class="n">len_read</span><span class="p">]).</span><span class="n">unwrap</span><span class="p">(),</span><span class="w"> </span><span class="n">STR</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Read OK, child process exited!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="mi">0</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// parent process, write to child</span>
+<span class="w">        </span><span class="c1">// close read end</span>
+<span class="w">        </span><span class="n">close</span><span class="p">(</span><span class="n">pipe_fd</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span><span class="w"></span>
+<span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">write</span><span class="p">(</span><span class="n">pipe_fd</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="n">STR</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">()),</span><span class="w"> </span><span class="n">STR</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// close write end</span>
+<span class="w">        </span><span class="n">close</span><span class="p">(</span><span class="n">pipe_fd</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">child_exit_code</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="n">wait</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">child_exit_code</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">child_exit_code</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;pipetest passed!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="mi">0</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>在父进程中，我们通过 <code class="docutils literal notranslate"><span class="pre">pipe</span></code> 打开一个管道，于是 <code class="docutils literal notranslate"><span class="pre">pipe_fd[0]</span></code> 保存了管道读端的文件描述符，而 <code class="docutils literal notranslate"><span class="pre">pipe_fd[1]</span></code> 保存了管道写端的文件描述符。在 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 之后，子进程会完全继承父进程的文件描述符表，于是子进程也可以通过同样的文件描述符来访问同一个管道的读端和写端。之前提到过管道是单向的，在这个测例中我们希望管道中的数据从父进程流向子进程，也即父进程仅通过管道的写端写入数据，而子进程仅通过管道的读端读取数据。</p>
+<p>因此，我们分别在第 25 和第 34 行第一时间在子进程中关闭管道的写端和在父进程中关闭管道的读端。父进程在第 35 行将字符串 <code class="docutils literal notranslate"><span class="pre">STR</span></code> 写入管道的写端，随后在第 37 行关闭管道的写端；子进程在第 27 行从管道的读端读取字符串，并在第 29 行关闭。</p>
+<p>如果想在父子进程之间实现双向通信，我们就必须创建两个管道。有兴趣的读者可以参考测例 <code class="docutils literal notranslate"><span class="pre">pipe_large_test</span></code> 。</p>
+</div>
+<div class="section" id="sys-close">
+<h2>通过 sys_close 关闭文件<a class="headerlink" href="#sys-close" title="永久链接至标题">¶</a></h2>
+<p>关闭文件的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_close</span></code> 实现非常简单，我们只需将进程控制块中的文件描述符表对应的一项改为 <code class="docutils literal notranslate"><span class="pre">None</span></code> 代表它已经空闲即可，同时这也会导致内层的引用计数类型 <code class="docutils literal notranslate"><span class="pre">Arc</span></code> 被销毁，会减少一个文件的引用计数，当引用计数减少到 0 之后文件所占用的资源就会被自动回收。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_close</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">acquire_inner_lock</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">].</span><span class="n">is_none</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">].</span><span class="n">take</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="mi">0</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id4">
+<h2>管道的实现<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<p>我们将管道的一端（读端或写端）抽象为 <code class="docutils literal notranslate"><span class="pre">Pipe</span></code> 类型：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/pipe.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">Pipe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">readable</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">writable</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">buffer</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Mutex</span><span class="o">&lt;</span><span class="n">PipeRingBuffer</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">readable</span></code> 和 <code class="docutils literal notranslate"><span class="pre">writable</span></code> 分别指出该管道端可否支持读取/写入，通过 <code class="docutils literal notranslate"><span class="pre">buffer</span></code> 字段还可以找到该管道端所在的管道自身。后续我们将为它实现 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait ，之后它便可以通过文件描述符来访问。</p>
+<p>而管道自身，也就是那个带有一定大小缓冲区的字节队列，我们抽象为 <code class="docutils literal notranslate"><span class="pre">PipeRingBuffer</span></code> 类型：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/pipe.rs</span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">RING_BUFFER_SIZE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#[derive(Copy, Clone, PartialEq)]</span><span class="w"></span>
+<span class="k">enum</span> <span class="nc">RingBufferStatus</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">FULL</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">EMPTY</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">NORMAL</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">PipeRingBuffer</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">arr</span>: <span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="n">RING_BUFFER_SIZE</span><span class="p">],</span><span class="w"></span>
+<span class="w">    </span><span class="n">head</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">tail</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">status</span>: <span class="nc">RingBufferStatus</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">write_end</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Weak</span><span class="o">&lt;</span><span class="n">Pipe</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">RingBufferStatus</span></code> 记录了缓冲区目前的状态：<code class="docutils literal notranslate"><span class="pre">FULL</span></code> 表示缓冲区已满不能再继续写入； <code class="docutils literal notranslate"><span class="pre">EMPTY</span></code> 表示缓冲区为空无法从里面读取；而 <code class="docutils literal notranslate"><span class="pre">NORMAL</span></code> 则表示除了 <code class="docutils literal notranslate"><span class="pre">FULL</span></code> 和 <code class="docutils literal notranslate"><span class="pre">EMPTY</span></code> 之外的其他状态。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PipeRingBuffer</span></code> 的 <code class="docutils literal notranslate"><span class="pre">arr/head/tail</span></code> 三个字段用来维护一个循环队列，其中 <code class="docutils literal notranslate"><span class="pre">arr</span></code> 为存放数据的数组， <code class="docutils literal notranslate"><span class="pre">head</span></code> 为循环队列队头的下标， <code class="docutils literal notranslate"><span class="pre">tail</span></code> 为循环队列队尾的下标。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PipeRingBuffer</span></code> 的 <code class="docutils literal notranslate"><span class="pre">write_end</span></code> 字段还保存了它的写端的一个弱引用计数，这是由于在某些情况下需要确认该管道所有的写端是否都已经被关闭了，通过这个字段很容易确认这一点。</p></li>
+</ul>
+<p>从内存管理的角度，每个读端或写端中都保存着所属管道自身的强引用计数，且我们确保这些引用计数只会出现在管道端口 <code class="docutils literal notranslate"><span class="pre">Pipe</span></code> 结构体中。于是，一旦一个管道所有的读端和写端均被关闭，便会导致它们所属管道的引用计数变为 0 ，循环队列缓冲区所占用的资源被自动回收。虽然 <code class="docutils literal notranslate"><span class="pre">PipeRingBuffer</span></code> 中保存了一个指向写端的引用计数，但是它是一个弱引用，也就不会出现循环引用的情况导致内存泄露。</p>
+<div class="section" id="id5">
+<h3>管道创建<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
+<p>通过 <code class="docutils literal notranslate"><span class="pre">PipeRingBuffer::new</span></code> 可以创建一个新的管道：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/pipe.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">PipeRingBuffer</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">arr</span>: <span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">RING_BUFFER_SIZE</span><span class="p">],</span><span class="w"></span>
+<span class="w">            </span><span class="n">head</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">tail</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">status</span>: <span class="nc">RingBufferStatus</span>::<span class="n">EMPTY</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">write_end</span>: <span class="nb">None</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Pipe</span></code> 的 <code class="docutils literal notranslate"><span class="pre">read/write_end_with_buffer</span></code> 方法可以分别从一个已有的管道创建它的读端和写端：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/pipe.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Pipe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">read_end_with_buffer</span><span class="p">(</span><span class="n">buffer</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Mutex</span><span class="o">&lt;</span><span class="n">PipeRingBuffer</span><span class="o">&gt;&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">readable</span>: <span class="nc">true</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">writable</span>: <span class="nc">false</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">buffer</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write_end_with_buffer</span><span class="p">(</span><span class="n">buffer</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Mutex</span><span class="o">&lt;</span><span class="n">PipeRingBuffer</span><span class="o">&gt;&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">readable</span>: <span class="nc">false</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">writable</span>: <span class="nc">true</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">buffer</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>可以看到，读端和写端的访问权限进行了相应设置：不允许向读端写入，也不允许从写端读取。</p>
+<p>通过 <code class="docutils literal notranslate"><span class="pre">make_pipe</span></code> 方法可以创建一个管道并返回它的读端和写端：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/pipe.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">PipeRingBuffer</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">set_write_end</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">write_end</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Pipe</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">write_end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">downgrade</span><span class="p">(</span><span class="n">write_end</span><span class="p">));</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="sd">/// Return (read_end, write_end)</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">make_pipe</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="p">(</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">Pipe</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">Pipe</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">PipeRingBuffer</span>::<span class="n">new</span><span class="p">()));</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">read_end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
+<span class="w">        </span><span class="n">Pipe</span>::<span class="n">read_end_with_buffer</span><span class="p">(</span><span class="n">buffer</span><span class="p">.</span><span class="n">clone</span><span class="p">())</span><span class="w"></span>
+<span class="w">    </span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">write_end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
+<span class="w">        </span><span class="n">Pipe</span>::<span class="n">write_end_with_buffer</span><span class="p">(</span><span class="n">buffer</span><span class="p">.</span><span class="n">clone</span><span class="p">())</span><span class="w"></span>
+<span class="w">    </span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">buffer</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">set_write_end</span><span class="p">(</span><span class="o">&amp;</span><span class="n">write_end</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">(</span><span class="n">read_end</span><span class="p">,</span><span class="w"> </span><span class="n">write_end</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>注意，我们调用 <code class="docutils literal notranslate"><span class="pre">PipeRingBuffer::set_write_end</span></code> 在管道中保留它的写端的弱引用计数。</p>
+<p>现在来实现创建管道的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_pipe</span></code> ：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">alloc_fd</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="o">..</span><span class="bp">self</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">len</span><span class="p">())</span><span class="w"></span>
+<span class="w">            </span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="o">|</span><span class="n">fd</span><span class="o">|</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="o">*</span><span class="n">fd</span><span class="p">].</span><span class="n">is_none</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">fd</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="nb">None</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="c1">// os/src/syscall/fs.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_pipe</span><span class="p">(</span><span class="n">pipe</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">acquire_inner_lock</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">pipe_read</span><span class="p">,</span><span class="w"> </span><span class="n">pipe_write</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make_pipe</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">read_fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">alloc_fd</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">read_fd</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">pipe_read</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">write_fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">alloc_fd</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">write_fd</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">pipe_write</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="o">*</span><span class="n">translated_refmut</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">pipe</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read_fd</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="o">*</span><span class="n">translated_refmut</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">pipe</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">write_fd</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="mi">0</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p><code class="docutils literal notranslate"><span class="pre">TaskControlBlockInner::alloc_fd</span></code> 可以在进程控制块中分配一个最小的空闲文件描述符来访问一个新打开的文件。它先从小到大遍历所有曾经被分配过的文件描述符尝试找到一个空闲的，如果没有的话就需要拓展文件描述符表的长度并新分配一个。</p>
+<p>在 <code class="docutils literal notranslate"><span class="pre">sys_pipe</span></code> 中，第 21 行我们调用 <code class="docutils literal notranslate"><span class="pre">make_pipe</span></code> 创建一个管道并获取其读端和写端，第 22~25 行我们分别为读端和写端分配文件描述符并将它们放置在文件描述符表中的相应位置中。第 26~27 行我们则是将读端和写端的文件描述符写回到应用地址空间。</p>
+</div>
+<div class="section" id="id6">
+<h3>管道读写<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h3>
+<p>首先来看如何为 <code class="docutils literal notranslate"><span class="pre">Pipe</span></code> 实现 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait 的 <code class="docutils literal notranslate"><span class="pre">read</span></code> 方法，即从管道的读端读取数据。在此之前，我们需要对于管道循环队列进行封装来让它更易于使用：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/pipe.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">PipeRingBuffer</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">read_byte</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">u8</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RingBufferStatus</span>::<span class="n">NORMAL</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">arr</span><span class="p">[</span><span class="bp">self</span><span class="p">.</span><span class="n">head</span><span class="p">];</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">head</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">head</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">RING_BUFFER_SIZE</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">head</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">tail</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RingBufferStatus</span>::<span class="n">EMPTY</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="n">c</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">available_read</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">RingBufferStatus</span>::<span class="n">EMPTY</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="mi">0</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">tail</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">head</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="bp">self</span><span class="p">.</span><span class="n">tail</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">head</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="bp">self</span><span class="p">.</span><span class="n">tail</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">RING_BUFFER_SIZE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">head</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">all_write_ends_closed</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">write_end</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">upgrade</span><span class="p">().</span><span class="n">is_none</span><span class="p">()</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p><code class="docutils literal notranslate"><span class="pre">PipeRingBuffer::read_byte</span></code> 方法可以从管道中读取一个字节，注意在调用它之前需要确保管道缓冲区中不是空的。它会更新循环队列队头的位置，并比较队头和队尾是否相同，如果相同的话则说明管道的状态变为空 <code class="docutils literal notranslate"><span class="pre">EMPTY</span></code> 。仅仅通过比较队头和队尾是否相同不能确定循环队列是否为空，因为它既有可能表示队列为空，也有可能表示队列已满。因此我们需要在 <code class="docutils literal notranslate"><span class="pre">read_byte</span></code> 的同时进行状态更新。</p>
+<p><code class="docutils literal notranslate"><span class="pre">PipeRingBuffer::available_read</span></code> 可以计算管道中还有多少个字符可以读取。我们首先需要需要判断队列是否为空，因为队头和队尾相等可能表示队列为空或队列已满，两种情况 <code class="docutils literal notranslate"><span class="pre">available_read</span></code> 的返回值截然不同。如果队列为空的话直接返回 0，否则根据队头和队尾的相对位置进行计算。</p>
+<p><code class="docutils literal notranslate"><span class="pre">PipeRingBuffer::all_write_ends_closed</span></code> 可以判断管道的所有写端是否都被关闭了，这是通过尝试将管道中保存的写端的弱引用计数升级为强引用计数来实现的。如果升级失败的话，说明管道写端的强引用计数为 0 ，也就意味着管道所有写端都被关闭了，从而管道中的数据不会再得到补充，待管道中仅剩的数据被读取完毕之后，管道就可以被销毁了。</p>
+<p>下面是 <code class="docutils literal notranslate"><span class="pre">Pipe</span></code> 的 <code class="docutils literal notranslate"><span class="pre">read</span></code> 方法的实现：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/pipe.rs</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Pipe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">read</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="nc">UserBuffer</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">readable</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buf_iter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">.</span><span class="n">into_iter</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">read_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="k">usize</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ring_buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">buffer</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">loop_read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ring_buffer</span><span class="p">.</span><span class="n">available_read</span><span class="p">();</span><span class="w"></span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">loop_read</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="n">ring_buffer</span><span class="p">.</span><span class="n">all_write_ends_closed</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                    </span><span class="k">return</span><span class="w"> </span><span class="n">read_size</span><span class="p">;</span><span class="w"></span>
+<span class="w">                </span><span class="p">}</span><span class="w"></span>
+<span class="w">                </span><span class="nb">drop</span><span class="p">(</span><span class="n">ring_buffer</span><span class="p">);</span><span class="w"></span>
+<span class="w">                </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span><span class="w"></span>
+<span class="w">                </span><span class="k">continue</span><span class="p">;</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="w">            </span><span class="c1">// read at most loop_read bytes</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">loop_read</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">byte_ref</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf_iter</span><span class="p">.</span><span class="n">next</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">*</span><span class="n">byte_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ring_buffer</span><span class="p">.</span><span class="n">read_byte</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">                    </span><span class="n">read_size</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">                </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                    </span><span class="k">return</span><span class="w"> </span><span class="n">read_size</span><span class="p">;</span><span class="w"></span>
+<span class="w">                </span><span class="p">}</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<ul>
+<li><p>第 6 行的 <code class="docutils literal notranslate"><span class="pre">buf_iter</span></code> 将传入的应用缓冲区 <code class="docutils literal notranslate"><span class="pre">buf</span></code> 转化为一个能够逐字节对于缓冲区进行访问的迭代器，每次调用 <code class="docutils literal notranslate"><span class="pre">buf_iter.next()</span></code> 即可按顺序取出用于访问缓冲区中一个字节的裸指针。</p></li>
+<li><p>第 7 行的 <code class="docutils literal notranslate"><span class="pre">read_size</span></code> 用来维护实际有多少字节从管道读入应用的缓冲区。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">File::read</span></code> 的语义是要从文件中最多读取应用缓冲区大小那么多字符。这可能超出了循环队列的大小，或者由于尚未有进程从管道的写端写入足够的字符，因此我们需要将整个读取的过程放在一个循环中，当循环队列中不存在足够字符的时候暂时进行任务切换，等待循环队列中的字符得到补充之后再继续读取。</p>
+<p>这个循环从第 8 行开始，第 10 行我们用 <code class="docutils literal notranslate"><span class="pre">loop_read</span></code> 来保存循环这一轮次中可以从管道循环队列中读取多少字符。如果管道为空则会检查管道的所有写端是否都已经被关闭，如果是的话，说明我们已经没有任何字符可以读取了，这时可以直接返回；否则我们需要等管道的字符得到填充之后再继续读取，因此我们调用 <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 切换到其他任务，等到切换回来之后回到循环开头再看一下管道中是否有字符了。在调用之前我们需要手动释放管道自身的锁，因为切换任务时候的 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 并不是一个正常的函数调用。</p>
+<p>如果 <code class="docutils literal notranslate"><span class="pre">loop_read</span></code> 不为 0 ，在这一轮次中管道中就有 <code class="docutils literal notranslate"><span class="pre">loop_read</span></code> 个字节可以读取。我们可以迭代应用缓冲区中的每个字节指针并调用 <code class="docutils literal notranslate"><span class="pre">PipeRingBuffer::read_byte</span></code> 方法来从管道中进行读取。如果这 <code class="docutils literal notranslate"><span class="pre">loop_read</span></code> 个字节均被读取之后还没有填满应用缓冲区就需要进入循环的下一个轮次，否则就可以直接返回了。</p>
+</li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Pipe</span></code> 的 <code class="docutils literal notranslate"><span class="pre">write</span></code> 方法——即通过管道的写端向管道中写入数据的实现和 <code class="docutils literal notranslate"><span class="pre">read</span></code> 的原理类似，篇幅所限在这里不再赘述，感兴趣的读者可自行参考其实现。</p>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="../chapter7/index.html" class="btn btn-neutral float-right" title="第七章：数据持久化存储(施工)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="1file-descriptor.html" class="btn btn-neutral float-left" title="文件与文件描述符" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; 版权所有 2020, Yifan Wu.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

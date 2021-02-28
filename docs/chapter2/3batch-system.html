@@ -67,7 +67,6 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -131,17 +130,18 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2 current"><a class="current reference internal" href="#">实现批处理操作系统</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id3">将应用程序链接到内核</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id4">能够找到并加载应用程序二进制码</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">找到并加载应用程序二进制码</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="4trap-handling.html">实现特权级的切换</a></li>
+<li class="toctree-l2"><a class="reference internal" href="5exercise.html">训练</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信(施工)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储(施工)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
 <ul>
@@ -252,38 +252,38 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>这里我们引入了一段汇编代码 <code class="docutils literal notranslate"><span class="pre">link_app.S</span></code> ，它一开始并不存在，而是在构建的时候自动生成的。当我们使用 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 让系统成功运行起来
 之后，我们可以先来看一看里面的内容：</p>
-<div class="highlight-asm notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
- 2
- 3
- 4
- 5
- 6
- 7
- 8
- 9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1"># os/src/link_app.S</span>
+<div class="highlight-asm notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1"># os/src/link_app.S</span>
 
     <span class="na">.align</span> <span class="mi">3</span>
     <span class="na">.section</span> <span class="no">.data</span>
@@ -324,10 +324,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>这个文件是在 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> 的时候，由脚本 <code class="docutils literal notranslate"><span class="pre">os/build.rs</span></code> 控制生成的。有兴趣的读者可以参考其代码。</p>
 </div>
 <div class="section" id="id4">
-<h2>能够找到并加载应用程序二进制码<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
-<p>能够找到并加载应用程序二进制码的应用管理器 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 是“邓式鱼”操作系统的核心组件。我们在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 的 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块中实现一个应用管理器，它的主要功能是：
-- 保存应用数量和各自的位置信息，以及当前执行到第几个应用了。
-- 根据应用程序位置信息，初始化好应用所需内存空间，并加载应用执行。</p>
+<h2>找到并加载应用程序二进制码<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<p>能够找到并加载应用程序二进制码的应用管理器 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 是“邓式鱼”操作系统的核心组件。我们在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 的 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块中实现一个应用管理器，它的主要功能是：</p>
+<ul class="simple">
+<li><p>保存应用数量和各自的位置信息，以及当前执行到第几个应用了。</p></li>
+<li><p>根据应用程序位置信息，初始化好应用所需内存空间，并加载应用执行。</p></li>
+</ul>
 <p>应用管理器 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 结构体定义
 如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="nc">AppManager</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -357,7 +359,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 所谓的内部可变性就是指在我们只能拿到 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 的不可变借用，意味着同样也只能
 拿到 <code class="docutils literal notranslate"><span class="pre">AppManagerInner</span></code> 的不可变借用的情况下依然可以修改 <code class="docutils literal notranslate"><span class="pre">AppManagerInner</span></code> 里面的字段。
 使用 <code class="docutils literal notranslate"><span class="pre">RefCell::borrow/RefCell::borrow_mut</span></code> 分别可以拿到 <code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 里面内容的不可变借用/可变借用，
-<code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 内部会运行时维护当前已有的借用状态并进行借用检查。于是 <code class="docutils literal notranslate"><span class="pre">RefCell::borrow_mut</span></code> 就是我们实现内部可变性的关键。</p>
+<code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 会在运行时维护当前它管理的对象的已有借用状态，并在访问对象时进行借用检查。于是 <code class="docutils literal notranslate"><span class="pre">RefCell::borrow_mut</span></code> 就是我们实现内部可变性的关键。</p>
 <p>我们这样初始化 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 的全局实例：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">APP_MANAGER</span>: <span class="nc">AppManager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">AppManager</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -380,6 +382,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
+<p>初始化的逻辑很简单，就是找到 <code class="docutils literal notranslate"><span class="pre">link_app.S</span></code> 中提供的符号 <code class="docutils literal notranslate"><span class="pre">_num_app</span></code> ，并从这里开始解析出应用数量以及各个应用的开头地址。注意其中对于切片类型的使用能够很大程度上简化编程。</p>
 <p>这里我们使用了外部库 <code class="docutils literal notranslate"><span class="pre">lazy_static</span></code> 提供的 <code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code> 宏。要引入这个外部库，我们需要加入依赖：</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/Cargo.toml</span>
 
@@ -389,35 +392,32 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code> 宏提供了全局变量的运行时初始化功能。一般情况下，全局变量必须在编译期设置一个初始值，但是有些全局变量依赖于运行期间
 才能得到的数据作为初始值。这导致这些全局变量需要在运行时发生变化，也即重新设置初始值之后才能使用。如果我们手动实现的话有诸多不便之处，
-比如又需要把这种全局变量声明为 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 并衍生出很多 unsafe 。这种情况下我们可以使用 <code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code> 宏来帮助我们解决
-这个问题。这里我们借助 <code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code> 声明了一个名为 <code class="docutils literal notranslate"><span class="pre">APP_MANAGER</span></code> 的 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 全局实例，且只有在它第一次被使用到
-的时候才会实际进行初始化工作。</p>
-<p>初始化的逻辑很简单，就是找到 <code class="docutils literal notranslate"><span class="pre">link_app.S</span></code> 中提供的符号 <code class="docutils literal notranslate"><span class="pre">_num_app</span></code> ，并从这里开始解析出应用数量以及各个应用的开头地址。注意其中
-对于切片类型的使用能够很大程度上简化编程。</p>
-<p>因此，借助 Rust 核心库提供的 <code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 和外部库 <code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code>，我们就能在避免 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 声明的情况下以更加 Rust 的
-方式使用全局变量。</p>
+比如需要把这种全局变量声明为 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 并衍生出很多 unsafe code。这种情况下我们可以使用 <code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code> 宏来帮助我们解决
+这个问题。这里我们借助 <code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code> 声明了一个 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 结构的名为 <code class="docutils literal notranslate"><span class="pre">APP_MANAGER</span></code> 的全局实例，且只有在它第一次被使用到
+的时候才会进行实际的初始化工作。</p>
+<p>因此，借助 Rust 核心库提供的 <code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 和外部库 <code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code>，我们就能在避免 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 声明的情况下以更加优雅的Rust风格使用全局变量。</p>
 <p><code class="docutils literal notranslate"><span class="pre">AppManagerInner</span></code> 的方法中， <code class="docutils literal notranslate"><span class="pre">print_app_info/get_current_app/move_to_next_app</span></code> 都相当简单直接，需要说明的是 <code class="docutils literal notranslate"><span class="pre">load_app</span></code>：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
- 2
- 3
- 4
- 5
- 6
- 7
- 8
- 9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">load_app</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">app_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">load_app</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">app_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">app_id</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">num_app</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;All applications completed!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
@@ -441,9 +441,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </td></tr></table></div>
 <p>这个方法负责将参数 <code class="docutils literal notranslate"><span class="pre">app_id</span></code> 对应的应用程序的二进制镜像加载到物理内存以 <code class="docutils literal notranslate"><span class="pre">0x80040000</span></code> 开头的位置，这个位置是批处理操作系统和应用程序
-之间约定的常数，回忆上一小节中，我们也调整应用程序的内存布局以同一个地址开头。第 8 行开始，我们首先将一块内存清空，然后找到待加载应用
-二进制镜像的位置，并将它复制到正确的位置。它本质上是数据从一块内存复制到另一块内存，从批处理操作系统的角度来看是将它数据段的一部分复制到了它
-程序之外未知的地方。</p>
+之间约定的常数地址，回忆上一小节中，我们也调整应用程序的内存布局以同一个地址开头。第 8 行开始，我们首先将一块内存清空，然后找到待加载应用
+二进制镜像的位置，并将它复制到正确的位置。它本质上是把数据从一块内存复制到另一块内存，从批处理操作系统的角度来看是将它数据段的一部分复制到了它
+程序之外未知的地方。在这一点上也体现了冯诺依曼计算机的 <code class="docutils literal notranslate"><span class="pre">代码即数据</span></code> 的特征。</p>
 <p id="term-icache"><span id="term-dcache"></span>注意第 7 行我们插入了一条奇怪的汇编指令 <code class="docutils literal notranslate"><span class="pre">fence.i</span></code> ，它是用来清理 i-cache 的。我们知道缓存是存储层级结构中提高访存速度的很重要一环。
 而 CPU 对物理内存所做的缓存又分成 <strong>数据缓存</strong> (d-cache) 和 <strong>指令缓存</strong> (i-cache) 两部分，分别在 CPU 访存和取指的时候使用。在取指
 的时候，对于一个指令地址， CPU 会先去 i-cache 里面看一下它是否在某个已缓存的缓存行内，如果在的话它就会直接从高速缓存中拿到指令而不是通过

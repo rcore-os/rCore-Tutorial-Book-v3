@@ -67,7 +67,6 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -141,8 +140,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及重要系统调用</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信(施工)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储(施工)</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
 <ul>
@@ -234,18 +233,19 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>任务切换<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="section" id="id2">
 <h2><strong>本节导读</strong><a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
-<p>在上一节实现的二叠纪“锯齿螈”操作系统还是比较原始，一个应用会独占 CPU 直到它出错或主动退出。操作系统还是以程序的一次执行过程（从开始到结束）作为处理器切换程序的时间段。为了提高效率，我们需要引入新的操作系统概念 <strong>任务</strong> 、<strong>上下文</strong> 。</p>
-<p>如果把应用程序执行的整个过程进行进一步分析，可以看到，如果程序访问 IO 或睡眠等待时，其实是不需要占用处理器的，于是，我们可以把应用程序的不同时间段的执行过程分为两类，占用处理器执行有效任务的计算阶段和不必占用处理器的等待阶段。这些按时间流连接在一起的不同类型的多个阶段形成了一个我们熟悉的“暂停-继续…”组合的执行流。从开始到结束的整个执行流就是应用程序的整个执行过程。</p>
+<p>在上一节实现的二叠纪“锯齿螈”操作系统还是比较原始，一个应用会独占 CPU 直到它出错或主动退出。操作系统还是以程序的一次执行过程（从开始到结束）作为处理器切换程序的时间段。为了提高效率，我们需要引入新的操作系统概念 <strong>任务</strong> 、 <strong>任务切换</strong> 、<strong>任务上下文</strong> 。</p>
+<p>如果把应用程序执行的整个过程进行进一步分析，可以看到，如果程序访问 IO 或睡眠等待时，其实是不需要占用处理器的，于是我们可以把应用程序的不同时间段的执行过程分为两类，占用处理器执行有效任务的计算阶段和不必占用处理器的等待阶段。这些按时间流连接在一起的不同类型的多个阶段形成了一个我们熟悉的“暂停-继续…”组合的 <a class="reference internal" href="../chapter0/3os-hw-abstract.html#term-execution-flow"><span class="std std-ref">执行流或执行历史</span></a> 。从开始到结束的整个执行流就是应用程序的整个执行过程。</p>
 <p>本节的重点是操作系统的核心机制—— <strong>任务切换</strong> 。 任务切换支持的场景是：一个应用在运行途中便会主动交出 CPU 的使用权，此时它只能暂停执行，等到内核重新给它分配处理器资源之后才能恢复并继续执行。</p>
 </div>
 <div class="section" id="id3">
 <h2>任务的概念形成<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
 <p>如果操作系统能够在某个应用程序处于等待阶段的时候，把处理器转给另外一个处于计算阶段的应用程序，那么只要转换的开销不大，那么处理器的执行效率就会大大提高。当然，这需要应用程序在运行途中能
 主动交出 CPU 的使用权，此时它处于等待阶段，等到操作系统让它再次执行后，那它就可以继续执行了。</p>
-<p>到这里，我们就把应用程序的一个计算阶段的执行过程（也是一段执行流）称为一个 <strong>任务</strong> ，所有的任务都完成后，应用程序也就完成了。从一个程序的任务切换到另外一个程序的任务称为 <strong>任务切换</strong> 。为了确保切换后的任务能够正确继续执行，操作系统需要支持让任务的执行“暂停”和“继续”。</p>
-<p>我们又看到了熟悉的“暂停-继续”组合。一旦一条执行流需要支持“暂停-继续”，就需要提供一种执行流切换的机制，而且需要保证执行流被切换出去之前和
+<p id="term-task-switch"><span id="term-task"></span>到这里，我们就把应用程序的一个计算阶段的执行过程（也是一段执行流）称为一个 <strong>任务</strong> ，所有的任务都完成后，应用程序也就完成了。从一个程序的任务切换到另外一个程序的任务称为 <strong>任务切换</strong> 。为了确保切换后的任务能够正确继续执行，操作系统需要支持让任务的执行“暂停”和“继续”。</p>
+<p id="term-task-context">我们又看到了熟悉的“暂停-继续”组合。一旦一条执行流需要支持“暂停-继续”，就需要提供一种执行流切换的机制，而且需要保证执行流被切换出去之前和
 切换回来之后，它的状态，也就是在执行过程中同步变化的资源（如寄存器、栈等）需要保持不变，或者变化在它的预期之内。而不是所有的资源都需要被
-保存，事实上只有那些对于执行流接下来的进行仍然有用，且在它被切换出去的时候有被覆盖的风险的那些资源才有被保存的价值。这些资源被称为任务上下文 (Task Context) 。</p>
+保存，事实上只有那些对于执行流接下来的进行仍然有用，且在它被切换出去的时候有被覆盖的风险的那些资源才有被保存的价值。这些物理资源被称为 <strong>任务上下文 (Task Context)</strong>  。</p>
+<p>这里，大家开始在具体的操作系统中接触到了一些抽象的概念，其实这些概念都是具体代码的结构和代码动态执行过程的文字表述而已。</p>
 </div>
 <div class="section" id="id4">
 <h2>不同类型的上下文与切换<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
@@ -253,11 +253,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 共同遵循某些约定来合作完成这一过程。在前两章，我们已经看到了两种上下文保存/恢复的实例。让我们再来回顾一下它们：</p>
 <ul>
 <li><p>第一章《RV64 裸机应用》中，我们介绍了 <a class="reference internal" href="../chapter1/4understand-prog.html#function-call-and-stack"><span class="std std-ref">函数调用与栈</span></a> 。当时提到过，为了支持嵌套函数调用，不仅需要
-硬件平台提供特殊的跳转指令，还需要保存和恢复 <strong>函数调用上下文</strong> 。注意在 <em>我们</em> 的定义中，函数调用包含在普通控制流（与异常控制流相对）之内
-，且始终用一个固定的栈来保存执行的历史记录，因此函数调用并不涉及执行流的切换。但是我们依然可以将其看成调用者和被调用者两个过程的“切换”，
+硬件平台提供特殊的跳转指令，还需要保存和恢复 <a class="reference internal" href="../chapter1/4understand-prog.html#term-function-context"><span class="std std-ref">函数调用上下文</span></a> 。注意在 <em>我们</em> 的定义中，函数调用包含在普通控制流（与异常控制流相对）之内
+，且始终用一个固定的栈来保存执行的历史记录，因此函数调用并不涉及执行流的切换。但是我们依然可以将其看成调用者和被调用者两个执行过程的“切换”，
 二者的协作体现在它们都遵循调用规范，分别保存一部分通用寄存器，这样的好处是编译器能够有足够的信息来尽可能减少需要保存的寄存器的数目。
 虽然当时用了很大的篇幅来说明，但其实整个过程都是编译器负责完成的，我们只需设置好栈就行了。</p></li>
-<li><p>第二章《批处理系统》中第一次涉及到了某种异常（Trap）控制流，即两条执行流的切换，需要保存和恢复 <strong>系统调用（Trap）上下文</strong>。当时，为了让内核能够 <em>完全掌控</em> 应用的执行，且不会被应用破坏整个系统，我们必须利用硬件
+<li><p>第二章《批处理系统》中第一次涉及到了某种异常（Trap）控制流，即两条执行流的切换，需要保存和恢复 <a class="reference internal" href="../chapter2/4trap-handling.html#term-trap-context"><span class="std std-ref">系统调用（Trap）上下文</span></a> 。当时，为了让内核能够 <em>完全掌控</em> 应用的执行，且不会被应用破坏整个系统，我们必须利用硬件
 提供的特权级机制，让应用和内核运行在不同的特权级。应用运行在 U 特权级，它所被允许的操作进一步受限，处处被内核监督管理；而内核运行在 S
 特权级，有能力处理应用执行过程中提出的请求或遇到的状况。</p>
 <p>应用程序与操作系统打交道的核心在于硬件提供的 Trap 机制，也就是在 U 特权级运行的应用执行流和在 S 特权级运行的 Trap 执行流（操作系统的陷入处理部分）之间的切换。
@@ -270,19 +270,19 @@ Trap 执行流是在 Trap 触发的一瞬间生成的，它和原应用执行流
 </div>
 <div class="section" id="id5">
 <h2>任务切换的设计与实现<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<p>本节的任务切换是第二章的 Trap 之后的另一种异常控制流，都描述两条执行流之间的切换，如果将它和 Trap 切换进行比较：</p>
+<p>本节的任务切换的执行过程是第二章的 Trap 之后的另一种异常控制流，都是描述两条执行流之间的切换，如果将它和 Trap 切换进行比较，会有如下异同：</p>
 <ul class="simple">
 <li><p>与 Trap 切换不同，它不涉及特权级切换；</p></li>
 <li><p>与 Trap 切换不同，它的一部分是由编译器帮忙完成的；</p></li>
 <li><p>与 Trap 切换相同，它对应用是透明的。</p></li>
 </ul>
-<p>事实上，它是来自两个不同应用的 Trap 执行流之间的切换。当一个应用 Trap 到 S 进行处理的时候，其 Trap 执行流可以调用一个特殊的
+<p>事实上，它是来自两个不同应用的 Trap 执行流之间的切换。当一个应用 Trap 到 S 模式的操作系统中进行进一步处理（即进入了操作系统的Trap执行流）的时候，其 Trap 执行流可以调用一个特殊的
 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数。这个函数表面上就是一个普通的函数调用：在 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 返回之后，将继续从调用该函数的位置继续向下执行。
 但是其间却隐藏着复杂的执行流切换过程。具体来说，调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 之后直到它返回前的这段时间，原 Trap 执行流会先被暂停并被
 切换出去， CPU 转而运行另一个应用的 Trap 执行流。之后在时机合适的时候，原 Trap 执行流才会从某一条 Trap 执行流（很有可能不是
 它之前切换到的那一条）切换回来继续执行并最终返回。不过，从实现的角度讲， <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 和一个普通的函数之间的差别仅仅是它会换栈。</p>
 <img alt="../_images/task_context.png" src="../_images/task_context.png" />
-<p id="term-task-context">当 Trap 执行流准备调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数并进入暂停状态的时候，让我们考察一下它内核栈上的情况。如上图所示，在准备调用
+<p id="id6">当 Trap 执行流准备调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数并进入暂停状态的时候，让我们考察一下它内核栈上的情况。如上图所示，在准备调用
 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数之前，内核栈上从栈底到栈顶分别是保存了应用执行状态的 Trap 上下文以及内核在对 Trap 处理的过程中留下的
 调用栈信息。由于之后还要恢复回来执行，我们必须保存 CPU 当前的某些寄存器，我们称它们为 <strong>任务上下文</strong> (Task Context)。
 我们会在稍后介绍里面需要包含哪些寄存器。至于保存的位置，我们将任务上下文直接压入内核栈的栈顶，从这一点上来说它和函数调用一样。</p>
@@ -292,7 +292,7 @@ Trap 执行流是在 Trap 触发的一瞬间生成的，它和原应用执行流
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">TaskContext</span> <span class="o">*</span><span class="n">task_cx_ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">task_cx</span><span class="p">;</span>
 </pre></div>
 </div>
-<p>由于我们要用 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr</span></code> 这个变量来进行保存，自然也要对它进行修改。于是我们还需要指向它的指针 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr2</span></code> ：</p>
+<p>由于我们要用 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr</span></code> 这个变量来进行保存任务上下文的地址，自然也要对任务上下文的地址进行修改。于是我们还需要指向 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr</span></code> 这个变量的指针 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr2</span></code> ：</p>
 <div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">TaskContext</span> <span class="o">**</span><span class="n">task_cx_ptr2</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">task_cx_ptr</span><span class="p">;</span>
 </pre></div>
 </div>
@@ -313,46 +313,46 @@ Trap 执行流是在 Trap 触发的一瞬间生成的，它和原应用执行流
 <li><p>阶段 [4]：CPU 从 B 的内核栈栈顶取出任务上下文并恢复寄存器状态，在这之后还要进行退栈操作。</p></li>
 <li><p>阶段 [5]：对于 B 而言， <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数返回，可以从调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的位置继续向下执行。</p></li>
 </ul>
-<p>从结果来看，我们看到 A 和 B 的状态发生了互换， A 在保存任务上下文之后进入暂停状态，而 B 则恢复过来在 CPU 上执行。</p>
+<p>从结果来看，我们看到 A 执行流 和 B 执行流的状态发生了互换， A 在保存任务上下文之后进入暂停状态，而 B 则恢复了上下文并在 CPU 上执行。</p>
 <p>下面我们给出 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的实现：</p>
-<div class="highlight-riscv notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
- 2
- 3
- 4
- 5
- 6
- 7
- 8
- 9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c"># os/src/task/switch.S</span>
+<div class="highlight-riscv notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c"># os/src/task/switch.S</span>
 
 <span class="nf">.altmacro</span><span class="w"></span>
 <span class="nf">.macro</span><span class="w"> </span><span class="nb">SAVE_SN</span><span class="w"> </span><span class="ni">n</span><span class="w"></span>
@@ -396,13 +396,13 @@ Trap 执行流是在 Trap 触发的一瞬间生成的，它和原应用执行流
 <code class="docutils literal notranslate"><span class="pre">task_cx_ptr2</span></code> ，从 <a class="reference internal" href="../chapter1/4understand-prog.html#term-calling-convention"><span class="std std-ref">RISC-V 调用规范</span></a> 可以知道它们分别通过寄存器 <code class="docutils literal notranslate"><span class="pre">a0/a1</span></code> 传入。</p>
 <p>阶段 [2] 体现在第 18~26 行。第 18 行在 A 的内核栈上预留任务上下文的空间，然后将当前的栈顶位置保存下来。接下来就是逐个对寄存器
 进行保存，从中我们也能够看出 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 里面究竟包含哪些寄存器：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
-2
-3
-4
-5
-6
-7</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/context.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span>
+<span class="normal">6</span>
+<span class="normal">7</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/context.rs</span>
 
 <span class="cp">#[repr(C)]</span><span class="w"></span>
 <span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -414,16 +414,16 @@ Trap 执行流是在 Trap 触发的一瞬间生成的，它和原应用执行流
 <p>这里面只保存了 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 和被调用者保存的 <code class="docutils literal notranslate"><span class="pre">s0~s11</span></code> 。<code class="docutils literal notranslate"><span class="pre">ra</span></code> 的保存很重要，它记录了 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 返回之后应该到哪里继续执行，
 从而在切换回来并 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 之后能到正确的位置。而保存调用者保存的寄存器是因为，调用者保存的寄存器可以由编译器帮我们自动保存。我们会将
 这段汇编代码中的全局符号 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 解释为一个 Rust 函数：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
- 2
- 3
- 4
- 5
- 6
- 7
- 8
- 9
-10</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/switch.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/switch.rs</span>
 
 <span class="fm">global_asm!</span><span class="p">(</span><span class="fm">include_str!</span><span class="p">(</span><span class="s">&quot;switch.S&quot;</span><span class="p">));</span><span class="w"></span>
 
