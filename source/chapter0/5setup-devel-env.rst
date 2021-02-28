@@ -53,17 +53,20 @@ Ubuntu18.04 镜像，它是一个 ``vmdk`` 格式的虚拟磁盘文件，只需�
 已经创建好用户 oslab ，密码为一个空格。它已经安装了中文输入法和 Markdown 编辑器 Typora 还有作为 Rust 集成开发环境的 
 Visual Studio Code，能够更容易完成实验并撰写实验报告。
 
+.. _link-docker-env:
+
 .. note::
 
    **Docker 开发环境**
 
-   感谢 dinghao188 配置好的 Docker 开发环境：
-
-   .. code-block::
-
-      docker pull dinghao188/rcore-tutorial
-
+   感谢 dinghao188 和张汉东老师帮忙配置好的 Docker 开发环境，进入 Docker 开发环境之后不需要任何软件工具链的安装和配置，可以直接将 tutorial 运行起来，目前应该仅支持将 tutorial 运行在 Qemu 模拟器上。
    
+   使用方法如下（以 Ubuntu18.04 为例）：
+
+   1. 通过 ``su`` 切换到管理员账户 ``root`` ；
+   2. 在 ``rCore-Tutorial-v3`` 根目录下 ``make docker`` 进入到 Docker 环境；
+   3. 进入 Docker 之后，会发现当前处于根目录 ``/`` ，我们通过 ``cd mnt`` 将当前工作路径切换到 ``/mnt`` 目录；
+   4. 通过 ``ls`` 可以发现 ``/mnt`` 目录下的内容和 ``rCore-Tutorial-v3`` 目录下的内容完全相同，接下来就可以在这个环境下运行 tutorial 了。例如 ``cd os && make run`` 。    
 
 
 你也可以在 Windows10 或 macOS 原生系统或者其他 Linux 发行版上进行实验，基本上不会出现太大的问题。不过由于

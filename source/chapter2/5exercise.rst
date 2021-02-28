@@ -18,7 +18,7 @@ lab2 中，我们实现了第一个系统调用 ``sys_write``，这使得我们�
 
 实验要求
 -------------------------------
-
+- 实现分支: ch2。
 - 完成实验指导书中的内容，能运行用户态程序并执行 sys_write 系统调用。
 - 通过 `Rust测例 <https://github.com/DeathWish5/rCore_tutorial_tests>`_ 或者 `C测例 <https://github.com/DeathWish5/riscvos-c-tests>`_ 中 chapter2 对应的所有测例，测例详情见对应仓库。
 
@@ -35,23 +35,23 @@ lab2 中，我们实现了第一个系统调用 ``sys_write``，这使得我们�
    │   ├── src(所有内核的源代码放在 os/src 目录下)
    │       ├── main.rs(内核主函数)
    │       ├── ...
+   ├── reports
+   │   ├── lab1.md/pdf
+   │   └── ...
    ├── build.rs (在这里实现用户程序的打包)
    ├── README.md（其他必要的说明）
    ├── ...
 
 参考示例目录结构。目标用户目录 ``../user/build/bin``。
 
-- 实验目录要求(C)
-
-目录要求不变。同样在 os 目录下 ``make run`` 之后可以正确加载用户程序并执行。
-
-参考示例目录结构。目标用户目录 ``../user/target/bin``。
-
 - 检查
 
-可以正确 ``make run`` 执行，可以正确执行目标用户测例，并得到预期输出（详见测例注释）。
+.. code-block:: console
 
-备注
--------------------------------
+   $ cd os
+   $ git checkout ch2
+   $ make run
 
-正确进入 U 态后，程序的特征还应有：使用 S 态特权指令，访问 S 态寄存器后会报错。目前由于 RustSBI 自身设计的问题，这些错误会直接导致 M 态崩溃，故而难以测试，同学们可以自行测试这些内容（`参考前三个测例 <https://github.com/DeathWish5/rCore_tutorial_tests/tree/master/user/src/bin>`_）。
+可以正确执行正确执行目标用户测例，并得到预期输出（详见测例注释）。
+
+注意：如果设置默认 log 等级，从 lab2 开始关闭所有 log 输出。
