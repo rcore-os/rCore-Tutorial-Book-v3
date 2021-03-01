@@ -7,6 +7,7 @@
    0intro
    1fs-interface
    2fs-implementation
-   3cmdargs-and-redirection
+   3using-easy-fs-in-kernel
+   4cmdargs-and-redirection
 
 最晚灭绝的“霸王龙”操作系统
