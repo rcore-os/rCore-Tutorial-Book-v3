@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <title>构建用户态执行环境 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
@@ -16,7 +16,10 @@
 
   
   
+
   
+  
+
   
 
   
@@ -29,7 +32,6 @@
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -65,7 +67,6 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -87,7 +88,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
           
 
           
@@ -203,6 +204,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -216,7 +219,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="../_sources/chapter1/3-1-mini-rt-usrland.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -254,16 +257,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>对上述代码重新编译，再用分析工具分析，可以看到：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">    Finished dev [unoptimized + debuginfo] target(s) in 0.06s</span>
 
 <span class="go">[文件格式]</span>
-<span class="gp">$</span> file target/riscv64gc-unknown-none-elf/debug/os
+<span class="gp">$ </span>file target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">target/riscv64gc-unknown-none-elf/debug/os: ELF 64-bit LSB executable, UCB RISC-V, ......</span>
 
 <span class="go">[文件头信息]</span>
-<span class="gp">$</span> rust-readobj -h target/riscv64gc-unknown-none-elf/debug/os
+<span class="gp">$ </span>rust-readobj -h target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">   File: target/riscv64gc-unknown-none-elf/debug/os</span>
 <span class="go">   Format: elf64-littleriscv</span>
 <span class="go">   Arch: riscv64</span>
@@ -277,7 +280,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="go">   }</span>
 
 <span class="go">[反汇编导出汇编程序]</span>
-<span class="gp">$</span> rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
+<span class="gp">$ </span>rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">   target/riscv64gc-unknown-none-elf/debug/os:       file format elf64-littleriscv</span>
 
 <span class="go">   Disassembly of section .text:</span>
@@ -292,7 +295,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>所以，我们可以断定，这个二进制程序虽然合法，但它是一个空程序。这不是我们希望的，我们希望有具体内容的执行程序。为什么会这样呢？</p>
 <p>仔细读读这两条指令，发现就是一个死循环的汇编代码，且其第一条指令的地址与入口地址 Entry 的值一致。这已经是一个合理的程序了。如果我们用 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span> <span class="pre">target/riscv64gc-unknown-none-elf/debug/os</span></code> 执行这个程序，可以看到好像就是在执行死循环。</p>
 <p>我们能让程序正常退出吗？我们把 <code class="docutils literal notranslate"><span class="pre">_start()</span></code> 函数中的循环语句注释掉，重新编译并分析，看到其汇编代码是：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
 
 <span class="go"> target/riscv64gc-unknown-none-elf/debug/os: file format elf64-littleriscv</span>
 
@@ -305,7 +308,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>看起来是有内容(具有 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 函数返回汇编指令）且合法的执行程序。但如果我们执行它，就发现有问题了：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">  段错误 (核心已转储)</span>
 </pre></div>
 </div>
@@ -324,7 +327,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="k">fn</span> <span class="nf">syscall</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">args</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">3</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ret</span>: <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
 <span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">llvm_asm</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;ecall&quot;</span><span class="w"></span>
+<span class="w">        </span><span class="fm">llvm_asm!</span><span class="p">(</span><span class="s">&quot;ecall&quot;</span><span class="w"></span>
 <span class="w">            </span>: <span class="s">&quot;={x10}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="p">)</span><span class="w"></span>
 <span class="w">            </span>: <span class="s">&quot;{x10}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x11}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x12}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x17}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"></span>
 <span class="w">            </span>: <span class="s">&quot;memory&quot;</span><span class="w"></span>
@@ -346,12 +349,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 增加的内容不多，但还是有点与一般的应用程序有所不同，因为它引入了汇编和系统调用。如果你看不懂上面内容的细节，没关系，在第二章的第二节 <a class="reference internal" href="../chapter2/2application.html"><span class="doc">实现应用程序</span></a> 会有详细的介绍。这里只需知道 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 函数调用了一个 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 函数，来向操作系统发出一个退出服务的系统调用请求，并传递给OS的退出码为 <code class="docutils literal notranslate"><span class="pre">9</span></code> 。</p>
 <p>我们编译执行以下修改后的程序：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build --target riscv64gc-unknown-none-elf
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build --target riscv64gc-unknown-none-elf
 <span class="go">  Compiling os v0.1.0 (/media/chyyuu/ca8c7ba6-51b7-41fc-8430-e29e31e5328f/thecode/rust/os_kernel_lab/os)</span>
 <span class="go">    Finished dev [unoptimized + debuginfo] target(s) in 0.26s</span>
 
 <span class="go">[$?表示执行程序的退出码，它会被告知 OS]</span>
-<span class="gp">$</span> qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os<span class="p">;</span> <span class="nb">echo</span> <span class="nv">$?</span>
+<span class="gp">$ </span>qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os<span class="p">;</span> <span class="nb">echo</span> <span class="nv">$?</span>
 <span class="go">9</span>
 </pre></div>
 </div>
@@ -391,16 +394,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>最后，实现基于 <code class="docutils literal notranslate"><span class="pre">print</span></code> 函数，实现Rust语言 <strong>格式化宏</strong> ( <a class="reference external" href="https://doc.rust-lang.org/std/fmt/#related-macros">formatting macros</a> )。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[macro_export]</span><span class="w"></span>
-<span class="n">macro_rules</span><span class="o">!</span><span class="w"> </span><span class="n">print</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="fm">macro_rules!</span><span class="w"> </span><span class="n">print</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="p">(</span><span class="cp">$fmt</span>: <span class="nc">literal</span><span class="w"> </span><span class="cp">$(,</span><span class="w"> </span><span class="cp">$($arg</span>: <span class="nc">tt</span><span class="p">)</span><span class="o">+</span><span class="p">)</span><span class="o">?</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="cp">$crate</span>::<span class="n">console</span>::<span class="n">print</span><span class="p">(</span><span class="n">format_args</span><span class="o">!</span><span class="p">(</span><span class="cp">$fmt</span><span class="w"> </span><span class="cp">$(,</span><span class="w"> </span><span class="cp">$($arg</span><span class="p">)</span><span class="o">+</span><span class="p">)</span><span class="o">?</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="cp">$crate</span>::<span class="n">console</span>::<span class="n">print</span><span class="p">(</span><span class="fm">format_args!</span><span class="p">(</span><span class="cp">$fmt</span><span class="w"> </span><span class="cp">$(,</span><span class="w"> </span><span class="cp">$($arg</span><span class="p">)</span><span class="o">+</span><span class="p">)</span><span class="o">?</span><span class="p">));</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 
 <span class="cp">#[macro_export]</span><span class="w"></span>
-<span class="n">macro_rules</span><span class="o">!</span><span class="w"> </span><span class="n">println</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="fm">macro_rules!</span><span class="w"> </span><span class="n">println</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="p">(</span><span class="cp">$fmt</span>: <span class="nc">literal</span><span class="w"> </span><span class="cp">$(,</span><span class="w"> </span><span class="cp">$($arg</span>: <span class="nc">tt</span><span class="p">)</span><span class="o">+</span><span class="p">)</span><span class="o">?</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">print</span><span class="p">(</span><span class="n">format_args</span><span class="o">!</span><span class="p">(</span><span class="n">concat</span><span class="o">!</span><span class="p">(</span><span class="cp">$fmt</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span><span class="w"> </span><span class="cp">$(,</span><span class="w"> </span><span class="cp">$($arg</span><span class="p">)</span><span class="o">+</span><span class="p">)</span><span class="o">?</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="n">print</span><span class="p">(</span><span class="fm">format_args!</span><span class="p">(</span><span class="fm">concat!</span><span class="p">(</span><span class="cp">$fmt</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span><span class="w"> </span><span class="cp">$(,</span><span class="w"> </span><span class="cp">$($arg</span><span class="p">)</span><span class="o">+</span><span class="p">)</span><span class="o">?</span><span class="p">));</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
@@ -409,23 +412,23 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>接下来，我们调整一下应用程序，让它发出显示字符串和退出的请求：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Hello, world!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Hello, world!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="n">sys_exit</span><span class="p">(</span><span class="mi">9</span><span class="p">);</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>整体工作完成！当然，我们实现的很简陋，用户态执行环境和应用程序都放在一个文件里面，以后会通过我们学习的软件工程的知识，进行软件重构，让代码更清晰和模块化。</p>
 <p>现在，我们编译执行一下。</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build --target riscv64gc-unknown-none-elf
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build --target riscv64gc-unknown-none-elf
 <span class="go">   Compiling os v0.1.0 (/media/chyyuu/ca8c7ba6-51b7-41fc-8430-e29e31e5328f/thecode/rust/os_kernel_lab/os)</span>
 <span class="go">  Finished dev [unoptimized + debuginfo] target(s) in 0.61s</span>
 
-<span class="gp">$</span> qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os
+<span class="gp">$ </span>qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">  段错误 (核心已转储)</span>
 </pre></div>
 </div>
 <p>系统崩溃了！借助以往的操作系统内核编程经验和与下一节调试kernel的成果经验，我们直接定位为是 <strong>栈</strong> (Stack) 没有设置的问题。我们需要添加建立栈的代码逻辑。</p>
-<div class="highlight-asm notranslate"><div class="highlight"><pre><span></span><span class="c"># entry.asm</span>
+<div class="highlight-asm notranslate"><div class="highlight"><pre><span></span><span class="c1"># entry.asm</span>
 
     <span class="na">.section</span> <span class="no">.text.entry</span>
     <span class="na">.globl</span> <span class="no">_start</span>
@@ -444,7 +447,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>然后把汇编代码嵌入到 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 中，并进行微调。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#![feature(global_asm)]</span><span class="w"></span>
 
-<span class="n">global_asm</span><span class="o">!</span><span class="p">(</span><span class="n">include_str</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;entry.asm&quot;</span><span class="p">));</span><span class="w"></span>
+<span class="fm">global_asm!</span><span class="p">(</span><span class="fm">include_str!</span><span class="p">(</span><span class="s">&quot;entry.asm&quot;</span><span class="p">));</span><span class="w"></span>
 
 <span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="cp">#[link_section=</span><span class="s">&quot;.text.entry&quot;</span><span class="cp">]</span><span class="w"></span>
@@ -461,37 +464,29 @@ commentsRunWhenDOMLoaded(addUtterances);
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="3-2-mini-rt-baremetal.html" class="btn btn-neutral float-right" title="构建裸机运行时执行环境" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="2remove-std.html" class="btn btn-neutral float-left" title="移除标准库依赖" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="3-2-mini-rt-baremetal.html" class="btn btn-neutral float-right" title="构建裸机运行时执行环境" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="2remove-std.html" class="btn btn-neutral float-left" title="移除标准库依赖" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; 版权所有 2020, Yifan Wu
+        &#169; 版权所有 2020, Yifan Wu.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
