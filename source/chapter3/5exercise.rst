@@ -143,3 +143,12 @@ challenge: 实现多核，可以并行调度。
 - 简单总结本次实验你增加的东西（控制在5行以内，不要贴代码）。
 - 完成问答问题。
 - (optional) 你对本次实验设计及难度/工作量的看法，以及有哪些需要改进的地方，欢迎畅所欲言。
+
+参考信息
+-------------------------------
+如果有兴趣进一步了解stride调度相关内容，可以尝试看看：
+
+- `作者 Carl A. Waldspurger 写这个调度算法的原论文 <https://people.cs.umass.edu/~mcorner/courses/691J/papers/PS/waldspurger_stride/waldspurger95stride.pdf>`_
+- `作者 Carl A. Waldspurger 的博士生答辩slide <http://www.waldspurger.org/carl/papers/phd-mit-slides.pdf>`_ 
+- `南开大学实验指导中对Stride算法的部分介绍 <https://nankai.gitbook.io/ucore-os-on-risc-v64/lab6/tiao-du-suan-fa-kuang-jia#stride-suan-fa>`_
+- `NYU OS课关于Stride Scheduling的Slide <https://cs.nyu.edu/rgrimm/teaching/sp08-os/stride.pdf>`_

@@ -132,6 +132,15 @@ Rust 开发环境配置
 .. warning::
    目前用于操作系统实验开发的rustc编译器的版本不局限在1.46.0这样的数字上，你可以选择更新的rustc编译器。但注意只能用rustc的nightly版本。
 
+
+可通过如下命令安装rustc的nightly版本，并把该版本设置为rustc的缺省版本。
+
+.. code-block:: bash
+   
+   rustup install nightly
+   rustup default nightly
+
+
 我们最好把软件包管理器 cargo 所用的软件包镜像地址 crates.io 也换成中国科学技术大学的镜像服务器来加速三方库的下载。
 我们打开（如果没有就新建） ``~/.cargo/config`` 文件，并把内容修改为：
 
