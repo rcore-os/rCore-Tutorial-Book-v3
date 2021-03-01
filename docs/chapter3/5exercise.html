@@ -67,6 +67,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -251,10 +252,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>一个时间片后，回到上一步骤，重新调度当前 stride 最小的进程。</p></li>
 </ol>
 <p>可以证明，如果令 P.pass = BigStride / P.priority 其中 P.priority 表示进程的优先权（大于 1），而 BigStride 表示一个预先定义的大常数，则该调度方案为每个进程分配的时间将与其优先级成正比。证明过程我们在这里略去，有兴趣的同学可以在网上查找相关资料。</p>
-<p>其他实验细节：
-- stride 调度要求进程优先级 &gt;= 2，所以设定进程优先级 &lt;= 1 会导致错误。
-- 进程初始 stride 设置为 0 即可。
-- 进程初始优先级设置为 16。</p>
+<p>其他实验细节：</p>
+<ul class="simple">
+<li><p>stride 调度要求进程优先级 <span class="math notranslate nohighlight">\(\geq 2\)</span>，所以设定进程优先级 <span class="math notranslate nohighlight">\(\leq 1\)</span> 会导致错误。</p></li>
+<li><p>进程初始 stride 设置为 0 即可。</p></li>
+<li><p>进程初始优先级设置为 16。</p></li>
+</ul>
 <p>tips: 可以使用优先级队列比较方便的实现 stride 算法。如使用：<a class="reference external" href="https://doc.rust-lang.org/alloc/collections/binary_heap/struct.BinaryHeap.html">BinaryHeap</a> 。</p>
 </div>
 <div class="section" id="id2">
@@ -265,7 +268,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>实现 stride 调度算法，实现 sys_gettime, sys_set_priority 两个系统调用并通过 <a class="reference external" href="https://github.com/DeathWish5/rCore_tutorial_tests">Rust测例</a> 中 chapter3 对应的所有测例，测例详情见对应仓库，系统调用具体要求参考 <a class="reference external" href="https://github.com/DeathWish5/rCore_tutorial_tests/blob/master/guide.md">guide.md</a> 。</p></li>
 </ul>
 <p>需要说明的是 lab3 有3类测例，<code class="docutils literal notranslate"><span class="pre">ch3_0_*</span></code> 用来检查基本 syscall 的实现，<code class="docutils literal notranslate"><span class="pre">ch3_1_*</span></code> 基于 yield 来检测基本的调度，<code class="docutils literal notranslate"><span class="pre">ch3_2_*</span></code> 基于时钟中断来测试 stride 调度算法实现的正确性。测试时可以分别测试 3 组测例，使得输出更加可控、更加清晰。</p>
-<p>特别的，我们有一个死循环测例 <code class="docutils literal notranslate"><span class="pre">ch3t_deadloop</span></code> 用来保证大家真的实现了始终中断。这一章中我们人为限制一个程序执行的最大时间（必须很大），超过就杀死，这样，我们的程序更不容易被恶意程序伤害。这一规定可以在实验4开始删除，仅仅为通过 lab3 测例设置。</p>
+<p>特别的，我们有一个死循环测例 <code class="docutils literal notranslate"><span class="pre">ch3t_deadloop</span></code> 用来保证大家真的实现了时钟中断。这一章中我们人为限制一个程序执行的最大时间（必须很大），超过就杀死，这样，我们的程序更不容易被恶意程序伤害。这一规定可以在实验4开始删除，仅仅为通过 lab3 测例设置。</p>
 <p>challenge: 实现多核，可以并行调度。</p>
 </div>
 <div class="section" id="id3">
@@ -289,7 +292,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>简答作业<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
 <ol class="arabic">
 <li><p>简要描述这一章的进程调度策略。何时进行进程切换？如何选择下一个运行的进程？如何处理新加入的进程？</p></li>
-<li><p>在 C 版代码中，同样实现了类似 RR 的调度算法，但是由于没有 VecDeque 这样直接可用的数据结构（Rust很棒对不对），C 版代码的实现严格来讲存在一定问题。大致情况如下：C版代码使用一个进程池（也就是一个 struct proc 的数组）管理进程调度，当一个时间片用尽后，选择下一个进程逻辑在 <a class="reference external" href="https://github.com/DeathWish5/ucore-Tutorial/blob/ch3/kernel/proc.c#L60-L74">chapter３相关代码</a> ，也就是当第 i 号进程结束后，会以 i -&gt; max_num -&gt; 0 -&gt; i 的顺序便利进程池，直到找到下一个就绪进程。C 版代码新进程在调度池中的位置选择见 <a class="reference external" href="https://github.com/DeathWish5/ucore-Tutorial/blob/ch5/kernel/proc.c#L90-L98">chapter5相关代码</a> ，也就是从头到尾遍历进程池，找到地一个空位。</p>
+<li><p>在 C 版代码中，同样实现了类似 RR 的调度算法，但是由于没有 VecDeque 这样直接可用的数据结构（Rust很棒对不对），C 版代码的实现严格来讲存在一定问题。大致情况如下：C版代码使用一个进程池（也就是一个 struct proc 的数组）管理进程调度，当一个时间片用尽后，选择下一个进程逻辑在 <a class="reference external" href="https://github.com/DeathWish5/ucore-Tutorial/blob/ch3/kernel/proc.c#L60-L74">chapter３相关代码</a> ，也就是当第 i 号进程结束后，会以 i -&gt; max_num -&gt; 0 -&gt; i 的顺序遍历进程池，直到找到下一个就绪进程。C 版代码新进程在调度池中的位置选择见 <a class="reference external" href="https://github.com/DeathWish5/ucore-Tutorial/blob/ch5/kernel/proc.c#L90-L98">chapter5相关代码</a> ，也就是从头到尾遍历进程池，找到第一个空位。</p>
 <p>(2-1) 在目前这一章（chapter3）两种调度策略有实质不同吗？考虑在一个完整的 os 中，随时可能有新进程产生，这两种策略是否实质相同？</p>
 <p>(2-2) 其实 C 版调度策略在公平性上存在比较大的问题，请找到一个进程产生和结束的时间序列，使得在该调度算法下发生：先创建的进程后执行的现象。你需要给出类似下面例子的信息（有更详细的分析描述更好，但尽量精简）。同时指出该序列在你实现的 stride 调度算法下顺序是怎样的？</p>
 <blockquote>
@@ -383,7 +386,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="simple">
 <li><p>简单总结本次实验你增加的东西（控制在5行以内，不要贴代码）。</p></li>
 <li><p>完成问答问题。</p></li>
-<li><p>(optional) 你对本次实验设计及难度/工作量的看法，以及有那些需要改进的地方，欢迎畅所欲言。</p></li>
+<li><p>(optional) 你对本次实验设计及难度/工作量的看法，以及有哪些需要改进的地方，欢迎畅所欲言。</p></li>
 </ul>
 </div>
 </div>
