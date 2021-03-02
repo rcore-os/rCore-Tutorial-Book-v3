@@ -111,7 +111,7 @@ lab1 的工作使得我们从硬件世界跳入了软件世界，当看到自己
 tips
 +++++++++++++++++++++++++++++++
 
-- 对于 Rust, 可以使用 crate ``log``，推荐参考 `rCore <https://github.com/rcore-os/rCore/blob/master/kernel/src/logging.rs>`_ 
+- 对于 Rust, 可以使用 crate `log <https://docs.rs/log/0.4.14/log/>`_ ，推荐参考 `rCore <https://github.com/rcore-os/rCore/blob/master/kernel/src/logging.rs>`_ 
 - 对于 C，可以实现不同的函数（注意不推荐多层可变参数解析，有时会出现不稳定情况），也可以参考 `linux printk <https://github.com/torvalds/linux/blob/master/include/linux/printk.h#L312-L385>`_ 使用宏实现代码重用。
 - 两种语言都可以使用 ``extern`` 关键字获得在其他文件中定义的符号。
 
@@ -140,7 +140,7 @@ tips
 报告要求
 -------------------------------
 
-- 简单总结本次实验你增加的东西。（控制在5行以内，不要贴代码）
+- 简单总结本次实验你编程的内容。（控制在5行以内，不要贴代码）
 - 由于彩色输出不好自动测试，请附正确运行后的截图。
 - 完成问答问题。
 - (optional) 你对本次实验设计及难度/工作量的看法，以及有那些需要改进的地方，欢迎畅所欲言。
