@@ -20,11 +20,12 @@ mmap 系统调用新定义：
 - Rust接口： ``fn mmap(start: usize, len: usize, port: usize) -> i32``
 - 功能：申请长度为 len 字节的物理内存（不要求实际物理内存位置，可以随便找一块），并映射到 addr 开始的虚存，内存页属性为 port。
 - 参数：
-    - start 需要映射的虚存起始地址。
-    - len：映射字节长度，可以为0（如果是则直接返回），不可过大(上限1G)。0位表示是否可读，第1位表示是否可写，第2位表示是否可执行。其他位无效（必须为0）。
+    - start：需要映射的虚存起始地址。
+    - len：映射字节长度，可以为 0 （如果是则直接返回），不可过大(上限 1GiB )。
+    - port：第 0 位表示是否可读，第 1 位表示是否可写，第 2 位表示是否可执行。其他位无效（必须为 0 ）。
 - 说明：
-    - 正确时返回实际 map size（为 4096 的倍数），错误返回-1。
-    - 为了简单，addr 要求按页对其(否则报错)，len 可直接按页取上整。
+    - 正确时返回实际 map size（为 4096 的倍数），错误返回 -1 。
+    - 为了简单，addr 要求按页对齐(否则报错)，len 可直接按页上取整。
     - 为了简单，不考虑分配失败时的页回收（也就是内存泄漏）。
 - 错误：
     - [addr, addr + len) 存在已经被映射的页。
@@ -35,8 +36,8 @@ mmap 系统调用新定义：
 munmap 系统调用新定义：
 
 - syscall ID：215
-- C接口： ``int mmap(void* start, unsigned long long len)``
-- Rust接口： ``fn mmap(start: usize, len: usize) -> i32``
+- C接口： ``int munmap(void* start, unsigned long long len)``
+- Rust接口： ``fn munmap(start: usize, len: usize) -> i32``
 - 功能：取消一块虚存的映射。
 - 参数：同 mmap
 - 说明：
