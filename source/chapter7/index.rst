@@ -5,4 +5,6 @@
    :hidden:
    :maxdepth: 4
 
+   6exercise
+
 最晚灭绝的“霸王龙”操作系统
