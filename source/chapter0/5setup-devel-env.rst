@@ -53,17 +53,20 @@ Ubuntu18.04 镜像，它是一个 ``vmdk`` 格式的虚拟磁盘文件，只需�
 已经创建好用户 oslab ，密码为一个空格。它已经安装了中文输入法和 Markdown 编辑器 Typora 还有作为 Rust 集成开发环境的 
 Visual Studio Code，能够更容易完成实验并撰写实验报告。
 
+.. _link-docker-env:
+
 .. note::
 
    **Docker 开发环境**
 
-   感谢 dinghao188 配置好的 Docker 开发环境：
-
-   .. code-block::
-
-      docker pull dinghao188/rcore-tutorial
-
+   感谢 dinghao188 和张汉东老师帮忙配置好的 Docker 开发环境，进入 Docker 开发环境之后不需要任何软件工具链的安装和配置，可以直接将 tutorial 运行起来，目前应该仅支持将 tutorial 运行在 Qemu 模拟器上。
    
+   使用方法如下（以 Ubuntu18.04 为例）：
+
+   1. 通过 ``su`` 切换到管理员账户 ``root`` ；
+   2. 在 ``rCore-Tutorial-v3`` 根目录下 ``make docker`` 进入到 Docker 环境；
+   3. 进入 Docker 之后，会发现当前处于根目录 ``/`` ，我们通过 ``cd mnt`` 将当前工作路径切换到 ``/mnt`` 目录；
+   4. 通过 ``ls`` 可以发现 ``/mnt`` 目录下的内容和 ``rCore-Tutorial-v3`` 目录下的内容完全相同，接下来就可以在这个环境下运行 tutorial 了。例如 ``cd os && make run`` 。    
 
 
 你也可以在 Windows10 或 macOS 原生系统或者其他 Linux 发行版上进行实验，基本上不会出现太大的问题。不过由于
@@ -126,6 +129,18 @@ Rust 开发环境配置
 
    rustc 1.46.0-nightly (7750c3d46 2020-06-26)
 
+.. warning::
+   目前用于操作系统实验开发的rustc编译器的版本不局限在1.46.0这样的数字上，你可以选择更新的rustc编译器。但注意只能用rustc的nightly版本。
+
+
+可通过如下命令安装rustc的nightly版本，并把该版本设置为rustc的缺省版本。
+
+.. code-block:: bash
+   
+   rustup install nightly
+   rustup default nightly
+
+
 我们最好把软件包管理器 cargo 所用的软件包镜像地址 crates.io 也换成中国科学技术大学的镜像服务器来加速三方库的下载。
 我们打开（如果没有就新建） ``~/.cargo/config`` 文件，并把内容修改为：
 
@@ -156,8 +171,8 @@ Rust 开发环境配置
    rustup component add llvm-tools-preview
    rustup component add rust-src
 
-.. note::
-
+.. warning::
+   如果你换了另外一个rustc编译器（必须是nightly版的），需要重新安装上述rustc所需软件包。
    rCore-Tutorial 仓库中的 ``Makefile`` 包含了这些工具的安装，如果你使用 ``make run`` 也可以不手动安装。
 
 至于 Rust 开发环境，推荐 JetBrains Clion + Rust插件 或者 Visual Studio Code 搭配 rust-analyzer 和 RISC-V Support 插件。
@@ -225,7 +240,7 @@ Qemu 模拟器安装
    qemu-system-riscv64 --version
    qemu-riscv64 --version
 
-其他工具安装
+K210 真机串口通信
 ------------------------------
 
 为了能在 K210 真机上运行 Tutorial，我们还需要安装基于 Python 的串口通信库和简易的串口终端。
@@ -235,7 +250,17 @@ Qemu 模拟器安装
    pip3 install pyserial
    sudo apt install python-serial
 
-下面这些工具链并不一定会被用到，可以等到真正依赖的时候再来安装。
+GDB 调试支持
+------------------------------
+
+在 ``os`` 目录下 ``make debug`` 可以调试我们的内核，这需要安装终端复用工具 ``tmux`` ，还需要基于 riscv64 平台的 gdb 调试器 ``riscv64-unknown-elf-gdb`` 。该调试器包含在 riscv64 gcc 工具链中，工具链的预编译版本可以在如下链接处下载：
+
+- `Ubuntu 平台 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-ubuntu14.tar.gz>`_
+- `macOS 平台 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-apple-darwin.tar.gz>`_
+- `Windows 平台 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-w64-mingw32.zip>`_
+- `CentOS 平台 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-centos6.tar.gz>`_
+
+解压后在 ``bin`` 目录下即可找到 ``riscv64-unknown-elf-gdb`` 以及另外一些常用工具 ``objcopy/objdump/readelf`` 等。
 
 运行 rCore-Tutorial-v3
 ------------------------------------------------------------
