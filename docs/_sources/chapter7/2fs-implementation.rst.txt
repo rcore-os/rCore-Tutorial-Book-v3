@@ -22,6 +22,8 @@ easy-fs 被从内核中分离出来，它的实现分成两个不同的 crate �
 块设备接口层
 ---------------------------------------
 
+本层的代码在 ``block_dev.rs`` 中。
+
 在 ``easy-fs`` 库的最底层声明了一个块设备的抽象接口 ``BlockDevice`` ：
 
 .. code-block:: rust
@@ -48,6 +50,8 @@ easy-fs 被从内核中分离出来，它的实现分成两个不同的 crate �
 
 块缓存层
 ---------------------------------------
+
+本层的代码在 ``block_cache.rs`` 中。
 
 由于 CPU 不能直接读写磁盘块，因此常见的手段是先通过 ``read_block`` 将一个块上的数据从磁盘读到内存中的一个缓冲区中，这个缓冲区中的内容是可以直接读写的。如果对于缓冲区中的内容进行了修改，那么后续需要通过 ``write_block`` 将缓冲区中的内容写回到磁盘块中。
 
@@ -285,6 +289,8 @@ easy-fs 被从内核中分离出来，它的实现分成两个不同的 crate �
 磁盘布局及磁盘上数据结构
 ---------------------------------------
 
+本层的代码在 ``layout.rs`` 和 ``bitmap.rs`` 中。
+
 对于一个文件系统而言，最重要的功能是如何将一个逻辑上的目录树结构映射到磁盘上，决定磁盘上的每个块应该存储哪些数据。为了更容易进行管理和更新，我们需要将磁盘上的数据组织为若干种不同的磁盘上数据结构，并合理安排它们在磁盘中的位置。
 
 easy-fs 磁盘布局概述
@@ -432,22 +438,991 @@ easy-fs 超级块
 
 其主要思路是遍历区域中的每个块，再在每个块中以比特组（每组 64 比特）为单位进行遍历，找到一个尚未被全部分配出去的组，最后在里面分配一个比特。它将会返回分配的比特所在的位置，等同于索引节点/数据块的编号。如果所有比特均已经被分配出去了，则返回 ``None`` 。
 
+第 7 行枚举区域中的每个块（编号为 ``block_id`` ），在循环内部我们需要读写这个块，在块内尝试找到一个空闲的比特并置 1 。一旦涉及到块的读写，就需要用到块缓存层提供的接口：
+
+- 第 8 行我们调用 ``get_block_cache`` 获取块缓存，注意我们传入的块编号是区域起始块编号 ``start_block_id`` 加上区域内的块编号 ``block_id`` 得到的块设备上的块编号。
+- 第 12 行我们通过 ``.lock()`` 获取块缓存的互斥锁从而可以对块缓存进行访问。
+- 第 13 行我们使用到了 ``BlockCache::modify`` 接口。它传入的偏移量 ``offset`` 为 0，这是因为整个块上只有一个 ``BitmapBlock`` ，它的大小恰好为 512 字节。因此我们需要从块的开头开始才能访问到完整的 ``BitmapBlock`` 。同时，传给它的闭包需要显式声明参数类型为 ``&mut BitmapBlock`` ，不然的话， ``BlockCache`` 的泛型方法 ``modify/get_mut`` 无法得知应该用哪个类型来解析块上的数据。在声明之后，编译器才能在这里将两个方法中的泛型 ``T`` 实例化为具体类型 ``BitmapBlock`` 。
+  
+  总结一下，这里 ``modify`` 的含义就是：从缓冲区偏移量为 0 的位置开始将一段连续的数据（数据的长度随具体类型而定）解析为一个 ``BitmapBlock`` 并要对该数据结构进行修改。在闭包内部，我们可以使用这个 ``BitmapBlock`` 的可变引用 ``bitmap_block`` 对它进行访问。 ``read/get_ref`` 的用法完全相同，后面将不再赘述。
+- 闭包的主体位于第 14~26 行。它尝试在 ``bitmap_block`` 中找到一个空闲的比特并返回其位置，如果不存在的话则返回 ``None`` 。它的思路是，遍历每 64 个比特构成的组（一个 ``u64`` ），如果它并没有达到 ``u64::MAX`` （即 :math:`2^{64}-1` ），则通过 ``u64::trailing_ones`` 找到最低的一个 0 并置为 1 。如果能够找到的话，比特组的编号将保存在变量 ``bits64_pos`` 中，而分配的比特在组内的位置将保存在变量 ``inner_pos`` 中。在返回分配的比特编号的时候，它的计算方式是 ``block_id*BLOCK_BITS+bits64_pos*64+inner_pos`` 。注意闭包中的 ``block_id`` 并不在闭包的参数列表中，因此它是从外部环境（即自增 ``block_id`` 的循环）中捕获到的。
+
+我们一旦在某个块中找到一个空闲的比特并成功分配，就不再考虑后续的块。第 28 行体现了提前返回的思路。
+
+.. warning::
+
+    **Rust 语法卡片：闭包**
+
+    FIXME
+
+接下来看 ``Bitmap`` 如何回收一个比特：
+
+.. code-block:: rust
+
+    // easy-fs/src/bitmap.rs
+
+    /// Return (block_pos, bits64_pos, inner_pos)
+    fn decomposition(mut bit: usize) -> (usize, usize, usize) {
+        let block_pos = bit / BLOCK_BITS;
+        bit = bit % BLOCK_BITS;
+        (block_pos, bit / 64, bit % 64)
+    }
+
+    impl Bitmap {
+        pub fn dealloc(&self, block_device: &Arc<dyn BlockDevice>, bit: usize) {
+            let (block_pos, bits64_pos, inner_pos) = decomposition(bit);
+            get_block_cache(
+                block_pos + self.start_block_id,
+                Arc::clone(block_device)
+            ).lock().modify(0, |bitmap_block: &mut BitmapBlock| {
+                assert!(bitmap_block[bits64_pos] & (1u64 << inner_pos) > 0);
+                bitmap_block[bits64_pos] -= 1u64 << inner_pos;
+            });
+        }
+    }
+
+``dealloc`` 方法首先调用 ``decomposition`` 函数将比特编号 ``bit`` 分解为区域中的块编号 ``block_pos`` 、块内的组编号 ``bits64_pos`` 以及组内编号 ``inner_pos`` 的三元组，这样就能精确定位待回收的比特，随后将其清零即可。
 
 磁盘上索引节点
 +++++++++++++++++++++++++++++++++++++++
 
+在磁盘上的索引节点区域，每个块上都保存着若干个索引节点 ``DiskInode`` ：
+
+.. code-block:: rust
+
+    // easy-fs/src/layout.rs
+
+    const INODE_DIRECT_COUNT: usize = 28;
+
+    #[repr(C)]
+    pub struct DiskInode {
+        pub size: u32,
+        pub direct: [u32; INODE_DIRECT_COUNT],
+        pub indirect1: u32,
+        pub indirect2: u32,
+        type_: DiskInodeType,
+    }
+
+    #[derive(PartialEq)]
+    pub enum DiskInodeType {
+        File,
+        Directory,
+    }
+
+每个文件/目录在磁盘上均以一个 ``DiskInode`` 的形式存储。其中首先包含文件/目录的元数据：它的 ``size`` 表示文件/目录内容的字节数， ``type_`` 表示索引节点的类型 ``DiskInodeType`` ，目前仅支持文件 ``File`` 和目录 ``Directory`` 两种类型。其余的 ``direct/indirect1/indirect2`` 都是到存储文件/目录内容的数据块的索引，这也是索引节点名字的由来。
+
+为了尽可能节约空间，在进行索引的时候，块的编号用一个 ``u32`` 存储。索引方式分成直接索引和间接索引两种：
+
+- 当文件很小的时候，只需用到直接索引， ``direct`` 数组中最多可以指向 ``INODE_DIRECT_COUNT`` 个数据块，当取值为 28 的时候，通过直接索引可以找到 14KiB 的内容。
+- 当文件比较大的时候，不仅直接索引的 ``direct`` 数组装满，还需要用到一级间接索引 ``indirect1`` 。它指向一个一级索引块，这个块也位于磁盘布局的数据块区域中。这个一级索引块中的每个 ``u32`` 都用来指向数据块区域中一个保存该文件内容的数据块，因此，最多能够索引 :math:`\frac{512}{4}=128` 个数据块，对应 64KiB 的内容。
+- 当文件大小超过直接索引和一级索引支持的容量上限 78KiB 的时候，就需要用到二级间接索引 ``indirect2`` 。它指向一个位于数据块区域中的二级索引块。二级索引块中的每个 ``u32`` 指向一个不同的一级索引块，这些一级索引块也位于数据块区域中。因此，通过二级间接索引最多能够索引 :math:`128\times 64\text{KiB}=8\text{MiB}` 的内容。
+
+为了充分利用空间，我们将 ``DiskInode`` 的大小设置为 128 字节，每个块正好能够容纳 4 个 ``DiskInode`` 。在后续需要支持更多类型的元数据的时候，可以适当缩减直接索引 ``direct`` 的块数，并将节约出来的空间用来存放其他元数据，仍可保证 ``DiskInode`` 的总大小为 128 字节。
+
+通过 ``initialize`` 方法可以初始化一个 ``DiskInode`` 为一个文件或目录：
+
+.. code-block:: rust
+
+    // easy-fs/src/layout.rs
+
+    impl DiskInode {
+        /// indirect1 and indirect2 block are allocated only when they are needed.
+        pub fn initialize(&mut self, type_: DiskInodeType) {
+            self.size = 0;
+            self.direct.iter_mut().for_each(|v| *v = 0);
+            self.indirect1 = 0;
+            self.indirect2 = 0;
+            self.type_ = type_;
+        }
+    }
+
+需要注意的是， ``indirect1/2`` 均被初始化为 0 。因为最开始文件内容的大小为 0 字节，并不会用到一级/二级索引。为了节约空间，我们会完全按需分配一级/二级索引块。此外，直接索引 ``direct`` 也被清零。
+
+``is_file`` 和 ``is_dir`` 两个方法可以用来确认 ``DiskInode`` 的类型为文件还是目录：
+
+.. code-block:: rust
+
+    // easy-fs/src/layout.rs
+
+    impl DiskInode {
+        pub fn is_dir(&self) -> bool {
+            self.type_ == DiskInodeType::Directory
+        }
+        pub fn is_file(&self) -> bool {
+            self.type_ == DiskInodeType::File
+        }
+    }
+
+``get_block_id`` 方法体现了 ``DiskInode`` 最重要的数据块索引功能，它可以从索引中查到它自身用于保存文件内容的第 ``block_id`` 个数据块的块编号，这样后续才能对这个数据块进行访问：
+
+.. code-block:: rust
+    :linenos:
+    :emphasize-lines: 10,12,18
+
+    // easy-fs/src/layout.rs
+
+    const INODE_INDIRECT1_COUNT: usize = BLOCK_SZ / 4;
+    const INDIRECT1_BOUND: usize = DIRECT_BOUND + INODE_INDIRECT1_COUNT;
+    type IndirectBlock = [u32; BLOCK_SZ / 4];
+
+    impl DiskInode {
+        pub fn get_block_id(&self, inner_id: u32, block_device: &Arc<dyn BlockDevice>) -> u32 {
+            let inner_id = inner_id as usize;
+            if inner_id < INODE_DIRECT_COUNT {
+                self.direct[inner_id]
+            } else if inner_id < INDIRECT1_BOUND {
+                get_block_cache(self.indirect1 as usize, Arc::clone(block_device))
+                    .lock()
+                    .read(0, |indirect_block: &IndirectBlock| {
+                        indirect_block[inner_id - INODE_DIRECT_COUNT]
+                    })
+            } else {
+                let last = inner_id - INDIRECT1_BOUND;
+                let indirect1 = get_block_cache(
+                    self.indirect2 as usize,
+                    Arc::clone(block_device)
+                )
+                .lock()
+                .read(0, |indirect2: &IndirectBlock| {
+                    indirect2[last / INODE_INDIRECT1_COUNT]
+                });
+                get_block_cache(
+                    indirect1 as usize,
+                    Arc::clone(block_device)
+                )
+                .lock()
+                .read(0, |indirect1: &IndirectBlock| {
+                    indirect1[last % INODE_INDIRECT1_COUNT]
+                })
+            }
+        }
+    }
+
+这里需要说明的是：
+
+- 第 10/12/18 行分别利用直接索引/一级索引和二级索引，具体选用哪种索引方式取决于 ``block_id`` 所在的区间。
+- 在对一个索引块进行操作的时候，我们将其解析为磁盘数据结构 ``IndirectBlock`` ，实质上就是一个 ``u32`` 数组，每个都指向一个下一级索引块或者数据块。
+- 对于二级索引的情况，需要先查二级索引块找到挂在它下面的一级索引块，再通过一级索引块找到数据块。
+
+在初始化之后文件/目录的 ``size`` 均为 0 ，此时并不会索引到任何数据块。它需要通过 ``increase_size`` 方法逐步扩充容量。在扩充的时候，自然需要一些新的数据块来作为索引块或是保存内容的数据块。我们需要先编写一些辅助方法来确定在容量扩充的时候额外需要多少块：
+
+.. code-block:: rust
+
+    // easy-fs/src/layout.rs
+
+    impl DiskInode {
+        /// Return block number correspond to size.
+        pub fn data_blocks(&self) -> u32 {
+            Self::_data_blocks(self.size)
+        }
+        fn _data_blocks(size: u32) -> u32 {
+            (size + BLOCK_SZ as u32 - 1) / BLOCK_SZ as u32
+        }
+        /// Return number of blocks needed include indirect1/2.
+        pub fn total_blocks(size: u32) -> u32 {
+            let data_blocks = Self::_data_blocks(size) as usize;
+            let mut total = data_blocks as usize;
+            // indirect1
+            if data_blocks > INODE_DIRECT_COUNT {
+                total += 1;
+            }
+            // indirect2
+            if data_blocks > INDIRECT1_BOUND {
+                total += 1;
+                // sub indirect1
+                total += (data_blocks - INDIRECT1_BOUND + INODE_INDIRECT1_COUNT - 1) / INODE_INDIRECT1_COUNT;
+            }
+            total as u32
+        }
+        pub fn blocks_num_needed(&self, new_size: u32) -> u32 {
+            assert!(new_size >= self.size);
+            Self::total_blocks(new_size) - Self::total_blocks(self.size)
+        }
+    }
+
+``data_blocks`` 方法可以计算为了容纳自身 ``size`` 字节的内容需要多少个数据块。计算的过程只需用 ``size`` 除以每个块的大小 ``BLOCK_SZ`` 并向上取整。而 ``total_blocks`` 不仅包含数据块，还需要统计索引块。计算的方法也很简单，先调用 ``data_blocks`` 得到需要多少数据块，再根据数据块数目所处的区间统计索引块即可。 ``blocks_num_needed`` 可以计算将一个 ``DiskInode`` 的 ``size`` 扩容到 ``new_size`` 需要额外多少个数据和索引块。这只需要调用两次 ``total_blocks`` 作差即可。
+
+下面给出 ``increase_size`` 方法的接口：
+
+.. code-block:: rust
+
+    // easy-fs/src/layout.rs
+
+    impl DiskInode {
+        pub fn increase_size(
+            &mut self,
+            new_size: u32,
+            new_blocks: Vec<u32>,
+            block_device: &Arc<dyn BlockDevice>,
+        );
+    }
+
+其中 ``new_size`` 表示容量扩充之后的文件大小； ``new_blocks`` 是一个保存了本次容量扩充所需块编号的向量，这些块都是由上层的磁盘块管理器负责分配的。 ``increase_size`` 的实现有些复杂，在这里不详细介绍。大致的思路是按照直接索引、一级索引再到二级索引的顺序进行扩充。
+
+有些时候我们还需要清空文件的内容并回收所有数据和索引块。这是通过 ``clear_size`` 方法来实现的：
+
+.. code-block:: rust
+
+    // easy-fs/src/layout.rs
+
+    impl DiskInode {
+        /// Clear size to zero and return blocks that should be deallocated.
+        ///
+        /// We will clear the block contents to zero later.
+        pub fn clear_size(&mut self, block_device: &Arc<dyn BlockDevice>) -> Vec<u32>;
+    }
+
+它会将回收的所有块的编号保存在一个向量中返回给磁盘块管理器。它的实现原理和 ``increase_size`` 一样也分为多个阶段，在这里不展开。
+
+接下来需要考虑通过 ``DiskInode`` 来读写它索引的那些数据块中的数据。这些数据可以被视为一个字节序列，而每次我们都是选取其中的一段连续区间进行操作，以 ``read_at`` 为例：
+
+.. code-block:: rust
+    :linenos:
+
+    // easy-fs/src/layout.rs
+
+    type DataBlock = [u8; BLOCK_SZ];
+
+    impl DiskInode {
+        pub fn read_at(
+            &self,
+            offset: usize,
+            buf: &mut [u8],
+            block_device: &Arc<dyn BlockDevice>,
+        ) -> usize {
+            let mut start = offset;
+            let end = (offset + buf.len()).min(self.size as usize);
+            if start >= end {
+                return 0;
+            }
+            let mut start_block = start / BLOCK_SZ;
+            let mut read_size = 0usize;
+            loop {
+                // calculate end of current block
+                let mut end_current_block = (start / BLOCK_SZ + 1) * BLOCK_SZ;
+                end_current_block = end_current_block.min(end);
+                // read and update read size
+                let block_read_size = end_current_block - start;
+                let dst = &mut buf[read_size..read_size + block_read_size];
+                get_block_cache(
+                    self.get_block_id(start_block as u32, block_device) as usize,
+                    Arc::clone(block_device),
+                )
+                .lock()
+                .read(0, |data_block: &DataBlock| {
+                    let src = &data_block[start % BLOCK_SZ..start % BLOCK_SZ + block_read_size];
+                    dst.copy_from_slice(src);
+                });
+                read_size += block_read_size;
+                // move to next block
+                if end_current_block == end { break; }
+                start_block += 1;
+                start = end_current_block;
+            }
+            read_size
+        }
+    }
+
+它的含义是：将文件内容从 ``offset`` 字节开始的部分读到内存中的缓冲区 ``buf`` 中，并返回实际读到的字节数。如果文件剩下的内容还足够多，那么缓冲区会被填满；不然的话文件剩下的全部内容都会被读到缓冲区中。具体实现上有很多细节，但大致的思路是遍历位于字节区间 ``start,end`` 中间的那些块，将它们视为一个 ``DataBlock`` （也就是一个字节数组），并将其中的部分内容复制到缓冲区 ``buf`` 中适当的区域。 ``start_block`` 维护着目前是文件内部第多少个数据块，需要首先调用 ``get_block_id`` 从索引中查到这个数据块在块设备中的块编号，随后才能传入 ``get_block_cache`` 中将正确的数据块缓存到内存中进行访问。
+
+在第 14 行进行了简单的边界条件判断，如果要读取的内容超出了文件的范围那么直接返回 0 表示读取不到任何内容。
+
+``write_at`` 的实现思路基本上和 ``read_at`` 完全相同。但不同的是 ``write_at`` 不会出现失败的情况，传入的整个缓冲区的数据都必定会被写入到文件中。当从 ``offset`` 开始的区间超出了文件范围的时候，就需要调用者在调用 ``write_at`` 之前提前调用 ``increase_size`` 将文件大小扩充到区间的右端保证写入的完整性。
+
 数据块与目录项
 +++++++++++++++++++++++++++++++++++++++
 
+作为一个文件而言，它的内容在文件系统或内核看来没有任何既定的格式，都只是一个字节序列。因此每个保存内容的数据块都只是一个字节数组：
+
+.. code-block:: rust
+
+    // easy-fs/src/layout.rs
+
+    type DataBlock = [u8; BLOCK_SZ];
+
+然而，目录的内容却需要遵从一种特殊的格式。在我们的实现中，它可以看成一个目录项的序列，每个目录项是目录下面的一个文件或子目录的文件名或目录名和它们所在的索引节点编号构成的二元组。目录项相当于目录树结构上的孩子指针，我们需要通过它来一级一级的找到实际要访问的文件或目录。目录项 ``DirEntry`` 的定义如下：
+
+.. code-block:: rust
+
+    // easy-fs/src/layout.rs
+
+    const NAME_LENGTH_LIMIT: usize = 27;
+
+    #[repr(C)]
+    pub struct DirEntry {
+        name: [u8; NAME_LENGTH_LIMIT + 1],
+        inode_number: u32,
+    }
+
+    pub const DIRENT_SZ: usize = 32;
+
+目录项 ``Dirent`` 最大允许保存长度为 27 的文件/目录名（数组 ``name`` 中最末的一个字节留给 ``\0`` ），且它自身占据空间 32 字节，每个数据块可以存储 16 个目录项。我们可以通过 ``empty`` 和 ``new`` 分别生成一个空的目录项或是一个合法的目录项：
+
+.. code-block:: rust
+
+    // easy-fs/src/layout.rs
+
+    impl DirEntry {
+        pub fn empty() -> Self {
+            Self {
+                name: [0u8; NAME_LENGTH_LIMIT + 1],
+                inode_number: 0,
+            }
+        }
+        pub fn new(name: &str, inode_number: u32) -> Self {
+            let mut bytes = [0u8; NAME_LENGTH_LIMIT + 1];
+            &mut bytes[..name.len()].copy_from_slice(name.as_bytes());
+            Self {
+                name: bytes,
+                inode_number,
+            }
+        }
+    }
+
+在从目录的内容中读取目录项或者是将目录项写入目录的时候，我们需要将目录项转化为缓冲区（即字节切片）的形式来符合 ``read/write_at`` 接口的要求：
+
+.. code-block:: rust
+
+    // easy-fs/src/layout.rs
+
+    impl DirEntry {
+        pub fn as_bytes(&self) -> &[u8] {
+            unsafe {
+                core::slice::from_raw_parts(
+                    self as *const _ as usize as *const u8,
+                    DIRENT_SZ,
+                )
+            }
+        }
+        pub fn as_bytes_mut(&mut self) -> &mut [u8] {
+            unsafe {
+                core::slice::from_raw_parts_mut(
+                    self as *mut _ as usize as *mut u8,
+                    DIRENT_SZ,
+                )
+            }
+        }
+    }
+
+此外，通过 ``name`` 和 ``inode_number`` 方法可以取出目录项中的内容：
+
+.. code-block:: rust
+
+    // easy-fs/src/layout.rs
+
+    impl DirEntry {
+        pub fn name(&self) -> &str {
+            let len = (0usize..).find(|i| self.name[*i] == 0).unwrap();
+            core::str::from_utf8(&self.name[..len]).unwrap()
+        }
+        pub fn inode_number(&self) -> u32 {
+            self.inode_number
+        }
+    }
 
 磁盘块管理器
 ---------------------------------------
 
+本层的代码在 ``efs.rs`` 中。
+
+上面介绍了 easy-fs 的磁盘布局设计以及数据的组织方式——即各类磁盘数据结构。但是它们都是以比较零散的形式分开介绍的，也并没有体现出磁盘布局上各个区域是如何划分的。实现 easy-fs 的整体磁盘布局，将各段区域及上面的磁盘数据结构结构整合起来就是简易文件系统 ``EasyFileSystem`` 的职责。它知道每个布局区域所在的位置，磁盘块的分配和回收也需要经过它才能完成，因此某种意义上讲它还可以看成一个磁盘块管理器。
+
+注意从这一层开始，所有的数据结构就都放在内存上了。
+
+.. code-block:: rust
+
+    // easy-fs/src/efs.rs
+
+    pub struct EasyFileSystem {
+        pub block_device: Arc<dyn BlockDevice>,
+        pub inode_bitmap: Bitmap,
+        pub data_bitmap: Bitmap,
+        inode_area_start_block: u32,
+        data_area_start_block: u32,
+    }
+
+``EasyFileSystem`` 包含索引节点和数据块的两个位图 ``inode_bitmap`` 和 ``data_bitmap`` ，还记录下索引节点区域和数据块区域起始块编号方便确定每个索引节点和数据块在磁盘上的具体位置。我们还要在其中保留块设备的一个指针 ``block_device`` ，在进行后续操作的时候，改指针会被拷贝并传递给下层的数据结构，让它们也能够直接访问块设备。
+
+通过 ``create`` 方法可以在块设备上创建并初始化一个 easy-fs 文件系统：
+
+.. code-block:: rust
+    :linenos:
+
+    // easy-fs/src/efs.rs
+
+    impl EasyFileSystem {
+        pub fn create(
+            block_device: Arc<dyn BlockDevice>,
+            total_blocks: u32,
+            inode_bitmap_blocks: u32,
+        ) -> Arc<Mutex<Self>> {
+            // calculate block size of areas & create bitmaps
+            let inode_bitmap = Bitmap::new(1, inode_bitmap_blocks as usize);
+            let inode_num = inode_bitmap.maximum();
+            let inode_area_blocks =
+                ((inode_num * core::mem::size_of::<DiskInode>() + BLOCK_SZ - 1) / BLOCK_SZ) as u32;
+            let inode_total_blocks = inode_bitmap_blocks + inode_area_blocks;
+            let data_total_blocks = total_blocks - 1 - inode_total_blocks;
+            let data_bitmap_blocks = (data_total_blocks + 4096) / 4097;
+            let data_area_blocks = data_total_blocks - data_bitmap_blocks;
+            let data_bitmap = Bitmap::new(
+                (1 + inode_bitmap_blocks + inode_area_blocks) as usize,
+                data_bitmap_blocks as usize,
+            );
+            let mut efs = Self {
+                block_device: Arc::clone(&block_device),
+                inode_bitmap,
+                data_bitmap,
+                inode_area_start_block: 1 + inode_bitmap_blocks,
+                data_area_start_block: 1 + inode_total_blocks + data_bitmap_blocks,
+            };
+            // clear all blocks
+            for i in 0..total_blocks {
+                get_block_cache(
+                    i as usize, 
+                    Arc::clone(&block_device)
+                )
+                .lock()
+                .modify(0, |data_block: &mut DataBlock| {
+                    for byte in data_block.iter_mut() { *byte = 0; }
+                });
+            }
+            // initialize SuperBlock
+            get_block_cache(0, Arc::clone(&block_device))
+            .lock()
+            .modify(0, |super_block: &mut SuperBlock| {
+                super_block.initialize(
+                    total_blocks,
+                    inode_bitmap_blocks,
+                    inode_area_blocks,
+                    data_bitmap_blocks,
+                    data_area_blocks,
+                );
+            });
+            // write back immediately
+            // create a inode for root node "/"
+            assert_eq!(efs.alloc_inode(), 0);
+            let (root_inode_block_id, root_inode_offset) = efs.get_disk_inode_pos(0);
+            get_block_cache(
+                root_inode_block_id as usize,
+                Arc::clone(&block_device)
+            )
+            .lock()
+            .modify(root_inode_offset, |disk_inode: &mut DiskInode| {
+                disk_inode.initialize(DiskInodeType::Directory);
+            });
+            Arc::new(Mutex::new(efs))
+        }
+    }
+
+- 第 10~21 行根据传入的参数计算每个区域各应该包含多少块。根据 inode 位图的大小计算 inode 区域至少需要多少个块才能够使得 inode 位图中的每个比特都能够有一个实际的 inode 可以对应，这样就确定了 inode 位图区域和 inode 区域的大小。剩下的块都分配给数据块位图区域和数据块区域。我们希望数据块位图中的每个比特仍然能够对应到一个数据块，但是数据块位图又不能过小，不然会造成某些数据块永远不会被使用。因此数据块位图区域最合理的大小是剩余的块数除以 4097 再上取整，因为位图中的每个块能够对应 4096 个数据块。其余的块就都作为数据块使用。
+- 第 22 行创建我们的 ``EasyFileSystem`` 实例 ``efs`` 。
+- 第 30 行首先将块设备的前 ``total_blocks`` 个块清零，因为我们的 easy-fs 要用到它们，这也是为初始化做准备。
+- 第 41 行将位于块设备编号为 0 块上的超级块进行初始化，只需传入之前计算得到的每个区域的块数就行了。
+- 第 54~63 行我们要做的事情是创建根目录 ``/`` 。首先需要调用 ``alloc_inode`` 在 inode 位图中分配一个 inode ，由于这是第一次分配，它的编号固定是 0 。接下来需要将分配到的 inode 初始化为 easy-fs 中的唯一一个目录，我们需要调用 ``get_disk_inode_pos`` 来根据 inode 编号获取该 inode 所在的块的编号以及块内偏移，之后就可以将它们传给 ``get_block_cache`` 和 ``modify`` 了。
+
+通过 ``open`` 方法可以从一个已写入了 easy-fs 镜像的块设备上打开我们的 easy-fs ：
+
+.. code-block:: rust
+
+    // easy-fs/src/efs.rs
+
+    impl EasyFileSystem {
+        pub fn open(block_device: Arc<dyn BlockDevice>) -> Arc<Mutex<Self>> {
+            // read SuperBlock
+            get_block_cache(0, Arc::clone(&block_device))
+                .lock()
+                .read(0, |super_block: &SuperBlock| {
+                    assert!(super_block.is_valid(), "Error loading EFS!");
+                    let inode_total_blocks =
+                        super_block.inode_bitmap_blocks + super_block.inode_area_blocks;
+                    let efs = Self {
+                        block_device,
+                        inode_bitmap: Bitmap::new(
+                            1,
+                            super_block.inode_bitmap_blocks as usize
+                        ),
+                        data_bitmap: Bitmap::new(
+                            (1 + inode_total_blocks) as usize,
+                            super_block.data_bitmap_blocks as usize,
+                        ),
+                        inode_area_start_block: 1 + super_block.inode_bitmap_blocks,
+                        data_area_start_block: 1 + inode_total_blocks + super_block.data_bitmap_blocks,
+                    };
+                    Arc::new(Mutex::new(efs))
+                })        
+        }
+    }
+
+它只需将块设备编号为 0 的块作为超级块读取进来，就可以从中知道 easy-fs 的磁盘布局，由此可以构造 ``efs`` 实例。
+
+``EasyFileSystem`` 知道整个磁盘布局，可以从 inode 或数据块从位图上分配的从零开始编号知道它们在磁盘上的实际位置。
+
+.. code-block:: rust
+
+    // easy-fs/src/efs.rs
+
+    impl EasyFileSystem {
+        pub fn get_disk_inode_pos(&self, inode_id: u32) -> (u32, usize) {
+            let inode_size = core::mem::size_of::<DiskInode>();
+            let inodes_per_block = (BLOCK_SZ / inode_size) as u32;
+            let block_id = self.inode_area_start_block + inode_id / inodes_per_block;
+            (block_id, (inode_id % inodes_per_block) as usize * inode_size)
+        }
+
+        pub fn get_data_block_id(&self, data_block_id: u32) -> u32 {
+            self.data_area_start_block + data_block_id
+        }
+    }
+
+inode 和数据块的分配/回收也由它负责：
+
+.. code-block:: rust
+
+    // easy-fs/src/efs.rs
+
+    impl EasyFileSystem {
+        pub fn alloc_inode(&mut self) -> u32 {
+            self.inode_bitmap.alloc(&self.block_device).unwrap() as u32
+        }
+
+        /// Return a block ID not ID in the data area.
+        pub fn alloc_data(&mut self) -> u32 {
+            self.data_bitmap.alloc(&self.block_device).unwrap() as u32 + self.data_area_start_block
+        }
+
+        pub fn dealloc_data(&mut self, block_id: u32) {
+            get_block_cache(
+                block_id as usize,
+                Arc::clone(&self.block_device)
+            )
+            .lock()
+            .modify(0, |data_block: &mut DataBlock| {
+                data_block.iter_mut().for_each(|p| { *p = 0; })
+            });
+            self.data_bitmap.dealloc(
+                &self.block_device,
+                (block_id - self.data_area_start_block) as usize
+            )
+        }
+    }
+
+注意：
+
+- ``alloc_data`` 和 ``dealloc_data`` 分配/回收数据块传入/返回的参数都表示数据块在块设备上的编号，而不是在数据块位图中分配的比特编号；
+- ``dealloc_inode`` 未实现，因为现在还不支持文件删除。
+
 索引节点
 ---------------------------------------
 
+本层的代码在 ``vfs.rs`` 中。
+
+``EasyFileSystem`` 实现了我们设计的磁盘布局并能够将所有块有效的管理起来。但是对于库的使用者而言更希望能够直接看到目录树结构中逻辑上的文件和目录，他们往往不关心磁盘布局是如何实现的。为此我们设计索引节点 ``Inode`` 暴露给库的使用者，让他们能够直接对文件和目录进行操作。 ``Inode`` 和 ``DiskInode`` 的区别从它们的名字中就可以看出： ``DiskInode`` 放在磁盘块中比较固定的位置，而 ``Inode`` 是放在内存中的。
+
+.. code-block:: rust
+
+    // easy-fs/src/vfs.rs
+
+    pub struct Inode {
+        block_id: usize,
+        block_offset: usize,
+        fs: Arc<Mutex<EasyFileSystem>>,
+        block_device: Arc<dyn BlockDevice>,
+    }
+
+``block_id`` 和 ``block_offset`` 记录该 ``Inode`` 对应的 ``DiskInode`` 保存在磁盘上的具体位置方便我们后续对它进行访问。 ``fs`` 是指向 ``EasyFileSystem`` 的一个指针，因为 ``Inode`` 的种种操作实际上都是要通过底层的文件系统来完成。
+
+仿照 ``BlockCache::read/modify`` ，我们可以设计两个方法来简化对于 ``Inode`` 对应的磁盘上的 ``DiskInode`` 的访问流程，而不是每次都需要 ``get_block_cache.lock.read/modify`` ：
+
+.. code-block:: rust
+
+    // easy-fs/src/vfs.rs
+
+    impl Inode {
+        fn read_disk_inode<V>(&self, f: impl FnOnce(&DiskInode) -> V) -> V {
+            get_block_cache(
+                self.block_id,
+                Arc::clone(&self.block_device)
+            ).lock().read(self.block_offset, f)
+        }
+
+        fn modify_disk_inode<V>(&self, f: impl FnOnce(&mut DiskInode) -> V) -> V {
+            get_block_cache(
+                self.block_id,
+                Arc::clone(&self.block_device)
+            ).lock().modify(self.block_offset, f)
+        }
+    }
+
+下面我们分别介绍库的使用者对于文件系统的一些常用操作：
+
+获取根目录 inode
++++++++++++++++++++++++++++++++++++++++
+
+库的使用者在通过 ``EasyFileSystem::open`` 从装载了 easy-fs 镜像的块设备上打开 easy-fs 之后，要做的第一件事情就是获取根目录的 ``Inode`` 。因为我们目前仅支持绝对路径，对于任何文件/目录的索引都必须从根目录开始向下逐级进行。等到索引完成之后，我们才能对文件/目录进行操作。事实上 ``EasyFileSystem`` 提供了另一个名为 ``root_inode`` 的方法来获取根目录的 ``Inode`` :
+
+.. code-block:: rust
+
+    // easy-fs/src/efs.rs
+
+    impl EasyFileSystem {
+        pub fn root_inode(efs: &Arc<Mutex<Self>>) -> Inode {
+            let block_device = Arc::clone(&efs.lock().block_device);
+            Inode::new(
+                0,
+                Arc::clone(efs),
+                block_device,
+            )
+        }
+    }
+
+    // easy-fs/src/vfs.rs
+
+    impl Inode {
+        pub fn new(
+            inode_id: u32,
+            fs: Arc<Mutex<EasyFileSystem>>,
+            block_device: Arc<dyn BlockDevice>,
+        ) -> Self {
+            let (block_id, block_offset) = fs.lock().get_disk_inode_pos(inode_id);
+            Self {
+                block_id: block_id as usize,
+                block_offset,
+                fs,
+                block_device,
+            }
+        }
+    }
+
+在 ``root_inode`` 中，主要是在 ``Inode::new`` 的时候将传入的 ``inode_id`` 设置为 0 ，因为根目录对应于文件系统中第一个分配的 inode ，因此它的 ``inode_id`` 总会是 0 。
+
+文件索引
++++++++++++++++++++++++++++++++++++++++
+
+:ref:`前面 <fs-simplification>` 提到过，为了尽可能简化我们的实现，我们所实现的是一个扁平化的文件系统，即在目录树上仅有一个目录——那就是作为根节点的根目录。所有的文件都在根目录下面。于是，我们不必实现目录索引，而文件索引也非常简单，仅需在根目录的目录项中根据文件名找到文件的 inode 编号即可。由于没有子目录的存在，这个过程只会进行一次。
+
+.. code-block:: rust
+
+    // easy-fs/src/vfs.rs
+
+    impl Inode {
+        pub fn find(&self, name: &str) -> Option<Arc<Inode>> {
+            let _ = self.fs.lock();
+            self.read_disk_inode(|disk_inode| {
+                self.find_inode_id(name, disk_inode)
+                .map(|inode_id| {
+                    Arc::new(Self::new(
+                        inode_id,
+                        self.fs.clone(),
+                        self.block_device.clone(),
+                    ))
+                })
+            })
+        }
+
+        fn find_inode_id(
+            &self,
+            name: &str,
+            disk_inode: &DiskInode,
+        ) -> Option<u32> {
+            // assert it is a directory
+            assert!(disk_inode.is_dir());
+            let file_count = (disk_inode.size as usize) / DIRENT_SZ;
+            let mut dirent = DirEntry::empty();
+            for i in 0..file_count {
+                assert_eq!(
+                    disk_inode.read_at(
+                        DIRENT_SZ * i,
+                        dirent.as_bytes_mut(),
+                        &self.block_device,
+                    ),
+                    DIRENT_SZ,
+                );
+                if dirent.name() == name {
+                    return Some(dirent.inode_number() as u32);
+                }
+            }
+            None
+        }
+    }
+
+``find`` 方法只会被根目录 ``Inode`` 调用，文件系统中其他文件的 ``Inode`` 不会调用这个方法。它首先调用 ``find_inode_id`` 方法尝试从根目录的 ``DiskInode`` 上找到要索引的文件名对应的 inode 编号。这就需要将根目录内容中的所有目录项都读到内存进行逐个比对。如果能够找到的话， ``find`` 方法会根据查到 inode 编号对应生成一个 ``Inode`` 用于后续对文件的访问。
+
+这里需要注意的是，包括 ``find`` 在内所有暴露给库使用者的文件系统操作（还包括接下来将要介绍的几种），全程均需持有 ``EasyFileSystem`` 的互斥锁。这能够保证在多核情况下，同时最多只能有一个核在进行文件系统相关操作。这样也许会带来一些不必要的性能损失，但我们目前暂时先这样做。如果我们在这里加锁的话，其实就能够保证块缓存的互斥访问了。
+
+文件列举
++++++++++++++++++++++++++++++++++++++++
+
+``ls`` 方法可以收集根目录下的所有文件的文件名并以向量的形式返回回来，这个方法只有根目录的 ``Inode`` 才会调用：
+
+.. code-block:: rust
+
+    // easy-fs/src/vfs.rs
+
+    impl Inode {
+        pub fn ls(&self) -> Vec<String> {
+            let _ = self.fs.lock();
+            self.read_disk_inode(|disk_inode| {
+                let file_count = (disk_inode.size as usize) / DIRENT_SZ;
+                let mut v: Vec<String> = Vec::new();
+                for i in 0..file_count {
+                    let mut dirent = DirEntry::empty();
+                    assert_eq!(
+                        disk_inode.read_at(
+                            i * DIRENT_SZ,
+                            dirent.as_bytes_mut(),
+                            &self.block_device,
+                        ),
+                        DIRENT_SZ,
+                    );
+                    v.push(String::from(dirent.name()));
+                }
+                v
+            })
+        }
+    }
+
+文件创建
++++++++++++++++++++++++++++++++++++++++
+
+``create`` 方法可以在根目录下创建一个文件，该方法只有根目录的 ``Inode`` 会调用：
+
+.. code-block:: rust
+    :linenos:
+
+    // easy-fs/src/vfs.rs
+
+    impl Inode {
+        pub fn create(&self, name: &str) -> Option<Arc<Inode>> {
+            let mut fs = self.fs.lock();
+            if self.modify_disk_inode(|root_inode| {
+                // assert it is a directory
+                assert!(root_inode.is_dir());
+                // has the file been created?
+                self.find_inode_id(name, root_inode)
+            }).is_some() {
+                return None;
+            }
+            // create a new file
+            // alloc a inode with an indirect block
+            let new_inode_id = fs.alloc_inode();
+            // initialize inode
+            let (new_inode_block_id, new_inode_block_offset) 
+                = fs.get_disk_inode_pos(new_inode_id);
+            get_block_cache(
+                new_inode_block_id as usize,
+                Arc::clone(&self.block_device)
+            ).lock().modify(new_inode_block_offset, |new_inode: &mut DiskInode| {
+                new_inode.initialize(DiskInodeType::File);
+            });
+            self.modify_disk_inode(|root_inode| {
+                // append file in the dirent
+                let file_count = (root_inode.size as usize) / DIRENT_SZ;
+                let new_size = (file_count + 1) * DIRENT_SZ;
+                // increase size
+                self.increase_size(new_size as u32, root_inode, &mut fs);
+                // write dirent
+                let dirent = DirEntry::new(name, new_inode_id);
+                root_inode.write_at(
+                    file_count * DIRENT_SZ,
+                    dirent.as_bytes(),
+                    &self.block_device,
+                );
+            });
+            // release efs lock manually because we will acquire it again in Inode::new
+            drop(fs);
+            // return inode
+            Some(Arc::new(Self::new(
+                new_inode_id,
+                self.fs.clone(),
+                self.block_device.clone(),
+            )))
+        }
+    }
+
+- 第 6~13 行，检查文件是否已经在根目录下，如果找到的话返回 ``None`` ；
+- 第 14~25 行，为待创建文件分配一个新的 inode 并进行初始化；
+- 第 26~39 行，将待创建文件的目录项插入到根目录的内容中使得之后可以索引过来。
+
+文件清空
++++++++++++++++++++++++++++++++++++++++
+
+在以某些标志位打开文件（例如带有 *CREATE* 标志打开一个已经存在的文件）的时候，需要首先将文件清空。在索引到文件的 ``Inode`` 之后可以调用 ``clear`` 方法：
+
+.. code-block:: rust
+
+    // easy-fs/src/vfs.rs
+
+    impl Inode {
+        pub fn clear(&self) {
+            let mut fs = self.fs.lock();
+            self.modify_disk_inode(|disk_inode| {
+                let size = disk_inode.size;
+                let data_blocks_dealloc = disk_inode.clear_size(&self.block_device);
+                assert!(data_blocks_dealloc.len() == DiskInode::total_blocks(size) as usize);
+                for data_block in data_blocks_dealloc.into_iter() {
+                    fs.dealloc_data(data_block);
+                }
+            });
+        }
+    }
+
+这会将之前该文件占据的索引块和数据块在 ``EasyFileSystem`` 中回收。
+
+文件读写
++++++++++++++++++++++++++++++++++++++++
+
+从根目录索引到一个文件之后可以对它进行读写，注意，和 ``DiskInode`` 一样，这里的读写作用在字节序列的一段区间上：
+
+.. code-block:: rust
+
+    // easy-fs/src/vfs.rs
+
+    impl Inode {
+        pub fn read_at(&self, offset: usize, buf: &mut [u8]) -> usize {
+            let _ = self.fs.lock();
+            self.read_disk_inode(|disk_inode| {
+                disk_inode.read_at(offset, buf, &self.block_device)
+            })
+        }
+
+        pub fn write_at(&self, offset: usize, buf: &[u8]) -> usize {
+            let mut fs = self.fs.lock();
+            self.modify_disk_inode(|disk_inode| {
+                self.increase_size((offset + buf.len()) as u32, disk_inode, &mut fs);
+                disk_inode.write_at(offset, buf, &self.block_device)
+            })
+        }
+    }
+
+实现比较简单，需要注意在 ``DiskInode::write_at`` 之前先调用 ``increase_size`` 对自身进行扩容：
+
+.. code-block:: rust
+
+    // easy-fs/src/vfs.rs
+
+    impl Inode {
+        fn increase_size(
+            &self,
+            new_size: u32,
+            disk_inode: &mut DiskInode,
+            fs: &mut MutexGuard<EasyFileSystem>,
+        ) {
+            if new_size < disk_inode.size {
+                return;
+            }
+            let blocks_needed = disk_inode.blocks_num_needed(new_size);
+            let mut v: Vec<u32> = Vec::new();
+            for _ in 0..blocks_needed {
+                v.push(fs.alloc_data());
+            }
+            disk_inode.increase_size(new_size, v, &self.block_device);
+        }
+    }
+
+这里会从 ``EasyFileSystem`` 中分配一些用于扩容的数据块并传给 ``DiskInode::increase_size`` 。
+
 测试 easy-fs
 ---------------------------------------
+
+``easy-fs`` 架构设计的一个优点在于它可以在我们的开发环境（Windows/macOS/Ubuntu）上进行测试，不必过早的放到内核中。众所周知，内核运行在裸机环境上，在上面是很难调试的。而在我们的开发环境上对于调试的支持更为完善，从基于命令行的 GDB 到 IDE 提供的图形化调试界面都能给我们带来很大帮助。另外一点是，由于需要放到在裸机上运行的内核中， ``easy-fs`` 只能使用 ``no_std`` 模式，因此无法使用 ``println!`` 等宏来打印调试信息。但是在我们的开发环境上作为一个应用运行的时候，我们可以暂时让它使用标准库 ``std`` ，这也会带来一些方便。
+
+``easy-fs`` 的测试放在另一个名为 ``easy-fs-fuse`` 的 crate 中，不同于 ``easy-fs`` ，它是一个支持 ``std`` 的二进制 crate ，能够在开发环境上运行并很容易调试。
+
+在开发环境中模拟块设备
++++++++++++++++++++++++++++++++++++++++
+
+从库使用者的角度来看，它仅需要提供一个实现了 ``BlockDevice`` Trait 的块设备用来装载文件系统，之后就可以使用 ``Inode`` 来方便的进行文件系统操作了。但是在开发环境上，我们如何来提供这样一个块设备呢？答案是用 Host OS 上的一个文件进行模拟。
+
+.. code-block:: rust
+
+    // easy-fs-fuse/src/main.rs
+
+    use std::fs::File;
+    use easy-fs::BlockDevice;
+
+    const BLOCK_SZ: usize = 512;
+
+    struct BlockFile(Mutex<File>);
+
+    impl BlockDevice for BlockFile {
+        fn read_block(&self, block_id: usize, buf: &mut [u8]) {
+            let mut file = self.0.lock().unwrap();
+            file.seek(SeekFrom::Start((block_id * BLOCK_SZ) as u64))
+                .expect("Error when seeking!");
+            assert_eq!(file.read(buf).unwrap(), BLOCK_SZ, "Not a complete block!");
+        }
+
+        fn write_block(&self, block_id: usize, buf: &[u8]) {
+            let mut file = self.0.lock().unwrap();
+            file.seek(SeekFrom::Start((block_id * BLOCK_SZ) as u64))
+                .expect("Error when seeking!");
+            assert_eq!(file.write(buf).unwrap(), BLOCK_SZ, "Not a complete block!");
+        }
+    }
+
+``std::file::File`` 由 Rust 标准库 std 提供，可以访问 Host OS 上的一个文件。我们将它包装成 ``BlockFile`` 类型来模拟一块磁盘，为它实现 ``BlockDevice`` 接口。注意 ``File`` 本身仅通过 ``read/write`` 接口是不能实现随机读写的，在访问一个特定的块的时候，我们必须先 ``seek`` 到这个块的开头位置。
+
+测试主函数为 ``easy-fs-fuse/src/main.rs`` 中的 ``efs_test`` 函数中，我们只需在 ``easy-fs-fuse`` 目录下 ``cargo test`` 即可执行该测试：
+
+.. code-block::
+
+    running 1 test
+    test efs_test ... ok
+
+    test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+
+看到上面的内容就说明测试通过了。
+
+``efs_test`` 展示了 ``easy-fs`` 库的使用方法，大致分成以下几个步骤：
+
+打开块设备
++++++++++++++++++++++++++++++++++++++++
+
+.. code-block:: rust
+
+    let block_file = Arc::new(BlockFile(Mutex::new({
+        let f = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open("target/fs.img")?;
+        f.set_len(8192 * 512).unwrap();
+        f
+    })));
+    EasyFileSystem::create(
+        block_file.clone(),
+        4096,
+        1,
+    );
+
+第一步我们需要打开块设备。这里我们在 HostOS 创建文件 ``easy-fs-fuse/target/fs.img`` 来新建一个块设备，并将它的容量设置为 8192 个块即 4MiB 。在创建的时候需要将它的访问权限设置为可读可写。
+
+由于我们在进行测试，需要初始化测试环境，因此我们在块设备 ``block_file`` 上初始化 easy-fs 文件系统，这会将 ``block_file`` 用于放置 easy-fs 镜像的前 4096 个块上的数据覆盖，然后变成仅有一个根目录的初始文件系统。如果块设备上已经放置了一个合法的 easy-fs 镜像，则我们不必这样做。
+
+从块设备上打开文件系统
++++++++++++++++++++++++++++++++++++++++
+
+.. code-block:: rust
+
+    let efs = EasyFileSystem::open(block_file.clone());
+
+这是通常进行的第二个步骤。
+
+获取根目录的 Inode
++++++++++++++++++++++++++++++++++++++++
+
+.. code-block:: rust
+
+    let root_inode = EasyFileSystem::root_inode(&efs);
+
+这是通常进行的第三个步骤。
+
+进行文件系统操作
++++++++++++++++++++++++++++++++++++++++
+
+拿到根目录 ``root_inode`` 之后，可以通过它进行文件系统操作。
+
 
 将应用打包为 easy-fs 镜像
 ---------------------------------------
