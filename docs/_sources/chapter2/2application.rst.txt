@@ -280,7 +280,7 @@ Rust 中的 ``llvm_asm!`` 宏的完整格式如下：
 
    .. code-block:: console
 
-    $ git clone -b v4-illegal-priv-code-csr-in-u-mode-app git@github.com:chyyuu/os_kernel_lab.git
+    $ git clone -b v4-illegal-priv-code-csr-in-u-mode-app https://github.com/chyyuu/os_kernel_lab.git
     $ cd os_kernel_lab/user
     $ make build
 
