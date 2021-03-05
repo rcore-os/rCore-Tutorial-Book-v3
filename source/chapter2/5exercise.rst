@@ -33,15 +33,15 @@ lab2 中，我们实现了第一个系统调用 ``sys_write``，这使得我们�
 .. code-block::
 
    ├── os(内核实现)
+   │   ├── build.rs (在这里实现用户程序的打包)   
    │   ├── Cargo.toml(配置文件)
    │   ├── Makefile (要求 make run 可以正确执行，尽量不输出调试信息)
    │   ├── src(所有内核的源代码放在 os/src 目录下)
    │       ├── main.rs(内核主函数)
    │       ├── ...
    ├── reports
-   │   ├── lab1.md/pdf
+   │   ├── lab2.md/pdf
    │   └── ...
-   ├── build.rs (在这里实现用户程序的打包)
    ├── README.md（其他必要的说明）
    ├── ...
 
