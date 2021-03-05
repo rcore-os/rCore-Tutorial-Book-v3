@@ -38,6 +38,16 @@ tips: 可以使用优先级队列比较方便的实现 stride 算法。如使用
 
 - 实现 stride 调度算法，实现 sys_gettime, sys_set_priority 两个系统调用并通过 `Rust测例 <https://github.com/DeathWish5/rCore_tutorial_tests>`_ 中 chapter3 对应的所有测例，测例详情见对应仓库，系统调用具体要求参考 `guide.md <https://github.com/DeathWish5/rCore_tutorial_tests/blob/master/guide.md>`_ 。
 
+.. _gettime-semantic-diff:
+
+.. note::
+
+    **sys_gettime 在测例和教程正文中语义的不同**
+
+    为了更加贴近 POSIX 标准系统调用接口，在测例中 ``sys_gettime`` 需要将当前时间保存在一个 ``TimeVal`` 中，但是在用户库 ``user_lib`` 中的 ``get_time`` 函数仍然是以毫秒为单位，它的实现方式是将 ``TimeVal`` 中的秒数 ``sec`` 和微秒数 ``usec`` 转化为合计的毫秒数。因此，如果基于实验框架来做的话， ``sys_gettime`` 在内核中的实现需要发生变化。
+
+    另外需要注意的是，在修改之后， ``sys_gettime`` 和 POSIX 标准接口也仅仅做到了格式相同。在 POSIX 标准接口中 ``sys_gettime`` 统计当前相对 1970-01-01 00:00:00 +0000 (UTC) 过去的时间，而我们并没有用到任何 RTC 外设，只能做到统计自开机之后过去的时间。 
+
 需要说明的是 lab3 有3类测例，``ch3_0_*`` 用来检查基本 syscall 的实现，``ch3_1_*`` 基于 yield 来检测基本的调度，``ch3_2_*`` 基于时钟中断来测试 stride 调度算法实现的正确性。测试时可以分别测试 3 组测例，使得输出更加可控、更加清晰。
 
 特别的，我们有一个死循环测例 ``ch3t_deadloop`` 用来保证大家真的实现了时钟中断。这一章中我们人为限制一个程序执行的最大时间（必须很大），超过就杀死，这样，我们的程序更不容易被恶意程序伤害。这一规定可以在实验4开始删除，仅仅为通过 lab3 测例设置。

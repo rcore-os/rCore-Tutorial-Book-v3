@@ -1421,9 +1421,96 @@ inode 和数据块的分配/回收也由它负责：
 进行文件系统操作
 +++++++++++++++++++++++++++++++++++++++
 
-拿到根目录 ``root_inode`` 之后，可以通过它进行文件系统操作。
+拿到根目录 ``root_inode`` 之后，可以通过它进行文件系统操作，目前支持以下几种：
 
+- 通过 ``create`` 创建文件。
+- 通过 ``ls`` 列举根目录下的文件。
+- 通过 ``find`` 根据文件名索引文件。
+
+当通过索引获取根目录下的一个文件的 inode 之后则可以进行如下操作：
+
+- 通过 ``clear`` 将文件内容清空。
+- 通过 ``read/write_at`` 读写文件，注意我们需要将读写在文件中开始的位置 ``offset`` 作为一个参数传递进去。
+
+测试方法在这里不详细介绍，大概是每次清空文件 ``filea`` 的内容，向其中写入一个不同长度的随机数字字符串，然后再全部读取出来，验证和写入的内容一致。其中有一个细节是：用来生成随机字符串的 ``rand`` crate 并不支持 ``no_std`` ，因此只有在用户态我们才能更容易进行测试。
 
 将应用打包为 easy-fs 镜像
 ---------------------------------------
 
+在第六章中我们需要将所有的应用都链接到内核中，随后在应用管理器中通过应用名进行索引来找到应用的 ELF 数据。这样做有一个缺点，就是会造成内核体积过度膨胀。在 k210 平台上可以很明显的感觉到从第五章开始随着应用数量的增加，向开发板上烧写内核镜像的耗时显著增长。同时这也会浪费内存资源，因为未被执行的应用也占据了内存空间。在实现了我们自己的文件系统之后，终于可以将这些应用打包到 easy-fs 镜像中放到磁盘中，当我们要执行应用的时候只需从文件系统中取出应用 ELF 并加载到内存中执行即可，这样就避免了上面的那些问题。
+
+``easy-fs-fuse`` 的主体 ``easy-fs-pack`` 函数就实现了这个功能：
+
+.. code-block:: rust
+    :linenos:
+
+    // easy-fs-fuse/src/main.rs
+
+    use clap::{Arg, App};
+
+    fn easy_fs_pack() -> std::io::Result<()> {
+        let matches = App::new("EasyFileSystem packer")
+            .arg(Arg::with_name("source")
+                .short("s")
+                .long("source")
+                .takes_value(true)
+                .help("Executable source dir(with backslash)")
+            )
+            .arg(Arg::with_name("target")
+                .short("t")
+                .long("target")
+                .takes_value(true)
+                .help("Executable target dir(with backslash)")    
+            )
+            .get_matches();
+        let src_path = matches.value_of("source").unwrap();
+        let target_path = matches.value_of("target").unwrap();
+        println!("src_path = {}\ntarget_path = {}", src_path, target_path);
+        let block_file = Arc::new(BlockFile(Mutex::new({
+            let f = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(format!("{}{}", target_path, "fs.img"))?;
+            f.set_len(8192 * 512).unwrap();
+            f
+        })));
+        // 4MiB, at most 4095 files
+        let efs = EasyFileSystem::create(
+            block_file.clone(),
+            8192,
+            1,
+        );
+        let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
+        let apps: Vec<_> = read_dir(src_path)
+            .unwrap()
+            .into_iter()
+            .map(|dir_entry| {
+                let mut name_with_ext = dir_entry.unwrap().file_name().into_string().unwrap();
+                name_with_ext.drain(name_with_ext.find('.').unwrap()..name_with_ext.len());
+                name_with_ext
+            })
+            .collect();
+        for app in apps {
+            // load app data from host file system
+            let mut host_file = File::open(format!("{}{}", target_path, app)).unwrap();
+            let mut all_data: Vec<u8> = Vec::new();
+            host_file.read_to_end(&mut all_data).unwrap();
+            // create a file in easy-fs
+            let inode = root_inode.create(app.as_str()).unwrap();
+            // write data to easy-fs
+            inode.write_at(0, all_data.as_slice());
+        }
+        // list apps
+        for app in root_inode.ls() {
+            println!("{}", app);
+        }
+        Ok(())
+    }
+
+- 为了实现 ``easy-fs-fuse`` 和 ``os/user`` 的解藕，第 6~21 行使用 ``clap`` crate 进行命令行参数解析，需要通过 ``-s`` 和 ``-t`` 分别指定应用的源代码目录和保存应用 ELF 的目录而不是在 ``easy-fs-fuse`` 中硬编码。如果解析成功的话它们会分别被保存在变量 ``src_path`` 和 ``target_path`` 中。
+- 第 23~38 行依次完成：创建 4MiB 的 easy-fs 镜像文件、进行 easy-fs 初始化、获取根目录 inode 。
+- 第 39 行获取源码目录中的每个应用的源代码文件并去掉后缀名，收集到向量 ``apps`` 中。
+- 第 48 行开始，枚举 ``apps`` 中的每个应用，从应用 ELF 目录中找到对应应用的 ELF 文件（这是一个 HostOS 上的文件）并将数据读入内存。接着需要在我们的 easy-fs 中创建一个同名文件并将 ELF 数据写入到这个文件中。这个过程相当于将 HostOS 上的文件系统中的一个文件复制到我们的 easy-fs 中。
+
+尽管没有进行任何同步回磁盘的操作，我们也不用担心块缓存中的修改没有写回磁盘。因为在 ``easy-fs-fuse`` 这个应用正常退出的过程中，块缓存因生命周期结束会被回收，届时如果 ``modified`` 标志为 true 就会将修改写回磁盘。

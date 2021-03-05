@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <title>chapter3练习 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
@@ -17,7 +17,10 @@
 
   
   
+
   
+  
+
   
 
   
@@ -30,7 +33,6 @@
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -88,7 +90,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
           
 
           
@@ -206,6 +208,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -219,7 +223,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="../_sources/chapter3/5exercise.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -265,6 +269,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>完成实验指导书中的内容，实现 sys_yield，实现协作式和抢占式的调度。</p></li>
 <li><p>实现 stride 调度算法，实现 sys_gettime, sys_set_priority 两个系统调用并通过 <a class="reference external" href="https://github.com/DeathWish5/rCore_tutorial_tests">Rust测例</a> 中 chapter3 对应的所有测例，测例详情见对应仓库，系统调用具体要求参考 <a class="reference external" href="https://github.com/DeathWish5/rCore_tutorial_tests/blob/master/guide.md">guide.md</a> 。</p></li>
 </ul>
+<div class="admonition note" id="gettime-semantic-diff">
+<p class="admonition-title">注解</p>
+<p><strong>sys_gettime 在测例和教程正文中语义的不同</strong></p>
+<p>为了更加贴近 POSIX 标准系统调用接口，在测例中 <code class="docutils literal notranslate"><span class="pre">sys_gettime</span></code> 需要将当前时间保存在一个 <code class="docutils literal notranslate"><span class="pre">TimeVal</span></code> 中，但是在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">get_time</span></code> 函数仍然是以毫秒为单位，它的实现方式是将 <code class="docutils literal notranslate"><span class="pre">TimeVal</span></code> 中的秒数 <code class="docutils literal notranslate"><span class="pre">sec</span></code> 和微秒数 <code class="docutils literal notranslate"><span class="pre">usec</span></code> 转化为合计的毫秒数。因此，如果基于实验框架来做的话， <code class="docutils literal notranslate"><span class="pre">sys_gettime</span></code> 在内核中的实现需要发生变化。</p>
+<p>另外需要注意的是，在修改之后， <code class="docutils literal notranslate"><span class="pre">sys_gettime</span></code> 和 POSIX 标准接口也仅仅做到了格式相同。在 POSIX 标准接口中 <code class="docutils literal notranslate"><span class="pre">sys_gettime</span></code> 统计当前相对 1970-01-01 00:00:00 +0000 (UTC) 过去的时间，而我们并没有用到任何 RTC 外设，只能做到统计自开机之后过去的时间。</p>
+</div>
 <p>需要说明的是 lab3 有3类测例，<code class="docutils literal notranslate"><span class="pre">ch3_0_*</span></code> 用来检查基本 syscall 的实现，<code class="docutils literal notranslate"><span class="pre">ch3_1_*</span></code> 基于 yield 来检测基本的调度，<code class="docutils literal notranslate"><span class="pre">ch3_2_*</span></code> 基于时钟中断来测试 stride 调度算法实现的正确性。测试时可以分别测试 3 组测例，使得输出更加可控、更加清晰。</p>
 <p>特别的，我们有一个死循环测例 <code class="docutils literal notranslate"><span class="pre">ch3t_deadloop</span></code> 用来保证大家真的实现了时钟中断。这一章中我们人为限制一个程序执行的最大时间（必须很大），超过就杀死，这样，我们的程序更不容易被恶意程序伤害。这一规定可以在实验4开始删除，仅仅为通过 lab3 测例设置。</p>
 <p>challenge: 实现多核，可以并行调度。</p>
@@ -404,37 +414,29 @@ commentsRunWhenDOMLoaded(addUtterances);
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="../chapter4/index.html" class="btn btn-neutral float-right" title="第四章：地址空间" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="4time-sharing-system.html" class="btn btn-neutral float-left" title="分时多任务系统与抢占式调度" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="../chapter4/index.html" class="btn btn-neutral float-right" title="第四章：地址空间" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="4time-sharing-system.html" class="btn btn-neutral float-left" title="分时多任务系统与抢占式调度" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; 版权所有 2020, Yifan Wu
+        &#169; 版权所有 2020, Yifan Wu.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
