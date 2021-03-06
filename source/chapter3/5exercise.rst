@@ -146,9 +146,16 @@ challenge: 实现多核，可以并行调度。
 
 参考信息
 -------------------------------
-如果有兴趣进一步了解stride调度相关内容，可以尝试看看：
+如果有兴趣进一步了解　stride　调度相关内容，可以尝试看看：
 
 - `作者 Carl A. Waldspurger 写这个调度算法的原论文 <https://people.cs.umass.edu/~mcorner/courses/691J/papers/PS/waldspurger_stride/waldspurger95stride.pdf>`_
 - `作者 Carl A. Waldspurger 的博士生答辩slide <http://www.waldspurger.org/carl/papers/phd-mit-slides.pdf>`_ 
 - `南开大学实验指导中对Stride算法的部分介绍 <https://nankai.gitbook.io/ucore-os-on-risc-v64/lab6/tiao-du-suan-fa-kuang-jia#stride-suan-fa>`_
 - `NYU OS课关于Stride Scheduling的Slide <https://cs.nyu.edu/rgrimm/teaching/sp08-os/stride.pdf>`_
+
+如果有兴趣进一步了解用户态线程实现的相关内容，可以尝试看看：
+
+- `user-multitask in rv64 <https://github.com/chyyuu/os_kernel_lab/tree/v4-user-std-multitask>`_
+- `绿色线程 in x86 <https://github.com/cfsamson/example-greenthreads>`_
+- `x86版绿色线程的设计实现 <https://cfsamson.gitbook.io/green-threads-explained-in-200-lines-of-rust/>`_
+- `用户级多线程的切换原理 <https://blog.csdn.net/qq_31601743/article/details/97514081?utm_medium=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.control&dist_request_id=&depth_1-utm_source=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.control>`_
