@@ -35,6 +35,7 @@ challenge: 支持多核，实现多个核运行用户程序。
 .. code-block::
 
    ├── os(内核实现)
+   │   ├── build.rs (在这里实现用户程序的打包)   
    │   ├── Cargo.toml(配置文件)
    │   ├── Makefile (要求 make run 可以正确执行，尽量不输出调试信息)
    │         ├── build.rs (在这里实现用户程序的打包)
@@ -42,7 +43,7 @@ challenge: 支持多核，实现多个核运行用户程序。
    │       ├── main.rs(内核主函数)
    │       ├── ...
    ├── reports
-   │   ├── lab1.md/pdf
+   │   ├── lab2.md/pdf
    │   └── ...
    ├── README.md（其他必要的说明）
    ├── ...

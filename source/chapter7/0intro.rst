@@ -129,7 +129,7 @@
    │       │   │   └── virtio_blk.rs(Qemu 平台的 virtio-blk 块设备)
    │       │   └── mod.rs
    │       ├── entry.asm
-   │       ├── fs(修改：在文件系统中新增普通文件的支持)
+   │       ├── fs(修改：在文件系统中新增标准文件的支持)
    │       │   ├── inode.rs(新增：将 easy-fs 提供的 Inode 抽象封装为内核看到的 OSInode
    │       │   │            并实现 fs 子模块的 File Trait)
    │       │   ├── mod.rs

@@ -236,7 +236,7 @@ Rust 的 core 库内建了以一系列帮助实现显示字符的基本 Trait �
 
 整体工作完成！当然，我们实现的很简陋，用户态执行环境和应用程序都放在一个文件里面，以后会通过我们学习的软件工程的知识，进行软件重构，让代码更清晰和模块化。
 
-现在，我们编译执行一下。
+现在，我们编译并执行一下，可以看到正确的字符串输出，且程序也能正确结束！
 
 
 .. code-block:: console
@@ -245,38 +245,53 @@ Rust 的 core 库内建了以一系列帮助实现显示字符的基本 Trait �
      Compiling os v0.1.0 (/media/chyyuu/ca8c7ba6-51b7-41fc-8430-e29e31e5328f/thecode/rust/os_kernel_lab/os)
     Finished dev [unoptimized + debuginfo] target(s) in 0.61s
 
-  $ qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os
-    段错误 (核心已转储)
+  $ qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os; echo $?
+    Hello, world!
+    9
 
-系统崩溃了！借助以往的操作系统内核编程经验和与下一节调试kernel的成果经验，我们直接定位为是 **栈** (Stack) 没有设置的问题。我们需要添加建立栈的代码逻辑。
 
-.. code-block:: asm
+.. 下面出错的情况是会在采用 linker.ld，加入了 .cargo/config 
+.. 的内容后会出错：
+.. .. [build]
+.. .. target = "riscv64gc-unknown-none-elf"
+.. .. [target.riscv64gc-unknown-none-elf]
+.. .. rustflags = [
+.. ..    "-Clink-arg=-Tsrc/linker.ld", "-Cforce-frame-pointers=yes"
+.. .. ]
 
-  # entry.asm
+.. 重新定义了栈和地址空间布局后才会出错    
+
+.. 段错误 (核心已转储)
+
+.. 系统崩溃了！借助以往的操作系统内核编程经验和与下一节调试kernel的成果经验，我们直接定位为是 **栈** (Stack) 没有设置的问题。我们需要添加建立栈的代码逻辑。
+
+.. .. code-block:: asm
+
+..   # entry.asm
   
-      .section .text.entry
-      .globl _start
-  _start:
-      la sp, boot_stack_top
-      call rust_main
+..       .section .text.entry
+..       .globl _start
+..   _start:
+..       la sp, boot_stack_top
+..       call rust_main
 
-      .section .bss.stack
-      .globl boot_stack
-  boot_stack:
-      .space 4096 * 16
-      .globl boot_stack_top
-  boot_stack_top:
+..       .section .bss.stack
+..       .globl boot_stack
+..   boot_stack:
+..       .space 4096 * 16
+..       .globl boot_stack_top
+..   boot_stack_top:
 
-然后把汇编代码嵌入到 ``main.rs`` 中，并进行微调。
+.. 然后把汇编代码嵌入到 ``main.rs`` 中，并进行微调。
 
-.. code-block:: rust
+.. .. code-block:: rust
 
-  #![feature(global_asm)]
+..   #![feature(global_asm)]
 
-  global_asm!(include_str!("entry.asm"));
+..   global_asm!(include_str!("entry.asm"));
 
-  #[no_mangle]
-  #[link_section=".text.entry"]
-  extern "C" fn rust_main() {
+..   #[no_mangle]
+..   #[link_section=".text.entry"]
+..   extern "C" fn rust_main() {
 
-再次编译执行，可以看到正确的字符串输出，且程序也能正确结束！
+.. 再次编译执行，可以看到正确的字符串输出，且程序也能正确结束！
