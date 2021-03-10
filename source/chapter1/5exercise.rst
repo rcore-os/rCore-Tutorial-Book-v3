@@ -23,6 +23,10 @@ lab1 的工作使得我们从硬件世界跳入了软件世界，当看到自己
 
 如果你明白了我们是如何利用串口实现输出，那么要实现彩色输出就十分容易了，只需要用需要输出的字符串替换上一条命令中的 ``hello world``，用期望颜色替换 ``31(代表红色)``　即可。
 
+.. warning::
+
+   以下内容仅为推荐实现，不是练习要求，有时间和兴趣的同学可以尝试。
+
 我们推荐实现如下几个等级的输出，输出优先级依次降低：
 
 .. list-table:: log 等级推荐
@@ -48,7 +52,7 @@ lab1 的工作使得我们从硬件世界跳入了软件世界，当看到自己
      - 灰色(90)
      - 最详细的输出，跟踪了每一步关键路径的执行
 
-我们要求输出设定输出等级以及更高输出等级的信息，如设置 ``LOG = INFO``，则输出　``ERROR``、``WARN``、``INFO`` 等级的信息。简单 demo 如下，输出等级为 INFO:
+我们可以输出比设定输出等级以及更高输出等级的信息，如设置 ``LOG = INFO``，则输出　``ERROR``、``WARN``、``INFO`` 等级的信息。简单 demo 如下，输出等级为 INFO:
 
 .. image:: color-demo.png
 
@@ -58,9 +62,9 @@ lab1 的工作使得我们从硬件世界跳入了软件世界，当看到自己
 
     // 这段代码输出了 os 内存空间布局，这到这些信息对于编写 os 十分重要
     　
-    info!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
-    debug!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
-    error!(".data [{:#x}, {:#x})", sdata as usize, edata as usize);
+    info!(".text [{:#x}, {:#x})", s_text as usize, e_text as usize);
+    debug!(".rodata [{:#x}, {:#x})", s_rodata as usize, e_rodata as usize);
+    error!(".data [{:#x}, {:#x})", s_data as usize, e_data as usize);
 
 .. code-block:: c
 
@@ -74,7 +78,8 @@ lab1 的工作使得我们从硬件世界跳入了软件世界，当看到自己
 
 - 实现分支：ch1。
 - 完成实验指导书中的内容，在裸机上实现 ``hello world`` 输出。
-- 实现彩色输出宏
+- 实现彩色输出宏(只要求可以彩色输出，不要求 log 等级控制，不要求多种颜色)。
+- 隐形要求：可以关闭内核所有输出。从 lab2 开始要求关闭内核所有输出（如果实现了 log 等级控制，那么这一点自然就实现了）。
 - 利用彩色输出宏输出 os 内存空间布局，即：输出 ``.text``、``.data``、``.rodata``、``.bss`` 各段位置，输出等级为 ``INFO``。
 
 challenge: 支持多核，实现多个核的 boot。
@@ -108,7 +113,7 @@ challenge: 支持多核，实现多个核的 boot。
    $ git checkout ch1
    $ make run LOG=INFO
 
-可以正确执行(可以不支持LOG参数，而是设置默认log等级)，可以看到正确的内存布局输出，根据实现不同数值可能有差异，但应该位于 ``linker.ld`` 中指示 ``BASE_ADDRESS`` 后一段内存，输出之后关机。
+可以正确执行(可以不支持LOG参数，只有要彩色输出就好)，可以看到正确的内存布局输出，根据实现不同数值可能有差异，但应该位于 ``linker.ld`` 中指示 ``BASE_ADDRESS`` 后一段内存，输出之后关机。
 
 tips
 +++++++++++++++++++++++++++++++

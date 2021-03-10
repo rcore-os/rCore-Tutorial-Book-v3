@@ -37,13 +37,13 @@ challenge: 支持多核，实现多个核运行用户程序。
    ├── os(内核实现)
    │   ├── Cargo.toml(配置文件)
    │   ├── Makefile (要求 make run 可以正确执行，尽量不输出调试信息)
+   │         ├── build.rs (在这里实现用户程序的打包)
    │   ├── src(所有内核的源代码放在 os/src 目录下)
    │       ├── main.rs(内核主函数)
    │       ├── ...
    ├── reports
    │   ├── lab1.md/pdf
    │   └── ...
-   ├── build.rs (在这里实现用户程序的打包)
    ├── README.md（其他必要的说明）
    ├── ...
 
@@ -53,8 +53,8 @@ challenge: 支持多核，实现多个核运行用户程序。
 
 .. code-block:: console
 
-   $ cd os
    $ git checkout ch2
+   $ cd os
    $ make run
 
 可以正确执行正确执行目标用户测例，并得到预期输出（详见测例注释）。
