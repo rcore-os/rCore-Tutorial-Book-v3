@@ -254,6 +254,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>如果你明白了我们是如何利用串口实现输出，那么要实现彩色输出就十分容易了，只需要用需要输出的字符串替换上一条命令中的 <code class="docutils literal notranslate"><span class="pre">hello</span> <span class="pre">world</span></code>，用期望颜色替换 <code class="docutils literal notranslate"><span class="pre">31(代表红色)</span></code>　即可。</p>
+<div class="admonition warning">
+<p class="admonition-title">警告</p>
+<p>以下内容仅为推荐实现，不是练习要求，有时间和兴趣的同学可以尝试。</p>
+</div>
 <p>我们推荐实现如下几个等级的输出，输出优先级依次降低：</p>
 <table class="docutils align-center" id="id7">
 <caption><span class="caption-text">log 等级推荐</span><a class="headerlink" href="#id7" title="永久链接至表格">¶</a></caption>
@@ -291,14 +295,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 </tr>
 </tbody>
 </table>
-<p>我们要求输出设定输出等级以及更高输出等级的信息，如设置 <code class="docutils literal notranslate"><span class="pre">LOG</span> <span class="pre">=</span> <span class="pre">INFO</span></code>，则输出　<code class="docutils literal notranslate"><span class="pre">ERROR</span></code>、<code class="docutils literal notranslate"><span class="pre">WARN</span></code>、<code class="docutils literal notranslate"><span class="pre">INFO</span></code> 等级的信息。简单 demo 如下，输出等级为 INFO:</p>
+<p>我们可以输出比设定输出等级以及更高输出等级的信息，如设置 <code class="docutils literal notranslate"><span class="pre">LOG</span> <span class="pre">=</span> <span class="pre">INFO</span></code>，则输出　<code class="docutils literal notranslate"><span class="pre">ERROR</span></code>、<code class="docutils literal notranslate"><span class="pre">WARN</span></code>、<code class="docutils literal notranslate"><span class="pre">INFO</span></code> 等级的信息。简单 demo 如下，输出等级为 INFO:</p>
 <img alt="../_images/color-demo.png" src="../_images/color-demo.png" />
 <p>为了方便使用彩色输出，我们要求同学们实现彩色输出的宏或者函数，用以代替 print 完成输出内核信息的功能，它们有着和 prinf 十分相似的使用格式，要求支持可变参数解析，形如：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 这段代码输出了 os 内存空间布局，这到这些信息对于编写 os 十分重要</span>
 
-<span class="n">info</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.text [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">stext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">etext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
-<span class="n">debug</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.rodata [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">srodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">erodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
-<span class="n">error</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.data [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">sdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">edata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+<span class="n">info</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.text [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s_text</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">e_text</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+<span class="n">debug</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.rodata [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s_rodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">e_rodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+<span class="n">error</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.data [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s_data</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">e_data</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
 </pre></div>
 </div>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">info</span><span class="p">(</span><span class="s">&quot;load range : [%d, %d] start = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">start</span><span class="p">);</span>
@@ -311,9 +315,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="simple">
 <li><p>实现分支：ch1。</p></li>
 <li><p>完成实验指导书中的内容，在裸机上实现 <code class="docutils literal notranslate"><span class="pre">hello</span> <span class="pre">world</span></code> 输出。</p></li>
-<li><p>实现彩色输出宏</p></li>
+<li><p>实现彩色输出宏(只要求可以彩色输出，不要求 log 等级控制，不要求多种颜色)。</p></li>
+<li><p>隐形要求：可以关闭内核所有输出。从 lab2 开始要求关闭内核所有输出（如果实现了 log 等级控制，那么这一点自然就实现了）。</p></li>
 <li><p>利用彩色输出宏输出 os 内存空间布局，即：输出 <code class="docutils literal notranslate"><span class="pre">.text</span></code>、<code class="docutils literal notranslate"><span class="pre">.data</span></code>、<code class="docutils literal notranslate"><span class="pre">.rodata</span></code>、<code class="docutils literal notranslate"><span class="pre">.bss</span></code> 各段位置，输出等级为 <code class="docutils literal notranslate"><span class="pre">INFO</span></code>。</p></li>
 </ul>
+<p>challenge: 支持多核，实现多个核的 boot。</p>
 </div>
 <div class="section" id="id3">
 <h3>实验检查<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
@@ -342,7 +348,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="gp">$ </span>make run <span class="nv">LOG</span><span class="o">=</span>INFO
 </pre></div>
 </div>
-<p>可以正确执行(可以不支持LOG参数，而是设置默认log等级)，可以看到正确的内存布局输出，根据实现不同数值可能有差异，但应该位于 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中指示 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 后一段内存，输出之后关机。</p>
+<p>可以正确执行(可以不支持LOG参数，只有要彩色输出就好)，可以看到正确的内存布局输出，根据实现不同数值可能有差异，但应该位于 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中指示 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 后一段内存，输出之后关机。</p>
 </div>
 <div class="section" id="tips">
 <h3>tips<a class="headerlink" href="#tips" title="永久链接至标题">¶</a></h3>
