@@ -11,7 +11,7 @@ chapter5 练习
 
 大家一定好奇过为啥进程创建要用 fork + execve 这么一个奇怪的系统调用，就不能直接搞一个新进程吗？思而不学则殆，我们就来试一试！这章的编程练习请大家实现一个完全 DIY 的系统调用 spawn，用以创建一个新进程。
 
-spawn 系统调用定义：
+spawn 系统调用定义( `标准spawn看这里 <https://man7.org/linux/man-pages/man3/posix_spawn.3.html>`_ )：
 
 - syscall ID: 400
 - C 接口： ``int spawn(char *filename)`` 
@@ -49,8 +49,7 @@ challenge: 支持多核。
 
 (2) 其实使用了题(1)的策略之后，fork + exec 所带来的无效资源的问题已经基本被解决了，但是今年来 fork 还是在被不断的批判，那么到底是什么正在"杀死"fork？可以参考 `论文 <https://www.microsoft.com/en-us/research/uploads/prod/2019/04/fork-hotos19.pdf>`_ ，**注意**：回答无明显错误就给满分，出这题只是想引发大家的思考，完全不要求看论文，球球了，别卷了。
 
-(3) fork 当年被设计并称道肯定是有其好处的。请使用 **带初始参数** 的 spawn 重写如下 fork 程序，然后描述 fork 有哪些好处。注意:使用"伪代码"传达意思即可，spawn接口可以自定义。可以写多个文件。
-
+(3) fork 当年被设计并称道肯定是有其好处的。请使用 **带初始参数** 的 spawn 重写如下 fork 程序，然后描述 fork 有那些好处。注意:使用"伪代码"传达意思即可，spawn 接口可以自定义。可以写多个文件。
     .. code-block:: rust
 
         fn main() {
