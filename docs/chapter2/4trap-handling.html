@@ -824,7 +824,7 @@ sepc，让其增加 4。这是因为我们知道这是一个由 <code class="doc
 S 特权级，而它希望能够切换到 U 特权级。在 RISC-V 架构中，唯一一种能够使得 CPU 特权级下降的方法就是通过 Trap 返回系列指令，比如
 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 。事实上，在运行应用程序之前要完成如下这些工作：</p>
 <ul class="simple">
-<li><p>跳转到应用程序入口点 <code class="docutils literal notranslate"><span class="pre">0x80040000</span></code>。</p></li>
+<li><p>跳转到应用程序入口点 <code class="docutils literal notranslate"><span class="pre">0x80400000</span></code>。</p></li>
 <li><p>将使用的栈切换到用户栈。</p></li>
 <li><p>在 <code class="docutils literal notranslate"><span class="pre">__alltraps</span></code> 时我们要求 <code class="docutils literal notranslate"><span class="pre">sscratch</span></code> 指向内核栈，这个也需要在此时完成。</p></li>
 <li><p>从 S 特权级切换到 U 特权级。</p></li>
@@ -900,7 +900,7 @@ S 特权级，而它希望能够切换到 U 特权级。在 RISC-V 架构中，�
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </td></tr></table></div>
-<p>在高亮行所做的事情是在内核栈上压入一个 Trap 上下文，其 sepc 是应用程序入口地址 <code class="docutils literal notranslate"><span class="pre">0x80040000</span></code> ，其 sp 寄存器指向用户栈，其 sstatus
+<p>在高亮行所做的事情是在内核栈上压入一个 Trap 上下文，其 sepc 是应用程序入口地址 <code class="docutils literal notranslate"><span class="pre">0x80400000</span></code> ，其 sp 寄存器指向用户栈，其 sstatus
 的 <code class="docutils literal notranslate"><span class="pre">SPP</span></code> 字段被设置为 User 。<code class="docutils literal notranslate"><span class="pre">push_context</span></code> 的返回值是内核栈压入 Trap 上下文之后的栈顶，它会被作为 <code class="docutils literal notranslate"><span class="pre">__restore</span></code> 的参数（
 回看 <a class="reference internal" href="#code-restore"><span class="std std-ref">__restore 代码</span></a> ，这时我们可以理解为何 <code class="docutils literal notranslate"><span class="pre">__restore</span></code> 的开头会做
 <span class="math notranslate nohighlight">\(\text{sp}\leftarrow\text{a}_0\)</span> ）使得在 <code class="docutils literal notranslate"><span class="pre">__restore</span></code> 中 sp 仍然可以指向内核栈的栈顶。这之后，就和一次普通的
