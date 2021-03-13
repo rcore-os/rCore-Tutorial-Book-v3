@@ -27,7 +27,7 @@ lab3中我们引入了任务调度的概念，可以在不同任务之间切换�
 - 进程初始 stride 设置为 0 即可。
 - 进程初始优先级设置为 16。
 
-tips: 可以使用优先级队列比较方便的实现 stride 算法。如使用：`BinaryHeap <https://doc.rust-lang.org/alloc/collections/binary_heap/struct.BinaryHeap.html>`_ 。
+tips: 可以使用优先级队列比较方便的实现 stride 算法，但是我们的实验不考察效率，所以手写一个简单粗暴的也完全没问题。
 
 实验要求
 +++++++++++++++++++++++++++++++++++++++++
