@@ -271,10 +271,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p class="admonition-title">注解</p>
 <p><strong>进程，线程和协程</strong></p>
 <p>进程，线程和协程是操作系统中经常出现的名词，它们都是操作系统中的抽象概念，有联系和共同的地方，但也有区别。计算机的核心是CPU，它承担了基本上所有的计算任务；而操作系统是计算机的管理者，它可以以进程，线程和协程为基本的管理和调度单位来使用CPU执行具体的程序逻辑。</p>
-<p>从历史角度上看，它们依次出现的顺序是进程、线程和协程。在还没有进程抽象的早期操作系统中，计算机科学家把程序在计算机上的一次执行过程称为一个任务（task）或一个工作（job），其特点是任务和工作在其整个的执行过程中，不会被切换。这样系统效率会比较低。</p>
-<p>在引入分时切换机制和虚拟内存机制后，进程的概念就被提出了，进程成为CPU（也称处理器）调度（scheduling）和分派（switch）的对象，各个进程间以时间片为单位轮流使用CPU，且每个进程有各自独立的一块内存，使得各个进程之间内存地址相互隔离。</p>
-<p>随着计算机的发展，对计算机系统性能的要求越来越高，而进程之间的切换开销相对较大，于是计算机科学家就提出了线程。线程是程序执行中一个单一的顺序控制流程，线程是进程的一部分，一个进程可以包含一个或多个线程。各个线程之间共享进程的地址空间，但线程有自己独立的栈。且线程是处理器调度和分派的基本单位。</p>
-<p>协程（coroutines，也称纤程（Fiber）或绿色线程（GreenThread）），也是程序执行中一个单一的顺序控制流程，建立在线程之上（即一个线程上可以有多个协程），但又比线程更加轻量级的处理器调度对象。协程是由用户态的协程管理库来进行管理和调度，操作系统是看不到协程的。因此，协程的整个处理过程不需要有特权级切换和操作系统的直接介入。而且协程可以设置更小的栈或者多个协程共享线程的栈。这样，协程在时间和空间的管理开销上，相对于线程和进程都有很大的改善。在具体实现上，协程可以在用户态运行时库这一层面通过函数调用来实现；也可在语言级支持协程，比如Go语言引入的 <code class="docutils literal notranslate"><span class="pre">go</span></code> 关键字，Rust语言引入的 <code class="docutils literal notranslate"><span class="pre">async</span></code> 、 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 关键字等，通过编译器和运行时库二者配合来简化程序员编程的负担并提高整体的性能。</p>
+<p>从历史角度上看，它们依次出现的顺序是进程、线程和协程。在还没有进程抽象的早期操作系统中，计算机科学家把程序在计算机上的一次执行过程称为一个任务（task）或一个工作（job），其特点是任务和工作在其整个的执行过程中，不会被切换。这样其他任务必须等待一个任务结束后，才能执行，这样系统的效率会比较低。</p>
+<p>在引入面向CPU的分时切换机制和面向内存的虚拟内存机制后，进程的概念就被提出了，进程成为CPU（也称处理器）调度（scheduling）和分派（switch）的对象，各个进程间以时间片为单位轮流使用CPU，且每个进程有各自独立的一块内存，使得各个进程之间内存地址相互隔离。这时，操作系统通过进程这个抽象来完成对应用程序在CPU和内存使用上的管理。</p>
+<p>随着计算机的发展，对计算机系统性能的要求越来越高，而进程之间的切换开销相对较大，于是计算机科学家就提出了线程。线程是程序执行中一个单一的顺序控制流程，线程是进程的一部分，一个进程可以包含一个或多个线程。各个线程之间共享进程的地址空间，但线程要有自己独立的栈（用于函数访问，局部变量等）和独立的控制流。且线程是处理器调度和分派的基本单位。对于线程的调度和管理，可以在操作系统层面完成，也可以在用户态的线程库中完成。用户态线程也称为绿色线程（GreenThread）。如果是在用户态的线程库中完成，操作系统是“看不到”这样的线程的，也就谈不上对这样线程的管理了。</p>
+<p>协程（coroutines，也称纤程（Fiber）），也是程序执行中一个单一的顺序控制流程，建立在线程之上（即一个线程上可以有多个协程），但又比线程更加轻量级的处理器调度对象。协程一般是由用户态的协程管理库来进行管理和调度，这样操作系统是看不到协程的。而且多个协程共享同一线程的栈，这样协程在时间和空间的管理开销上，相对于线程又有很大的改善。在具体实现上，协程可以在用户态运行时库这一层面通过函数调用来实现；也可在语言级支持协程，比如Rust语言引入的 <code class="docutils literal notranslate"><span class="pre">async</span></code> 、 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 关键字等，通过编译器和运行时库二者配合来简化程序员编程的负担并提高整体的性能。</p>
 </div>
 </div>
 <div class="section" id="id4">
@@ -328,8 +328,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>这样，利用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 和 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 的组合，我们很容易在一个进程内 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 出一个子进程并执行一个特定的可执行文件。</p>
 <div class="admonition note" id="term-redirection">
 <p class="admonition-title">注解</p>
-<p><strong>为何执行应用要通过两个系统调用而不是一个？</strong></p>
-<p>读者可能会有疑问，要达成执行应用的目标，我们为什么不设计一个系统调用接口同时实现创建一个新进程并加载给定的可执行文件两种功能？因为目前使用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 和 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 的组合的话，这里 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 出来的进程仅仅是为了 <code class="docutils literal notranslate"><span class="pre">exec</span></code> ，它 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 的时候地址空间拷贝的开销就被完全浪费掉了，而在后续清空地址空间的时候还会产生一些资源回收的额外开销。然而这样做是经过实践考验的——事实上 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 和 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 是功能极其强大的经典组合。原因就在于：这些开销能够通过一些手段大幅降低，且拆分为两个系统调用大大增加了灵活性，如可以支持 <strong>重定向</strong> (Redirection) 等功能。</p>
+<p><strong>为何创建进程要通过两个系统调用而不是一个？</strong></p>
+<p>读者可能会有疑问，对于要达成执行不同应用的目标，我们为什么不设计一个系统调用接口同时实现创建一个新进程并加载给定的可执行文件两种功能？
+因为如果使用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 和 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 的组合，那么 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 出来的进程仅仅是为了 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 一个新应用提供空间。而执行 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 中对父进程的地址空间拷贝没有用处，还浪费了时间，且在后续清空地址空间的时候还会产生一些资源回收的额外开销。
+然而这样做是经过实践考验的——事实上 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 和 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 是一种灵活的系统调用组合。上述的这些开销能够通过一些技术方法（如 <code class="docutils literal notranslate"><span class="pre">copy</span> <span class="pre">on</span> <span class="pre">write</span></code> 等）大幅降低，且拆分为两个系统调用后，可以灵活地支持 <strong>重定向</strong> (Redirection) 等功能。
+上述方法是UNIX类操作系统的典型做法，这一点与Windows操作系统不一样。在Windows中， <code class="docutils literal notranslate"><span class="pre">CreateProcess</span></code> 函数用来创建一个新的进程和它的主线程，通过这个新进程运行指定的可执行文件。虽然是一个函数，但这个函数的参数十个之多，使得这个函数很复杂，且没有 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 和 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 的组合的灵活性。</p>
 </div>
 </div>
 </div>
@@ -383,7 +386,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </td></tr></table></div>
 <p>其中 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 表示等待任意一个子进程结束，根据 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 的约定它需要传的 pid 参数为 <code class="docutils literal notranslate"><span class="pre">-1</span></code> ；而 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 则等待一个 PID 固定的子进程结束。在具体实现方面，我们看到当 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 返回值为 <code class="docutils literal notranslate"><span class="pre">-2</span></code> ，即要等待的子进程存在但它却尚未退出的时候，我们调用 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 主动交出 CPU 使用权，待下次 CPU 使用权被内核交还给它的时候再次调用 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 查看要等待的子进程是否退出。这样做可以减小 CPU 资源的浪费。</p>
-<p>目前的实现风格是尽可能简化内核，因此 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 是立即返回的，即它的返回值只能给出返回这一时刻的状态。如果这一时刻要等待的子进程还尚未结束，那么也只能如实向应用报告这一结果。于是用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 就需要负责对返回状态进行监控，因此它里面便需要进行循环。在后面的实现中，我们会将  <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 的内核实现设计为 <strong>阻塞</strong> 的，也即直到得到一个确切的结果位置都停在内核内，也就意味着内核返回给应用的结果可以直接使用。那是 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 和 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 两个 API 的实现便会更加简单。</p>
+<p>目前的实现风格是尽可能简化内核，因此 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 是立即返回的，即它的返回值只能给出返回这一时刻的状态。如果这一时刻要等待的子进程还尚未结束，那么也只能如实向应用报告这一结果。于是用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 就需要负责对返回状态进行持续的监控，因此它里面便需要进行循环检查。在后面的实现中，我们会将  <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 的内核实现设计为 <strong>阻塞</strong> 的，也即直到得到一个确切的结果位置都停在内核内，也就意味着内核返回给应用的结果可以直接使用。那是 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 和 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 两个 API 的实现便会更加简单。</p>
 </div>
 <div class="section" id="initproc">
 <h3>初始进程 initproc<a class="headerlink" href="#initproc" title="永久链接至标题">¶</a></h3>

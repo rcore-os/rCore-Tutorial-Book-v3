@@ -1075,7 +1075,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="k">type</span> <span class="nc">DataBlock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="n">BLOCK_SZ</span><span class="p">];</span><span class="w"></span>
 </pre></div>
 </div>
-<p>然而，目录的内容却需要遵从一种特殊的格式。在我们的实现中，它可以看成一个目录项的序列，每个目录项是目录下面的一个文件或子目录的文件名或目录名和它们所在的索引节点编号构成的二元组。目录项相当于目录树结构上的孩子指针，我们需要通过它来一级一级的找到实际要访问的文件或目录。目录项 <code class="docutils literal notranslate"><span class="pre">DirEntry</span></code> 的定义如下：</p>
+<p>然而，目录的内容却需要遵从一种特殊的格式。在我们的实现中，它可以看成一个目录项的序列，每个目录项都是一个二元组，二元组的首个元素是目录下面的一个文件（或子目录）的文件名（或目录名），另一个元素则是文件（或子目录）所在的索引节点编号。目录项相当于目录树结构上的孩子指针，我们需要通过它来一级一级的找到实际要访问的文件或目录。目录项 <code class="docutils literal notranslate"><span class="pre">DirEntry</span></code> 的定义如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// easy-fs/src/layout.rs</span>
 
 <span class="k">const</span><span class="w"> </span><span class="n">NAME_LENGTH_LIMIT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">27</span><span class="p">;</span><span class="w"></span>
@@ -1165,7 +1165,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">EasyFileSystem</span></code> 包含索引节点和数据块的两个位图 <code class="docutils literal notranslate"><span class="pre">inode_bitmap</span></code> 和 <code class="docutils literal notranslate"><span class="pre">data_bitmap</span></code> ，还记录下索引节点区域和数据块区域起始块编号方便确定每个索引节点和数据块在磁盘上的具体位置。我们还要在其中保留块设备的一个指针 <code class="docutils literal notranslate"><span class="pre">block_device</span></code> ，在进行后续操作的时候，改指针会被拷贝并传递给下层的数据结构，让它们也能够直接访问块设备。</p>
+<p><code class="docutils literal notranslate"><span class="pre">EasyFileSystem</span></code> 包含索引节点和数据块的两个位图 <code class="docutils literal notranslate"><span class="pre">inode_bitmap</span></code> 和 <code class="docutils literal notranslate"><span class="pre">data_bitmap</span></code> ，还记录下索引节点区域和数据块区域起始块编号方便确定每个索引节点和数据块在磁盘上的具体位置。我们还要在其中保留块设备的一个指针 <code class="docutils literal notranslate"><span class="pre">block_device</span></code> ，在进行后续操作的时候，该指针会被拷贝并传递给下层的数据结构，让它们也能够直接访问块设备。</p>
 <p>通过 <code class="docutils literal notranslate"><span class="pre">create</span></code> 方法可以在块设备上创建并初始化一个 easy-fs 文件系统：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
