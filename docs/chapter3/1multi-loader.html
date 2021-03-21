@@ -242,13 +242,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id3">
 <h2>多道程序放置<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
-<p>与第二章相同，所有应用的 ELF 都经过 strip 丢掉所有 ELF header 和符号变为二进制镜像文件，随后以同样的格式通过
-<code class="docutils literal notranslate"><span class="pre">link_user.S</span></code> 在编译的时候直接链接到内核的数据段中。不同的是，我们对相关模块进行了调整：在第二章中应用的加载和进度控制都交给 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块，而在第三章中我们将应用的加载这部分功能分离出来在 <code class="docutils literal notranslate"><span class="pre">loader</span></code>
-子模块中实现，应用的执行和切换则交给 <code class="docutils literal notranslate"><span class="pre">task</span></code> 子模块。</p>
-<p>注意，我们需要调整每个应用被构建时候使用的链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中的起始地址 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 为它实际
-会被内核加载并运行的地址。也就是要做到：应用知道自己会被加载到某个地址运行，而内核也确实能做到将它加载到那个
-地址。这算是应用和内核在某种意义上达成的一种协议。之所以要有这么苛刻的条件，是因为应用和内核的能力都很弱，通用性很低。
-事实上，目前应用程序的编址方式是基于绝对位置的而并没做到与位置无关，内核也没有提供相应的重定位机制。</p>
+<p>与第二章相同，所有应用的 ELF 都经过 strip 丢掉所有 ELF header 和符号变为二进制镜像文件，随后以同样的格式通过 <code class="docutils literal notranslate"><span class="pre">link_user.S</span></code> 在编译的时候直接链接到内核的数据段中。不同的是，我们对相关模块进行了调整：在第二章中应用的加载和进度控制都交给 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块，而在第三章中我们将应用的加载这部分功能分离出来在 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 子模块中实现，应用的执行和切换则交给 <code class="docutils literal notranslate"><span class="pre">task</span></code> 子模块。</p>
+<p>注意，我们需要调整每个应用被构建时候使用的链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中的起始地址 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 为它实际会被内核加载并运行的地址。也就是要做到：应用知道自己会被加载到某个地址运行，而内核也确实能做到将它加载到那个地址。这算是应用和内核在某种意义上达成的一种协议。之所以要有这么苛刻的条件，是因为应用和内核的能力都很弱，通用性很低。事实上，目前应用程序的编址方式是基于绝对位置的而并没做到与位置无关，内核也没有提供相应的重定位机制。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p>对于编址方式，需要再回顾一下编译原理课讲解的后端代码生成技术，以及计算机组成原理课的指令寻址方式的内容。可以在 <a class="reference external" href="https://nju-projectn.github.io/ics-pa-gitbook/ics2020/4.2.html">这里</a> 找到更多有关
@@ -321,8 +316,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id5">
 <h2>多道程序加载<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<p>应用的加载方式也和上一章的有所不同。上一章中讲解的加载方法是让所有应用都共享同一个固定的加载物理地址。也是因为这个原因，内存中同时最多只能驻留一个应用，当它运行完毕或者出错退出的时候由操作系统的 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块加载一个新的应用来替换掉它。本章中，所有的应用在内核初始化的时候就一并被加载到内存中。为了避免覆盖，它们自然需要被加载到不同的物理地址。这是通过
-调用 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">load_apps</span></code> 函数实现的：</p>
+<p>应用的加载方式也和上一章的有所不同。上一章中讲解的加载方法是让所有应用都共享同一个固定的加载物理地址。也是因为这个原因，内存中同时最多只能驻留一个应用，当它运行完毕或者出错退出的时候由操作系统的 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块加载一个新的应用来替换掉它。本章中，所有的应用在内核初始化的时候就一并被加载到内存中。为了避免覆盖，它们自然需要被加载到不同的物理地址。这是通过调用 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">load_apps</span></code> 函数实现的：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
 <span class="normal"> 2</span>
 <span class="normal"> 3</span>
@@ -386,8 +380,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w"> </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </td></tr></table></div>
-<p>可以看出，第 <span class="math notranslate nohighlight">\(i\)</span> 个应用被加载到以物理地址 <code class="docutils literal notranslate"><span class="pre">base_i</span></code> 开头的一段物理内存上，而 <code class="docutils literal notranslate"><span class="pre">base_i</span></code> 的
-计算方式如下：</p>
+<p>可以看出，第 <span class="math notranslate nohighlight">\(i\)</span> 个应用被加载到以物理地址 <code class="docutils literal notranslate"><span class="pre">base_i</span></code> 开头的一段物理内存上，而 <code class="docutils literal notranslate"><span class="pre">base_i</span></code> 的计算方式如下：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">1</span>
 <span class="normal">2</span>
 <span class="normal">3</span>
@@ -399,10 +392,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w"> </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </td></tr></table></div>
-<p>我们可以在 <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块中找到这两个常数。从这一章开始， <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块用来存放内核中所有的常数。看到
-<code class="docutils literal notranslate"><span class="pre">APP_BASE_ADDRESS</span></code> 被设置为 <code class="docutils literal notranslate"><span class="pre">0x80400000</span></code> ，而 <code class="docutils literal notranslate"><span class="pre">APP_SIZE_LIMIT</span></code> 和上一章一样被设置为
-<code class="docutils literal notranslate"><span class="pre">0x20000</span></code> ，也就是每个应用二进制镜像的大小限制。因此，应用的内存布局就很明朗了——就是从
-<code class="docutils literal notranslate"><span class="pre">APP_BASE_ADDRESS</span></code> 开始依次为每个应用预留一段空间。</p>
+<p>我们可以在 <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块中找到这两个常数。从这一章开始， <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块用来存放内核中所有的常数。看到 <code class="docutils literal notranslate"><span class="pre">APP_BASE_ADDRESS</span></code> 被设置为 <code class="docutils literal notranslate"><span class="pre">0x80400000</span></code> ，而 <code class="docutils literal notranslate"><span class="pre">APP_SIZE_LIMIT</span></code> 和上一章一样被设置为 <code class="docutils literal notranslate"><span class="pre">0x20000</span></code> ，也就是每个应用二进制镜像的大小限制。因此，应用的内存布局就很明朗了——就是从 <code class="docutils literal notranslate"><span class="pre">APP_BASE_ADDRESS</span></code> 开始依次为每个应用预留一段空间。</p>
 <p>这样，我们就说明了多个应用是如何被构建和加载的。</p>
 </div>
 <div class="section" id="id6">
