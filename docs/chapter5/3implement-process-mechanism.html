@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>实现进程机制 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>进程管理机制的设计实现 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
@@ -74,7 +74,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
     <link rel="next" title="chapter5 练习" href="4exercise.html" />
-    <link rel="prev" title="进程机制核心数据结构" href="2core-data-structures.html" /> 
+    <link rel="prev" title="进程管理的核心数据结构" href="2core-data-structures.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -126,11 +126,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">第五章：进程及重要系统调用</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第五章：进程及进程管理</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1process.html">进程概念及重要系统调用</a></li>
-<li class="toctree-l2"><a class="reference internal" href="2core-data-structures.html">进程机制核心数据结构</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">实现进程机制</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="2core-data-structures.html">进程管理的核心数据结构</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">进程管理机制的设计实现</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id3">初始进程的创建</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id4">进程调度机制</a></li>
@@ -140,10 +140,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l4"><a class="reference internal" href="#trap">系统调用后重新获取 Trap 上下文</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#id6">终端输入机制</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id7">进程资源回收机制</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id8">进程的退出</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id9">父进程回收子进程资源</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#user-shell">外壳程序-user_shell的输入机制</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">进程资源回收机制</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id7">进程的退出</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id8">父进程回收子进程资源</a></li>
 </ul>
 </li>
 </ul>
@@ -217,9 +217,9 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-          <li><a href="index.html">第五章：进程及重要系统调用</a> &raquo;</li>
+          <li><a href="index.html">第五章：进程及进程管理</a> &raquo;</li>
         
-      <li>实现进程机制</li>
+      <li>进程管理机制的设计实现</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -239,15 +239,15 @@ commentsRunWhenDOMLoaded(addUtterances);
            <div itemprop="articleBody">
             
   <div class="section" id="id1">
-<h1>实现进程机制<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<h1>进程管理机制的设计实现<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
-<p>本节将从如下四个方面介绍如何基于上一节设计的内核数据结构实现进程抽象机制：</p>
+<p>本节将从如下四个方面介绍如何基于上一节设计的内核数据结构来实现进程管理：</p>
 <ul class="simple">
 <li><p>初始进程 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> 的创建；</p></li>
 <li><p>进程调度机制：当进程主动调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 交出 CPU 使用权或者内核本轮分配的时间片用尽之后如何切换到下一个进程；</p></li>
 <li><p>进程生成机制：介绍进程相关的两个重要系统调用 <code class="docutils literal notranslate"><span class="pre">sys_fork/sys_exec</span></code> 的实现；</p></li>
-<li><p>终端输入机制：为了支持用户终端的输入，介绍 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用的实现；</p></li>
+<li><p>字符输入机制：为了支对外壳程序-user_shell获得字符输入，介绍 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用的实现；</p></li>
 <li><p>进程资源回收机制：当进程调用 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 正常退出或者出错被内核终止之后如何保存其退出码，其父进程又是如何通过 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 系统调用收集该进程的信息并回收其资源。</p></li>
 </ul>
 </div>
@@ -805,7 +805,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </td></tr></table></div>
 <p>应用在 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 系统调用中传递给内核的只有一个要执行的应用名字符串在当前应用地址空间中的起始地址，如果想在内核中具体获得字符串的话就需要手动查页表。第 3 行的 <code class="docutils literal notranslate"><span class="pre">translated_str</span></code> 便可以从内核地址空间之外的某个地址空间中拿到一个字符串，其原理就是逐字节查页表直到发现一个 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 为止。</p>
-<p>回到 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 的实现，它调用 <code class="docutils literal notranslate"><span class="pre">translated_str</span></code> 找到要执行的应用名并试图在应用加载器提供的 <code class="docutils literal notranslate"><span class="pre">get_app_data_by_name</span></code> 接口中找到对应的 ELF 数据。如果找到的话就调用 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::exec</span></code> 替换掉地址空间并返回 0。这个返回值其实并没有意义，因为我们在替换地址空间的时候本来就对 Trap 上下文重新进行了初始化。如果没有找到的话就不做任何事情并返回 -1，在用户终端中我们也正是通过这个返回值来判断要执行的应用是否存在。</p>
+<p>回到 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 的实现，它调用 <code class="docutils literal notranslate"><span class="pre">translated_str</span></code> 找到要执行的应用名并试图在应用加载器提供的 <code class="docutils literal notranslate"><span class="pre">get_app_data_by_name</span></code> 接口中找到对应的 ELF 数据。如果找到的话就调用 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::exec</span></code> 替换掉地址空间并返回 0。这个返回值其实并没有意义，因为我们在替换地址空间的时候本来就对 Trap 上下文重新进行了初始化。如果没有找到的话就不做任何事情并返回 -1，在外壳程序-user_shell中我们也正是通过这个返回值来判断要执行的应用是否存在。</p>
 </div>
 <div class="section" id="trap">
 <h3>系统调用后重新获取 Trap 上下文<a class="headerlink" href="#trap" title="永久链接至标题">¶</a></h3>
@@ -856,9 +856,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 </div>
 </div>
-<div class="section" id="id6">
-<h2>终端输入机制<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
-<p>为了实现用户终端的输入机制，我们需要实现 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用使得应用能够取得用户的键盘输入。</p>
+<div class="section" id="user-shell">
+<h2>外壳程序-user_shell的输入机制<a class="headerlink" href="#user-shell" title="永久链接至标题">¶</a></h2>
+<p>为了实现外壳程序-user_shell的输入机制，我们需要实现 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用使得应用能够取得用户的键盘输入。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
 
 <span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">sbi</span>::<span class="n">console_getchar</span><span class="p">;</span><span class="w"></span>
@@ -893,10 +893,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>目前我们仅支持从标准输入 <code class="docutils literal notranslate"><span class="pre">FD_STDIN</span></code> 即文件描述符 0 读入，且单次读入的长度限制为 1，即每次只能读入一个字符。我们调用 <code class="docutils literal notranslate"><span class="pre">sbi</span></code> 子模块提供的从键盘获取输入的接口 <code class="docutils literal notranslate"><span class="pre">console_getchar</span></code> ，如果返回 0 的话说明还没有输入，我们调用 <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 暂时切换到其他进程，等下次切换回来的时候再看看是否有输入了。获取到输入之后，我们退出循环并手动查页表将输入的字符正确的写入到应用地址空间。</p>
 </div>
+<div class="section" id="id6">
+<h2>进程资源回收机制<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
 <div class="section" id="id7">
-<h2>进程资源回收机制<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
-<div class="section" id="id8">
-<h3>进程的退出<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h3>
+<h3>进程的退出<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h3>
 <p>当应用调用 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 系统调用主动退出或者出错由内核终止之后，会在内核中调用 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 函数退出当前任务并切换到下一个。使用方法如下：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
@@ -1072,8 +1072,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>最后在第 41 行我们调用 <code class="docutils literal notranslate"><span class="pre">schedule</span></code> 触发调度及任务切换，由于我们再也不会回到该进程的执行过程中，因此无需关心任务上下文的保存。</p></li>
 </ul>
 </div>
-<div class="section" id="id9">
-<h3>父进程回收子进程资源<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id8">
+<h3>父进程回收子进程资源<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h3>
 <p>父进程通过 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 系统调用来回收子进程的资源并收集它的一些信息：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
@@ -1180,7 +1180,7 @@ commentsRunWhenDOMLoaded(addUtterances);
         <a href="4exercise.html" class="btn btn-neutral float-right" title="chapter5 练习" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="2core-data-structures.html" class="btn btn-neutral float-left" title="进程机制核心数据结构" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="2core-data-structures.html" class="btn btn-neutral float-left" title="进程管理的核心数据结构" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
