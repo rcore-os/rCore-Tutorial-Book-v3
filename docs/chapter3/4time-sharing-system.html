@@ -244,50 +244,27 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <div class="section" id="id3">
 <h3>分时多任务系统的背景<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<p id="term-throughput">上一节我们介绍了多道程序，它是一种允许应用在等待外设时主动切换到其他应用来达到总体 CPU 利用率最高的设计。那个时候，
-应用是不太注重自身的运行情况的，即使它 yield 交出 CPU 资源之后需要很久才能再拿到，使得它真正在 CPU 执行的相邻
-两时间段距离都很远，应用也是无所谓的。因为它们的目标是总体 CPU 利用率最高，可以换成一个等价的指标： <strong>吞吐量</strong>
-(Throughput) 。大概可以理解为在某个时间点将一组应用放进去，要求在一段固定的时间之内执行完毕的应用最多，或者是
-总进度百分比最大。因此，所有的应用和编写应用的程序员都有这样的共识：只要 CPU 一直在做实际的工作就好。</p>
-<p id="term-latency"><span id="term-interactive-application"></span><span id="term-background-application"></span>从现在的眼光来看，当时的应用更多是一种 <strong>后台应用</strong> (Background Application) ，在将它加入执行队列之后我们
-只需定期确认它的运行状态。而随着技术的发展，涌现了越来越多的 <strong>交互式应用</strong> (Interactive Application) ，
-它们要达成的一个重要目标就是提高用户操作的响应速度，这样才能优化应用的使用体验。对于这些应用而言，即使需要等待外设
-或某些事件，它们也不会倾向于主动 yield 交出 CPU 使用权，因为这样可能会带来无法接受的延迟。也就是说，应用之间相比
-合作更多的是互相竞争宝贵的硬件资源。</p>
-<p id="term-preemptive-scheduling"><span id="term-cooperative-scheduling"></span>如果应用自己很少 yield ，内核就要开始收回之前下放的权力，由它自己对 CPU 资源进行集中管理并合理分配给各应用，这就是
-内核需要提供的任务调度能力。我们可以将多道程序的调度机制分类成 <strong>协作式调度</strong> (Cooperative Scheduling) ，因为
-它的特征是：只要一个应用不主动 yield 交出 CPU 使用权，它就会一直执行下去。与之相对， <strong>抢占式调度</strong>
-(Preemptive Scheduling) 则是应用 <em>随时</em> 都有被内核切换出去的可能。</p>
-<p id="term-fairness"><span id="term-time-slice"></span>现代的任务调度算法基本都是抢占式的，它要求每个应用只能连续执行一段时间，然后内核就会将它强制性切换出去。一般将 <strong>时间片</strong>
-(Time Slice) 作为应用连续执行时长的度量单位，每个时间片可能在毫秒量级。调度算法需要考虑：每次在换出之前给
-一个应用多少时间片去执行，以及要换入哪个应用。可以从性能和 <strong>公平性</strong> (Fairness) 两个维度来评价调度算法，后者
-要求多个应用分到的时间片占比不应差距过大。</p>
+<p id="term-throughput">上一节我们介绍了多道程序，它是一种允许应用在等待外设时主动切换到其他应用来达到总体 CPU 利用率最高的设计。那个时候，应用是不太注重自身的运行情况的，即使它 yield 交出 CPU 资源之后需要很久才能再拿到，使得它真正在 CPU 执行的相邻两时间段距离都很远，应用也是无所谓的。因为它们的目标是总体 CPU 利用率最高，可以换成一个等价的指标： <strong>吞吐量</strong> (Throughput) 。大概可以理解为在某个时间点将一组应用放进去，要求在一段固定的时间之内执行完毕的应用最多，或者是总进度百分比最大。因此，所有的应用和编写应用的程序员都有这样的共识：只要 CPU 一直在做实际的工作就好。</p>
+<p id="term-latency"><span id="term-interactive-application"></span><span id="term-background-application"></span>从现在的眼光来看，当时的应用更多是一种 <strong>后台应用</strong> (Background Application) ，在将它加入执行队列之后我们只需定期确认它的运行状态。而随着技术的发展，涌现了越来越多的 <strong>交互式应用</strong> (Interactive Application) ，它们要达成的一个重要目标就是提高用户操作的响应速度，这样才能优化应用的使用体验。对于这些应用而言，即使需要等待外设或某些事件，它们也不会倾向于主动 yield 交出 CPU 使用权，因为这样可能会带来无法接受的延迟。也就是说，应用之间相比合作更多的是互相竞争宝贵的硬件资源。</p>
+<p id="term-preemptive-scheduling"><span id="term-cooperative-scheduling"></span>如果应用自己很少 yield ，内核就要开始收回之前下放的权力，由它自己对 CPU 资源进行集中管理并合理分配给各应用，这就是内核需要提供的任务调度能力。我们可以将多道程序的调度机制分类成 <strong>协作式调度</strong> (Cooperative Scheduling) ，因为它的特征是：只要一个应用不主动 yield 交出 CPU 使用权，它就会一直执行下去。与之相对， <strong>抢占式调度</strong> (Preemptive Scheduling) 则是应用 <em>随时</em> 都有被内核切换出去的可能。</p>
+<p id="term-fairness"><span id="term-time-slice"></span>现代的任务调度算法基本都是抢占式的，它要求每个应用只能连续执行一段时间，然后内核就会将它强制性切换出去。一般将 <strong>时间片</strong> (Time Slice) 作为应用连续执行时长的度量单位，每个时间片可能在毫秒量级。调度算法需要考虑：每次在换出之前给一个应用多少时间片去执行，以及要换入哪个应用。可以从性能和 <strong>公平性</strong> (Fairness) 两个维度来评价调度算法，后者要求多个应用分到的时间片占比不应差距过大。</p>
 </div>
 <div class="section" id="id4">
 <h3>时间片轮转调度<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
-<p id="term-round-robin">简单起见，本书中我们使用 <strong>时间片轮转算法</strong> (RR, Round-Robin) 来对应用进行调度，只要对它进行少许拓展就能完全满足我们后续的需求。
-本章中我们仅需要最原始的 RR 算法，用文字描述的话就是维护一个任务队列，每次从队头取出一个应用执行一个时间片，然后把它
-丢到队尾，再继续从队头取出一个应用，以此类推直到所有的应用执行完毕。</p>
+<p id="term-round-robin">简单起见，本书中我们使用 <strong>时间片轮转算法</strong> (RR, Round-Robin) 来对应用进行调度，只要对它进行少许拓展就能完全满足我们续的需求。本章中我们仅需要最原始的 RR 算法，用文字描述的话就是维护一个任务队列，每次从队头取出一个应用执行一个时间片，然后把它丢到队尾，再继续从队头取出一个应用，以此类推直到所有的应用执行完毕。</p>
 <p>本节的代码可以在 <code class="docutils literal notranslate"><span class="pre">ch3</span></code> 分支上找到。</p>
 </div>
 </div>
 <div class="section" id="risc-v">
 <h2>RISC-V 架构中的中断<a class="headerlink" href="#risc-v" title="永久链接至标题">¶</a></h2>
 <p id="term-async"><span id="term-sync"></span><span id="term-interrupt"></span>时间片轮转调度的核心机制就在于计时。操作系统的计时功能是依靠硬件提供的时钟中断来实现的。在介绍时钟中断之前，我们先简单介绍一下中断。</p>
-<p><strong>中断</strong> (Interrupt) 和我们第二章中介绍的 用于系统调用的 <strong>陷入</strong>  <code class="docutils literal notranslate"><span class="pre">Trap</span></code> 一样都是异常 ，但是它们被触发的原因确是不同的。对于某个处理器核而言， <strong>陷入</strong> 与发起  <strong>陷入</strong> 的指令执行是 <strong>同步</strong> (Synchronous) 的， <strong>陷入</strong>
-被触发的原因一定能够追溯到某条指令的执行；而中断则 <strong>异步</strong> (Asynchronous) 于当前正在进行的指令，也就是说中断来自于哪个
-外设以及中断如何触发完全与处理器正在执行的当前指令无关。</p>
+<p><strong>中断</strong> (Interrupt) 和我们第二章中介绍的 用于系统调用的 <strong>陷入</strong>  <code class="docutils literal notranslate"><span class="pre">Trap</span></code> 一样都是异常 ，但是它们被触发的原因确是不同的。对于某个处理器核而言， <strong>陷入</strong> 与发起  <strong>陷入</strong> 的指令执行是 <strong>同步</strong> (Synchronous) 的， <strong>陷入</strong> 被触发的原因一定能够追溯到某条指令的执行；而中断则 <strong>异步</strong> (Asynchronous) 于当前正在进行的指令，也就是说中断来自于哪个外设以及中断如何触发完全与处理器正在执行的当前指令无关。</p>
 <div class="admonition note" id="term-parallel">
 <p class="admonition-title">注解</p>
 <p><strong>从底层硬件的角度区分同步和异步</strong></p>
 <p>从底层硬件的角度可能更容易理解这里所提到的同步和异步。以一个处理器传统的五级流水线设计而言，里面含有取指、译码、算术、
-访存、寄存器等单元，都属于执行指令所需的硬件资源。那么假如某条指令的执行出现了问题，一定能被其中某个单元看到并反馈给流水线
-控制单元，从而它会在执行预定的下一条指令之前先进入异常处理流程。也就是说，异常在这些单元内部即可被发现并解决。</p>
-<p>而对于中断，可以想象为想发起中断的是一套完全
-不同的电路（从时钟中断来看就是简单的计数和比较器），这套电路仅通过一根导线接入进来，当想要触发中断的时候则输入一个高电平
-或正边沿，处理器会在每执行完一条指令之后检查一下这根线，看情况决定是继续执行接下来的指令还是进入中断处理流程。也就是说，
-大多数情况下，指令执行的相关硬件单元和可能发起中断的电路是完全独立 <strong>并行</strong> (Parallel) 运行的，它们中间只有一根导线相连
-，除此之外指令执行的那些单元就完全不知道对方处于什么状态了。</p>
+访存、寄存器等单元，都属于执行指令所需的硬件资源。那么假如某条指令的执行出现了问题，一定能被其中某个单元看到并反馈给流水线控制单元，从而它会在执行预定的下一条指令之前先进入异常处理流程。也就是说，异常在这些单元内部即可被发现并解决。</p>
+<p>而对于中断，可以想象为想发起中断的是一套完全不同的电路（从时钟中断来看就是简单的计数和比较器），这套电路仅通过一根导线接入进来，当想要触发中断的时候则输入一个高电平或正边沿，处理器会在每执行完一条指令之后检查一下这根线，看情况决定是继续执行接下来的指令还是进入中断处理流程。也就是说，大多数情况下，指令执行的相关硬件单元和可能发起中断的电路是完全独立 <strong>并行</strong> (Parallel) 运行的，它们中间只有一根导线相连，除此之外指令执行的那些单元就完全不知道对方处于什么状态了。</p>
 </div>
 <p>在不考虑指令集拓展的情况下，RISC-V 架构中定义了如下中断：</p>
 <table class="colwidths-given docutils align-center" id="id8">
@@ -336,60 +313,42 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p><strong>时钟中断</strong> (Timer Interrupt)</p></li>
 <li><p><strong>外部中断</strong> (External Interrupt)</p></li>
 </ul>
-<p>另外，相比异常，中断和特权级之间的联系更为紧密，可以看到这三种中断每一个都有 M/S 特权级两个版本。中断的特权级可以
-决定该中断是否会被屏蔽，以及需要 Trap 到 CPU 的哪个特权级进行处理。</p>
+<p>另外，相比异常，中断和特权级之间的联系更为紧密，可以看到这三种中断每一个都有 M/S 特权级两个版本。中断的特权级可以决定该中断是否会被屏蔽，以及需要 Trap 到 CPU 的哪个特权级进行处理。</p>
 <p>在判断中断是否会被屏蔽的时候，有以下规则：</p>
 <ul class="simple">
 <li><p>如果中断的特权级低于 CPU 当前的特权级，则该中断会被屏蔽，不会被处理；</p></li>
 <li><p>如果中断的特权级高于与 CPU 当前的特权级或相同，则需要通过相应的 CSR 判断该中断是否会被屏蔽。</p></li>
 </ul>
-<p>以内核所在的 S 特权级为例，中断屏蔽相应的 CSR 有 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 。<code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 的 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 为 S 特权级
-的中断使能，能够同时控制三种中断，如果将其清零则会将它们全部屏蔽。即使 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 置 1 ，还要看 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 这个
-CSR，它的三个字段  <code class="docutils literal notranslate"><span class="pre">ssie/stie/seie</span></code> 分别控制 S 特权级的软件中断、时钟中断和外部中断的中断使能。比如对于 S 态时钟
-中断来说，如果 CPU 不高于 S 特权级，需要 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sie.stie</span></code> 均为 1 该中断才不会被屏蔽；如果 CPU
-当前特权级高于 S 特权级，则该中断一定会被屏蔽。</p>
-<p>如果中断没有被屏蔽，那么接下来就需要 Trap 进行处理，而具体 Trap 到哪个特权级与一些中断代理 CSR 的设置有关。默认情况
-下，所有的中断都需要 Trap 到 M 特权级处理。而设置这些代理 CSR 之后，就可以 Trap 到低特权级处理，但是 Trap 到的特权
-级不能低于中断的特权级。事实上所有的异常默认也都是 Trap 到 M 特权级处理的，它们也有一套对应的异常代理 CSR ，设置之后
-也可以 Trap 到低优先级来处理异常。</p>
+<p>以内核所在的 S 特权级为例，中断屏蔽相应的 CSR 有 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 。<code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 的 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 为 S 特权级的中断使能，能够同时控制三种中断，如果将其清零则会将它们全部屏蔽。即使 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 置 1 ，还要看 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 这个 CSR，它的三个字段  <code class="docutils literal notranslate"><span class="pre">ssie/stie/seie</span></code> 分别控制 S 特权级的软件中断、时钟中断和外部中断的中断使能。比如对于 S 态时钟中断来说，如果 CPU 不高于 S 特权级，需要 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sie.stie</span></code> 均为 1 该中断才不会被屏蔽；如果 CPU 当前特权级高于 S 特权级，则该中断一定会被屏蔽。</p>
+<p>如果中断没有被屏蔽，那么接下来就需要 Trap 进行处理，而具体 Trap 到哪个特权级与一些中断代理 CSR 的设置有关。默认情况下，所有的中断都需要 Trap 到 M 特权级处理。而设置这些代理 CSR 之后，就可以 Trap 到低特权级处理，但是 Trap 到的特权级不能低于中断的特权级。事实上所有的异常默认也都是 Trap 到 M 特权级处理的，它们也有一套对应的异常代理 CSR ，设置之后也可以 Trap 到低优先级来处理异常。</p>
 <p>我们会在 <a class="reference internal" href="../appendix-c/index.html"><span class="doc">附录 C：深入机器模式：RustSBI</span></a> 中再深入介绍中断/异常代理。在正文中我们只需要了解：</p>
 <ul class="simple">
 <li><p>包括系统调用（即来自 U 特权级的环境调用）在内的所有异常都会 Trap 到 S 特权级处理；</p></li>
 <li><p>只需考虑 S 特权级的时钟/软件/外部中断，且它们都会被 Trap 到 S 特权级处理。</p></li>
 </ul>
-<p>默认情况下，当 Trap 进入某个特权级之后，在 Trap 处理的过程中同特权级的中断都会被屏蔽。这里我们还需要对第二章介绍的
-Trap 发生时的硬件机制做一下补充，同样以 Trap 到 S 特权级为例：</p>
+<p>默认情况下，当 Trap 进入某个特权级之后，在 Trap 处理的过程中同特权级的中断都会被屏蔽。这里我们还需要对第二章介绍的 Trap 发生时的硬件机制做一下补充，同样以 Trap 到 S 特权级为例：</p>
 <ul class="simple">
-<li><p>当 Trap 发生时，<code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 会被保存在 <code class="docutils literal notranslate"><span class="pre">sstatus.spie</span></code> 字段中，同时 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 置零，这也就在
-Trap 处理的过程中屏蔽了所有 S 特权级的中断；</p></li>
+<li><p>当 Trap 发生时，<code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 会被保存在 <code class="docutils literal notranslate"><span class="pre">sstatus.spie</span></code> 字段中，同时 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 置零，这也就在 Trap 处理的过程中屏蔽了所有 S 特权级的中断；</p></li>
 <li><p>当 Trap 处理完毕 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 的时候， <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 会恢复到 <code class="docutils literal notranslate"><span class="pre">sstatus.spie</span></code> 内的值。</p></li>
 </ul>
-<p id="term-nested-interrupt">也就是说，如果不去手动设置 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> CSR ，在只考虑 S 特权级中断的情况下，是不会出现 <strong>嵌套中断</strong>
-(Nested Interrupt) 的。嵌套中断是指在处理一个中断的过程中再一次触发了中断从而通过 Trap 来处理。由于默认情况下
-一旦进入 Trap 硬件就自动禁用所有同特权级中断，自然也就不会再次触发中断导致嵌套中断了。</p>
+<p id="term-nested-interrupt">也就是说，如果不去手动设置 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> CSR ，在只考虑 S 特权级中断的情况下，是不会出现 <strong>嵌套中断</strong> (Nested Interrupt) 的。嵌套中断是指在处理一个中断的过程中再一次触发了中断从而通过 Trap 来处理。由于默认情况下一旦进入 Trap 硬件就自动禁用所有同特权级中断，自然也就不会再次触发中断导致嵌套中断了。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>嵌套中断与嵌套 Trap</strong></p>
-<p>嵌套中断可以分为两部分：在处理一个中断的过程中又被同特权级/高特权级中断所打断。默认情况下硬件会避免前一部分，
-也可以通过手动设置来允许前一部分的存在；而从上面介绍的规则可以知道，后一部分则是无论如何设置都不可避免的。</p>
+<p>嵌套中断可以分为两部分：在处理一个中断的过程中又被同特权级/高特权级中断所打断。默认情况下硬件会避免前一部分，也可以通过手动设置来允许前一部分的存在；而从上面介绍的规则可以知道，后一部分则是无论如何设置都不可避免的。</p>
 <p>嵌套 Trap 则是指处理一个 Trap 过程中又再次发生 Trap ，嵌套中断算是嵌套 Trap 的一部分。</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>RISC-V 架构的 U 特权级中断</strong></p>
-<p>目前，RISC-V 用户态中断作为代号 N 的一个指令集拓展而存在。有兴趣的读者可以阅读最新版的 RISC-V 特权级架构
-规范一探究竟。</p>
+<p>目前，RISC-V 用户态中断作为代号 N 的一个指令集拓展而存在。有兴趣的读者可以阅读最新版的 RISC-V 特权级架构规范一探究竟。</p>
 </div>
 </div>
 <div class="section" id="id5">
 <h2>时钟中断与计时器<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<p>由于需要一种计时机制，RISC-V 架构要求处理器要有一个内置时钟，其频率一般低于 CPU 主频。此外，还有一个计数器统计处理器
-自上电以来经过了多少个内置时钟的时钟周期。在 RV64 架构上，该计数器保存在一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 中，我们无需担
-心它的溢出问题，在内核运行全程可以认为它是一直递增的。</p>
-<p>另外一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的作用是：一旦计数器 <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 的值超过了 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code>，就会触发一次时钟中断。
-这使得我们可以方便的通过设置 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的值来决定下一次时钟中断何时触发。</p>
-<p>可惜的是，它们都是 M 特权级的 CSR ，而我们的内核处在 S 特权级，是不被硬件允许直接访问它们的。好在运行在 M 特权级的 SEE
-已经预留了相应的接口，我们可以调用它们来间接实现计时器的控制：</p>
+<p>由于需要一种计时机制，RISC-V 架构要求处理器要有一个内置时钟，其频率一般低于 CPU 主频。此外，还有一个计数器统计处理器自上电以来经过了多少个内置时钟的时钟周期。在 RV64 架构上，该计数器保存在一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 中，我们无需担心它的溢出问题，在内核运行全程可以认为它是一直递增的。</p>
+<p>另外一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的作用是：一旦计数器 <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 的值超过了 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code>，就会触发一次时钟中断。这使得我们可以方便的通过设置 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的值来决定下一次时钟中断何时触发。</p>
+<p>可惜的是，它们都是 M 特权级的 CSR ，而我们的内核处在 S 特权级，是不被硬件允许直接访问它们的。好在运行在 M 特权级的 SEE 已经预留了相应的接口，我们可以调用它们来间接实现计时器的控制：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/timer.rs</span>
 
 <span class="k">use</span><span class="w"> </span><span class="n">riscv</span>::<span class="n">register</span>::<span class="n">time</span><span class="p">;</span><span class="w"></span>
@@ -434,13 +393,9 @@ Trap 处理的过程中屏蔽了所有 S 特权级的中断；</p></li>
 </pre></div>
 </td></tr></table></div>
 <ul>
-<li><p>代码片段第 5 行， <code class="docutils literal notranslate"><span class="pre">sbi</span></code> 子模块有一个 <code class="docutils literal notranslate"><span class="pre">set_timer</span></code> 调用，是一个由 SEE 提供的标准 SBI 接口函数，
-它可以用来设置 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的值。</p></li>
-<li><p>代码片段第 14 行， <code class="docutils literal notranslate"><span class="pre">timer</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">set_next_trigger</span></code> 函数对 <code class="docutils literal notranslate"><span class="pre">set_timer</span></code> 进行了封装，它首先读取
-当前 <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 的值，然后计算出 10ms 之内计数器的增量，再将 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 设置为二者的和。这样，10ms 之后
-一个 S 特权级时钟中断就会被触发。</p>
-<p>至于增量的计算方式， <code class="docutils literal notranslate"><span class="pre">CLOCK_FREQ</span></code> 是一个预先获取到的各平台不同的时钟频率，单位为赫兹，也就是一秒钟之内计数器
-的增量。它可以在 <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块中找到。10ms 的话只需除以常数 <code class="docutils literal notranslate"><span class="pre">TICKS_PER_SEC</span></code> 也就是 100 即可。</p>
+<li><p>代码片段第 5 行， <code class="docutils literal notranslate"><span class="pre">sbi</span></code> 子模块有一个 <code class="docutils literal notranslate"><span class="pre">set_timer</span></code> 调用，是一个由 SEE 提供的标准 SBI 接口函数，它可以用来设置 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的值。</p></li>
+<li><p>代码片段第 14 行， <code class="docutils literal notranslate"><span class="pre">timer</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">set_next_trigger</span></code> 函数对 <code class="docutils literal notranslate"><span class="pre">set_timer</span></code> 进行了封装，它首先读取当前 <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 的值，然后计算出 10ms 之内计数器的增量，再将 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 设置为二者的和。这样，10ms 之后一个 S 特权级时钟中断就会被触发。</p>
+<p>至于增量的计算方式， <code class="docutils literal notranslate"><span class="pre">CLOCK_FREQ</span></code> 是一个预先获取到的各平台不同的时钟频率，单位为赫兹，也就是一秒钟之内计数器的增量。它可以在 <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块中找到。10ms 的话只需除以常数 <code class="docutils literal notranslate"><span class="pre">TICKS_PER_SEC</span></code> 也就是 100 即可。</p>
 </li>
 </ul>
 <p>后面可能还有一些计时的操作，比如统计一个应用的运行时长的需求，我们再设计一个函数：</p>
@@ -453,8 +408,7 @@ Trap 处理的过程中屏蔽了所有 S 特权级的中断；</p></li>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">timer</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">get_time_ms</span></code> 可以以毫秒为单位返回当前计数器的值，这让我们终于能对时间有一个具体概念了。
-实现原理就不再赘述。</p>
+<p><code class="docutils literal notranslate"><span class="pre">timer</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">get_time_ms</span></code> 可以以毫秒为单位返回当前计数器的值，这让我们终于能对时间有一个具体概念了。实现原理就不再赘述。</p>
 <p>我们也新增一个系统调用方便应用获取当前的时间，以毫秒为单位：</p>
 <div class="literal-block-wrapper docutils container" id="id9">
 <div class="code-block-caption"><span class="caption-text">第三章新增系统调用（二）</span><a class="headerlink" href="#id9" title="永久链接至代码">¶</a></div>
@@ -480,8 +434,7 @@ Trap 处理的过程中屏蔽了所有 S 特权级的中断；</p></li>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>我们只需在 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 函数下新增一个分支，当发现触发了一个 S 特权级时钟中断的时候，首先重新设置一个 10ms
-的计时器，然后调用上一小节提到的 <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 函数暂停当前应用并切换到下一个。</p>
+<p>我们只需在 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 函数下新增一个分支，当发现触发了一个 S 特权级时钟中断的时候，首先重新设置一个 10ms 的计时器，然后调用上一小节提到的 <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 函数暂停当前应用并切换到下一个。</p>
 <p>为了避免 S 特权级时钟中断被屏蔽，我们需要在执行第一个应用之前进行一些初始化设置：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
@@ -530,13 +483,8 @@ Trap 处理的过程中屏蔽了所有 S 特权级的中断；</p></li>
 <li><p>第 9 行设置了 <code class="docutils literal notranslate"><span class="pre">sie.stie</span></code> 使得 S 特权级时钟中断不会被屏蔽；</p></li>
 <li><p>第 10 行则是设置第一个 10ms 的计时器。</p></li>
 </ul>
-<p>这样，当一个应用运行了 10ms 之后，一个 S 特权级时钟中断就会被触发。由于应用运行在 U 特权级，且 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 寄存器被正确
-设置，该中断不会被屏蔽，而是 Trap 到 S 特权级内的我们的 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 里面进行处理，并顺利切换到下一个应用。这
-便是我们所期望的抢占式调度机制。从应用运行的结果也可以看出，三个 <code class="docutils literal notranslate"><span class="pre">power</span></code> 系列应用并没有进行 yield ，而是由内核负责
-公平分配它们执行的时间片。</p>
-<p>目前在等待某些事件的时候仍然需要 yield ，其中一个原因是为了节约 CPU 计算资源，另一个原因是当事件依赖于其他的应用的时候
-，由于只有一个 CPU ，当前应用的等待可能永远不会结束。这种情况下需要先将它切换出去，使得其他的应用到达它所期待的状态并
-满足事件的生成条件，再切换回来。</p>
+<p>这样，当一个应用运行了 10ms 之后，一个 S 特权级时钟中断就会被触发。由于应用运行在 U 特权级，且 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 寄存器被正确设置，该中断不会被屏蔽，而是 Trap 到 S 特权级内的我们的 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 里面进行处理，并顺利切换到下一个应用。这便是我们所期望的抢占式调度机制。从应用运行的结果也可以看出，三个 <code class="docutils literal notranslate"><span class="pre">power</span></code> 系列应用并没有进行 yield ，而是由内核负责公平分配它们执行的时间片。</p>
+<p>目前在等待某些事件的时候仍然需要 yield ，其中一个原因是为了节约 CPU 计算资源，另一个原因是当事件依赖于其他的应用的时候，由于只有一个 CPU ，当前应用的等待可能永远不会结束。这种情况下需要先将它切换出去，使得其他的应用到达它所期待的状态并满足事件的生成条件，再切换回来。</p>
 <p id="term-busy-loop">这里我们先通过 yield 来优化 <strong>轮询</strong> (Busy Loop) 过程带来的 CPU 资源浪费。在 <code class="docutils literal notranslate"><span class="pre">03sleep</span></code> 这个应用中：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/bin/03sleep.rs</span>
 
@@ -552,9 +500,7 @@ Trap 处理的过程中屏蔽了所有 S 特权级的中断；</p></li>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>它的功能是等待 3000ms 然后退出。可以看出，我们会在循环里面 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 来主动交出 CPU 而不是无意义的忙等。尽管
-我们不这样做，已有的抢占式调度还是会在它循环 10ms 之后切换到其他应用，但是这样能让内核给其他应用分配更多的 CPU
-资源并让它们更早运行结束。</p>
+<p>它的功能是等待 3000ms 然后退出。可以看出，我们会在循环里面 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 来主动交出 CPU 而不是无意义的忙等。尽管我们不这样做，已有的抢占式调度还是会在它循环 10ms 之后切换到其他应用，但是这样能让内核给其他应用分配更多的 CPU 资源并让它们更早运行结束。</p>
 </div>
 <div class="section" id="id7">
 <h2>三叠纪“腔骨龙”抢占式操作系统<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
