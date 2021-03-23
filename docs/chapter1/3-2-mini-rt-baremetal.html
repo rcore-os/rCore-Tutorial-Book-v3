@@ -316,16 +316,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>这需要从 CPU 加电后如何初始化，如何执行第一条指令开始讲起。对于我们采用的QEMU模拟器而言，它模拟了一台标准的RISC-V64计算机。我们启动QEMU时，可设置一些参数，在RISC-V64计算机启动执行前，先在其模拟的内存中放置好BootLoader程序和操作系统的二进制代码。这可以通过查看 <code class="docutils literal notranslate"><span class="pre">os/Makefile</span></code> 文件中包含 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 的相关内容来了解。</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">-bios</span> <span class="pre">$(BOOTLOADER)</span></code> 这个参数意味着硬件内存中的固定位置 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 处放置了一个BootLoader程序–RustSBI（戳 <a class="reference internal" href="../appendix-c/index.html"><span class="doc">附录 C：深入机器模式：RustSBI</span></a> 可以进一步了解RustSBI。）。</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-device</span> <span class="pre">loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)</span></code> 这个参数表示硬件内存中的特定位置 <code class="docutils literal notranslate"><span class="pre">$(KERNEL_ENTRY_PA)</span></code> 放置了操作系统的二进制代码 <code class="docutils literal notranslate"><span class="pre">$(KERNEL_BIN)</span></code> 。 <code class="docutils literal notranslate"><span class="pre">$(KERNEL_ENTRY_PA)</span></code> 的值是 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-device</span> <span class="pre">loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)</span></code> 这个参数表示硬件内存中的特定位置 <code class="docutils literal notranslate"><span class="pre">$(KERNEL_ENTRY_PA)</span></code> 放置了操作系统的二进制代码 <code class="docutils literal notranslate"><span class="pre">$(KERNEL_BIN)</span></code> 。 <code class="docutils literal notranslate"><span class="pre">$(KERNEL_ENTRY_PA)</span></code> 的值是 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 。</p></li>
 </ul>
 <p>当我们执行包含上次参数的qemu-system-riscv64软件，就意味给这台虚拟的RISC-V64计算机加电了。此时，CPU的其它通用寄存器清零，
 而PC寄存器会指向 <code class="docutils literal notranslate"><span class="pre">0x1000</span></code> 的位置。
 这个 <code class="docutils literal notranslate"><span class="pre">0x1000</span></code> 位置上是CPU加电后执行的第一条指令（固化在硬件中的一小段引导代码），它会很快跳转到 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 处，
 即RustSBI的第一条指令。RustSBI完成基本的硬件初始化后，
-会跳转操作系统的二进制代码 <code class="docutils literal notranslate"><span class="pre">$(KERNEL_BIN)</span></code> 所在内存位置 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> ，执行操作系统的第一条指令。
+会跳转操作系统的二进制代码 <code class="docutils literal notranslate"><span class="pre">$(KERNEL_BIN)</span></code> 所在内存位置 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> ，执行操作系统的第一条指令。
 这时我们的编写的操作系统才开始正式工作。</p>
 <p>为啥在 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 放置 <code class="docutils literal notranslate"><span class="pre">Bootloader</span></code> ？因为这是QEMU的硬件模拟代码中设定好的 <code class="docutils literal notranslate"><span class="pre">Bootloader</span></code> 的起始地址。</p>
-<p>为啥在 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 放置 <code class="docutils literal notranslate"><span class="pre">os</span></code> ？因为这是 <code class="docutils literal notranslate"><span class="pre">Bootloader--RustSBI</span></code> 的代码中设定好的 <code class="docutils literal notranslate"><span class="pre">os</span></code>  的起始地址。</p>
+<p>为啥在 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 放置 <code class="docutils literal notranslate"><span class="pre">os</span></code> ？因为这是 <code class="docutils literal notranslate"><span class="pre">Bootloader--RustSBI</span></code> 的代码中设定好的 <code class="docutils literal notranslate"><span class="pre">os</span></code>  的起始地址。</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
@@ -384,12 +384,12 @@ RustSBI提供的SBI服务的SBI调用的指令也是 <code class="docutils liter
 <span class="gp">$</span> rust-objcopy --binary-architecture<span class="o">=</span>riscv64 target/riscv64gc-unknown-none-elf/release/os --strip-all -O binary target/riscv64gc-unknown-none-elf/release/os.bin
 
 <span class="gp">#</span>加载运行
-<span class="gp">$</span> qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80020000
+<span class="gp">$</span> qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80200000
 <span class="gp">#</span> 无法退出，风扇狂转，感觉碰到死循环
 </pre></div>
 </div>
 <p>这样的结果是我们不期望的。问题在哪？仔细查看和思考，操作系统的入口地址不对！对 <code class="docutils literal notranslate"><span class="pre">os</span></code> ELF执行程序，通过rust-readobj分析，看到的入口地址不是
-RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 。我们需要修改 <code class="docutils literal notranslate"><span class="pre">os</span></code> ELF执行程序的内存布局。</p>
+RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 。我们需要修改 <code class="docutils literal notranslate"><span class="pre">os</span></code> ELF执行程序的内存布局。</p>
 </div>
 <div class="section" id="id7">
 <h2>设置正确的程序内存布局<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
@@ -459,7 +459,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 44
 45</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="n">OUTPUT_ARCH</span><span class="p">(</span><span class="n">riscv</span><span class="p">)</span>
 <span class="n">ENTRY</span><span class="p">(</span><span class="n">_start</span><span class="p">)</span>
-<span class="n">BASE_ADDRESS</span> <span class="o">=</span> <span class="mh">0x80020000</span><span class="p">;</span>
+<span class="n">BASE_ADDRESS</span> <span class="o">=</span> <span class="mh">0x80200000</span><span class="p">;</span>
 
 <span class="n">SECTIONS</span>
 <span class="p">{</span>
@@ -505,7 +505,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 </pre></div>
 </td></tr></table></div>
 <p>第 1 行我们设置了目标平台为 riscv ；第 2 行我们设置了整个程序的入口点为之前定义的全局符号 <code class="docutils literal notranslate"><span class="pre">_start</span></code>；
-第 3 行定义了一个常量 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 为 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> ，也就是我们之前提到的期望我们自己实现的初始化代码被放在的地址；</p>
+第 3 行定义了一个常量 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 为 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> ，也就是我们之前提到的期望我们自己实现的初始化代码被放在的地址；</p>
 <p>从第 5 行开始体现了链接过程中对输入的目标文件的段的合并。其中 <code class="docutils literal notranslate"><span class="pre">.</span></code> 表示当前地址，也就是链接器会从它指向的位置开始往下放置从输入的目标文件
 中收集来的段。我们可以对 <code class="docutils literal notranslate"><span class="pre">.</span></code> 进行赋值来调整接下来的段放在哪里，也可以创建一些全局符号赋值为 <code class="docutils literal notranslate"><span class="pre">.</span></code> 从而记录这一时刻的位置。我们还能够
 看到这样的格式：</p>
@@ -521,26 +521,26 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 且每个段都有两个全局符号给出了它的开始和结束地址（比如 <code class="docutils literal notranslate"><span class="pre">.text</span></code> 段的开始和结束地址分别是 <code class="docutils literal notranslate"><span class="pre">stext</span></code> 和 <code class="docutils literal notranslate"><span class="pre">etext</span></code> ）。</p>
 <p>为了说明当前实现的正确性，我们需要讨论这样一个问题：</p>
 <ol class="arabic">
-<li><p>如何做到执行环境的初始化代码被放在内存上以 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 开头的区域上？</p>
+<li><p>如何做到执行环境的初始化代码被放在内存上以 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 开头的区域上？</p>
 <blockquote>
-<div><p>在链接脚本第 7 行，我们将当前地址设置为 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 也即 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> ，然后从这里开始往高地址放置各个段。第一个被放置的
+<div><p>在链接脚本第 7 行，我们将当前地址设置为 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 也即 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> ，然后从这里开始往高地址放置各个段。第一个被放置的
 是 <code class="docutils literal notranslate"><span class="pre">.text</span></code> ，而里面第一个被放置的又是来自 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 中的段 <code class="docutils literal notranslate"><span class="pre">.text.entry</span></code>，这个段恰恰是含有两条指令的执行环境初始化代码，
-它在所有段中最早被放置在我们期望的 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 处。</p>
+它在所有段中最早被放置在我们期望的 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处。</p>
 </div></blockquote>
 </li>
 </ol>
 <p>这样一来，我们就将运行时重建完毕了。在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录下 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span> <span class="pre">--release</span></code> 或者直接 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">build</span></code> 就能够看到
 最终生成的可执行文件 <code class="docutils literal notranslate"><span class="pre">target/riscv64gc-unknown-none-elf/release/os</span></code> 。
-通过分析，我们看到 <code class="docutils literal notranslate"><span class="pre">0x80020000</span></code> 处的代码是我们预期的 <code class="docutils literal notranslate"><span class="pre">_start()</span></code> 函数的内容。我们采用刚才的编译运行方式进行试验，发现还是同样的错误结果。
+通过分析，我们看到 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处的代码是我们预期的 <code class="docutils literal notranslate"><span class="pre">_start()</span></code> 函数的内容。我们采用刚才的编译运行方式进行试验，发现还是同样的错误结果。
 问题出在哪里？这时需要用上 <code class="docutils literal notranslate"><span class="pre">debug</span></code> 大法了。</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span> 在一个终端执行如下命令：
-<span class="gp">$</span> qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80020000 -S -s
+<span class="gp">$</span> qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80200000 -S -s
 
 <span class="gp">#</span> 在另外一个终端执行如下命令：
 <span class="gp">$</span> rust-gdb target/riscv64gc-unknown-none-elf/release/os
 <span class="go">(gdb) target remote :1234</span>
-<span class="go">(gdb) break *0x80020000</span>
-<span class="go">(gdb) x /16i 0x80020000</span>
+<span class="go">(gdb) break *0x80200000</span>
+<span class="go">(gdb) x /16i 0x80200000</span>
 <span class="go">(gdb) si</span>
 </pre></div>
 </div>
@@ -632,7 +632,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 &gt; -machine virt <span class="se">\</span>
 &gt; -nographic <span class="se">\</span>
 &gt; -bios ../bootloader/rustsbi-qemu.bin <span class="se">\</span>
-&gt; -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80020000
+&gt; -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80200000
 <span class="go">[rustsbi] Version 0.1.0</span>
 <span class="go">.______       __    __      _______.___________.  _______..______   __</span>
 <span class="go">|   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |</span>
@@ -645,7 +645,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <span class="go">[rustsbi] misa: RV64ACDFIMSU</span>
 <span class="go">[rustsbi] mideleg: 0x222</span>
 <span class="go">[rustsbi] medeleg: 0xb1ab</span>
-<span class="go">[rustsbi] Kernel entry: 0x80020000</span>
+<span class="go">[rustsbi] Kernel entry: 0x80200000</span>
 <span class="gp">#</span> “优雅”地退出了。
 </pre></div>
 </div>
@@ -706,7 +706,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <p>可以看到主要就只是把之前的操作系统系统调用改为了SBI调用。然后我们再编译运行试试，</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo build
 <span class="gp">$</span> rust-objcopy --binary-architecture<span class="o">=</span>riscv64 target/riscv64gc-unknown-none-elf/debug/os --strip-all -O binary target/riscv64gc-unknown-none-elf/debug/os.bin
-<span class="gp">$</span> qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/debug/os.bin,addr<span class="o">=</span>0x80020000
+<span class="gp">$</span> qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/debug/os.bin,addr<span class="o">=</span>0x80200000
 
 <span class="go">[rustsbi] Version 0.1.0</span>
 <span class="go">.______       __    __      _______.___________.  _______..______   __</span>
@@ -720,7 +720,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <span class="go">[rustsbi] misa: RV64ACDFIMSU</span>
 <span class="go">[rustsbi] mideleg: 0x222</span>
 <span class="go">[rustsbi] medeleg: 0xb1ab</span>
-<span class="go">[rustsbi] Kernel entry: 0x80020000</span>
+<span class="go">[rustsbi] Kernel entry: 0x80200000</span>
 <span class="go">Hello, world!</span>
 </pre></div>
 </div>
@@ -750,7 +750,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
     -machine virt <span class="se">\</span>
     -nographic <span class="se">\</span>
     -bios ../bootloader/rustsbi-qemu.bin <span class="se">\</span>
-    -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80020000
+    -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80200000
 
 <span class="go">    [rustsbi] Version 0.1.0</span>
 <span class="go">    .______       __    __      _______.___________.  _______..______   __</span>
@@ -764,7 +764,7 @@ RustSBIS约定的 <code class="docutils literal notranslate"><span class="pre">0
 <span class="go">    [rustsbi] misa: RV64ACDFIMSU</span>
 <span class="go">    [rustsbi] mideleg: 0x222</span>
 <span class="go">    [rustsbi] medeleg: 0xb1ab</span>
-<span class="go">    [rustsbi] Kernel entry: 0x80020000</span>
+<span class="go">    [rustsbi] Kernel entry: 0x80200000</span>
 <span class="go">    Hello, world!</span>
 <span class="go">    Panicked at src/main.rs:95 It should shutdown!</span>
 </pre></div>
