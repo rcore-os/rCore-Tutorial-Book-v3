@@ -138,7 +138,7 @@
    │   └── rustsbi-qemu.bin
    ├── LICENSE
    ├── os
-   │   ├── build.rs(修改：基于应用名的应用链接器)
+   │   ├── build.rs(修改：基于应用名的应用构建器)
    │   ├── Cargo.toml
    │   ├── Makefile
    │   └── src
