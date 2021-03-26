@@ -8,13 +8,24 @@ rCore-Tutorial-Book 第三版
 
 .. toctree::
    :maxdepth: 2
-   :caption: 正文
+   :caption: Part1 - Just do it!
    :hidden:
    
-   quickstart
    chapter0/index
    chapter1/index
    chapter2/index
+   chapter3/index
+   chapter4/index
+   chapter5/index
+   chapter6/index
+   chapter7/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Part2 - Do it better!
+   :hidden:
+   
+   chapter8/index
 
 .. toctree::
    :maxdepth: 2
@@ -24,25 +35,63 @@ rCore-Tutorial-Book 第三版
    appendix-a/index
    appendix-b/index
    appendix-c/index
+   appendix-d/index
+   terminology
 
 .. toctree::
    :maxdepth: 2
    :caption: 开发注记
    :hidden:
 
+   setup-sphinx
    rest-example
-   collaboration
-
+   log
 
 欢迎来到 rCore-Tutorial-Book 第三版！
 
-读者须知
+.. note::
+
+   :doc:`/log` 
+
+   项目/文档于 2021-03-15 最后一次更新，情况如下：
+
+   - 增加了在做实验的时候打补丁继承上一章节修改的 :ref:`教程 <inherit-last-ch-changes>` 。
+
+
+项目简介
 ---------------------
 
-请先按照 :doc:`/quickstart` 中的说明完成环境配置，再从第一章开始阅读正文。
+这本教程旨在一步一步展示如何 **从零开始** 用 **Rust** 语言写一个基于 **RISC-V** 架构的 **类 Unix 内核** 。值得注意的是，本项目不仅支持模拟器环境（如 Qemu/terminus 等），还支持在真实硬件平台 Kendryte K210 上运行。
+
+
+导读
+---------------------
+
+请大家先阅读 :ref:`第零章 <link-chapter0>` ，对于项目的开发背景和操作系统的概念有一个整体把控。
+ 
+在正式进行实验之前，请先按照第零章章末的 :doc:`/chapter0/5setup-devel-env` 中的说明完成环境配置，再从第一章开始阅读正文。
+
+如果已经对 RISC-V 架构、Rust 语言和内核的知识有较多了解，第零章章末的 :doc:`/chapter0/6hardware` 提供了我们采用的真实硬件平台 Kendryte K210 的一些信息。
 
 项目协作
 ----------------------
 
-请参考 :doc:`/collaboration` 了解如何进行项目协作。
+- :doc:`/setup-sphinx` 介绍了如何基于 Sphinx 框架配置文档开发环境，之后可以本地构建并渲染 html 或其他格式的文档；
+- :doc:`/rest-example` 给出了目前编写文档才用的 ReStructuredText 标记语言的一些基础语法及用例；
+- `项目的源代码仓库 <https://github.com/rcore-os/rCore-Tutorial-v3>`_ && `文档仓库 <https://github.com/rcore-os/rCore-Tutorial-Book-v3>`_
+- 时间仓促，本项目还有很多不完善之处，欢迎大家积极在每一个章节的评论区留言，或者提交 Issues 或 Pull Requests，让我们
+  一起努力让这本书变得更好！
 
+项目进度
+-----------------------
+
+- 2020-11-03：环境搭建完成，开始着手编写文档。
+- 2020-11-13：第一章完成。
+- 2020-11-27：第二章完成。
+- 2020-12-20：前七章代码完成。
+- 2021-01-10：第三章完成。
+- 2021-01-18：加入第零章。
+- 2021-01-30：第四章完成。
+- 2021-02-16：第五章完成。
+- 2021-02-20：第六章完成。
+- 2021-03-06：第七章完成。到这里为止第一版初稿就已经完成了。

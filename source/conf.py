@@ -67,3 +67,53 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+html_css_files = [
+    'my_style.css',
+    #'dracula.css',
+]
+
+from pygments.lexer import RegexLexer
+from pygments import token
+from sphinx.highlighting import lexers
+
+class RVLexer(RegexLexer):
+    name = 'riscv'
+    tokens = {
+        'root': [
+            # Comment
+            (r'#.*\n', token.Comment),
+            # General Registers
+            (r'\b(?:x[1-2]?[0-9]|x30|x31|zero|ra|sp|gp|tp|fp|t[0-6]|s[0-9]|s1[0-1]|a[0-7]|pc)\b', token.Name.Attribute),
+            # CSRs
+            (r'\bs(?:status|tvec|ip|ie|counteren|scratch|epc|cause|tval|atp|)\b', token.Name.Constant),
+            (r'\bm(?:isa|vendorid|archid|hardid|status|tvec|ideleg|ip|ie|counteren|scratch|epc|cause|tval)\b', token.Name.Constant),
+            # Instructions
+            (r'\b(?:(addi?w?)|(slti?u?)|(?:and|or|xor)i?|(?:sll|srl|sra)i?w?|lui|auipc|subw?|jal|jalr|beq|bne|bltu?|bgeu?|s[bhwd]|(l[bhw]u?)|ld)\b', token.Name.Decorator),
+            (r'\b(?:csrr?[rws]i?)\b', token.Name.Decorator),
+            (r'\b(?:ecall|ebreak|[msu]ret|wfi|sfence.vma)\b', token.Name.Decorator),
+            (r'\b(?:nop|li|la|mv|not|neg|negw|sext.w|seqz|snez|sltz|sgtz|f(?:mv|abs|neg).(?:s|d)|b(?:eq|ne|le|ge|lt)z|bgt|ble|bgtu|bleu|j|jr|ret|call)\b', token.Name.Decorator),
+            (r'(?:%hi|%lo|%pcrel_hi|%pcrel_lo|%tprel_(?:hi|lo|add))', token.Name.Decorator),
+            # Directives
+            (r'(?:.2byte|.4byte|.8byte|.quad|.half|.word|.dword|.byte|.dtpreldword|.dtprelword|.sleb128|.uleb128|.asciz|.string|.incbin|.zero)', token.Name.Function),
+            (r'(?:.align|.balign|.p2align)', token.Name.Function),
+            (r'(?:.globl|.local|.equ)', token.Name.Function),
+            (r'(?:.text|.data|.rodata|.bss|.comm|.common|.section)', token.Name.Function),
+            (r'(?:.option|.macro|.endm|.file|.ident|.size|.type)', token.Name.Function),
+            (r'(?:.set|.rept|.endr|.macro|.endm|.altmacro)', token.Name.Function),
+            # Number
+            (r'\b(?:(?:0x|)[\da-f]+|(?:0o|)[0-7]+|\d+)\b', token.Number),
+            # Labels
+            (r'\S+:', token.Name.Builtin),
+            # Whitespace
+            (r'\s', token.Whitespace),
+            # Other operators
+            (r'[,\+\*\-\(\)\\%]', token.Text),
+            # Hacks
+            (r'(?:SAVE_GP|trap_handler|__switch|LOAD_GP|SAVE_SN|LOAD_SN|__alltraps|__restore)', token.Name.Builtin),
+            (r'(?:.trampoline)', token.Name.Function),
+            (r'(?:n)', token.Name.Entity),
+            (r'(?:x)', token.Text),
+        ],
+    }
+
+lexers['riscv'] = RVLexer()
