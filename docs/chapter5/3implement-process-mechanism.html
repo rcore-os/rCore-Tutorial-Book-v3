@@ -140,7 +140,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l4"><a class="reference internal" href="#trap">系统调用后重新获取 Trap 上下文</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#user-shell">外壳程序-user_shell的输入机制</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#shell-user-shell">shell程序-user_shell的输入机制</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id6">进程资源回收机制</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id7">进程的退出</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id8">父进程回收子进程资源</a></li>
@@ -151,7 +151,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="4exercise.html">chapter5 练习</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：进程间通信</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
@@ -247,7 +247,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>初始进程 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> 的创建；</p></li>
 <li><p>进程调度机制：当进程主动调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 交出 CPU 使用权或者内核本轮分配的时间片用尽之后如何切换到下一个进程；</p></li>
 <li><p>进程生成机制：介绍进程相关的两个重要系统调用 <code class="docutils literal notranslate"><span class="pre">sys_fork/sys_exec</span></code> 的实现；</p></li>
-<li><p>字符输入机制：为了支对外壳程序-user_shell获得字符输入，介绍 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用的实现；</p></li>
+<li><p>字符输入机制：为了支对shell程序-user_shell获得字符输入，介绍 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用的实现；</p></li>
 <li><p>进程资源回收机制：当进程调用 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 正常退出或者出错被内核终止之后如何保存其退出码，其父进程又是如何通过 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 系统调用收集该进程的信息并回收其资源。</p></li>
 </ul>
 </div>
@@ -805,7 +805,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </td></tr></table></div>
 <p>应用在 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 系统调用中传递给内核的只有一个要执行的应用名字符串在当前应用地址空间中的起始地址，如果想在内核中具体获得字符串的话就需要手动查页表。第 3 行的 <code class="docutils literal notranslate"><span class="pre">translated_str</span></code> 便可以从内核地址空间之外的某个地址空间中拿到一个字符串，其原理就是逐字节查页表直到发现一个 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 为止。</p>
-<p>回到 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 的实现，它调用 <code class="docutils literal notranslate"><span class="pre">translated_str</span></code> 找到要执行的应用名并试图在应用加载器提供的 <code class="docutils literal notranslate"><span class="pre">get_app_data_by_name</span></code> 接口中找到对应的 ELF 数据。如果找到的话就调用 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::exec</span></code> 替换掉地址空间并返回 0。这个返回值其实并没有意义，因为我们在替换地址空间的时候本来就对 Trap 上下文重新进行了初始化。如果没有找到的话就不做任何事情并返回 -1，在外壳程序-user_shell中我们也正是通过这个返回值来判断要执行的应用是否存在。</p>
+<p>回到 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 的实现，它调用 <code class="docutils literal notranslate"><span class="pre">translated_str</span></code> 找到要执行的应用名并试图在应用加载器提供的 <code class="docutils literal notranslate"><span class="pre">get_app_data_by_name</span></code> 接口中找到对应的 ELF 数据。如果找到的话就调用 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::exec</span></code> 替换掉地址空间并返回 0。这个返回值其实并没有意义，因为我们在替换地址空间的时候本来就对 Trap 上下文重新进行了初始化。如果没有找到的话就不做任何事情并返回 -1，在shell程序-user_shell中我们也正是通过这个返回值来判断要执行的应用是否存在。</p>
 </div>
 <div class="section" id="trap">
 <h3>系统调用后重新获取 Trap 上下文<a class="headerlink" href="#trap" title="永久链接至标题">¶</a></h3>
@@ -856,9 +856,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 </div>
 </div>
-<div class="section" id="user-shell">
-<h2>外壳程序-user_shell的输入机制<a class="headerlink" href="#user-shell" title="永久链接至标题">¶</a></h2>
-<p>为了实现外壳程序-user_shell的输入机制，我们需要实现 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用使得应用能够取得用户的键盘输入。</p>
+<div class="section" id="shell-user-shell">
+<h2>shell程序-user_shell的输入机制<a class="headerlink" href="#shell-user-shell" title="永久链接至标题">¶</a></h2>
+<p>为了实现shell程序-user_shell的输入机制，我们需要实现 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用使得应用能够取得用户的键盘输入。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
 
 <span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">sbi</span>::<span class="n">console_getchar</span><span class="p">;</span><span class="w"></span>

@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>文件与文件描述符 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>基于文件的标准输入/输出 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
@@ -127,13 +127,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">第六章：文件描述符与进程间通信</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第六章：进程间通信</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">文件与文件描述符</a><ul>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">基于文件的标准输入/输出</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id3">文件</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">文件简介</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id4">标准输入和标准输出</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id5">文件描述符与文件描述符表</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#i-o">文件I/O操作</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id6">文件读写系统调用</a></li>
 </ul>
 </li>
@@ -206,9 +207,9 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-          <li><a href="index.html">第六章：文件描述符与进程间通信</a> &raquo;</li>
+          <li><a href="index.html">第六章：进程间通信</a> &raquo;</li>
         
-      <li>文件与文件描述符</li>
+      <li>基于文件的标准输入/输出</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -228,23 +229,22 @@ commentsRunWhenDOMLoaded(addUtterances);
            <div itemprop="articleBody">
             
   <div class="section" id="id1">
-<h1>文件与文件描述符<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<h1>基于文件的标准输入/输出<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
-<p>本节我们介绍文件和文件描述符概念，并在进程中加入文件描述符表，同时将进程对于标准输入输出的访问的修改为基于文件抽象接口的实现。</p>
+<p>本节我们介绍为何要把标准输入/输出用文件来进行抽象，以及如何以文件和文件描述符概念来重新定义标准输入/输出，并在进程中加入文件描述符表，同时将进程对于标准输入输出的访问的修改为基于文件抽象的接口实现。这主要是为下一节的管道实现奠定基础。</p>
 </div>
 <div class="section" id="id3">
-<h2>文件<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
-<p>在类 Unix 操作系统中，”<strong>一切皆文件</strong>“ (Everything is a file) 是一种重要的设计哲学。在这里，所谓的 <strong>文件</strong> (File) 就是指由内核管理并分配给进程让它可以与之交互的部分 I/O 资源，它大致可以分成以下几种：</p>
+<h2>文件简介<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<p>在Unix操作系统之前，大多数的操作系统提供了各种复杂且不规则的设计实现来处理各种I/O设备（也可称为I/O资源），如键盘、显示器、以磁盘为代表的存储介质、以串口为代表的通信设备等，使得应用程序开发繁琐且很难统一表示和处理I/O设备。随着UNIX的诞生，一个简洁优雅的I/O设备的抽象出现了，这就是 <strong>文件</strong> 。在 Unix 操作系统中，”<strong>一切皆文件</strong>“ (Everything is a file) 是一种重要的设计思想，这种设计思想继承于 Multics 操作系统的 <strong>通用性</strong> 的设计理念，并进行了进一步的简化。在本章中，应用程序看到并被操作系统管理的 <strong>文件</strong> (File) 就是一系列的字节组合。操作系统不关系文件内容，只关心如何对文件按字节流进行读写的机制，这就意味着任何程序可以读写任何文件（即字节流），对文件具体内容的解析是应用程序的任务，操作系统对此不做任何干涉。例如，一个Rust编译器可以读取一个C语言源程序并进行编译，操作系统并并不会阻止这样的事情发生。</p>
+<p>有了文件这样的抽象后，操作系统内核就可把能读写的I/O资源按文件来进行管理，并把文件分配给进程，让进程以统一的文件访问接口与I/O 资源进行交互。在我们目前涉及到的I/O硬件设备中，大致可以分成以下几种：</p>
 <ul class="simple">
-<li><p><strong>普通文件</strong> (Regular File) 指的是储存在磁盘/硬盘等存储介质上的文件系统中的一般意义上的文件，可以被看成一个固定的字节序列；</p></li>
-<li><p><strong>目录</strong> (Directory) 是用来建立树形目录结构的文件系统并可以根据路径索引文件的一种特殊的文件；</p></li>
-<li><p><strong>符号链接</strong> (Symbolic Link) 一种能够指向其他文件的特殊文件；</p></li>
-<li><p><strong>命名管道</strong> (Named Pipe) 与我们本章将介绍的 <strong>匿名管道</strong> (Pipe) 有一些不同，但它们均用于单向的进程间通信；</p></li>
-<li><p><strong>套接字</strong> (Socket) 可以支持双向的进程间通信；</p></li>
-<li><p><strong>设备文件</strong> (Device File) 可以与系统中的 I/O 设备进行交互。这些 I/O 设备可以分成两类： <strong>块设备</strong> (Block Device) 和 <strong>字符设备</strong> (Character Device) 。块设备只能以 <strong>块</strong> (Block) 为单位进行读写，并支持随机访问，最典型的如一些磁盘/硬盘等；而字符设备允许发送者和接收者传输一条字节流，接收者只能按照发送者发送的顺序接收字符，最典型的如键盘/串口等。</p></li>
+<li><p><strong>键盘设备</strong> 是程序获得字符输入的一种设备，也可抽象为一种只读性质的文件，可以从这个文件中读出一系列的字节序列；</p></li>
+<li><p><strong>屏幕设备</strong> 是展示程序的字符输出结果的一种字符显示设备，可抽象为一种只写性质的文件，可以向这个文件中写入一系列的字节序列，在显示屏上可以直接呈现出来；</p></li>
+<li><p><strong>串口设备</strong> 是获得字符输入和展示程序的字符输出结果的一种字符通信设备，可抽象为一种可读写性质的文件，可以向这个文件中写入一系列的字节序列传给程序，也可把程序要显示的字符传输出去；还可以把这个串口设备拆分成两个文件，一个用于获取输入字符的只读文件和一个传出输出字符的只写文件。</p></li>
 </ul>
-<p>文件虽然代表了很多种不同的软件/硬件 I/O 资源，但是在进程看来所有文件的访问都可以通过一个统一的抽象接口 <code class="docutils literal notranslate"><span class="pre">File</span></code> 来进行：</p>
+<p>在QEMU模拟的RV计算机和K210物理硬件上存在串口设备，操作系统通过串口设备的输入侧连接到了同学使用的计算机的键盘设备，而串口设备的输出侧这连接到了同学使用的计算机的显示器窗口上。由于RustSBI直接管理了串口设备，并给操作系统提供了两个SBI接口，从而使得操作系统可以很简单地通过这两个SBI接口输出或输入字符。</p>
+<p>文件是提供给应用程序用的，但有操作系统来进行管理。虽然文件可代表很多种不同类型的I/O 资源，但是在进程看来，所有文件的访问都可以通过一个很简洁的统一抽象接口 <code class="docutils literal notranslate"><span class="pre">File</span></code> 来进行：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/mod.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">File</span><span class="w"> </span>: <span class="nb">Send</span> <span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -253,8 +253,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>其中 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> 是我们在 <code class="docutils literal notranslate"><span class="pre">mm</span></code> 子模块中定义的应用地址空间中的一段缓冲区的抽象。它本质上其实只是一个 <code class="docutils literal notranslate"><span class="pre">&amp;[u8]</span></code> ，但是它位于应用地址空间中，在内核中我们无法直接通过这种方式来访问，因此需要进行封装。然而，在理解抽象接口 <code class="docutils literal notranslate"><span class="pre">File</span></code> 的各方法时，我们仍可以将 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> 看成一个 <code class="docutils literal notranslate"><span class="pre">&amp;[u8]</span></code> 切片，它是同时给出了缓冲区的起始地址及长度的一个胖指针。</p>
-<p><code class="docutils literal notranslate"><span class="pre">read</span></code> 指的是从文件中读取数据放到缓冲区中，最多将缓冲区填满（即读取缓冲区的长度那么多字节），并返回实际读取的字节数；而 <code class="docutils literal notranslate"><span class="pre">write</span></code> 指的是将缓冲区中的数据写入文件，最多将缓冲区中的数据全部写入，并返回直接写入的字节数。至于 <code class="docutils literal notranslate"><span class="pre">read</span></code> 和 <code class="docutils literal notranslate"><span class="pre">write</span></code> 的实现则与文件具体是哪种类型有关，它决定了数据如何被读取和写入。</p>
+<p>这个接口在内存和I/O资源之间建立了数据交换的通道。其中 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> 是我们在 <code class="docutils literal notranslate"><span class="pre">mm</span></code> 子模块中定义的应用地址空间中的一段缓冲区（即内存）的抽象。它本质上其实只是一个 <code class="docutils literal notranslate"><span class="pre">&amp;[u8]</span></code> ，但是它位于应用地址空间中，在内核中我们无法直接通过这种方式来访问，因此需要进行封装。然而，在理解抽象接口 <code class="docutils literal notranslate"><span class="pre">File</span></code> 的各方法时，我们仍可以将 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> 看成一个 <code class="docutils literal notranslate"><span class="pre">&amp;[u8]</span></code> 切片，它是同时给出了缓冲区的起始地址及长度的一个胖指针。</p>
+<p><code class="docutils literal notranslate"><span class="pre">read</span></code> 指的是从文件（即I/O资源）中读取数据放到缓冲区中，最多将缓冲区填满（即读取缓冲区的长度那么多字节），并返回实际读取的字节数；而 <code class="docutils literal notranslate"><span class="pre">write</span></code> 指的是将缓冲区中的数据写入文件，最多将缓冲区中的数据全部写入，并返回直接写入的字节数。至于 <code class="docutils literal notranslate"><span class="pre">read</span></code> 和 <code class="docutils literal notranslate"><span class="pre">write</span></code> 的实现则与文件具体是哪种类型有关，它决定了数据如何被读取和写入。</p>
 <p>回过头来再看一下用户缓冲区的抽象 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> ，它的声明如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/page_table.rs</span>
 
@@ -286,7 +286,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id4">
 <h2>标准输入和标准输出<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
-<p>我们为标准输入和标准输出实现 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait，使得进程可以与它们交互：</p>
+<p>其实我们在第二章就对应用程序引入了基于 <strong>文件</strong> 的标准输出接口 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> ，在第五章引入了基于 <strong>文件</strong> 的标准输入接口 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 。虽然之前还没有文件描述符表，我们提前把标准输出设备在文件描述符表中的文件描述符的值规定为 <code class="docutils literal notranslate"><span class="pre">1</span></code> ，用 <code class="docutils literal notranslate"><span class="pre">Stdin</span></code> 表示；把标准输入设备在文件描述符表中的文件描述符的值规定为 <code class="docutils literal notranslate"><span class="pre">0</span></code>，用 <code class="docutils literal notranslate"><span class="pre">stdout</span></code> 表示 。现在，我们可以重构操作系统，为标准输入和标准输出实现 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait，使得进程可以按文件接口与I/O外设进行交互：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
  3
@@ -368,18 +368,29 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </td></tr></table></div>
-<p>可以看到，标准输入 <code class="docutils literal notranslate"><span class="pre">Stdin</span></code> 只允许进程通过 <code class="docutils literal notranslate"><span class="pre">read</span></code> 从里面读入，目前每次仅支持读入一个字符，其实现与之前的 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 基本相同，只是需要通过 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> 来获取具体将字节写入的位置。相反，标准输出 <code class="docutils literal notranslate"><span class="pre">Stdout</span></code> 只允许进程通过 <code class="docutils literal notranslate"><span class="pre">write</span></code> 写入到里面，实现方法是遍历每个切片，将其转化为字符串通过 <code class="docutils literal notranslate"><span class="pre">print!</span></code> 宏来输出。值得注意的是，如果有多核同时使用 <code class="docutils literal notranslate"><span class="pre">print!</span></code> 宏，将会导致两个不同的输出交错到一起造成输出混乱，后续我们还会对它做一些改进。</p>
+<p>可以看到，标准输入文件 <code class="docutils literal notranslate"><span class="pre">Stdin</span></code> 是只读文件，只允许进程通过 <code class="docutils literal notranslate"><span class="pre">read</span></code> 从里面读入，目前每次仅支持读入一个字符，其实现与之前的 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 基本相同，只是需要通过 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> 来获取具体将字节写入的位置。相反，标准输出文件 <code class="docutils literal notranslate"><span class="pre">Stdout</span></code> 是只写文件，只允许进程通过 <code class="docutils literal notranslate"><span class="pre">write</span></code> 写入到里面，实现方法是遍历每个切片，将其转化为字符串通过 <code class="docutils literal notranslate"><span class="pre">print!</span></code> 宏来输出。值得注意的是，如果有多核同时使用 <code class="docutils literal notranslate"><span class="pre">print!</span></code> 宏，将会导致两个不同的输出交错到一起造成输出混乱，后续我们还会对它做一些改进。</p>
 </div>
 <div class="section" id="id5">
 <h2>文件描述符与文件描述符表<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<p>每个进程都带有一个线性的 <strong>文件描述符表</strong> (File Descriptor Table) 记录所有它请求内核打开并可以读写的那些文件。而 <strong>文件描述符</strong> (File Descriptor) 则是一个非负整数，表示文件描述符表中一个打开的文件所处的位置。通过文件描述符，进程可以在自身的文件描述符表中找到对应的文件，并进行读写。当打开一个文件的时候，如果顺利，内核会返回给应用刚刚打开的文件的文件描述符；而当应用想关闭一个文件的时候，也需要向内核提供对应的文件描述符。</p>
-<p>当一个进程被创建的时候，内核会默认为其打开三个文件：</p>
+<p>一个进程可以访问的I/O资源可以有很多种，所以在操作系统类需要有一个管理进程访问的很多I/O资源的结构，这就是**文件描述符表** (File Descriptor Table) ，其中的每个 <strong>文件描述符</strong> (File Descriptor) 代表了一个特定读写属性的I/O资源。</p>
+<p>为简化操作系统设计实现，可以让每个进程都带有一个线性的 <strong>文件描述符表</strong> ，记录所有它请求内核打开并可以读写的那些文件集合。而 <strong>文件描述符</strong> (File Descriptor) 则是一个非负整数，表示文件描述符表中一个打开的 <strong>文件描述符</strong> 所处的位置（可理解为数组下标）。进程通过文件描述符，可以在自身的文件描述符表中找到对应的文件记录信息，从而也就找到了对应的文件，并对文件进行读写。当打开（ <code class="docutils literal notranslate"><span class="pre">open</span></code> ）或创建（ <code class="docutils literal notranslate"><span class="pre">create</span></code> ） 一个文件的时候，如果顺利，内核会返回给应用刚刚打开或创建的文件对应的文件描述符；而当应用想关闭（ <code class="docutils literal notranslate"><span class="pre">close</span></code> ）一个文件的时候，也需要向内核提供对应的文件描述符，以完成对应文件描述符的回收操作。</p>
+</div>
+<div class="section" id="i-o">
+<h2>文件I/O操作<a class="headerlink" href="#i-o" title="永久链接至标题">¶</a></h2>
+<p>这样，应用程序如果要基于文件进行I/O访问，大致就会涉及如下几个操作：</p>
+<ul class="simple">
+<li><p>打开（open）：应用只有打开文件，操作系统才能返回一个可进行读写的文件描述符给应用，应用才能基于这个值来进行对应文件的读写；</p></li>
+<li><p>关闭（close）：应用基于文件描述符关闭文件后，就不能再对文件进行读写操作了，这样可以在一定程度上保证对文件的合法访问；</p></li>
+<li><p>读（read）：应用可以基于文件描述符来读文件内容到相应内存中；</p></li>
+<li><p>写（write）：应用可以基于文件描述符来把相应内存内容写到文件中；</p></li>
+</ul>
+<p>在本节中，还不会涉及创建文件。当一个进程被创建的时候，内核会默认为其打开三个缺省就存在的文件：</p>
 <ul class="simple">
 <li><p>文件描述符为 0 的标准输入；</p></li>
 <li><p>文件描述符为 1 的标准输出；</p></li>
 <li><p>文件描述符为 2 的标准错误输出。</p></li>
 </ul>
-<p>在我们的实现中并不区分标准输出和标准错误输出，而是会将文件描述符 1 和 2 均对应到标准输出。</p>
+<p>在我们的实现中并不区分标准输出和标准错误输出，而是会将文件描述符 1 和 2 均对应到标准输出。实际上，在本章中，标准输出文件就是串口输出，标准输入文件就是串口输入。</p>
 <p>这里隐含着有关文件描述符的一条重要的规则：即进程打开一个文件的时候，内核总是会将文件分配到该进程文件描述符表中 <strong>最小的</strong> 空闲位置。比如，当一个进程被创建以后立即打开一个文件，则内核总是会返回文件描述符 3 。当我们关闭一个打开的文件之后，它对应的文件描述符将会变得空闲并在后面可以被分配出去。</p>
 <p>我们需要在进程控制块中加入文件描述符表的相应字段：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
@@ -422,7 +433,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>在编程语言中， <strong>多态</strong> (Polymorphism) 指的是在同一段代码中可以隐含多种不同类型的特征。在 Rust 中主要通过泛型和 Trait 来实现多态。</p>
 <p>泛型是一种 <strong>编译期多态</strong> (Static Polymorphism)，在编译一个泛型函数的时候，编译器会对于所有可能用到的类型进行实例化并对应生成一个版本的汇编代码，在编译期就能知道选取哪个版本并确定函数地址，这可能会导致生成的二进制文件体积较大；而 Trait 对象（也即上面提到的 <code class="docutils literal notranslate"><span class="pre">dyn</span></code> 语法）是一种 <strong>运行时多态</strong> (Dynamic Polymorphism)，需要在运行时查一种类似于 C++ 中的 <strong>虚表</strong> (Virtual Table) 才能找到实际类型对于抽象接口实现的函数地址并进行调用，这样会带来一定的运行时开销，但是更为灵活。</p>
 </div>
-<p>当新建一个进程的时候，我们需要按照先前的说明为进程打开标准输入输出：</p>
+<p>当新建一个进程的时候，我们需要按照先前的说明为进程打开标准输入文件和标准输出文件：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
  3
@@ -560,7 +571,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id6">
 <h2>文件读写系统调用<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
-<p>基于文件抽象接口和文件描述符表，我们终于可以让文件读写系统调用 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 变得更加具有普适性，不仅仅局限于标准输入输出：</p>
+<p>基于文件抽象接口和文件描述符表，我们终于可以让文件读写系统调用 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 变得更加具有普适性，不仅仅局限于之前特定的标准输入输出：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>

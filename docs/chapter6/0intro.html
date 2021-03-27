@@ -73,8 +73,8 @@ commentsRunWhenDOMLoaded(addUtterances);
     
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
-    <link rel="next" title="文件与文件描述符" href="1file-descriptor.html" />
-    <link rel="prev" title="第六章：文件描述符与进程间通信" href="index.html" /> 
+    <link rel="next" title="基于文件的标准输入/输出" href="1file-descriptor.html" />
+    <link rel="prev" title="第六章：进程间通信" href="index.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -127,14 +127,15 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">第六章：文件描述符与进程间通信</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第六章：进程间通信</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">引言</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">本章导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id3">实践体验</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id4">本章代码树</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">实现流程概述</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html">文件与文件描述符</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html">基于文件的标准输入/输出</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2pipe.html">管道</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3exercise.html">chapter6 练习</a></li>
 </ul>
@@ -204,7 +205,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-          <li><a href="index.html">第六章：文件描述符与进程间通信</a> &raquo;</li>
+          <li><a href="index.html">第六章：进程间通信</a> &raquo;</li>
         
       <li>引言</li>
     
@@ -229,9 +230,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>引言<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="section" id="id2">
 <h2>本章导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
-<p>在上一章中，我们引入了非常重要的进程的概念。截止到目前为止，进程能够进行交互的 I/O 资源还非常有限。它只能接受用户在键盘上的输入，并将字符输出到屏幕上。我们一般将它们分别称为标准输入和标准输出。</p>
-<p>本章我们会引入操作系统中的另一个概念——文件描述符。每个进程都在它自己的文件描述符表中保存着多个文件描述符，而进程通过每个文件描述符均可对一个它已经请求内核打开的 I/O 资源（也即文件）进行读写。文件描述符可以描述包括标准输入/标准输出在内的多种不同的 I/O 资源。</p>
-<p>本章我们首先将标准输入/标准输出的访问改造为基于文件描述符，然后同样基于文件描述符实现一种父子进程之间的通信机制——管道。</p>
+<p>在上一章中，我们引入了非常重要的进程的概念，以及与进程管理相关的 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 、 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 等创建新进程相关的系统调用。虽然操作系统提供新进程的动态创建和执行的服务有了很大的改进，但截止到目前为止，进程在输入和输出方面，还有不少限制。特别是进程能够进行交互的 I/O 资源还非常有限，只能接受用户在键盘上的输入，并将字符输出到屏幕上。我们一般将它们分别称为 <strong>标准</strong> 输入和 <strong>标准</strong> 输出。而且进程之间缺少信息交换的能力，这样就限制了通过进程间的合作一起完成一个大事情的能力。</p>
+<p>其实在 <strong>UNIX</strong> 的早期发展历史中，也碰到了同样的问题，每个程序专注在完成一件事情上，但缺少把多个程序联合在一起完成复杂功能的机制。直到1975年UNIX v6中引入了让人眼前一亮的创新机制– <strong>I/O重定向</strong> 与 <strong>管道（pipe）</strong> 。基于这两种机制，操作系统在不用改变应用程序的情况下，可以将一个程序的输出重新定向到另外一个程序的输入中，这样程序之间就可以进行任意的连接，并组合出各种灵活的复杂功能。</p>
+<p>本章我们也会引入新操作系统概念 – 管道和I/O重定向，并进行实现。除了键盘和屏幕这样的 <strong>标准</strong> 输入和 <strong>标准</strong> 输出之外，管道其实也可以看成是一种特殊的输入和输出，而后面一章讲解的 <strong>文件系统</strong> 中的对持久化存储数据的抽象 <strong>文件(file)</strong> 也是一种存储设备的输入和输出。所以，我们可以把这三种输入输出都统一在 <strong>文件(file)</strong>  这个抽象之中。这也体现了在 Unix 操作系统中， ” <strong>一切皆文件</strong> “ (Everything is a file) 重要设计哲学。</p>
+<p>在本章中提前引入 <strong>文件</strong> 这个概念，但本章不会详细讲解，只是先以最简单直白的方式对 <strong>文件</strong> 这个抽象进行简化的设计与实现。站在本章的操作系统的角度来看， <strong>文件</strong> 成为了一种需要操作系统管理的I/O资源。</p>
+<p>为了让应用能够基于 <strong>文件</strong> 这个抽象接口进行I/O操作，我们就需要对 <strong>进程</strong> 这个概念进行扩展，让它能够管理 <strong>文件</strong> 这种资源。具体而言，就是要对进程控制块进行一定的扩展。为了统一表示 <strong>标准</strong> 输入和 <strong>标准</strong> 输出和管道，我们将在每个进程控制块中增加一个 <strong>文件描述符表</strong> ，在表中保存着多个 <strong>文件</strong> 记录信息。每个文件描述符是一个非负的索引值，即对应文件记录信息的条目在文件描述符表中的索引，可方便进程表示当前使用的 <strong>标准</strong> 输入、 <strong>标准</strong> 输出和管道（当然在下一章还可以表示磁盘上的一块数据）。用户进程访问文件将很简单，它只需通过文件描述符的索引值，就可以对 <strong>文件</strong> 进行读写，从而完成接收键盘输入，向屏幕输出，以及两个进程之间进行数据传输的操作。</p>
+<p>简而言之，本章我们首先将标准输入/标准输出的访问改造为基于文件描述符，然后同样基于文件描述符实现一种父子进程之间的通信机制——管道，从而实现灵活的进程间通信，并基于管道支持进程组合来实现复杂功能。</p>
 </div>
 <div class="section" id="id3">
 <h2>实践体验<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
@@ -358,6 +362,9 @@ Shell: Process 2 exited with code 0
 </pre></div>
 </div>
 </div>
+<div class="section" id="id5">
+<h2>实现流程概述<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+</div>
 </div>
 
 
@@ -368,10 +375,10 @@ Shell: Process 2 exited with code 0
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="1file-descriptor.html" class="btn btn-neutral float-right" title="文件与文件描述符" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="1file-descriptor.html" class="btn btn-neutral float-right" title="基于文件的标准输入/输出" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="index.html" class="btn btn-neutral float-left" title="第六章：文件描述符与进程间通信" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="index.html" class="btn btn-neutral float-left" title="第六章：进程间通信" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

@@ -154,7 +154,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：进程间通信</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
@@ -601,7 +601,7 @@ Trap 的时候就需要进行地址空间切换，而在任务切换的时候无
 <li><p>当应用 Trap 进入内核的时候，硬件会设置一些 CSR 并在 S 特权级下跳转到 <code class="docutils literal notranslate"><span class="pre">__alltraps</span></code> 保存 Trap 上下文。此时
 sp 寄存器仍指向用户栈，但 <code class="docutils literal notranslate"><span class="pre">sscratch</span></code> 则被设置为指向应用地址空间中存放 Trap 上下文的位置，实际在次高页面。
 随后，就像之前一样，我们 <code class="docutils literal notranslate"><span class="pre">csrrw</span></code> 交换 sp 和 <code class="docutils literal notranslate"><span class="pre">sscratch</span></code> ，并基于指向 Trap 上下文位置的 sp 开始保存通用
-寄存器和一些 CSR ，这个过程在第 28 行结束。到这里，我们就全程在内核地址空间中完成了保存 Trap 上下文的工作。</p></li>
+寄存器和一些 CSR ，这个过程在第 28 行结束。到这里，我们就全程在应用地址空间中完成了保存 Trap 上下文的工作。</p></li>
 <li><p>接下来该考虑切换到内核地址空间并跳转到 trap handler 了。第 30 行我们将内核地址空间的 token 载入到 t0 寄存器中，
 第 32 行我们将 trap handler 入口点的虚拟地址载入到 t1 寄存器中，第 34 行我们直接将 sp 修改为应用内核栈顶的地址。
 这三条信息均是内核在初始化该应用的时候就已经设置好的。第 36~37 行我们将 satp 修改为内核地址空间的 token 并使用
@@ -685,7 +685,7 @@ trap handler 入口点的地址。注意这里我们不能像之前的章节那�
 内存布局中，这条 <code class="docutils literal notranslate"><span class="pre">.text.trampoline</span></code> 段中的跳转指令和 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 都在代码段之内，汇编器（Assembler）和链接器（Linker）会根据 <code class="docutils literal notranslate"><span class="pre">linker-qemu/k210.ld</span></code> 的地址布局描述，设定电子指令的地址，并计算二者地址偏移量
 并让跳转指令的实际效果为当前 pc 自增这个偏移量。但实际上我们知道由于我们设计的缘故，这条跳转指令在被执行的时候，
 它的虚拟地址被操作系统内核设置在地址空间中的最高页面之内，加上这个偏移量并不能正确的得到 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 的入口地址。</p>
-<p>** 问题的本质可以概括为：跳转指令实际被执行时的虚拟地址和在编译器/汇编器/链接器进行后端代码生成和链接形成最终机器码是设置此指令的地址是不同。**</p>
+<p><strong>问题的本质可以概括为：跳转指令实际被执行时的虚拟地址和在编译器/汇编器/链接器进行后端代码生成和链接形成最终机器码时设置此指令的地址是不同的。</strong></p>
 </div>
 <div class="section" id="id7">
 <h2>加载和执行应用程序<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
