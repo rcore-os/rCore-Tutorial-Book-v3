@@ -139,10 +139,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l4"><a class="reference internal" href="#exec">exec 系统调用</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">应用程序示例</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">应用程序示例</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id6">系统调用封装</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#initproc">用户初始程序-initproc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#shell-user-shell">shell程序-user_shell</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#fork-waitpid-exec-init-user-shell">我们刚刚介绍了 <code class="docutils literal notranslate"><span class="pre">fork/waitpid/exec</span></code> 三个重要系统调用，借助它们我们可以开发功能更为强大的应用程序。下面我们通过描述两个重要的应用程序： <strong>用户初始程序-init</strong> 和 <strong>外壳程序-user_shell</strong> 的开发过程，来展示这些重要系统调用的使用方法。</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="2core-data-structures.html">进程管理的核心数据结构</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3implement-process-mechanism.html">进程管理机制的设计实现</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4exercise.html">chapter5 练习</a></li>
@@ -339,13 +343,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id5">
 <h2>应用程序示例<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<p>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</p>
-</div>
-</div>
-<div class="section" id="fork-waitpid-exec-init-user-shell">
-<h1>我们刚刚介绍了 <code class="docutils literal notranslate"><span class="pre">fork/waitpid/exec</span></code> 三个重要系统调用，借助它们我们可以开发功能更为强大的应用程序。下面我们通过描述两个重要的应用程序： <strong>用户初始程序-init</strong> 和 <strong>外壳程序-user_shell</strong> 的开发过程，来展示这些重要系统调用的使用方法。<a class="headerlink" href="#fork-waitpid-exec-init-user-shell" title="永久链接至标题">¶</a></h1>
-<p>我们刚刚介绍了 <code class="docutils literal notranslate"><span class="pre">fork/waitpid/exec</span></code> 三个重要系统调用，借助它们我们可以开发功能更为强大的应用程序。下面我们通过描述两个重要的应用程序： <strong>用户初始程序-init</strong> 和 <strong>shell程序-user_shell</strong> 的开发过程，来展示这些重要系统调用的使用方法。
-&gt;&gt;&gt;&gt;&gt;&gt;&gt; main</p>
+<p>我们刚刚介绍了 <code class="docutils literal notranslate"><span class="pre">fork/waitpid/exec</span></code> 三个重要系统调用，借助它们我们可以开发功能更为强大的应用程序。下面我们通过描述两个重要的应用程序： <strong>用户初始程序-init</strong> 和 <strong>shell程序-user_shell</strong> 的开发过程，来展示这些重要系统调用的使用方法。</p>
+<div class="section" id="id6">
+<h3>系统调用封装<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h3>
 <p>读者可以在 <code class="docutils literal notranslate"><span class="pre">user/src/syscall.rs</span></code> 中看到以 <code class="docutils literal notranslate"><span class="pre">sys_*</span></code> 开头的系统调用的函数原型，它们后续还会在 <code class="docutils literal notranslate"><span class="pre">user/src/lib.rs</span></code> 中被封装成方便应用程序使用的形式。如 <code class="docutils literal notranslate"><span class="pre">sys_fork</span></code> 被封装成 <code class="docutils literal notranslate"><span class="pre">fork</span></code> ，而 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 被封装成 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 。这里值得一提的是 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 被封装成两个不同的 API ：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
 <span class="normal"> 2</span>
@@ -392,6 +392,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 </td></tr></table></div>
 <p>其中 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 表示等待任意一个子进程结束，根据 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 的约定它需要传的 pid 参数为 <code class="docutils literal notranslate"><span class="pre">-1</span></code> ；而 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 则等待一个 PID 固定的子进程结束。在具体实现方面，我们看到当 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 返回值为 <code class="docutils literal notranslate"><span class="pre">-2</span></code> ，即要等待的子进程存在但它却尚未退出的时候，我们调用 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 主动交出 CPU 使用权，待下次 CPU 使用权被内核交还给它的时候再次调用 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 查看要等待的子进程是否退出。这样做可以减小 CPU 资源的浪费。</p>
 <p>目前的实现风格是尽可能简化内核，因此 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 是立即返回的，即它的返回值只能给出返回这一时刻的状态。如果这一时刻要等待的子进程还尚未结束，那么也只能如实向应用报告这一结果。于是用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 就需要负责对返回状态进行持续的监控，因此它里面便需要进行循环检查。在后面的实现中，我们会将  <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 的内核实现设计为 <strong>阻塞</strong> 的，也即直到得到一个确切的结果位置都停在内核内，也就意味着内核返回给应用的结果可以直接使用。那是 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 和 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 两个 API 的实现便会更加简单。</p>
+</div>
+<div class="section" id="initproc">
+<h3>用户初始程序-initproc<a class="headerlink" href="#initproc" title="永久链接至标题">¶</a></h3>
 <p>我们首先来看用户初始程序-initproc是如何实现的：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
 <span class="normal"> 2</span>
@@ -470,6 +473,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>第 19 行为 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 返回值为 0 的分支，表示子进程，此行直接通过 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 执行shell程序 <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> ，注意我们需要在字符串末尾手动加入 <code class="docutils literal notranslate"><span class="pre">\0</span></code> ，因为 Rust 在将这些字符串连接到只读数据段的时候不会插入 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 。</p></li>
 <li><p>第 21 行开始则为返回值不为 0 的分支，表示调用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 的用户初始程序-initproc自身。可以看到它在不断循环调用 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 来等待那些被移交到它下面的子进程并回收它们占据的资源。如果回收成功的话则会打印一条报告信息给出被回收子进程的 PID 和返回值；否则就 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 交出 CPU 资源并在下次轮到它执行的时候再回收看看。这也可以看出，用户初始程序-initproc对于资源的回收并不算及时，但是对于已经退出的僵尸进程，用户初始程序-initproc最终总能够成功回收它们的资源。</p></li>
 </ul>
+</div>
+<div class="section" id="shell-user-shell">
+<h3>shell程序-user_shell<a class="headerlink" href="#shell-user-shell" title="永久链接至标题">¶</a></h3>
 <p>由于shell程序-user_shell需要捕获我们的输入并进行解析处理，我们需要加入一个新的用于输入的系统调用：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：从文件中读取一段内容到缓冲区。</span>
 <span class="sd">/// 参数：fd 是待读取文件的文件描述符，切片 buffer 则给出缓冲区。</span>
@@ -679,6 +685,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>当内核初始化完毕之后，它会从可执行文件 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> 中加载并执行用户初始程序-initproc，而用户初始程序-initproc中又会 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 并 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 来运行shell程序- <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> 。这两个应用虽然都是在 CPU 的 U 特权级执行的，但是相比其他应用，它们要更加基础。原则上应该将它们作为一个组件打包在操作系统中。但这里为了实现更加简单，我们并不将它们和其他应用进行区分。</p>
 <p>除此之外，我们还从 <span class="math notranslate nohighlight">\(\mu\text{core}\)</span> 中借鉴了很多应用测例。它们可以做到同一时间 <strong>并发</strong> 多个进程并能够有效检验我们内核实现的正确性。感兴趣的读者可以参考 <code class="docutils literal notranslate"><span class="pre">matrix</span></code> 和 <code class="docutils literal notranslate"><span class="pre">forktree</span></code> 等应用。</p>
+</div>
+</div>
 </div>
 
 
