@@ -43,4 +43,4 @@ Remzi H. Arpaci-Dusseau 和 Andrea C. Arpaci-Dusseau 的《Operating Systems: Th
    - x86 后向兼容的策略确保了它的江湖地位，但导致其丢不掉很多已经比较过时的硬件设计，让操作系统疲于适配这些硬件特征。
    - x86 和 ARM 在商业上都很成功，其广泛使用使得其 CPU 硬件逻辑越来越复杂，且不够开放，不能改变，不是开源的，提高了操作系统开发者的学习难度。
    - 从某种角度上看，新出现的 RISC-V 的核心目标是灵活适应未来的 AIoT 场景，保证基本功能，提供可配置的扩展功能。其开源特征使得学生都可以方便地设计一个 RISC-V CPU。
-   - 写面向 RISC-V 的 OS 的代价仅仅是你了解 RISC-V 的 Supevisor 特权模式，知道 OS 在 Supevisor 特权模式下的控制能力。
+   - 写面向 RISC-V 的 OS 的代价仅仅是你了解 RISC-V 的 Supervisor 特权模式，知道 OS 在 Supervisor 特权模式下的控制能力。

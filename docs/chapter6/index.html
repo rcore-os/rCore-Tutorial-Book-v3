@@ -3,11 +3,11 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>第六章：文件描述符与进程间通信 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>第六章：进程间通信 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
@@ -17,7 +17,10 @@
 
   
   
+
   
+  
+
   
 
   
@@ -30,7 +33,6 @@
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -66,7 +68,6 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -88,7 +89,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
           
 
           
@@ -127,9 +128,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">第六章：文件描述符与进程间通信</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">第六章：进程间通信</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
-<li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html">文件与文件描述符</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html">基于文件抽象的标准输入/输出</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2pipe.html">管道</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3exercise.html">chapter6 练习</a></li>
 </ul>
@@ -193,18 +194,20 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-      <li>第六章：文件描述符与进程间通信</li>
+      <li>第六章：进程间通信</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="../_sources/chapter6/index.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -219,18 +222,19 @@ commentsRunWhenDOMLoaded(addUtterances);
            <div itemprop="articleBody">
             
   <div class="section" id="id1">
-<h1>第六章：文件描述符与进程间通信<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<h1>第六章：进程间通信<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="0intro.html">引言</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="0intro.html#id2">本章导读</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0intro.html#id3">实践体验</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0intro.html#id4">本章代码树</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0intro.html#id5">实现流程概述</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="1file-descriptor.html">文件与文件描述符</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="1file-descriptor.html">基于文件抽象的标准输入/输出</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html#id2">本节导读</a></li>
-<li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html#id3">文件</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html#id3">文件简介</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html#id4">标准输入和标准输出</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html#id5">文件描述符与文件描述符表</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html#id6">文件读写系统调用</a></li>
@@ -268,37 +272,29 @@ commentsRunWhenDOMLoaded(addUtterances);
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="0intro.html" class="btn btn-neutral float-right" title="引言" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="../chapter5/4exercise.html" class="btn btn-neutral float-left" title="chapter5 练习" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="0intro.html" class="btn btn-neutral float-right" title="引言" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../chapter5/4exercise.html" class="btn btn-neutral float-left" title="chapter5 练习" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; 版权所有 2020, Yifan Wu
+        &#169; 版权所有 2020, Yifan Wu.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 

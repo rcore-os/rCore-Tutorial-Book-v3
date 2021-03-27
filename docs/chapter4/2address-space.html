@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <title>地址空间 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
@@ -17,7 +17,10 @@
 
   
   
+
   
+  
+
   
 
   
@@ -30,7 +33,6 @@
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -88,7 +90,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
           
 
           
@@ -129,7 +131,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1rust-dynamic-allocation.html">Rust 中的动态内存分配</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">地址空间</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id2"><strong>本节导读</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id3">虚拟地址与地址空间</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id4">地址虚拟化出现之前</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id5">加一层抽象加强内存管理</a></li>
@@ -148,7 +150,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件描述符与进程间通信</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：进程间通信</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
@@ -208,6 +210,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -221,7 +225,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li class="wy-breadcrumbs-aside">
         
-            
+          
             <a href="../_sources/chapter4/2address-space.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -238,7 +242,7 @@ commentsRunWhenDOMLoaded(addUtterances);
   <div class="section" id="id1">
 <h1>地址空间<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="section" id="id2">
-<h2><strong>本节导读</strong><a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
 <p>直到现在，我们的操作系统给应用看到的是一个非常原始的物理内存空间，可以简单地理解为一个可以随便访问的大数组。为了限制应用访问内存空间的范围并给操作系统提供内存管理的灵活性，计算机硬件引入了各种内存保护/映射硬件机制，如RISC-V的基址-边界翻译和保护机制、x86的分段机制、RISC-V/x86/ARM都有的分页机制。它们的共同之处在于CPU访问的数据和指令内存地址是虚地址，需要进行转换形成合法的物理地址或产生非法的异常。为了用好这种硬件机制，操作系统需要升级自己的能力。</p>
 <p>操作系统为了更好地管理这两种形式的内存，并给应用程序提供统一的访问接口，即应用程序不需要了解虚拟内存和物理内存的区别的，操作系统提出了 <code class="docutils literal notranslate"><span class="pre">地址空间</span> <span class="pre">Address</span> <span class="pre">Space</span></code> 抽象，并在内核中建立虚实地址空间的映射机制，给应用程序提供一个虚拟的内存环境。</p>
 <p>本节将结合操作系统的发展历程回顾来介绍 <code class="docutils literal notranslate"><span class="pre">地址空间</span> <span class="pre">Address</span> <span class="pre">Space</span></code> 抽象的实现策略
@@ -289,7 +293,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 各个段的分布而无需考虑和其他应用冲突；同时，它完全无法窃取或者破坏其他应用的数据，毕竟那些段在其他应用的地址空间
 内，鉴于应用只能通过虚拟地址读写它自己的地址空间，这是它没有能力去访问的。这是 <strong>地址空间</strong> 抽象对应用程序执行的安全性和稳定性的一种保障。</p>
 <img alt="../_images/address-translation.png" src="../_images/address-translation.png" />
-<p id="term-address-translation"><span id="term-mmu"></span>我们知道应用的数据终归还是存在物理内存中的，那么虚拟地址如何形成地址空间，虚拟地址空间如何转换为物理内存呢？操作系统可以设计巧妙的数据结构来表示地址空间。但如果完全由操作系统来完成转换每次处理器地址访问所需的虚实地址转换，那开销就太大了。这就需要扩展硬件功能来加速地址转换过程（回忆 ** 计算机组成原理** 课上讲的 <code class="docutils literal notranslate"><span class="pre">MMU</span></code> 和 <code class="docutils literal notranslate"><span class="pre">TLB</span></code> ）。</p>
+<p id="term-address-translation"><span id="term-mmu"></span>我们知道应用的数据终归还是存在物理内存中的，那么虚拟地址如何形成地址空间，虚拟地址空间如何转换为物理内存呢？操作系统可以设计巧妙的数据结构来表示地址空间。但如果完全由操作系统来完成转换每次处理器地址访问所需的虚实地址转换，那开销就太大了。这就需要扩展硬件功能来加速地址转换过程（回忆 <em>计算机组成原理</em> 课上讲的 <code class="docutils literal notranslate"><span class="pre">MMU</span></code> 和 <code class="docutils literal notranslate"><span class="pre">TLB</span></code> ）。</p>
 </div>
 <div class="section" id="id6">
 <h3>增加硬件加速虚实地址转换<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h3>
@@ -395,37 +399,29 @@ system，其具体表现取决于实际的应用需求，各有优劣。</p>
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="3sv39-implementation-1.html" class="btn btn-neutral float-right" title="实现 SV39 多级页表机制（上）" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="1rust-dynamic-allocation.html" class="btn btn-neutral float-left" title="Rust 中的动态内存分配" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="3sv39-implementation-1.html" class="btn btn-neutral float-right" title="实现 SV39 多级页表机制（上）" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="1rust-dynamic-allocation.html" class="btn btn-neutral float-left" title="Rust 中的动态内存分配" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; 版权所有 2020, Yifan Wu
+        &#169; 版权所有 2020, Yifan Wu.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
-
         </div>
       </div>
 
