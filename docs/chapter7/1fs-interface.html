@@ -132,16 +132,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">文件系统接口</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#linux">Linux 标准文件和目录</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id3">标准文件</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id4">目录</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id5">文件系统</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">文件和目录</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id4">常规文件</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5">目录</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6">文件系统</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#fs-simplification">简易文件与目录抽象</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id7">文件打开与读写</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id8">文件打开</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id9">文件的顺序读写</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id8">打开与读写文件的系统调用</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id9">文件打开</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id10">文件的顺序读写</a></li>
 </ul>
 </li>
 </ul>
@@ -149,7 +149,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="2fs-implementation.html">简易文件系统 easy-fs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3using-easy-fs-in-kernel.html">在内核中使用 easy-fs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4cmdargs-and-redirection.html">命令行参数与标准 I/O 重定向</a></li>
-<li class="toctree-l2"><a class="reference internal" href="5exercise.html">lab7 实验要求</a></li>
+<li class="toctree-l2"><a class="reference internal" href="5exercise.html">chapter7 练习</a></li>
 </ul>
 </li>
 </ul>
@@ -241,13 +241,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>文件系统接口<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
-<p>本节我们首先介绍 Linux 上的标准文件和目录对用户来说值得注意的地方及使用方法。由于 Linux 上的文件系统模型还是比较复杂，在我们的内核实现中对它进行了很大程度的简化，我们会对简化的具体情形进行介绍。最后，我们介绍我们内核上应用的开发者应该如何使用我们简化后的文件系统和一些相关知识。</p>
+<p>本节我们首先以Linux 上的常规文件和目录为例，站在访问文件的应用的角度，介绍文件中值得注意的地方及文件使用方法。由于 Linux 上的文件系统模型还是比较复杂，在我们的内核实现中对它进行了很大程度的简化，我们会对简化的具体情形进行介绍。最后，我们介绍我们内核上应用的开发者应该如何使用我们简化后的文件系统和一些相关知识。</p>
 </div>
-<div class="section" id="linux">
-<h2>Linux 标准文件和目录<a class="headerlink" href="#linux" title="永久链接至标题">¶</a></h2>
 <div class="section" id="id3">
-<h3>标准文件<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<p>在操作系统的用户看来，标准文件是保存在持久存储设备上的一个字节序列，每个标准文件都有一个 <strong>文件名</strong> (Filename) ，用户需要通过它来区分不同的标准文件。方便起见，在下面的描述中，“文件”有可能指的是包括标准文件在内的若干种进程可以读写的 I/O 资源，也有可能指的是标准文件本身，请读者自行根据上下文判断取哪种含义。</p>
+<h2>文件和目录<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id4">
+<h3>常规文件<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
+<p>在操作系统的用户看来，常规文件是保存在持久存储设备上的一个字节序列，每个常规文件都有一个 <strong>文件名</strong> (Filename) ，用户需要通过它来区分不同的常规文件。方便起见，在下面的描述中，“文件”有可能指的是常规文件、目录，也可能是之前提到的若干种进程可以读写的 标准输出、标准输入、管道等I/O 资源，请读者自行根据上下文判断取哪种含义。</p>
 <p>在 Linux 系统上， <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具可以获取文件的一些信息。下面以我们项目中的一个源代码文件 <code class="docutils literal notranslate"><span class="pre">os/src/main.rs</span></code> 为例：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> os/src/
 <span class="gp">$</span> stat main.rs
@@ -266,11 +266,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>File 表明它的文件名为 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 。</p></li>
 <li><p>Size 表明它的字节大小为 940 字节。</p></li>
 <li><p>Blocks 表明它占据 8 个 <strong>块</strong> (Block) 来存储。在文件系统中，文件的数据以块为单位进行存储，在 IO Block 可以看出在 Ubuntu 系统中每个块的大小为 4096 字节。</p></li>
-<li><p>regular file 表明这个文件是一个标准文件。事实上，其他类型的文件也可以通过文件名来进行访问。</p></li>
-<li><p>当文件是一个特殊文件（如块设备文件或者字符设备文件的时候），Device 将指出该特殊文件的 major/minor ID 。对于一个标准文件，我们无需关心它。</p></li>
+<li><p>regular file 表明这个文件是一个常规文件。事实上，其他类型的文件也可以通过文件名来进行访问。</p></li>
+<li><p>当文件是一个特殊文件（如块设备文件或者字符设备文件的时候），Device 将指出该特殊文件的 major/minor ID 。对于一个常规文件，我们无需关心它。</p></li>
 <li><p>Inode 表示文件的底层编号。在文件系统的底层实现中，并不是直接通过文件名来索引文件，而是首先需要将文件名转化为文件的底层编号，再根据这个编号去索引文件。然而，用户无需关心这一信息。</p></li>
-<li><p>Links 给出文件的硬链接数。有关软硬链接的相关知识我们在这里不进行介绍，有兴趣的读者可以自行搜索了解。</p></li>
-<li><p>Uid 给出该文件的所属的用户 ID ， Gid 给出该文件所属的用户组 ID 。Access 的其中一种表示是一个长度为 10 的字符串（这里是 <code class="docutils literal notranslate"><span class="pre">-rw-r--r--</span></code> ），其中第 1 位给出该文件的类型，这个文件是一个标准文件，因此这第 1 位为 <code class="docutils literal notranslate"><span class="pre">-</span></code> 。后面的 9 位可以分为三组，分别表示该文件的所有者/在该文件所属的用户组内的其他用户以及剩下的所有用户能够读取/写入/将该文件作为一个可执行文件来执行。</p></li>
+<li><p>Links 给出文件的硬链接数。同一个文件系统中如果两个文件（目录也是文件）具有相同的inode号码，那么就称它们是“硬链接”关系。这样links的值其实是一个文件的不同文件名的数量。（本章的练习需要你在文件系统中实现硬链接！）</p></li>
+<li><p>Uid 给出该文件的所属的用户 ID ， Gid 给出该文件所属的用户组 ID 。Access 的其中一种表示是一个长度为 10 的字符串（这里是 <code class="docutils literal notranslate"><span class="pre">-rw-r--r--</span></code> ），其中第 1 位给出该文件的类型，这个文件是一个常规文件，因此这第 1 位为 <code class="docutils literal notranslate"><span class="pre">-</span></code> 。后面的 9 位可以分为三组，分别表示该文件的所有者/在该文件所属的用户组内的其他用户以及剩下的所有用户能够读取/写入/将该文件作为一个可执行文件来执行。</p></li>
 <li><p>Access/Modify 分别给出该文件的最近一次访问/最近一次修改时间。</p></li>
 </ul>
 <p>如果我们使用 <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具查看我们构建的一个能在我们的内核上执行的应用 ELF 可执行文件：</p>
@@ -289,8 +289,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>从中可以看出我们构建的应用体积大概在数十 KiB 量级。它的 Access 指出所有用户均可将其作为一个可执行文件在当前 OS 中加载并执行。然而这仅仅是能够通过权限检查而已，这个应用只有在我们自己的内核上才能真正被加载运行。</p>
 <p>用户常常通过文件的 <strong>拓展名</strong> (Filename extension) 来推断该文件的用途，如 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的拓展名是 <code class="docutils literal notranslate"><span class="pre">.rs</span></code> ，我们由此知道它是一个 Rust 源代码文件。但从内核的角度来看，它会将所有文件无差别的看成一个字节序列，文件内容的结构和含义则是交给对应的应用进行解析。</p>
 </div>
-<div class="section" id="id4">
-<h3>目录<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id5">
+<h3>目录<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
 <p>最早的文件系统仅仅通过文件名来区分文件，但是这会造成一些归档和管理上的困难。如今我们的使用习惯是将文件根据功能、属性的不同分类归档到不同层级的目录之下。这样我们就很容易逐级找到想要的文件。结合用户和用户组的概念，目录的存在也使得权限控制更加容易，只需要对于目录进行设置就可以间接设置用户/用户组对该目录下所有文件的访问权限，这使得操作系统能够更加安全的支持多用户。</p>
 <p>同样可以通过 <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具获取目录的一些信息：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> stat os
@@ -310,7 +310,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p><code class="docutils literal notranslate"><span class="pre">w</span></code> 表示是否允许在该目录下创建/删除文件和子目录；</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">x</span></code> 表示是否允许“通过”该目录。</p></li>
 </ul>
-<p>Blocks 给出 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录也占用 8 个块进行存储。实际上目录也可以看作一种标准文件，它也有属于自己的底层编号，它的内容中保存着若干 <strong>目录项</strong> (Dirent, Directory Entry) ，可以看成一组映射，根据它下面的文件或子目录的文件名或目录名能够查到文件和子目录在文件系统中的底层编号，即 Inode 编号。但是与标准文件不同的是，用户无法 <strong>直接</strong> 修改目录的内容，只能通过创建/删除它下面的文件或子目录才能间接做到这一点。</p>
+<p>Blocks 给出 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录也占用 8 个块进行存储。实际上目录也可以看作一种常规文件，它也有属于自己的底层编号，它的内容中保存着若干 <strong>目录项</strong> (Dirent, Directory Entry) ，可以看成一组映射，根据它下面的文件或子目录的文件名或目录名能够查到文件和子目录在文件系统中的底层编号，即 Inode 编号。但是与常规文件不同的是，用户无法 <strong>直接</strong> 修改目录的内容，只能通过创建/删除它下面的文件或子目录才能间接做到这一点。</p>
 <p>有了目录之后，我们就可以将所有的文件和目录组织为一种被称为 <strong>目录树</strong> (Directory Tree) 的有根树结构（不考虑软链接）。树中的每个节点都是一个文件或目录，一个目录下面的所有的文件和子目录都是它的孩子。可以看出所有的文件都是目录树的叶子节点。目录树的根节点也是一个目录，它被称为 <strong>根目录</strong> (Root Directory)。目录树中的每个目录和文件都可以用它的 <strong>绝对路径</strong> (Absolute Path) 来进行索引，该绝对路径是目录树上的根节点到待索引的目录和文件所在的节点之间自上而下的路径上的所有节点的文件或目录名两两之间加上路径分隔符拼接得到的。例如，在 Linux 上，根目录的绝对路径是 <code class="docutils literal notranslate"><span class="pre">/</span></code> ，路径分隔符也是 <code class="docutils literal notranslate"><span class="pre">/</span></code> ，因此：</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的绝对路径是 <code class="docutils literal notranslate"><span class="pre">/home/oslab/workspace/v3/rCore-Tutorial-v3/os/src/main.rs</span></code> ；</p></li>
@@ -325,33 +325,33 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>基于路径的索引难以并行或分布式化，因为我们总是需要查到一级目录的底层编号才能查到下一级，这是一个天然串行的过程。在一些性能需求极高的环境中，可以考虑弱化目录的权限控制职能，将目录树结构扁平化，将文件系统的磁盘布局变为类键值对存储。</p>
 </div>
 </div>
-<div class="section" id="id5">
-<h3>文件系统<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
-<p>标准文件和目录都是实际保存在持久存储设备中的。持久存储设备仅支持以扇区为单位的随机读写，这和上面介绍的通过路径即可索引到文件并进行读写的用户视角有很大的不同。负责中间转换的便是 <strong>文件系统</strong> (File System) 。具体而言，文件系统负责将逻辑上的目录树结构（包括其中每个文件或目录的数据和其他信息）映射到持久存储设备上，决定设备上的每个扇区各应存储哪些内容。反过来，文件系统也可以从持久存储设备还原出逻辑上的目录树结构。</p>
-<p>文件系统有很多种不同的实现，每一种都能将同一个逻辑上目录树结构转化为一个不同的持久存储设备上的扇区布局。最著名的文件系统有 Windows 上的 FAT/NTFS 和 Linux 上的 ext3/ext4 。</p>
-<p>在一个复杂的计算机系统中，可以同时包含多个持久存储设备，它们上面的数据可能是以不同文件系统格式存储的。为了能够对它们进行统一管理，在内核中有一层 <strong>虚拟文件系统</strong> (VFS, Virtual File System) ，它规定了逻辑上目录树结构的通用格式及相关操作的抽象接口，只要不同的底层文件系统均实现虚拟文件系统要求的那些抽象接口，再加上 <strong>挂载</strong> (Mount) 等方式，这些持久存储设备上的不同文件系统便可以用一个统一的逻辑目录树结构一并进行管理。</p>
+<div class="section" id="id6">
+<h3>文件系统<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h3>
+<p>常规文件和目录都是实际保存在持久存储设备中的。持久存储设备仅支持以扇区为单位的随机读写，这和上面介绍的通过路径即可索引到文件并进行读写的用户视角有很大的不同。负责中间转换的便是 <strong>文件系统</strong> (File System) 。具体而言，文件系统负责将逻辑上的目录树结构（包括其中每个文件或目录的数据和其他信息）映射到持久存储设备上，决定设备上的每个扇区各应存储哪些内容。反过来，文件系统也可以从持久存储设备还原出逻辑上的目录树结构。</p>
+<p>文件系统有很多种不同的实现，每一种都能将同一个逻辑上目录树结构转化为一个不同的持久存储设备上的扇区布局。最著名的文件系统有 Windows 上的 FAT/NTFS 和 Linux 上的 ext3/ext4 等。</p>
+<p>在一个计算机系统中，可以同时包含多个持久存储设备，它们上面的数据可能是以不同文件系统格式存储的。为了能够对它们进行统一管理，在内核中有一层 <strong>虚拟文件系统</strong> (VFS, Virtual File System) ，它规定了逻辑上目录树结构的通用格式及相关操作的抽象接口，只要不同的底层文件系统均实现虚拟文件系统要求的那些抽象接口，再加上 <strong>挂载</strong> (Mount) 等方式，这些持久存储设备上的不同文件系统便可以用一个统一的逻辑目录树结构一并进行管理。</p>
 </div>
 </div>
 <div class="section" id="fs-simplification">
-<span id="id6"></span><h2>简易文件与目录抽象<a class="headerlink" href="#fs-simplification" title="永久链接至标题">¶</a></h2>
+<span id="id7"></span><h2>简易文件与目录抽象<a class="headerlink" href="#fs-simplification" title="永久链接至标题">¶</a></h2>
 <p>我们的内核实现对于目录树结构进行了很大程度上的简化，这样做的目的是为了能够完整的展示文件系统的工作原理，但代码量又不至于太多。我们进行的简化如下：</p>
 <ul class="simple">
 <li><p>扁平化：仅存在根目录 <code class="docutils literal notranslate"><span class="pre">/</span></code> 一个目录，剩下所有的文件都放在根目录内。在索引一个文件的时候，我们直接使用文件的文件名而不是它含有 <code class="docutils literal notranslate"><span class="pre">/</span></code> 的绝对路径。</p></li>
 <li><p>权限控制：我们不设置用户和用户组概念，全程只有单用户。同时根目录和其他文件也都没有权限控制位，即完全不限制文件的访问方式，不会区分文件是否可执行。</p></li>
 <li><p>不记录文件访问/修改的任何时间戳。</p></li>
 <li><p>不支持软硬链接。</p></li>
-<li><p>除了文档中即将介绍的系统调用之外，其他的很多文件系统相关系统调用均未实现。</p></li>
+<li><p>除了下面即将介绍的系统调用之外，其他的很多文件系统相关系统调用均未实现。</p></li>
 </ul>
 </div>
-<div class="section" id="id7">
-<h2>文件打开与读写<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
 <div class="section" id="id8">
-<h3>文件打开<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h3>
-<p>在读写一个标准文件之前，应用首先需要通过内核提供的 <code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 系统调用将该文件打开在进程的文件描述符表中：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：打开一个标准文件，并返回可以访问它的文件描述符。</span>
+<h2>打开与读写文件的系统调用<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id9">
+<h3>文件打开<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h3>
+<p>在读写一个常规文件之前，应用首先需要通过内核提供的 <code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 系统调用让该文件在进程的文件描述符表中占一项，并得到操作系统的返回值–文件描述符，即文件关联的表项在文件描述表中的索引值：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：打开一个常规文件，并返回可以访问它的文件描述符。</span>
 <span class="sd">/// 参数：path 描述要打开的文件的文件名（简单起见，文件系统不需要支持目录，所有的文件都放在根目录 / 下），</span>
 <span class="sd">/// flags 描述打开文件的标志，具体含义下面给出。</span>
-<span class="sd">/// 返回值：如果出现了错误则返回 -1，否则返回打开标准文件的文件描述符。可能的错误原因是：文件不存在。</span>
+<span class="sd">/// 返回值：如果出现了错误则返回 -1，否则返回打开常规文件的文件描述符。可能的错误原因是：文件不存在。</span>
 <span class="sd">/// syscall ID：56</span>
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_open</span><span class="p">(</span><span class="n">path</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
 </pre></div>
@@ -395,10 +395,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>我们在 <code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 传给内核的两个参数只有待打开文件的文件名字符串的起始地址（和之前一样，我们需要保证该字符串以 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 结尾）还有标志位。由于每个通用寄存器为 64 位，我们需要先将 <code class="docutils literal notranslate"><span class="pre">u32</span></code> 的 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 转换为 <code class="docutils literal notranslate"><span class="pre">usize</span></code> 。</p>
 </div>
-<div class="section" id="id9">
-<h3>文件的顺序读写<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h3>
-<p>在打开一个文件之后，我们就可以用之前的 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 两个系统调用来对它进行读写了。需要注意的是，标准文件的读写模型和之前介绍过的几种文件有所不同。标准输入输出和匿名管道都属于一种流式读写，而标准文件则是顺序读写和随机读写的结合。由于标准文件可以看成一段字节序列，我们应该能够随意读写它的任一段区间的数据，即随机读写。然而用户仅仅通过 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 两个系统调用不能做到这一点。</p>
-<p>事实上，进程为每个它打开的标准文件维护了一个偏移量，在刚打开时初始值一般为 0 字节。当 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的时候，将会从文件字节序列偏移量的位置开始 <strong>顺序</strong> 把数据读到应用缓冲区/从应用缓冲区写入数据。操作完成之后，偏移量向后移动读取/写入的实际字节数。这意味着，下次 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 将会从刚刚读取/写入之后的位置继续。如果仅使用 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的话，则只能从头到尾顺序对文件进行读写。当我们需要从头开始重新写入或读取的话，只能通过 <code class="docutils literal notranslate"><span class="pre">sys_close</span></code> 关闭并重新打开文件来将偏移量重置为 0。为了解决这种问题，有另一个系统调用 <code class="docutils literal notranslate"><span class="pre">sys_lseek</span></code> 可以调整进程打开的一个标准文件的偏移量，这样便能对文件进行随机读写。在本教程中并未实现这个系统调用，因为顺序文件读写就已经足够了。顺带一提，在文件系统的底层实现中都是对文件进行随机读写的。</p>
+<div class="section" id="id10">
+<h3>文件的顺序读写<a class="headerlink" href="#id10" title="永久链接至标题">¶</a></h3>
+<p>在打开一个文件之后，我们就可以用之前的 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 两个系统调用来对它进行读写了。需要注意的是，常规文件的读写模式和之前介绍过的几种文件有所不同。标准输入输出和匿名管道都属于一种流式读写，而常规文件则是顺序读写和随机读写的结合。由于常规文件可以看成一段字节序列，我们应该能够随意读写它的任一段区间的数据，即随机读写。然而用户仅仅通过 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 两个系统调用不能做到这一点。</p>
+<p>事实上，进程为每个它打开的常规文件维护了一个偏移量，在刚打开时初始值一般为 0 字节。当 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的时候，将会从文件字节序列偏移量的位置开始 <strong>顺序</strong> 把数据读到应用缓冲区/从应用缓冲区写入数据。操作完成之后，偏移量向后移动读取/写入的实际字节数。这意味着，下次 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 将会从刚刚读取/写入之后的位置继续。如果仅使用 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的话，则只能从头到尾顺序对文件进行读写。当我们需要从头开始重新写入或读取的话，只能通过 <code class="docutils literal notranslate"><span class="pre">sys_close</span></code> 关闭并重新打开文件来将偏移量重置为 0。为了解决这种问题，有另一个系统调用 <code class="docutils literal notranslate"><span class="pre">sys_lseek</span></code> 可以调整进程打开的一个常规文件的偏移量，这样便能对文件进行随机读写。在本教程中并未实现这个系统调用，因为顺序文件读写就已经足够了。顺带一提，在文件系统的底层实现中都是对文件进行随机读写的。</p>
 <p>下面我们从本章的测试用例 <code class="docutils literal notranslate"><span class="pre">filetest_simple</span></code> 来介绍文件系统接口的使用方法：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
