@@ -53,3 +53,4 @@ Rust系统编程pattern
 
 - `Arc<Mutex<_>> in Rust <https://aeshirey.github.io/code/2020/12/23/arc-mutex-in-rust.html>`_
 - `Understanding Closures in Rust <https://medium.com/swlh/understanding-closures-in-rust-21f286ed1759>`_
+- `Closures in Rust <https://zhauniarovich.com/post/2020/2020-12-closures-in-rust/>`_
