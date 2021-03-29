@@ -136,13 +136,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2 current"><a class="current reference internal" href="#">命令行参数与标准 I/O 重定向</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id1">本节导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id2">命令行参数</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id3">用户终端的命令行参数分割</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#shell">shell程序的命令行参数分割</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#sys-exec">sys_exec 将命令行参数压入用户栈</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id4">用户库从用户栈上还原命令行参数</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3">用户库从用户栈上还原命令行参数</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#cat">通过命令行工具 cat 输出文件内容</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">标准输入输出重定向</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">标准输入输出重定向</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="5exercise.html">chapter7 练习</a></li>
@@ -237,7 +237,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>命令行参数与标准 I/O 重定向<a class="headerlink" href="#i-o" title="永久链接至标题">¶</a></h1>
 <div class="section" id="id1">
 <h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
-<p>之前我们已经支持从文件系统中加载应用，还实现了文件的创建和读写。但是目前我们在应用中只能硬编码要操作的文件，这就使得应用的功能大大受限，用户终端对于文件的交互访问能力也很弱。为了解决这些问题，我们需要在用户终端和内核中支持命令行参数的解析和传递还有标准 I/O 重定向功能。之后，我们便可以在用户终端执行应用的时候通过调整命令手动将应用的输入和输出从标准输入输出替换为某个特定文件，还实现了命令行工具 <code class="docutils literal notranslate"><span class="pre">cat</span></code> 来查看一个文件的内容。</p>
+<p>之前我们已经支持从文件系统中加载应用，还实现了文件的创建和读写。但是目前我们在应用中只能硬编码要操作的文件，这就使得应用的功能大大受限，shell程序对于文件的交互访问能力也很弱。为了解决这些问题，我们需要在shell程序和内核中支持命令行参数的解析和传递还有标准 I/O 重定向功能。之后，我们便可以在shell程序执行应用的时候通过调整命令手动将应用的输入和输出从标准输入输出替换为某个特定文件，还实现了命令行工具 <code class="docutils literal notranslate"><span class="pre">cat</span></code> 来查看一个文件的内容。</p>
 </div>
 <div class="section" id="id2">
 <h2>命令行参数<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
@@ -267,7 +267,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="go">argv[5] = cc</span>
 </pre></div>
 </div>
-<p>为了支持后续的一些功能，我们希望在我们自己的内核和用户终端上支持这个功能。为了对实现正确性进行测试，在本章中我们编写了一个名为 <code class="docutils literal notranslate"><span class="pre">cmdline_args</span></code> 的应用，它是用 Rust 编写的，并只能在我们的内核上执行，但是它的功能是和 <code class="docutils literal notranslate"><span class="pre">a.c</span></code> 保持一致的。我们可以在我们的内核上运行该应用来看看效果：</p>
+<p>为了支持后续的一些功能，我们希望在我们自己的内核和shell程序上支持这个功能。为了对实现正确性进行测试，在本章中我们编写了一个名为 <code class="docutils literal notranslate"><span class="pre">cmdline_args</span></code> 的应用，它是用 Rust 编写的，并只能在我们的内核上执行，但是它的功能是和 <code class="docutils literal notranslate"><span class="pre">a.c</span></code> 保持一致的。我们可以在我们的内核上运行该应用来看看效果：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Rust</span> <span class="n">user</span> <span class="n">shell</span>
 <span class="o">&gt;&gt;</span> <span class="n">cmdline_args</span> <span class="n">aa</span> <span class="n">bb</span> <span class="mi">11</span> <span class="mi">22</span> <span class="n">cc</span>
 <span class="n">argc</span> <span class="o">=</span> <span class="mi">6</span>
@@ -301,9 +301,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>接下来我们分析一下，一行带有命令行参数的命令从输入到它的命令行参数被打印出来中间经历了哪些过程。</p>
-<div class="section" id="id3">
-<h3>用户终端的命令行参数分割<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<p>回忆一下，之前在用户终端 <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> 中，一旦接收到一个回车，我们就会将当前行的内容 <code class="docutils literal notranslate"><span class="pre">line</span></code> 作为一个名字并试图去执行同名的应用。但是现在 <code class="docutils literal notranslate"><span class="pre">line</span></code> 还可能包含一些命令行参数，只有最开头的一个才是要执行的应用名。因此我们要做的第一件事情就是将 <code class="docutils literal notranslate"><span class="pre">line</span></code> 用空格进行分割：</p>
+<div class="section" id="shell">
+<h3>shell程序的命令行参数分割<a class="headerlink" href="#shell" title="永久链接至标题">¶</a></h3>
+<p>回忆一下，之前在shell程序 <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> 中，一旦接收到一个回车，我们就会将当前行的内容 <code class="docutils literal notranslate"><span class="pre">line</span></code> 作为一个名字并试图去执行同名的应用。但是现在 <code class="docutils literal notranslate"><span class="pre">line</span></code> 还可能包含一些命令行参数，只有最开头的一个才是要执行的应用名。因此我们要做的第一件事情就是将 <code class="docutils literal notranslate"><span class="pre">line</span></code> 用空格进行分割：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/bin/user_shell.rs</span>
 
 <span class="kd">let</span><span class="w"> </span><span class="n">args</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">_</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">as_str</span><span class="p">().</span><span class="n">split</span><span class="p">(</span><span class="sc">&#39; &#39;</span><span class="p">).</span><span class="n">collect</span><span class="p">();</span><span class="w"></span>
@@ -520,9 +520,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>我们还需要对应修改 Trap 上下文。首先是第 45 行，我们的 <code class="docutils literal notranslate"><span class="pre">user_sp</span></code> 相比之前已经发生了变化，它上面已经压入了命令行参数。同时，我们还需要修改 Trap 上下文中的 <code class="docutils literal notranslate"><span class="pre">a0/a1</span></code> 寄存器，让 <code class="docutils literal notranslate"><span class="pre">a0</span></code> 表示命令行参数的个数，而 <code class="docutils literal notranslate"><span class="pre">a1</span></code> 则表示图中 <code class="docutils literal notranslate"><span class="pre">argv_base</span></code> 即蓝色区域的起始地址。这两个参数在第一次进入对应应用的用户态的时候会被接收并用于还原命令行参数。</p>
 </div>
-<div class="section" id="id4">
-<h3>用户库从用户栈上还原命令行参数<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
-<p>在第一次进入用户态的时候，我们放在 Trap 上下文 a0/a1 两个寄存器中的内容可以被用户库中的入口函数以参数的形式接收：</p>
+<div class="section" id="id3">
+<h3>用户库从用户栈上还原命令行参数<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
+<p>在应用第一次进入用户态的时候，我们放在 Trap 上下文 a0/a1 两个寄存器中的内容可以被用户库中的入口函数以参数的形式接收：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
  3
@@ -630,9 +630,9 @@ Shell: Process 2 exited with code 0
 </div>
 </div>
 </div>
-<div class="section" id="id5">
-<h2>标准输入输出重定向<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<p>为了进一步增强用户终端使用文件系统时的灵活性，我们需要新增标准输入输出重定向功能。这个功能在我们使用 Linux 内核的时候很常用，我们在自己的内核中举个例子：</p>
+<div class="section" id="id4">
+<h2>标准输入输出重定向<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<p>为了进一步增强shell程序使用文件系统时的灵活性，我们需要新增标准输入输出重定向功能。这个功能在我们使用 Linux 内核的时候很常用，我们在自己的内核中举个例子：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;&gt;</span> <span class="k">yield</span> <span class="o">&gt;</span> <span class="n">fileb</span>
 <span class="n">Shell</span><span class="p">:</span> <span class="n">Process</span> <span class="mi">2</span> <span class="n">exited</span> <span class="k">with</span> <span class="n">code</span> <span class="mi">0</span>
 <span class="o">&gt;&gt;</span> <span class="n">cat</span> <span class="n">fileb</span>
@@ -649,7 +649,8 @@ Shell: Process 2 exited with code 0
 </pre></div>
 </div>
 <p>通过 <code class="docutils literal notranslate"><span class="pre">&gt;</span></code> 我们可以将应用 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 的输出重定向到文件 <code class="docutils literal notranslate"><span class="pre">fileb</span></code> 中。我们也可以注意到在屏幕上暂时看不到 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 的输出了。在应用 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 退出之后，我们可以使用 <code class="docutils literal notranslate"><span class="pre">cat</span></code> 工具来查看文件 <code class="docutils literal notranslate"><span class="pre">fileb</span></code> 的内容，可以看到里面的确是 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 的输出。同理，通过 <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> 则可以将一个应用的输入重定向到某个指定文件而不是从键盘输入。</p>
-<p>注意重定向功能对于应用来说是透明的。在应用中除非明确指出了某些内容要从指定的文件输入或者输出到指定的文件，剩下的内容默认都是输入自进程文件描述表位置 0 （即 fd=0）处的标准输入，并输出到进程文件描述符表位置 1 （即 fd=1）处的标准输出。因此，在应用执行之前，我们就要对应用进程的文件描述符表进行某种替换。以输出为例，我们需要提前打开文件并用这个文件来替换掉应用文件描述符表位置 1 处的标准输出，这就完成了所谓的重定向。在重定向之后，应用认为自己输出到 fd=1 的标准输出，但实际上是输出到我们指定的文件中。我们能够做到这一点还是得益于文件的抽象，因为在进程看来无论是标准输出还是常规文件都是一种文件，可以通过同样的接口来读写。</p>
+<p>注意重定向功能对于应用来说是透明的。在应用中除非明确指出了数据要从指定的文件输入或者输出到指定的文件，否则数据默认都是输入自进程文件描述表位置 0 （即 <code class="docutils literal notranslate"><span class="pre">fd=0</span></code> ）处的标准输入，并输出到进程文件描述符表位置 1 （即  <code class="docutils literal notranslate"><span class="pre">fd=1</span></code> ）处的标准输出。这是由于内核在执行 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 系统调用创建基于新应用的进程时，会直接把文件描述符表位置 0 放置标准输入文件，位置 1 放置标准输出文件，位置 2 放置标准错误输出文件。标准输入/输出文件其实是把设备当成文件，标准输入文件就是串口的输入或键盘，而标准输出文件就是串口的输出或显示器。</p>
+<p>因此，在应用执行之前，我们就要对应用进程的文件描述符表进行某种替换。以输出为例，我们需要提前打开文件并用这个文件来替换掉应用文件描述符表位置 1 处的标准输出文件，这就完成了所谓的重定向。在重定向之后，应用认为自己输出到  <code class="docutils literal notranslate"><span class="pre">fd=1</span></code> 的标准输出文件，但实际上是输出到我们指定的文件中。我们能够做到这一点还是得益于文件的抽象，因为在进程看来无论是标准输出还是常规文件都是一种文件，可以通过同样的接口来读写。</p>
 <p>为了实现重定向功能，我们需要引入一个新的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_dup</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/syscall.rs</span>
 
@@ -679,9 +680,9 @@ Shell: Process 2 exited with code 0
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>首先检查传入 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 的合法性。然后在文件描述符表中分配一个新的文件描述符，并保存 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 指向的已打开文件的一份拷贝即可。</p>
+<p>在 <code class="docutils literal notranslate"><span class="pre">sys_dup</span></code> 函数中，首先检查传入 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 的合法性。然后在文件描述符表中分配一个新的文件描述符，并保存 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 指向的已打开文件的一份拷贝即可。</p>
 <p>那么我们应该在什么时候进行替换，又应该如何利用 <code class="docutils literal notranslate"><span class="pre">sys_dup</span></code> 进行替换呢？</p>
-<p>答案是在用户终端 <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> 中进行处理。在分割命令行参数的时候，我们要检查是否存在通过 <code class="docutils literal notranslate"><span class="pre">&lt;/&gt;</span></code> 进行输入输出重定向的情况，如果存在的话则需要将它们从命令行参数中移除，并记录匹配到的输入/输出文件名到字符串 <code class="docutils literal notranslate"><span class="pre">input/output</span></code> 中。注意，为了实现方便，我们这里假设输入用户终端的命令一定合法：即 <code class="docutils literal notranslate"><span class="pre">&lt;/&gt;</span></code> 最多只会出现一次，且后面总是会有一个参数作为重定向到的文件。</p>
+<p>答案是在shell程序 <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> 中进行处理。在分割命令行参数的时候，我们要检查是否存在通过 <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> 或 <code class="docutils literal notranslate"><span class="pre">&gt;</span></code> 进行输入输出重定向的情况，如果存在的话则需要将它们从命令行参数中移除，并记录匹配到的输入文件名或输出文件名到字符串 <code class="docutils literal notranslate"><span class="pre">input</span></code> 或 <code class="docutils literal notranslate"><span class="pre">output</span></code> 中。注意，为了实现方便，我们这里假设输入shell程序的命令一定合法：即 <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> 或 <code class="docutils literal notranslate"><span class="pre">&gt;</span></code> 最多只会出现一次，且后面总是会有一个参数作为重定向到的文件。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/bin/user_shell.rs</span>
 
 <span class="c1">// redirect input</span>
@@ -794,7 +795,7 @@ Shell: Process 2 exited with code 0
 </pre></div>
 </td></tr></table></div>
 <ul class="simple">
-<li><p>输入重定向发生在第 6~16 行。我们尝试打开输入文件 <code class="docutils literal notranslate"><span class="pre">input</span></code> 到 <code class="docutils literal notranslate"><span class="pre">input_fd</span></code> 中。之后，首先通过 <code class="docutils literal notranslate"><span class="pre">close</span></code> 关闭标准输入所在的文件描述符 0 。之后通过 <code class="docutils literal notranslate"><span class="pre">dup</span></code> 来分配一个新的文件描述符来访问 <code class="docutils literal notranslate"><span class="pre">input_fd</span></code> 对应的输入文件。这里用到了文件描述符分配的重要性质：即必定分配可用描述符中编号最小的一个。由于我们刚刚关闭了描述符 0 ，那么在 <code class="docutils literal notranslate"><span class="pre">dup</span></code> 的时候一定会将它分配出去，于是现在应用进程的文件描述符 0 就对应到输入文件了。最后，因为不会用到输入文件原来的描述符 <code class="docutils literal notranslate"><span class="pre">input_fd</span></code> ，我们将其关掉。</p></li>
+<li><p>输入重定向发生在第 6~16 行。我们尝试打开输入文件 <code class="docutils literal notranslate"><span class="pre">input</span></code> 到 <code class="docutils literal notranslate"><span class="pre">input_fd</span></code> 中。之后，首先通过 <code class="docutils literal notranslate"><span class="pre">close</span></code> 关闭标准输入所在的文件描述符 0 。之后通过 <code class="docutils literal notranslate"><span class="pre">dup</span></code> 来分配一个新的文件描述符来访问 <code class="docutils literal notranslate"><span class="pre">input_fd</span></code> 对应的输入文件。这里用到了文件描述符分配的重要性质：即必定分配可用描述符中编号最小的一个。由于我们刚刚关闭了描述符 0 ，那么在 <code class="docutils literal notranslate"><span class="pre">dup</span></code> 的时候一定会将它分配出去，于是现在应用进程的文件描述符 0 就对应到输入文件了。最后，因为应用进程的后续执行不会用到输入文件原来的描述符 <code class="docutils literal notranslate"><span class="pre">input_fd</span></code> ，所以就将其关掉。</p></li>
 <li><p>输出重定向则发生在 18~31 行。它的原理和输入重定向几乎完全一致，只是通过 <code class="docutils literal notranslate"><span class="pre">open</span></code> 打开文件的标志不太相同。</p></li>
 </ul>
 <p>之后，就可以通过 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 来执行应用了。</p>

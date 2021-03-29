@@ -275,7 +275,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="gp">$</span> make run <span class="nv">BOARD</span><span class="o">=</span>k210
 </pre></div>
 </div>
-<p>待内核初始化完毕之后，将在屏幕上打印可用的应用列表并进入用户终端（以 K210 平台为例）：</p>
+<p>待内核初始化完毕之后，将在屏幕上打印可用的应用列表并进入shell程序（以 K210 平台为例）：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[rustsbi] RustSBI version 0.1.1
 .______       __    __      _______.___________.  _______..______   __
 |   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
@@ -336,7 +336,7 @@ Rust user shell
 <span class="o">&gt;&gt;</span>
 </pre></div>
 </div>
-<p>当应用执行完毕后，将继续回到用户终端的命令输入模式。</p>
+<p>当应用执行完毕后，将继续回到shell程序的命令输入模式。</p>
 </div>
 <div class="section" id="id4">
 <h2>本章代码树<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
@@ -498,6 +498,11 @@ Rust user shell
 </div>
 <div class="section" id="id5">
 <h2>本章代码导读<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+<p>本章的第一小节 <a class="reference internal" href="1process.html"><span class="doc">进程概念及重要系统调用</span></a> 介绍了操作系统中经典的进程概念，并描述我们将要实现的参考自 Unix 系内核并经过简化的精简版进程模型。在该模型下，若想对进程进行管理，实现创建、退出等操作，核心就在于 <code class="docutils literal notranslate"><span class="pre">fork/exec/waitpid</span></code> 三个系统调用。</p>
+<p>首先我们修改运行在应用态的应用软件，它们均放置在 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下。在新增系统调用的时候，需要在 <code class="docutils literal notranslate"><span class="pre">user/src/lib.rs</span></code> 中新增一个 <code class="docutils literal notranslate"><span class="pre">sys_*</span></code> 的函数，它的作用是将对应的系统调用按照与内核约定的 ABI 在 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 中转化为一条用于触发系统调用的 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 的指令；还需要在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 将 <code class="docutils literal notranslate"><span class="pre">sys_*</span></code> 进一步封装成一个应用可以直接调用的与系统调用同名的函数。通过这种方式我们新增三个进程模型中核心的系统调用 <code class="docutils literal notranslate"><span class="pre">fork/exec/waitpid</span></code> ，一个查看进程 PID 的系统调用 <code class="docutils literal notranslate"><span class="pre">getpid</span></code> ，还有一个允许应用程序获取用户键盘输入的 <code class="docutils literal notranslate"><span class="pre">read</span></code> 系统调用。</p>
+<p>基于进程模型，我们在 <code class="docutils literal notranslate"><span class="pre">user/src/bin</span></code> 目录下重新实现了一组应用程序。其中有两个特殊的应用程序：用户初始程序 <code class="docutils literal notranslate"><span class="pre">initproc.rs</span></code> 和 shell 程序 <code class="docutils literal notranslate"><span class="pre">user_shell.rs</span></code> ，可以认为它们位于内核和其他应用程序之间的中间层提供一些基础功能，但是它们仍处于应用层。前者会被内核唯一自动加载、也是最早加载并执行，后者则负责从键盘接收用户输入的应用名并执行对应的应用。剩下的应用从不同层面测试了我们内核实现的正确性，读者可以自行参考。值得一提的是， <code class="docutils literal notranslate"><span class="pre">usertests</span></code> 可以按照顺序执行绝大部分应用，会在测试的时候为我们提供很多方便。</p>
+<p>接下来就需要在内核中实现简化版的进程机制并支持新增的系统调用。</p>
+<p>&lt;To Be Continued&gt;</p>
 </div>
 </div>
 
