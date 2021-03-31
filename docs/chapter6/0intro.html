@@ -133,12 +133,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l3"><a class="reference internal" href="#id2">本章导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id3">实践体验</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id4">本章代码树</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">实现流程概述</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">本章代码导读</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html">基于文件的标准输入/输出</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2pipe.html">管道</a></li>
-<li class="toctree-l2"><a class="reference internal" href="3exercise.html">chapter6 练习</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3exercise.html">chapter6练习</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
@@ -366,7 +366,12 @@ Shell: Process 2 exited with code 0
 </div>
 </div>
 <div class="section" id="id5">
-<h2>实现流程概述<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+<h2>本章代码导读<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+<p>在本章第一节 <a class="reference internal" href="1file-descriptor.html"><span class="doc">基于文件的标准输入/输出</span></a> 中，我们引入了文件的概念，用它来代表进程可以读写的多种被内核管理的硬件/软件资源。进程必须通过系统调用打开一个文件，将文件加入到自身的文件描述符表中，才能通过文件描述符（也就是某个特定文件在自身文件描述符表中的下标）来读写该文件。</p>
+<p>文件的抽象 Trait <code class="docutils literal notranslate"><span class="pre">File</span></code> 声明在 <code class="docutils literal notranslate"><span class="pre">os/src/fs/mod.rs</span></code> 中，它提供了 <code class="docutils literal notranslate"><span class="pre">read/write</span></code> 两个接口，可以将数据写入应用缓冲区抽象 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> ，或者从应用缓冲区读取数据。应用缓冲区抽象类型 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> 来自 <code class="docutils literal notranslate"><span class="pre">os/src/mm/page_table.rs</span></code> 中，它将 <code class="docutils literal notranslate"><span class="pre">translated_byte_buffer</span></code> 得到的 <code class="docutils literal notranslate"><span class="pre">Vec&lt;&amp;'static</span> <span class="pre">mut</span> <span class="pre">[u8]&gt;</span></code> 进一步包装，不仅保留了原有的分段读写能力，还可以将其转化为一个迭代器逐字节进行读写，这在读写一些流式设备的时候特别有用。</p>
+<p>在进程控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 中需要加入文件描述符表字段 <code class="docutils literal notranslate"><span class="pre">fd_table</span></code> ，可以看到它是一个向量，里面保存了若干实现了 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait 的文件，由于采用动态分发，文件的类型可能各不相同。 <code class="docutils literal notranslate"><span class="pre">os/src/syscall/fs.rs</span></code> 的 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 两个读写文件的系统调用需要访问当前进程的文件描述符表，用应用传入内核的文件描述符来索引对应的已打开文件，并调用 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait 的 <code class="docutils literal notranslate"><span class="pre">read/write</span></code> 接口； <code class="docutils literal notranslate"><span class="pre">sys_close</span></code> 这可以关闭一个文件。调用 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 的 <code class="docutils literal notranslate"><span class="pre">alloc_fd</span></code> 方法可以在文件描述符表中分配一个文件描述符。进程控制块的其他操作也需要考虑到新增的文件描述符表字段的影响，如 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::new</span></code> 的时候需要对 <code class="docutils literal notranslate"><span class="pre">fd_table</span></code> 进行初始化， <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::fork</span></code> 中则需要将父进程的 <code class="docutils literal notranslate"><span class="pre">fd_table</span></code> 复制一份给子进程。</p>
+<p>到本章为止我们支持两种文件：标准输入输出和管道。不同于前面章节，我们将标准输入输出分别抽象成 <code class="docutils literal notranslate"><span class="pre">Stdin</span></code> 和 <code class="docutils literal notranslate"><span class="pre">Stdout</span></code> 两个类型，并为他们实现 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait 。在 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::new</span></code> 创建初始进程的时候，就默认打开了标准输入输出，并分别绑定到文件描述符 0 和 1 上面。</p>
+<p>管道 <code class="docutils literal notranslate"><span class="pre">Pipe</span></code> 是另一种文件，它可以用于父子进程间的单向进程间通信。我们也需要为它实现 <code class="docutils literal notranslate"><span class="pre">File</span></code>　Trait 。 <code class="docutils literal notranslate"><span class="pre">os/src/syscall/fs.rs</span></code> 中的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_pipe</span></code> 可以用来打开一个管道并返回读端/写端两个文件的文件描述符。管道的具体实现在 <code class="docutils literal notranslate"><span class="pre">os/src/fs/pipe.rs</span></code> 中，本章第二节 <a class="reference internal" href="2pipe.html"><span class="doc">管道</span></a> 中给出了详细的讲解。管道机制的测试用例可以参考 <code class="docutils literal notranslate"><span class="pre">user/src/bin</span></code> 目录下的 <code class="docutils literal notranslate"><span class="pre">pipetest.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">pipe_large_test.rs</span></code> 两个文件。</p>
 </div>
 </div>
 

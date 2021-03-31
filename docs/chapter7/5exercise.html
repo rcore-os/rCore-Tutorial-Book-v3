@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>chapter7 练习 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>chapter7练习 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
@@ -135,11 +135,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="2fs-implementation.html">简易文件系统 easy-fs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3using-easy-fs-in-kernel.html">在内核中使用 easy-fs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4cmdargs-and-redirection.html">命令行参数与标准 I/O 重定向</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">chapter7 练习</a><ul>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">chapter7练习</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id1">编程作业</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id2">硬链接</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id3">实验要求</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id4">实验检查</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tips">Tips</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#id5">问答作业</a></li>
@@ -216,7 +217,7 @@ commentsRunWhenDOMLoaded(addUtterances);
         
           <li><a href="index.html">第七章：数据持久化存储</a> &raquo;</li>
         
-      <li>chapter7 练习</li>
+      <li>chapter7练习</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -236,7 +237,7 @@ commentsRunWhenDOMLoaded(addUtterances);
            <div itemprop="articleBody">
             
   <div class="section" id="chapter7">
-<h1>chapter7 练习<a class="headerlink" href="#chapter7" title="永久链接至标题">¶</a></h1>
+<h1>chapter7练习<a class="headerlink" href="#chapter7" title="永久链接至标题">¶</a></h1>
 <ul class="simple">
 <li><p>本节难度： <strong>理解文件系统比较费事，编程难度适中</strong></p></li>
 </ul>
@@ -245,7 +246,50 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="id2">
 <h3>硬链接<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h3>
 <p>你的电脑桌面是咋样的？是放满了图标吗？反正我的 windows 是这样的。显然很少人会真的把可执行文件放到桌面上，桌面图标其实都是一些快捷方式。或者用 unix 的术语来说：软链接。为了减少工作量，我们今天来实现软链接的兄弟：[硬链接](<a class="reference external" href="https://en.wikipedia.org/wiki/Hard_link">https://en.wikipedia.org/wiki/Hard_link</a>)。</p>
-<p>硬链接要求两个不同的目录项指向同一个文件，在我们的文件系统中也就是两个不同名称目录项指向同一个磁盘块。本节要求实现三个系统调用 sys_linkat、sys_unlinkat、sys_stat。</p>
+<p>硬链接要求两个不同的目录项指向同一个文件，在我们的文件系统中也就是两个不同名称目录项指向同一个磁盘块。本节要求实现三个系统调用 <code class="docutils literal notranslate"><span class="pre">sys_linkat、sys_unlinkat、sys_stat</span></code> 。注意在测例中 <code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 的接口定义也发生了变化。</p>
+<p><strong>open</strong></p>
+<blockquote>
+<div><ul>
+<li><p>syscall ID: 56</p></li>
+<li><p>功能：打开一个文件，并返回可以访问它的文件描述符。</p></li>
+<li><p>C 接口： <code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">open(int</span> <span class="pre">dirfd,</span> <span class="pre">char*</span> <span class="pre">path,</span> <span class="pre">unsigned</span> <span class="pre">int</span> <span class="pre">flags,</span> <span class="pre">unsigned</span> <span class="pre">int</span> <span class="pre">mode);</span></code></p></li>
+<li><p>Rust 接口： <code class="docutils literal notranslate"><span class="pre">fn</span> <span class="pre">open(dirfd:</span> <span class="pre">usize,</span> <span class="pre">path:</span> <span class="pre">*const</span> <span class="pre">u8,</span> <span class="pre">flags:</span> <span class="pre">u32,</span> <span class="pre">mode:</span> <span class="pre">u32);</span></code></p></li>
+<li><dl>
+<dt>参数：</dt><dd><ul>
+<li><p><strong>dirfd</strong> : 仅为了兼容性考虑，本次实验中始终为 AT_FDCWD (-100)。可以忽略。</p></li>
+<li><p><strong>path</strong> 描述要打开的文件的文件名（简单起见，文件系统不需要支持目录，所有的文件都放在根目录 <code class="docutils literal notranslate"><span class="pre">/</span></code> 下）</p></li>
+<li><p><strong>flags</strong> 描述打开文件的标志，具体含义（其他参数不考虑）：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#define O_RDONLY  0x000</span>
+<span class="cp">#define O_WRONLY  0x001</span>
+<span class="cp">#define O_RDWR    0x002         </span><span class="c1">// 可读可写</span>
+<span class="cp">#define O_CREATE  0x200</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>mode</strong> 仅在创建文件时有用，表示创建文件的访问权限，为了简单，本次实验中中统一为 <em>O_RDWR</em> 。</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>说明：</dt><dd><ul class="simple">
+<li><p>有 create 标志但文件存在时，忽略 create 标志，直接打开文件。</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>返回值：如果出现了错误则返回 -1，否则返回可以访问给定文件的文件描述符。</p></li>
+<li><dl class="simple">
+<dt>可能的错误：</dt><dd><ul class="simple">
+<li><p>文件不存在且无 create 标志。</p></li>
+<li><p>标志非法（低两位为 0x3）</p></li>
+<li><p>打开文件数量达到上限。</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
 <p><strong>linkat</strong>：</p>
 <blockquote>
 <div><ul class="simple">
@@ -387,6 +431,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div><p>可以正确 <cite>make run</cite> 执行，可以正确执行目标用户测例，并得到预期输出（详见测例注释）。</p>
 </div></blockquote>
 </li>
+</ul>
+</div>
+<div class="section" id="tips">
+<h3>Tips<a class="headerlink" href="#tips" title="永久链接至标题">¶</a></h3>
+<ul class="simple">
+<li><p>注意 <code class="docutils literal notranslate"><span class="pre">sys_linkat</span></code> 有 5 个参数，而原有的系统调用分发函数 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> （位于 <code class="docutils literal notranslate"><span class="pre">os/src/syscall/mod.rs</span></code> 中）最多仅支持 3 个参数，因此我们需要进行拓展。这需要将 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 的函数签名中的 <code class="docutils literal notranslate"><span class="pre">args</span></code> 拓展为 <code class="docutils literal notranslate"><span class="pre">[usize;</span> <span class="pre">5]</span></code> ，还需要对应调整 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 中对 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 的调用，从 Trap 上下文中获取更多通用寄存器放入参数 <code class="docutils literal notranslate"><span class="pre">args</span></code> 中。</p></li>
 </ul>
 </div>
 </div>
