@@ -140,6 +140,10 @@
 .. code-block::
    :linenos:
 
+   ./os/src
+   Rust        25 Files    1760 Lines
+   Assembly     3 Files      88 Lines
+
    ├── bootloader
    │   ├── rustsbi-k210.bin
    │   └── rustsbi-qemu.bin
