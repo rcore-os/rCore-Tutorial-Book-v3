@@ -1,3 +1,5 @@
+.. _term-print-kernelminienv:
+
 构建裸机运行时执行环境
 =================================
 
@@ -10,8 +12,9 @@
 
 本节开始我们将着手自己来实现裸机上的最小执行环境，即我们的“三叶虫”操作系统，并能在裸机上运行 ``Hello, world!`` 程序。
 有了上一节实现的用户态的最小执行环境，我们可以稍加改造，就可以完成裸机上的最小执行环境了。与上节不同，需要关注地方主要是：
-- 物理内存的DRAM为止（放应用程序的地方）和应用程序的内存布局（如何咋DRAM中放置应用程序的各个部分）
-- SBI的字符输出接口（执行环境提供的输出字符服务，可以被应用程序使用）
+
+- 物理内存的 DRAM 位置（放应用程序的地方）和应用程序的内存布局（如何在 DRAM 中放置应用程序的各个部分）
+- SBI 的字符输出接口（执行环境提供的输出字符服务，可以被应用程序使用）
 - 应用程序的初始化（起始的指令位置，对 ``栈 stack`` 和 ``bss`` 的初始化）
 
 
@@ -88,18 +91,18 @@
   这需要从 CPU 加电后如何初始化，如何执行第一条指令开始讲起。对于我们采用的QEMU模拟器而言，它模拟了一台标准的RISC-V64计算机。我们启动QEMU时，可设置一些参数，在RISC-V64计算机启动执行前，先在其模拟的内存中放置好BootLoader程序和操作系统的二进制代码。这可以通过查看 ``os/Makefile`` 文件中包含 ``qemu-system-riscv64`` 的相关内容来了解。
   
   -  ``-bios $(BOOTLOADER)`` 这个参数意味着硬件内存中的固定位置 ``0x80000000`` 处放置了一个BootLoader程序--RustSBI（戳 :doc:`../appendix-c/index` 可以进一步了解RustSBI。）。
-  -  ``-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)`` 这个参数表示硬件内存中的特定位置 ``$(KERNEL_ENTRY_PA)`` 放置了操作系统的二进制代码 ``$(KERNEL_BIN)`` 。 ``$(KERNEL_ENTRY_PA)`` 的值是 ``0x80020000`` 。
+  -  ``-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)`` 这个参数表示硬件内存中的特定位置 ``$(KERNEL_ENTRY_PA)`` 放置了操作系统的二进制代码 ``$(KERNEL_BIN)`` 。 ``$(KERNEL_ENTRY_PA)`` 的值是 ``0x80200000`` 。
   
   当我们执行包含上次参数的qemu-system-riscv64软件，就意味给这台虚拟的RISC-V64计算机加电了。此时，CPU的其它通用寄存器清零，
   而PC寄存器会指向 ``0x1000`` 的位置。
   这个 ``0x1000`` 位置上是CPU加电后执行的第一条指令（固化在硬件中的一小段引导代码），它会很快跳转到 ``0x80000000`` 处，
   即RustSBI的第一条指令。RustSBI完成基本的硬件初始化后，
-  会跳转操作系统的二进制代码 ``$(KERNEL_BIN)`` 所在内存位置 ``0x80020000`` ，执行操作系统的第一条指令。
+  会跳转操作系统的二进制代码 ``$(KERNEL_BIN)`` 所在内存位置 ``0x80200000`` ，执行操作系统的第一条指令。
   这时我们的编写的操作系统才开始正式工作。
 
   为啥在 ``0x80000000`` 放置 ``Bootloader`` ？因为这是QEMU的硬件模拟代码中设定好的 ``Bootloader`` 的起始地址。
 
-  为啥在 ``0x80020000`` 放置 ``os`` ？因为这是 ``Bootloader--RustSBI`` 的代码中设定好的 ``os``  的起始地址。
+  为啥在 ``0x80200000`` 放置 ``os`` ？因为这是 ``Bootloader--RustSBI`` 的代码中设定好的 ``os``  的起始地址。
 
 
 .. note::
@@ -140,7 +143,7 @@
     const SBI_SHUTDOWN: usize = 8;
 
     pub fn shutdown() -> ! {
-        sbi_call(SBI_SHUTDOWN, [0, 0, 0]);
+        sbi_call(SBI_SHUTDOWN, 0, 0, 0);
         panic!("It should shutdown!");
     }
 
@@ -172,11 +175,11 @@ RustSBI提供的SBI服务的SBI调用的指令也是 ``ecall`` 。
   $ rust-objcopy --binary-architecture=riscv64 target/riscv64gc-unknown-none-elf/release/os --strip-all -O binary target/riscv64gc-unknown-none-elf/release/os.bin
 
   #加载运行
-  $ qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80020000
+  $ qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80200000
   # 无法退出，风扇狂转，感觉碰到死循环
 
 这样的结果是我们不期望的。问题在哪？仔细查看和思考，操作系统的入口地址不对！对 ``os`` ELF执行程序，通过rust-readobj分析，看到的入口地址不是
-RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的内存布局。
+RustSBIS约定的 ``0x80200000`` 。我们需要修改 ``os`` ELF执行程序的内存布局。
 
 
 设置正确的程序内存布局
@@ -207,7 +210,7 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
 
     OUTPUT_ARCH(riscv)
     ENTRY(_start)
-    BASE_ADDRESS = 0x80020000;
+    BASE_ADDRESS = 0x80200000;
 
     SECTIONS
     {
@@ -252,7 +255,7 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
     }
 
 第 1 行我们设置了目标平台为 riscv ；第 2 行我们设置了整个程序的入口点为之前定义的全局符号 ``_start``；
-第 3 行定义了一个常量 ``BASE_ADDRESS`` 为 ``0x80020000`` ，也就是我们之前提到的期望我们自己实现的初始化代码被放在的地址；
+第 3 行定义了一个常量 ``BASE_ADDRESS`` 为 ``0x80200000`` ，也就是我们之前提到的期望我们自己实现的初始化代码被放在的地址；
 
 从第 5 行开始体现了链接过程中对输入的目标文件的段的合并。其中 ``.`` 表示当前地址，也就是链接器会从它指向的位置开始往下放置从输入的目标文件
 中收集来的段。我们可以对 ``.`` 进行赋值来调整接下来的段放在哪里，也可以创建一些全局符号赋值为 ``.`` 从而记录这一时刻的位置。我们还能够
@@ -275,29 +278,29 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
 
 为了说明当前实现的正确性，我们需要讨论这样一个问题：
 
-1. 如何做到执行环境的初始化代码被放在内存上以 ``0x80020000`` 开头的区域上？
+1. 如何做到执行环境的初始化代码被放在内存上以 ``0x80200000`` 开头的区域上？
 
-	在链接脚本第 7 行，我们将当前地址设置为 ``BASE_ADDRESS`` 也即 ``0x80020000`` ，然后从这里开始往高地址放置各个段。第一个被放置的
+	在链接脚本第 7 行，我们将当前地址设置为 ``BASE_ADDRESS`` 也即 ``0x80200000`` ，然后从这里开始往高地址放置各个段。第一个被放置的
 	是 ``.text`` ，而里面第一个被放置的又是来自 ``entry.asm`` 中的段 ``.text.entry``，这个段恰恰是含有两条指令的执行环境初始化代码，
-	它在所有段中最早被放置在我们期望的 ``0x80020000`` 处。
+	它在所有段中最早被放置在我们期望的 ``0x80200000`` 处。
 
 
 这样一来，我们就将运行时重建完毕了。在 ``os`` 目录下 ``cargo build --release`` 或者直接 ``make build`` 就能够看到
 最终生成的可执行文件 ``target/riscv64gc-unknown-none-elf/release/os`` 。
-通过分析，我们看到 ``0x80020000`` 处的代码是我们预期的 ``_start()`` 函数的内容。我们采用刚才的编译运行方式进行试验，发现还是同样的错误结果。
+通过分析，我们看到 ``0x80200000`` 处的代码是我们预期的 ``_start()`` 函数的内容。我们采用刚才的编译运行方式进行试验，发现还是同样的错误结果。
 问题出在哪里？这时需要用上 ``debug`` 大法了。
 
 
 .. code-block:: console
 
   # 在一个终端执行如下命令：
-  $ qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80020000 -S -s
+  $ qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80200000 -S -s
 
   # 在另外一个终端执行如下命令：
   $ rust-gdb target/riscv64gc-unknown-none-elf/release/os
   (gdb) target remote :1234
-  (gdb) break *0x80020000
-  (gdb) x /16i 0x80020000
+  (gdb) break *0x80200000
+  (gdb) x /16i 0x80200000
   (gdb) si
 
 结果发现刚执行一条指令，整个系统就飞了（ ``pc`` 寄存器等已经变成为 ``0`` 了）。再一看， ``sp`` 寄存器是一个非常大的值 ``0xffffff...`` 。这就很清楚是 
@@ -384,7 +387,7 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
     > -machine virt \
     > -nographic \
     > -bios ../bootloader/rustsbi-qemu.bin \
-    > -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80020000 
+    > -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80200000 
     [rustsbi] Version 0.1.0
     .______       __    __      _______.___________.  _______..______   __
     |   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
@@ -397,7 +400,7 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
     [rustsbi] misa: RV64ACDFIMSU
     [rustsbi] mideleg: 0x222
     [rustsbi] medeleg: 0xb1ab
-    [rustsbi] Kernel entry: 0x80020000
+    [rustsbi] Kernel entry: 0x80200000
     # “优雅”地退出了。 
 
 
@@ -470,7 +473,7 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
 
     $ cargo build
     $ rust-objcopy --binary-architecture=riscv64 target/riscv64gc-unknown-none-elf/debug/os --strip-all -O binary target/riscv64gc-unknown-none-elf/debug/os.bin
-    $ qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file=target/riscv64gc-unknown-none-elf/debug/os.bin,addr=0x80020000
+    $ qemu-system-riscv64 -machine virt -nographic -bios ../bootloader/rustsbi-qemu.bin -device loader,file=target/riscv64gc-unknown-none-elf/debug/os.bin,addr=0x80200000
 
     [rustsbi] Version 0.1.0
     .______       __    __      _______.___________.  _______..______   __
@@ -484,7 +487,7 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
     [rustsbi] misa: RV64ACDFIMSU
     [rustsbi] mideleg: 0x222
     [rustsbi] medeleg: 0xb1ab
-    [rustsbi] Kernel entry: 0x80020000
+    [rustsbi] Kernel entry: 0x80200000
     Hello, world!
 
 可以看到，在裸机上输出了 ``Hello, world!`` ，而且qemu正常退出，表示RISC-V计算机也正常关机了。
@@ -521,7 +524,7 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
         -machine virt \
         -nographic \
         -bios ../bootloader/rustsbi-qemu.bin \
-        -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80020000
+        -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80200000
 
         [rustsbi] Version 0.1.0
         .______       __    __      _______.___________.  _______..______   __
@@ -535,7 +538,7 @@ RustSBIS约定的 ``0x80020000`` 。我们需要修改 ``os`` ELF执行程序的
         [rustsbi] misa: RV64ACDFIMSU
         [rustsbi] mideleg: 0x222
         [rustsbi] medeleg: 0xb1ab
-        [rustsbi] Kernel entry: 0x80020000
+        [rustsbi] Kernel entry: 0x80200000
         Hello, world!
         Panicked at src/main.rs:95 It should shutdown!
 

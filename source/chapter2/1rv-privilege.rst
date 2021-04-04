@@ -158,7 +158,7 @@ RISC-V 架构中一共定义了 4 种特权级：
      - 13
      - Load page fault
    * - 0
-     - 14
+     - 15
      - Store/AMO page fault
 
 .. _term-environment-call:
