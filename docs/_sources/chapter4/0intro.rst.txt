@@ -134,7 +134,11 @@
 
 .. code-block::
   :linenos:
-  :emphasize-lines: 52
+  :emphasize-lines: 56
+
+  ./os/src
+  Rust        22 Files    1334 Lines
+  Assembly     3 Files      88 Lines
 
   ├── bootloader
   │   ├── rustsbi-k210.bin

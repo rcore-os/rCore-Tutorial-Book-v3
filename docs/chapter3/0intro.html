@@ -123,7 +123,7 @@ commentsRunWhenDOMLoaded(addUtterances);
               <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第三章：多道程序与分时多任务</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">引言</a><ul>
@@ -134,6 +134,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#id5">实践体验</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id6">本章代码树</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id7">本章代码导读</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="1multi-loader.html">多道程序放置与加载</a></li>
@@ -146,7 +147,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：进程间通信</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：文件系统与I/O重定向</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
 <ul>
@@ -470,7 +471,15 @@ Test sleep OK!
 <span class="normal">55</span>
 <span class="normal">56</span>
 <span class="normal">57</span>
-<span class="normal">58</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span>├── bootloader
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span>./os/src
+Rust        16 Files   481 Lines
+Assembly     3 Files    84 Lines
+
+├── bootloader
 │   ├── rustsbi-k210.bin
 │   └── rustsbi-qemu.bin
 ├── LICENSE
@@ -530,6 +539,18 @@ Test sleep OK!
       └── syscall.rs
 </pre></div>
 </td></tr></table></div>
+</div>
+<div class="section" id="id7">
+<h2>本章代码导读<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<p>本章的重点是实现对应用之间的协作式和抢占式任务切换的操作系统支持。与上一章的操作系统实现相比，有如下一些不同的情况导致实现上也有不同：</p>
+<ul class="simple">
+<li><p>多个应用同时放在内存中，所以他们的起始地址是不同的，且地址范围不能重叠</p></li>
+<li><p>应用在整个执行过程中会暂停或被抢占，即会有主动或被动的任务切换</p></li>
+</ul>
+<p>对于第一个不同，需要对应用程序的地址空间布局进行调整，每个应用的地址空间都不相同，且不能重叠。这并不要修改应用程序本身。通过一个脚本 <code class="docutils literal notranslate"><span class="pre">build.py</span></code> 来让编译器在编译不同应用时用到的链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 都不同，且有足够大的地址间隔。这样就可以让每个应用所在的内存空间是不同的。</p>
+<p>对于第二个不同，需要实现任务切换，这就需要在上一章的 <code class="docutils literal notranslate"><span class="pre">trap</span></code> 上下文切换的基础上，再加上一个 <code class="docutils literal notranslate"><span class="pre">task</span></code> 上下文切换，才能完成完整的任务切换。这里面的关键数据结构是表示应用执行上下文的 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 和具体完成上下文切换的汇编语言编写的 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数。一个应用的执行需要被操作系统管理起来，这是通过 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 数据结构来表示应用执行上下文的动态过程和动态状态（运行态、就绪态等）。再加上让应用程序第一次执行的前期初始化准备而建立的 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 数据结构的全局变量实例 <code class="docutils literal notranslate"><span class="pre">TASK_MANAGER</span></code> ，形成了本章的难点部分。</p>
+<p>当然，但应用程序可以在用户态执行后，还需要有新的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 的实现来支持应用自己的主动暂停；还要添加对时钟中断的处理，来支持抢占应用执行的抢占式切换。有了时钟中断，就可以在一定时间内打断应用的执行，并主动切换到另外一个应用，这部分主要是通过对 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 函数中进行扩展，来完成在时钟中断产生时可能进行的任务切换。  <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 数据结构的成员函数 <code class="docutils literal notranslate"><span class="pre">run_next_task</span></code> 来实现基于任务控制块的切换，并会具体调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数完成硬件相关部分的任务上下文切换。</p>
+<p>如果理解了上面的数据结构和相关函数的关系和访问情况，那么就可以比较容易理解本章改进后的操作系统。</p>
 </div>
 </div>
 

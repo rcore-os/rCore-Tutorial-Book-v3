@@ -140,6 +140,10 @@
 .. code-block::
    :linenos:
 
+   ./os/src
+   Rust        25 Files    1760 Lines
+   Assembly     3 Files      88 Lines
+
    ├── bootloader
    │   ├── rustsbi-k210.bin
    │   └── rustsbi-qemu.bin
@@ -175,7 +179,7 @@
    │       │   ├── manager.rs(新增：任务管理器，为上一章任务管理器功能的一部分)
    │       │   ├── mod.rs(修改：调整原来的接口实现以支持进程)
    │       │   ├── pid.rs(新增：进程标识符和内核栈的 Rust 抽象)
-   │       │   ├── processor.rs(新增：处理器监视器，为上一章任务管理器功能的一部分)
+   │       │   ├── processor.rs(新增：处理器管理结构 ``Processor`` ，为上一章任务管理器功能的一部分)
    │       │   ├── switch.rs
    │       │   ├── switch.S
    │       │   └── task.rs(修改：支持进程机制的任务控制块)
@@ -230,14 +234,14 @@
 
 接下来就需要在内核中实现简化版的进程机制并支持新增的系统调用。在本章第二小节 :doc:`/chapter5/2core-data-structures` 中我们对一些进程机制相关的数据结构进行了重构或者修改：
 
-- 为了支持基于应用名而不是应用 ID 索引应用 ELF 可执行文件从而实现灵活的应用加载，在 ``os/build.rs`` 以及 ``os/src/loader.rs`` 中更新了 ``link_app.S`` 的格式使得它包含每个应用的名字，另外提供 ``get_app_data_by_name`` 接口获取应用的 ELF 数据。
-- 在本章之前，任务管理器 ``TaskManager`` 不仅负责管理所有的任务状态，还维护着我们的 CPU 当前正在执行哪个任务。这种设计耦合度较高，我们将后一个功能分离到 ``os/src/task/processor.rs`` 中的处理器监视器 ``Processor`` 中，它负责管理 CPU 上执行的任务和一些其他信息；而 ``os/src/task/manager.rs`` 中的任务管理器 ``TaskManager`` 仅负责管理所有任务。
+- 为了支持基于应用名而不是应用 ID 来查找应用 ELF 可执行文件，从而实现灵活的应用加载，在 ``os/build.rs`` 以及 ``os/src/loader.rs`` 中更新了 ``link_app.S`` 的格式使得它包含每个应用的名字，另外提供 ``get_app_data_by_name`` 接口获取应用的 ELF 数据。
+- 在本章之前，任务管理器 ``TaskManager`` 不仅负责管理所有的任务状态，还维护着我们的 CPU 当前正在执行哪个任务。这种设计耦合度较高，我们将后一个功能分离到 ``os/src/task/processor.rs`` 中的处理器管理结构 ``Processor`` 中，它负责管理 CPU 上执行的任务和一些其他信息；而 ``os/src/task/manager.rs`` 中的任务管理器 ``TaskManager`` 仅负责管理所有任务。
 - 针对新的进程模型，我们复用前面章节的任务控制块 ``TaskControlBlock`` 作为进程控制块来保存进程的一些信息，相比前面章节还要新增 PID、内核栈、应用数据大小、父子进程、退出码等信息。它声明在 ``os/src/task/task.rs`` 中。
-- 本章开始内核栈在内核地址空间中的位置由所在进程的 PID 决定，我们需要在二者之间建立联系并提供一些相应的资源自动回收机制。可以参考 ``os/src/task/pid.rs`` 。
+- 从本章开始，内核栈在内核地址空间中的位置由所在进程的 PID 决定，我们需要在二者之间建立联系并提供一些相应的资源自动回收机制。可以参考 ``os/src/task/pid.rs`` 。
 
 有了这些数据结构的支撑，我们在本章第三小节 :doc:`/chapter5/3implement-process-mechanism` 实现进程机制。它可以分成如下几个方面：
 
-- 初始进程的自动创建。在内核初始化的时候需要调用 ``os/src/task/mod.rs`` 中的 ``add_initproc`` 函数，它会调用 ``TaskControlBlock::new`` 读取并解析初始应用 ``initproc`` 的 ELF 数据并创建初始进程 ``INITPROC`` ，随后会将它加入到全局任务管理器 ``TASK_MANAGER`` 中参与调度。
+- 初始进程的自动创建。在内核初始化的时候需要调用 ``os/src/task/mod.rs`` 中的 ``add_initproc`` 函数，它会调用 ``TaskControlBlock::new`` 读取并解析初始应用 ``initproc`` 的 ELF 文件数据并创建初始进程 ``INITPROC`` ，随后会将它加入到全局任务管理器 ``TASK_MANAGER`` 中参与调度。
 - 进程切换机制。当一个进程退出或者是主动/被动交出 CPU 使用权之后需要由内核将 CPU 使用权交给其他进程。在本章中我们沿用 ``os/src/task/mod.rs`` 中的 ``suspend_current_and_run_next`` 和 ``exit_current_and_run_next`` 两个接口来实现进程切换功能，但是需要适当调整它们的实现。我们需要调用 ``os/src/task/task.rs`` 中的 ``schedule`` 函数进行进程切换，它会首先切换到处理器的 idle 执行流（即 ``os/src/task/processor`` 的 ``Processor::run`` 方法），然后在里面选取要切换到的进程并切换过去。
 - 进程调度机制。在进程切换的时候我们需要选取一个进程切换过去。选取进程逻辑可以参考 ``os/src/task/manager.rs`` 中的 ``TaskManager::fetch_task`` 方法。
 - 进程生成机制。这主要是指 ``fork/exec`` 两个系统调用。它们的实现分别可以在 ``os/src/syscall/process.rs`` 中找到，分别基于 ``os/src/process/task.rs`` 中的 ``TaskControlBlock::fork/exec`` 。

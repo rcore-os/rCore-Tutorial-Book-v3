@@ -124,13 +124,13 @@ commentsRunWhenDOMLoaded(addUtterances);
               <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：进程间通信</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">第七章：数据持久化存储</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第七章：文件系统与I/O重定向</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1fs-interface.html">文件系统接口</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">简易文件系统 easy-fs</a><ul>
@@ -242,7 +242,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-          <li><a href="index.html">第七章：数据持久化存储</a> &raquo;</li>
+          <li><a href="index.html">第七章：文件系统与I/O重定向</a> &raquo;</li>
         
       <li>简易文件系统 easy-fs</li>
     
@@ -273,7 +273,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>松耦合模块化设计思路<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
 <p>大家可以看到，内核的功能越来越多，代码量也越来越大（是Linux的万分之一）。为了减少同学学习内核的分析理解成本，我们需要让内核的各个部分之间尽量松耦合，所以easy-fs 被从内核中分离出来，它的实现分成两个不同的 crate ：</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 为简易文件系统的本体，它是一个库形式 crate，实现一种我们设计的简单磁盘布局；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 为简易文件系统的本体，它是一个库形式 crate，实现一种简单的文件系统磁盘布局；</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">easy-fs-fuse</span></code> 是一个能在开发环境（如 Ubuntu）中运行的应用程序，它可以对 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 进行测试，或者将为我们内核开发的应用打包为一个 easy-fs 格式的文件系统镜像。</p></li>
 </ul>
 <p>这样，整个easy-fs文件系统的设计开发可以按照应用程序库的开发过程来完成。而且在开发完毕后，可直接放到内核中，形成有文件系统支持的新内核。</p>
@@ -286,7 +286,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>磁盘块管理器层：合并了上述核心数据结构和磁盘布局所形成的磁盘文件系统数据结构，以及创建/打开文件系统的相关处理和磁盘块的分配和回收处理</p></li>
 <li><p>索引节点层：管理索引节点（即文件控制块）数据结构，并实现文件创建/文件打开/文件读写等成员函数来向上支持文件操作相关的系统调用的处理</p></li>
 </ol>
-<p>大家也许觉得有五层架构的文件系统是一个很复杂的软件。其实，相对于内核中其它部分所占的2400行左右代码，它只有900行左右的代码，占总代码量的27%，且由于其代码逻辑其实是一种自上而下的线性思维，相对于进程管理中的上下文切换，内存管理中的页表转换，其实更容易理解。</p>
+<p>大家也许觉得有五层架构的文件系统是一个很复杂的软件。其实，相对于面向Qemu模拟器的操作系统内核源码所占的2400行左右代码，它只有900行左右的代码，占总代码量的27%。且由于其代码逻辑其实是一种自上而下的线性思维，属于传统的常规编程。相对于异常/中断/系统调用的特权级切换，进程管理中的进程上下文切换，内存管理中的页表地址映射等非常规编程，其实更容易理解。</p>
 </div>
 <div class="section" id="id3">
 <h2>块设备接口层<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>

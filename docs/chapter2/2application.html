@@ -123,7 +123,7 @@ commentsRunWhenDOMLoaded(addUtterances);
               <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：RV64 裸机应用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第二章：批处理系统</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1rv-privilege.html">特权级机制</a></li>
@@ -131,8 +131,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id3">应用程序设计</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id4">项目结构</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id5">内存布局</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id6">系统调用</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#term-app-mem-layout">内存布局</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#term-call-syscall">系统调用</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#id7">编译生成应用程序二进制码</a></li>
@@ -148,7 +148,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：进程间通信</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：数据持久化存储</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：文件系统与I/O重定向</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Part2 - Do it better!</span></p>
 <ul>
@@ -311,8 +311,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 </div>
-<div class="section" id="id5">
-<h3>内存布局<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
+<div class="section" id="term-app-mem-layout">
+<span id="id5"></span><h3>内存布局<a class="headerlink" href="#term-app-mem-layout" title="永久链接至标题">¶</a></h3>
 <p>在 <code class="docutils literal notranslate"><span class="pre">user/.cargo/config</span></code> 中，我们和第一章一样设置链接时使用链接脚本 <code class="docutils literal notranslate"><span class="pre">user/src/linker.ld</span></code> 。在其中我们做的重要的事情是：</p>
 <ul class="simple">
 <li><p>将程序的起始物理地址调整为 <code class="docutils literal notranslate"><span class="pre">0x80400000</span></code> ，三个应用程序都会被加载到这个物理地址上运行；</p></li>
@@ -322,8 +322,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>其余的部分和第一章基本相同。</p>
 </div>
-<div class="section" id="id6">
-<h3>系统调用<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h3>
+<div class="section" id="term-call-syscall">
+<span id="id6"></span><h3>系统调用<a class="headerlink" href="#term-call-syscall" title="永久链接至标题">¶</a></h3>
 <p>在子模块 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 中我们作为应用程序来通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 调用批处理系统提供的接口，由于应用程序运行在 U 模式， <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令会触发
 名为 <code class="docutils literal notranslate"><span class="pre">Environment</span> <span class="pre">call</span> <span class="pre">from</span> <span class="pre">U-mode</span></code> 的异常，并 Trap 进入 S 模式执行批处理系统针对这个异常特别提供的服务代码。由于这个接口处于
 S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们可以知道，这个接口可以被称为 ABI 或者系统调用。现在我们不关心底层的批处理系统如何
@@ -404,7 +404,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <p>第 8 行指定输入操作数。由于是输入部分，限制的开头不用加上 <code class="docutils literal notranslate"><span class="pre">=</span></code> 。同时在限制中设置使用寄存器 <code class="docutils literal notranslate"><span class="pre">a0~a2</span></code> 来保存系统调用的参数，以及
 寄存器 <code class="docutils literal notranslate"><span class="pre">a7</span></code> 保存 syscall ID ，而它们分别 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 的参数变量 <code class="docutils literal notranslate"><span class="pre">args</span></code> 和 <code class="docutils literal notranslate"><span class="pre">id</span></code> 绑定。</p>
 <p>第 9 行用于告知编译器插入的汇编代码会造成的一些影响以防止编译器在不知情的情况下误优化。常用的使用方法是告知编译器某个寄存器在执行嵌入
-的汇编代码中的过程中会发生变化。我们这里则是告诉编译器在执行嵌入汇编代码中的时候会修改内存。这能给编译器提供更多信息。</p>
+的汇编代码中的过程中会发生变化。我们这里则是告诉编译器：程序在执行嵌入汇编代码中指令的时候会修改内存。这能给编译器提供更多信息以生成正确的代码。</p>
 <p>第 10 行用于告知编译器将我们在程序中给出的嵌入汇编代码保持原样放到最终构建的可执行文件中。如果不这样做的话，编译器可能会把它和其他代码
 一视同仁并放在一起进行一些我们期望之外的优化。为了保证语义的正确性，一些比较关键的汇编代码需要加上该选项。</p>
 <p>上面这一段汇编代码的含义和内容与第一章中的 <a class="reference internal" href="../chapter1/3-1-mini-rt-usrland.html#term-llvm-syscall"><span class="std std-ref">第一章中U-Mode应用程序中的系统调用汇编代码</span></a> 的是一致的。与 <a class="reference internal" href="../chapter1/3-2-mini-rt-baremetal.html#term-llvm-sbicall"><span class="std std-ref">第一章中的RustSBI输出到屏幕的SBI调用汇编代码</span></a> 涉及的汇编指令一样，但传递参数的寄存器的含义是不同的。有兴趣的读者可以回顾第一章的 <code class="docutils literal notranslate"><span class="pre">console.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sbi.rs</span></code> 。</p>
