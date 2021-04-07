@@ -141,7 +141,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#fs-simplification">简易文件与目录抽象</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id8">打开与读写文件的系统调用</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id9">文件打开</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sys-open">文件打开</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id10">文件的顺序读写</a></li>
 </ul>
 </li>
@@ -348,8 +348,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id8">
 <h2>打开与读写文件的系统调用<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h2>
-<div class="section" id="id9">
-<h3>文件打开<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h3>
+<div class="section" id="sys-open">
+<span id="id9"></span><h3>文件打开<a class="headerlink" href="#sys-open" title="永久链接至标题">¶</a></h3>
 <p>在读写一个常规文件之前，应用首先需要通过内核提供的 <code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 系统调用让该文件在进程的文件描述符表中占一项，并得到操作系统的返回值–文件描述符，即文件关联的表项在文件描述表中的索引值：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：打开一个常规文件，并返回可以访问它的文件描述符。</span>
 <span class="sd">/// 参数：path 描述要打开的文件的文件名（简单起见，文件系统不需要支持目录，所有的文件都放在根目录 / 下），</span>
@@ -402,7 +402,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h3>文件的顺序读写<a class="headerlink" href="#id10" title="永久链接至标题">¶</a></h3>
 <p>在打开一个文件之后，我们就可以用之前的 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 两个系统调用来对它进行读写了。需要注意的是，常规文件的读写模式和之前介绍过的几种文件有所不同。标准输入输出和匿名管道都属于一种流式读写，而常规文件则是顺序读写和随机读写的结合。由于常规文件可以看成一段字节序列，我们应该能够随意读写它的任一段区间的数据，即随机读写。然而用户仅仅通过 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 两个系统调用不能做到这一点。</p>
 <p>事实上，进程为每个它打开的常规文件维护了一个偏移量，在刚打开时初始值一般为 0 字节。当 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的时候，将会从文件字节序列偏移量的位置开始 <strong>顺序</strong> 把数据读到应用缓冲区/从应用缓冲区写入数据。操作完成之后，偏移量向后移动读取/写入的实际字节数。这意味着，下次 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 将会从刚刚读取/写入之后的位置继续。如果仅使用 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的话，则只能从头到尾顺序对文件进行读写。当我们需要从头开始重新写入或读取的话，只能通过 <code class="docutils literal notranslate"><span class="pre">sys_close</span></code> 关闭并重新打开文件来将偏移量重置为 0。为了解决这种问题，有另一个系统调用 <code class="docutils literal notranslate"><span class="pre">sys_lseek</span></code> 可以调整进程打开的一个常规文件的偏移量，这样便能对文件进行随机读写。在本教程中并未实现这个系统调用，因为顺序文件读写就已经足够了。顺带一提，在文件系统的底层实现中都是对文件进行随机读写的。</p>
-<p>下面我们从本章的测试用例 <code class="docutils literal notranslate"><span class="pre">filetest_simple</span></code> 来介绍文件系统接口的使用方法：</p>
+<p id="filetest-simple">下面我们从本章的测试用例 <code class="docutils literal notranslate"><span class="pre">filetest_simple</span></code> 来介绍文件系统接口的使用方法：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
 <span class="normal"> 2</span>
 <span class="normal"> 3</span>
