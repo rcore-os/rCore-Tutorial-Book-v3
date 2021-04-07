@@ -248,7 +248,8 @@ K210 真机串口通信
 .. code-block:: bash
 
    pip3 install pyserial
-   sudo apt install python-serial
+   pip3 install pyelftools
+   pip3 install enum34
 
 GDB 调试支持
 ------------------------------
