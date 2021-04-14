@@ -521,6 +521,24 @@ Trap 在使用 Rust 实现的 ``trap_handler`` 函数中完成分发和处理：
 
 .. _ch2-app-execution:
 
+Trap 实例：向控制台打印字符串
+-------------------------------------
+接下来，我们看一个具体的例子：通过系统调用实现向控制台打印字符串的功能。
+
+.. figure:: overall.svg
+    :align: center
+    :width: 40%
+
+- 第一步，由用户态App调用 ``syscall`` 指令，通过 **通用寄存器** 传递约定好的syscall ID、字符串的地址以及长度，分别放在x17,x10,x11,x12中。触发Trap。(user/src/syscall.rs, fn sys_write)
+- 第二步，CPU切换到内核态。硬件会自动设置sstatus、sepc等寄存器，并且会跳转到stvec寄存器入口地址 ``__alltraps`` (os/src/trap/trap.S)。``__alltraps`` 将SP寄存器内容替换为内核栈指针，并划分出34字节空间保存通用寄存器以及sstatus、sepc等信息。
+- 第三步，``__alltraps`` 跳转到 ``trap_handler`` (os/src/trap/mod.rs)，根据scause寄存器的值获得触发中断\异常的原因，然后分别处理。打印字符串属于 ``Exception::UserEnvCall`` ，即系统调用。从 ``TrapContext`` 中通用寄存器(x17,x10,x11,x12)的信息获取到系统调用的syscall ID以及其他参数，完成系统调用过程。也就是在这一步，由内核完成了打印字符串。
+- 第四步，``trap_handler`` 执行完后跳转回 ``trap_handler`` ，由于 ``__restore`` (os/src/trap/mod.rs)就在 ``call trap_handler`` 之后，紧接着就完成Trap 上下文的恢复。恢复过程大体上是 ``__alltraps`` 的逆过程。最终调用 ``sret`` 回到正常执行流，并切换回用户态。
+- 第五步，系统调用完成，用户态App继续执行。
+
+.. figure:: stack.svg
+    :align: center
+    :width: 100%
+
 执行应用程序
 -------------------------------------
 
