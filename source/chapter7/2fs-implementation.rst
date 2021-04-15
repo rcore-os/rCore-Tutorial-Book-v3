@@ -1087,8 +1087,12 @@ inode 和数据块的分配/回收也由它负责：
     impl EasyFileSystem {
         pub fn root_inode(efs: &Arc<Mutex<Self>>) -> Inode {
             let block_device = Arc::clone(&efs.lock().block_device);
+            // acquire efs lock temporarily
+            let (block_id, block_offset) = efs.lock().get_disk_inode_pos(0);
+            // release efs lock
             Inode::new(
-                0,
+                block_id,
+                block_offset,
                 Arc::clone(efs),
                 block_device,
             )
@@ -1098,12 +1102,13 @@ inode 和数据块的分配/回收也由它负责：
     // easy-fs/src/vfs.rs
 
     impl Inode {
+        /// We should not acquire efs lock here.
         pub fn new(
-            inode_id: u32,
+            block_id: u32,
+            block_offset: usize,
             fs: Arc<Mutex<EasyFileSystem>>,
             block_device: Arc<dyn BlockDevice>,
         ) -> Self {
-            let (block_id, block_offset) = fs.lock().get_disk_inode_pos(inode_id);
             Self {
                 block_id: block_id as usize,
                 block_offset,
@@ -1113,7 +1118,7 @@ inode 和数据块的分配/回收也由它负责：
         }
     }
 
-在 ``root_inode`` 中，主要是在 ``Inode::new`` 的时候将传入的 ``inode_id`` 设置为 0 ，因为根目录对应于文件系统中第一个分配的 inode ，因此它的 ``inode_id`` 总会是 0 。
+在 ``root_inode`` 中，主要是在 ``Inode::new`` 的时候将传入的 ``inode_id`` 设置为 0 ，因为根目录对应于文件系统中第一个分配的 inode ，因此它的 ``inode_id`` 总会是 0 。同时在设计上，我们不会在 ``Inode::new`` 中尝试获取整个 ``EasyFileSystem`` 的锁来查询 inode 在块设备中的位置，而是在调用它之前预先查询并作为参数传过去。
 
 文件索引
 +++++++++++++++++++++++++++++++++++++++
@@ -1126,12 +1131,14 @@ inode 和数据块的分配/回收也由它负责：
 
     impl Inode {
         pub fn find(&self, name: &str) -> Option<Arc<Inode>> {
-            let _ = self.fs.lock();
+            let fs = self.fs.lock();
             self.read_disk_inode(|disk_inode| {
                 self.find_inode_id(name, disk_inode)
                 .map(|inode_id| {
+                    let (block_id, block_offset) = fs.get_disk_inode_pos(inode_id);
                     Arc::new(Self::new(
-                        inode_id,
+                        block_id,
+                        block_offset,
                         self.fs.clone(),
                         self.block_device.clone(),
                     ))
@@ -1167,7 +1174,7 @@ inode 和数据块的分配/回收也由它负责：
 
 ``find`` 方法只会被根目录 ``Inode`` 调用，文件系统中其他文件的 ``Inode`` 不会调用这个方法。它首先调用 ``find_inode_id`` 方法尝试从根目录的 ``DiskInode`` 上找到要索引的文件名对应的 inode 编号。这就需要将根目录内容中的所有目录项都读到内存进行逐个比对。如果能够找到的话， ``find`` 方法会根据查到 inode 编号对应生成一个 ``Inode`` 用于后续对文件的访问。
 
-这里需要注意的是，包括 ``find`` 在内所有暴露给文件系统的使用者的文件系统操作（还包括接下来将要介绍的几种），全程均需持有 ``EasyFileSystem`` 的互斥锁。这能够保证在多核情况下，同时最多只能有一个核在进行文件系统相关操作。这样也许会带来一些不必要的性能损失，但我们目前暂时先这样做。如果我们在这里加锁的话，其实就能够保证块缓存的互斥访问了。
+这里需要注意的是，包括 ``find`` 在内所有暴露给文件系统的使用者的文件系统操作（还包括接下来将要介绍的几种），全程均需持有 ``EasyFileSystem`` 的互斥锁（相对的，文件系统内部的操作如之前的 ``Inode::new`` 或是上面的 ``find_inode_id`` 都是假定在已持有 efs 锁的情况下才被调用的，因此它们不应尝试获取锁）。这能够保证在多核情况下，同时最多只能有一个核在进行文件系统相关操作。这样也许会带来一些不必要的性能损失，但我们目前暂时先这样做。如果我们在这里加锁的话，其实就能够保证块缓存的互斥访问了。
 
 文件列举
 +++++++++++++++++++++++++++++++++++++++
@@ -1180,7 +1187,7 @@ inode 和数据块的分配/回收也由它负责：
 
     impl Inode {
         pub fn ls(&self) -> Vec<String> {
-            let _ = self.fs.lock();
+            let _fs = self.fs.lock();
             self.read_disk_inode(|disk_inode| {
                 let file_count = (disk_inode.size as usize) / DIRENT_SZ;
                 let mut v: Vec<String> = Vec::new();
@@ -1200,6 +1207,12 @@ inode 和数据块的分配/回收也由它负责：
             })
         }
     }
+
+.. note::
+
+    **Rust 语法卡片： _ 在匹配中的使用方法**
+
+    可以看到在 ``ls`` 操作中，我们虽然获取了 efs 锁，但是这里并不会直接访问 ``EasyFileSystem`` 实例，其目的仅仅是锁住该实例避免其他核在同时间的访问造成并发冲突。因此，我们将其绑定到以 ``_`` 开头的变量 ``_fs`` 中，这样即使我们在其作用域中并没有使用它，编译器也不会报警告。然而，我们不能将其绑定到变量 ``_`` 上。因为从匹配规则可以知道这意味着该操作会被编译器丢弃，从而无法达到获取锁的效果。
 
 文件创建
 +++++++++++++++++++++++++++++++++++++++
@@ -1248,14 +1261,16 @@ inode 和数据块的分配/回收也由它负责：
                     &self.block_device,
                 );
             });
-            // release efs lock manually because we will acquire it again in Inode::new
-            drop(fs);
+
+            let (block_id, block_offset) = fs.get_disk_inode_pos(new_inode_id);
             // return inode
             Some(Arc::new(Self::new(
-                new_inode_id,
+                block_id,
+                block_offset,
                 self.fs.clone(),
                 self.block_device.clone(),
             )))
+            // release efs lock automatically by compiler
         }
     }
 
@@ -1299,7 +1314,7 @@ inode 和数据块的分配/回收也由它负责：
 
     impl Inode {
         pub fn read_at(&self, offset: usize, buf: &mut [u8]) -> usize {
-            let _ = self.fs.lock();
+            let _fs = self.fs.lock();
             self.read_disk_inode(|disk_inode| {
                 disk_inode.read_at(offset, buf, &self.block_device)
             })
