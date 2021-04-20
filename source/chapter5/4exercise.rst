@@ -1,4 +1,4 @@
-chapter5 练习
+chapter5练习
 ==============================================
 
 - 本节难度： **一定比lab4简单** 
@@ -26,7 +26,7 @@ spawn 系统调用定义( `标准spawn看这里 <https://man7.org/linux/man-page
 +++++++++++++++++++++++++++++++++++++++++++++
 - 实现分支：ch5。
 - 完成实验指导书中的内容，实现进程控制，可以运行 usershell。
-- 实现自定义系统调用 spawn，并通过 并通过 `Rust测例 <https://github.com/DeathWish5/rCore_tutorial_tests>`_ 中chapter5对应的所有测例。
+- 实现自定义系统调用 spawn，并通过 `Rust测例 <https://github.com/DeathWish5/rCore_tutorial_tests>`_ 中chapter5对应的所有测例。
 
 challenge: 支持多核。
 
