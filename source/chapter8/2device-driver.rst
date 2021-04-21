@@ -173,6 +173,27 @@ CPU可以通过MMIO方式来对PLIC进行管理，下面是一下与PLIC相关�
 virtio设备
 -----------------------------------------
 
+我们知道各种I/O设备的种类繁多，差异性很大，使得操作系统难以建立I/O设备抽象。但IBM资深工程师 Rusty Russell 在开发Lguest（Linux 内核中的的一个hypervisor（一种高效的虚拟计算机的系统软件）)时，深感写模拟计算机中的高效虚拟I/O设备的困难，且编写针I/O设备的驱动程序太繁杂且很难形成一种统一的表示。于是他经过仔细琢磨，提出了一组通用的I/O设备的抽象 -- virtio。virtio设备有着统一的virtio接口，操作系统只要能够实现这些通用的接口，就可以管理和控制各种virtio设备。这些virtio设备存在于QEMU模拟的RISC-V 64 virt 计算机中。
+
+
+.. note::
+
+  Rusty Russell工程师在2008年在“ACM SIGOPS Operating Systems Review”期刊上发表了一篇论文“virtio: towards a de-facto standard for virtual I/O devices”，提出了给虚拟环境（Virtual Machine）中的操作系统提供一套统一的设备抽象，这样操作系统针对每类设备只需写一种驱动程序就可以了，这极大降低了系统虚拟机（Virtual Machine Monitor）和Hypervisor，以及运行在它们提供的虚拟环境中的操作系统的开发成本，且可以显著提高I/O的执行效率。目前virtio已经有相应的规范，最新的virtio spec版本是v1.1。
+
+
+每一类virtio设备都有自己的virtio接口，virtio接口包括了数据结构的定义和API的定义。这些定义中，很多在结构上都是一致的，只是在有个设备描述的具体内容上，会根据设备的类型特征设定具体的内容。
+
+接口中定义了设备的相关属性（以下必填部分）： 
+
+设备状态字段
+
+功能位
+
+通知事项
+
+一种或多种美德
+
+现在，我们将为每个部分提供更多详细信息，以及设备和驱动程序如何开始使用它们进行通信。
 
 virtio字符设备
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
