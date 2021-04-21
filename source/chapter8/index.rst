@@ -6,7 +6,7 @@
 
    0intro
    1io-interface
-   2virtio-driver
-   3virtio-drv-in-kernel
+   2device-driver
+   3drv-in-kernel
    4exercise
    

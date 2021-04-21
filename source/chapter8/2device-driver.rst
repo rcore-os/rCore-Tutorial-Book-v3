@@ -1,0 +1,87 @@
+设备驱动设计与实现
+=========================================
+
+本节导读
+-----------------------------------------
+
+QEMU中的外设
+-----------------------------------------
+首先，我们需要了解OS管理的计算机硬件系统-- ``QEMU riscv-64 virt machine`` 。这表示了一台虚拟的RISC-V 64计算机，CPU的个数是可以通过参数 ``-cpu num`` 配置的，内存也是可通过参数 ``-m numM/G`` 来配置。这是标配信息，还有很多外设信息，QEMU 可以把它模拟的机器细节信息全都导出到dtb格式的二进制文件中，并可通过 ``dtc`` Device Tree Compiler工具转成可理解的文本文件。如想详细了解这个文件的格式说明可以参考  `Devicetree Specification <https://buildmedia.readthedocs.org/media/pdf/devicetree-specification/latest/devicetree-specification.pdf>`_ 。
+
+.. code-block:: console
+
+   $ qemu-system-riscv64 -machine virt -machine dumpdtb=riscv64-virt.dtb -bios default
+
+   qemu-system-riscv64: info: dtb dumped to riscv64-virt.dtb. Exiting.
+
+   $ dtc -I dtb -O dts -o riscv64-virt.dts riscv64-virt.dtb
+
+   $ less riscv64-virt.dts
+   #就可以看到QEMU RV64 virt计算机的详细硬件（包括各种外设）细节，包括CPU，内存，串口，时钟和各种virtio设备的信息。
+
+平台级中断控制器
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+在RISC-V中，与外设连接的I/O控制器的一个重要组成是平台级中断控制器（Platform-Level Interrupt Controller，PLIC），它汇聚了各种外设的中断信号，并连接到CPU的外部中断引脚上。通过RISC-V的 ``mie`` 寄存器中的 ``meie`` 位，可以控制这个引脚是否接收外部中断信号。当然，通过RISC-V中M Mode的中断委托机制，也可以在RISC-V的S Mode下，通过 ``sie`` 寄存器中的 ``seie`` 位，对中断信号是否接收进行控制。
+
+CPU可以通过MMIO方式来对PLIC进行管理，下面是一下与PLIC相关的寄存器：
+
+.. code-block:: console
+
+    寄存器	        地址    	功能描述
+    Priority   0x0c00_0000	 设置特定中断源的优先级
+    Pending	   0x0c00_1000   包含已触发（正在处理）的中断列表
+    Enable	   0x0c00_2000	 启用/禁用某些中断源
+    Threshold  0x0c20_0000	 设置中断能够触发的阈值
+    Claim      0x0c20_0004	 按优先级顺序返回下一个中断
+    Complete   0x0c20_0004	 写操作表示完成对特定中断的处理
+
+在QEMU ``qemu/include/hw/riscv/virt.h`` 的源码中，可以看到
+
+.. code-block:: C
+
+    enum {
+        UART0_IRQ = 10,
+        RTC_IRQ = 11,
+        VIRTIO_IRQ = 1, /* 1 to 8 */
+        VIRTIO_COUNT = 8,
+        PCIE_IRQ = 0x20, /* 32 to 35 */
+        VIRTIO_NDEV = 0x35 /* Arbitrary maximum number of interrupts */
+    };
+
+
+可以看到串口UART0的中断号是10，virtio设备的中断号是1~8。通过 ``dtc`` Device Tree Compiler工具生成的文本文件，我们也可以发现上述中断信号信息，以及基于MMIO的外设寄存器信息。在后续的设备驱动中，这些信息我们可以用到。
+
+
+操作系统如要响应外设的中断，需要做两方面的初始化工作。首先是完成第三章讲解的中断初始化过程，并需要把 ``sie`` 寄存器中的 ``seie`` 位设置为1，让CPU能够接收通过PLIC传来的外部设备中断信号。然后还需要通过MMIO方式对PLIC的寄存器进行初始设置，才能让外设产生的中断传到CPU处。其主要操作包括：
+
+- 设置外设中断的优先级
+- 设置外设中断的阈值，优先级小于等于阈值的中断会被屏蔽
+- 激活外设中断，即把 ``Enable`` 寄存器的外设中断编号为索引的位设置为1
+
+但外设产生中断后，CPU并不知道具体是哪个设备传来的中断，这可以通过读PLIC的 ``Claim`` 寄存器来了解。 ``Claim`` 寄存器会返回PLIC接收到的优先级最高的中断；如果没有外设中断产生，读 ``Claim`` 寄存器会返回 0。
+
+操作系统在收到中断并完成中断处理后，还需通过PLIC中断处理完毕，即CPU需要在PLIC的 ``Complete`` 寄存器中写入对应中断号为索引的位，告知PLIC自己已经处理完毕。
+
+串口
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+我们在第一章其实就接触了串口（Universal Asynchronous Receiver-Transmitter，简称UART），但当时是通过RustSBI来帮OS完成对串口的访问，即OS只需发出两种SBI调用请求就可以输出和获取字符了。但这种便捷性是有代价的。比如OS在调用获取字符的SBI调用请求后，RustSBI如果没收到串口字符，会返回 ``-1`` ，这样OS只能采用类似轮询的方式来继续查询。到第七章位置的串口驱动不支持中断是导致效率地下的主要原因。
+
+串口是一种在嵌入式系统中常用的用于传输、接收系列数据的外部设备。串行数据传输是逐位（bit）顺序发送数据的过程。接下来，我们就需要开始尝试在 
+
+
+virtio设备
+-----------------------------------------
+
+
+virtio字符设备
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+virtio块设备
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+virtio显示设备
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
