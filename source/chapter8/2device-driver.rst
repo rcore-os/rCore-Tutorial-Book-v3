@@ -293,6 +293,8 @@ virtio设备的基本组成要素如下：
 
 设备配置空间通常用于配置不常变动的设备参数，或者初始化阶段需要时设置的设备参数。特征位包含表示配置空间是否存在的bit位，并可通过在特征位的末尾新添新的bit位来扩展配置空间。
 
+.. _term-virtqueue:
+
 **virtqueue** 
 
 在virtio设备上进行批量数据传输的机制被称为virtqueue，每个virtio设备可以拥有零个或多个virtqueue，每个virtqueue占用2个或者更多个4K的物理页。 virtqueue有Split Virtqueues和Packed Virtqueues两种模式。在Split virtqueues模式下，virtqueue被分成若干个部分， 每个部分都是前端驱动或者后端设备单向可写。 每个virtqueue都有一个16bit的 ``Queue Size`` 参数，表示队列的总长度。每个virtqueue由三部分组成：
@@ -386,6 +388,8 @@ device 端使用 buffer 后填充 used ring 的过程如下：
 -----------------------------------------
 
 基于MMIO方式的virtio设备没有基于总线的设备探测机制。 所以操作系统采用Device Tree的方式来探测各种基于MMIO方式的virtio设备，从而操作系统能知道与设备相关的寄存器和所用的中断。基于MMIO方式的virtio设备提供了一组内存映射的控制寄存器，后跟一个设备特定的配置空间，在形式上是位于一个特点地址上的内存区域。一旦操作系统找到了这个内存区域，就可以获得与这个设备相关的各种寄存器信息。比如，我们在 `virtio-drivers` crate 中就定义了基于MMIO方式的virtio设备的寄存器区域：
+
+.. _term-virtio-mmio-regs:
 
 .. code-block:: Rust
 

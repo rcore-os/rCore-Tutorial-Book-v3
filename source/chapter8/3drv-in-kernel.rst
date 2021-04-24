@@ -106,32 +106,197 @@
       }
    }
 
-`virtio_probe` 函数会进一步查找virtio设备节点中的`reg` 属性，从而可以找到virtio设备的具体类型（如 `DeviceType::Block` 块设备类型）等参数。接下来，我们就可以对具体的virtio设备进行初始好和进行具体I/O操作了。
+`virtio_probe` 函数会进一步查找virtio设备节点中的`reg` 属性，从而可以找到virtio设备的具体类型（如 `DeviceType::Block` 块设备类型）等参数。接下来，我们就可以对具体的virtio设备进行初始化和进行具体I/O操作了。
 
-virtio块设备
+virtio-blk设备
 ------------------------------------------
 
-virtio-blk是一种存储设备，设备驱动发起的I/O请求包含操作类型(读或写)、起始扇区(一个扇区为512节节，是块设备的存储单位)、内存地址、访问长度；请求处理完成后返回的IO响应仅包含结果状态(成功或失败)。如下示例图中，系统产生了一个I/O请求，它在内存上的数据结构分为三个部分：Header，即请求头部，包含操作类型和起始扇区；Data，即数据区，包含地址和长度；Status，即结果状态。
+virtio-blk设备是一种存储设备，在QEMU模拟的RISC-V 64计算机中，以MMIO的方式来与操作系统进行交互。
 
-virtio-blk设备使用一个环形队列结构(IO RING)，它由三段连续内存组成：Descriptor Table、Avail Queue和Used Queue：
+virtio-blk设备的关键数据结构
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Descriptor Table由固定长度(16字节)的Descriptor组成，其个数等于环形队列(IO RING)长度，其中每个Descriptor包含四个域：addr代表某段内存的起始地址，长度为8个字节；len代表某段内存的长度，本身占用4个字节(因此代表的内存段最大为4GB)；flags代表内存段读写属性等，长度为2个字节；next代表下一个内存段对应的Descpriptor在Descriptor Table中的索引，因此通过next字段可以将一个请求对应的多个内存段连接成链表。
+这里我们首先需要定义virtio-blk设备的结构：
 
-Avail Queue由头部的flags和idx域及entry数组(entry代表数组元素)组成：flags与通知机制相关；idx代表最新放入IO请求的编号，从零开始单调递增，将其对队列长度取余即可得该IO请求在entry数组中的索引；entry数组元素用来存放IO请求占用的首个Descriptor在Descriptor Table中的索引，数组长度等于环形队列长度(不开启event_idx特性)。
+.. code-block:: Rust
 
-Used Queue由头部的flags和idx域及entry数组(entry代表数组元素)组成：flags与通知机制相关；idx代表最新放入IO响应的编号，从零开始单调递增，将其对队列长度取余即可得该IO响应在entry数组中的索引；entry数组元素主要用来存放IO响应占用的首个Descriptor在Descriptor Table中的索引(还有一个len域，virtio-blk并不使用)， 数组长度等于环形队列长度(不开启event_idx特性)。
-环形队列结构(IO RING)被CPU和设备同见。仅CPU可见变量为free_head(空闲Descriptor链表头，初始时所有Descriptor通过next指针依次相连形成空闲链表)和last_used(当前已取的used元素位置)。仅设备可见变量为last_avail(当前已取的avail元素位置)。
-
-针对示例图中的IO请求，处理流程分析如下：
-
-第一步，CPU放请求。由于示例IO请求在内存中由Header、Data和Status三段内存组成，因此要从Descriptor Table中申请三个空闲项，每项指向一段内存，并将三段内存连接成链表。这里假设我们申请到了前三个Descriptor(free_head更新为3，表示下一个空闲项从索引3开始，因为0、1、2已被占用)，那么会将第一个Descriptor的索引值0填入Aail Queue的第一个entry中，并将idx更新为1，代表放入1个请求；
-
-第二步，设备取请求。设备收到通知后，通过比较设备内部的last_avail(初始为0)和Avail Queue中的idx(当前为1)判断是否有新的请求待处理(如果last_vail小于Avail Queue中的idx，则有新请求)。如果有，则取出请求(更新last_avail为1 )并以entry的值为索引从Descriptor Table中找到请求对应的所有Descriptor来获知完整的请求信息。
-
-第三步，设备放响应。设备完成IO处理后(包括更新Status内存段内容)，将已完成IO的Descriptor Table索引放入Used Queue对应的entry中，并将idx更新为1,代表放入1个响应；
-
-第四步，CPU取响应。CPU收到中断后，通过比较内部的last_used(初始化0)和Used Queue中的idx(当前为1)判断是否有新的响应(逻辑类似Avail Queue)。如果有，则取出响应(更新last_used为1)并将Status中断的结果返回应用，最后将完成响应对应的三项Descriptor以链表方式插入到free_head头部。
+   pub struct VirtIOBlk<'a> {
+      header: &'static mut VirtIOHeader,
+      queue: VirtQueue<'a>,
+      capacity: usize,
+   }
 
 
+其中的 ``VirtIOHeader`` 数据结构的内存布局与上一节描述 :ref:`virt-mmio设备的寄存器内存布局 <term-virtio-mmio-regs>` 是一致的。而 ``VirtQueue`` 数据结构与上一节描述的 :ref: `virtqueue <term-virtqueue>` 在表达的含义上基本一致的。
+
+.. code-block:: Rust
+
+   #[repr(C)]
+   pub struct VirtQueue<'a> {
+      dma: DMA, // DMA guard
+      desc: &'a mut [Descriptor], // 描述符表
+      avail: &'a mut AvailRing, // Available ring
+      used: &'a mut UsedRing, // Used ring
+      queue_idx: u32, // The index of queue
+      queue_size: u16, // The size of queue
+      num_used: u16, // The number of used queues
+      free_head: u16, // The head desc index of the free list
+      avail_idx: u16,
+      last_used_idx: u16,
+   }
+
+
+初始化virtio-blk设备
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   
+在 ``virtio_probe`` 函数识别出virtio-blk设备后，会调用 ``virtio_blk(header)`` 来完成对virtio-blk设备的初始化过程。其实具体的初始化过程与virtio规范中描述的一般virtio设备的初始化过程大致一样，常规步骤（实际实现可以简化）如下：
+   
+1. 通过将0写入状态寄存器来复位器件；
+2. 将状态寄存器的ACKNOWLEDGE状态位置1；
+3. 将状态寄存器的DRIVER状态位置1；
+4. 从host_features寄存器读取设备功能；
+5. 协商功能集并将接受的内容写如guest_features寄存器；
+6. 将状态寄存器的FEATURES_OK状态位置1；
+7. 重新读取状态寄存器，以确认设备已接受您的功能；（可选）
+8. 执行特定于设备的设置；（可选）
+9. 将状态寄存器的DRIVER_OK状态位置1，使得该设备处于活跃可用状态。
+   
+
+具体实现，在如下代码中：
+
+.. code-block:: Rust
+
+   // virtio-drivers/src/blk.rs
+   impl VirtIOBlk<'_> {
+      pub fn new(header: &'static mut VirtIOHeader) -> Result<Self> {
+         header.begin_init(|features| {
+            let features = BlkFeature::from_bits_truncate(features);
+            // negotiate these flags only
+            let supported_features = BlkFeature::empty();
+            (features & supported_features).bits()
+         });
+
+         // read configuration space
+         let config = unsafe { &mut *(header.config_space() as *mut BlkConfig) };
+         let queue = VirtQueue::new(header, 0, 16)?;
+         header.finish_init();
+
+         Ok(VirtIOBlk {
+            header,   queue,   capacity: config.capacity.read() as usize,
+         })
+      }
+
+在 ``new`` 成员函数的实现中， ``header.begin_init`` 函数完成了常规步骤的前六步；第七步在这里被忽略；第八步是对 ``guest_page_size`` 寄存器的设置（写寄存器的值为4096），并进一步读取virtio-blk设备的配置空间的设备相关的信息：
+
+.. code-block:: Rust
+
+   capacity: Volatile<u64>     = 32   //32个扇区，即16KB
+   seg_max: Volatile<u32>      = 254  
+   cylinders: Volatile<u16>    = 2
+   heads: Volatile<u8>         = 16
+   sectors: Volatile<u8>       = 63  
+   blk_size: Volatile<u32>     = 512 //扇区大小为512字节
+
+了解了virtio-blk设备的扇区个数，扇区大小和总体容量后，还需调用 `` VirtQueue::new`` 成员函数来创建传输层的 ``VirtQueue`` 数据结构的实例，这样才能进行后续的磁盘读写操作。这个函数主要完成的事情是：
+
+- 设定 ``queue_size`` （即VirtQueue实例的虚拟队列条目数）为16；
+- 计算满足 ``queue_size`` 的描述符表，AvailRing和UsedRing所需的物理空间的大小 -- ``size`` ；
+- 基于上面计算的 ``size`` 分配物理空间； //VirtQueue.new()
+- 把VirtQueue实例的信息写到virtio-blk设备的MMIO寄存器中； //VirtIOHeader.queue_set()
+- 初始化VirtQueue实例中各个成员变量（主要是 dma，desc，avail，used）的值。
+
+这时，对virtio-blk设备的初始化算是完成了，这时执行最后的第九步，将virtio-blk设备设置为活跃可用状态。
+
+virtio-blk设备的读写操作
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+virtio-blk设备驱动发起的I/O请求包含操作类型(读或写)、起始扇区(一个扇区为512字节，是块设备的存储单位)、内存地址、访问长度；请求处理完成后返回的I/O响应仅包含结果状态(成功或失败)。系统产生了一个I/O请求，它在内存上的数据结构分为三个部分：Header，即请求头部，包含操作类型和起始扇区；Data，即数据区，包含地址和长度；Status，即结果状态。
+
+virtio-blk设备使用 ``VirtQueue`` 数据结构来进行数据传输，此数据结构主要由三段连续内存组成：描述符表 Descriptor[]、环形队列结构的AvailRing和UsedRing。设备驱动和virtio-blk设备都能访问到此数据结构。
+
+描述符表由固定长度(16字节)的描述符Descriptor组成，其个数等于环形队列长度，其中每个Descriptor的结构为：
+
+.. code-block:: Rust
+
+   #[repr(C, align(16))]
+   #[derive(Debug)]
+   struct Descriptor {
+      addr: Volatile<u64>,
+      len: Volatile<u32>,
+      flags: Volatile<DescFlags>,
+      next: Volatile<u16>,
+   }
+
+包含四个域：addr代表某段内存的起始地址，长度为8个字节；len代表某段内存的长度，本身占用4个字节(因此代表的内存段最大为4GB)；flags代表内存段读写属性等，长度为2个字节；next代表下一个内存段对应的Descpriptor在描述符表中的索引，因此通过next字段可以将一个请求对应的多个内存段连接成链表。
+
+AvailRing的结构为：
+
+.. code-block:: Rust
+   #[repr(C)]
+   #[derive(Debug)]
+   struct AvailRing {
+      flags: Volatile<u16>,
+      /// A driver MUST NOT decrement the idx.
+      idx: Volatile<u16>,
+      ring: [Volatile<u16>; 32], // actual size: queue_size
+      used_event: Volatile<u16>, // unused
+   }
+
+由头部的flags和idx域及ring数组组成：flags与通知机制相关；idx代表最新放入IO请求的编号，从零开始单调递增，将其对队列长度取余即可得该IO请求在entry数组中的索引；ring数组元素用来存放IO请求占用的首个Descriptor在描述符表中的索引，数组长度等于环形队列长度(不开启event_idx特性)。
+
+UsedRing的结构为：
+
+.. code-block:: Rust
+   #[repr(C)]
+   #[derive(Debug)]
+   struct UsedRing {
+      flags: Volatile<u16>,
+      idx: Volatile<u16>,
+      ring: [UsedElem; 32],       // actual size: queue_size
+      avail_event: Volatile<u16>, // unused
+   }
+
+
+由头部的flags和idx域及ring数组组成：flags与通知机制相关；idx代表最新放入I/O响应的编号，从零开始单调递增，将其对队列长度取余即可得该I/O响应在ring数组中的索引；ring数组元素主要用来存放I/O响应占用的首个Descriptor在描述符表中的索引， 数组长度等于环形队列长度(不开启event_idx特性)。
+
+仅CPU可见变量为free_head(空闲Descriptor链表头，初始时所有Descriptor通过next指针依次相连形成空闲链表)和last_used(当前已取的used元素位置)。仅设备可见变量为last_avail(当前已取的avail元素位置)。
+
+针对用户进程发出的I/O请求，经过系统调用，文件系统等一系列处理后，最终会形成对virtio-blk设备驱动程序的调用。对于写操作，具体实现如下：
+
+
+.. code-block:: Rust
+   //virtio-drivers/src/blk.rs
+   pub fn write_block(&mut self, block_id: usize, buf: &[u8]) -> Result {
+      assert_eq!(buf.len(), BLK_SIZE);
+      let req = BlkReq {
+         type_: ReqType::Out,
+         reserved: 0,
+         sector: block_id as u64,
+      };
+      let mut resp = BlkResp::default();
+      self.queue.add(&[req.as_buf(), buf], &[resp.as_buf_mut()])?;
+      self.header.notify(0);
+      while !self.queue.can_pop() {
+         spin_loop();
+      }
+      self.queue.pop_used()?;
+      match resp.status {
+         RespStatus::Ok => Ok(()),
+         _ => Err(Error::IoError),
+      }
+   }
+
+基本流程如下：
+
+1. 一个完整I/O写请求，包括表示I/O写信息的结构 ``BlkReq`` ，一个表示设备响应信息的结构 ``BlkResp`` ，再加上要传输的数据块 ``buf`` 。这三部分分别需要三个Descriptor来表示；
+2. 接着调用 ``VirtQueue.add`` 函数，从描述符表中申请三个Descriptor空闲项，每项指向一段内存，填写上述三部分的信息，并将三个Descriptor连接成一个描述符链表；
+3. 接着调用 ``VirtQueue.notify`` 函数，写 ``queue_notify`` 寄存器，即向 virtio-blk设备发出通知；
+4. （设备内部处理过程）virtio-blk设备收到通知后，通过比较设备内部的last_avail(初始为0)和AvailRing中的idx判断是否有新的请求待处理(如果last_vail小于AvailRing中的idx，则有新请求)。如果有，则取出请求(更新last_avail为1 )并以entry的值为索引从描述符表中找到请求对应的所有Descriptor来获知完整的请求信息，并完成存储块的I/O写操作；
+5. （设备内部处理过程）设备完成I/O写操作后(包括更新包含 ``BlkResp`` 的Descriptor)，将已完成I/O的Descriptor放入UsedRing对应的ring项中，并更新idx,代表放入一个响应；如果设置了中断机制，还会产生中断来通知操作系统响应中断；
+6. 设备驱动用的无中断的轮询机制查看设备是否有响应（持续调用  ``VirtQueue.can_pop`` 函数），通过比较内部的 ``VirtQueue.last_used_idx`` 和 ``VirtQueue.used.idx`` 判断是否有新的响应。如果有，则取出响应(并更新 ``last_used_idx`` )，将完成响应对应的三项Descriptor回收，最后将结果返回给用户进程。
+
+
+I/O读请求的处理过程与I/O写请求的处理过程几乎一样，这里就不在详细说明了。具体可以看看 ``virtio-drivers/src/blk.rs`` 文件中的 ``VirtIOBlk.read_block`` 函数的实现。
 virtio显示设备
 ------------------------------------------
