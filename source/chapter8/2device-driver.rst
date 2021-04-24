@@ -225,9 +225,11 @@ I/O设备抽象
 
 对于操作系统如何有效管理I/O设备的相关探索还在继续，但环境已经有所变化。随着互联网和云计算的兴起，在数据中心的物理服务器上通过虚拟机技术（Virtual Machine Monitor， Hypervisor等），运行多个虚拟机（Virtual Machine），并在虚拟机中运行guest操作系统的模式成为一种主流。但当时存在多种虚拟机技术，如Xen、VMware、KVM等，要支持虚拟化x86、Power等不同的处理器和各种具体的外设，并都要求让以Linux为代表的guest OS能在其上高效的运行。这对于虚拟机和操作系统来说，实在是太繁琐和困难了。
 
-IBM资深工程师 Rusty Russell 在开发Lguest（Linux 内核中的的一个hypervisor（一种高效的虚拟计算机的系统软件）)时，深感写模拟计算机中的高效虚拟I/O设备的困难，且编写I/O设备的驱动程序繁杂且很难形成一种统一的表示。于是他经过仔细琢磨，提出了一组通用的I/O设备的抽象和规范 -- virtio。虚拟机（VMM或Hypervisor）提供virtio设备的实现，virtio设备有着统一的virtio接口，guest操作系统只要能够实现这些通用的接口，就可以管理和控制各种virtio设备。而虚拟机与guest操作系统的virtio设备驱动程序间的通道是基于共享内存的异步访问方式来实现的，效率很高。虚拟机会进一步把相关的virtio设备的I/O操作转换成物理机上的物理外设的I/O操作。这就完成了整个I/O处理过程。
+IBM资深工程师 Rusty Russell 在开发Lguest（Linux 内核中的的一个hypervisor（一种高效的虚拟计算机的系统软件）)时，深感写模拟计算机中的高效虚拟I/O设备的困难，且编写I/O设备的驱动程序繁杂且很难形成一种统一的表示。于是他经过仔细琢磨，提出了一组通用I/O设备的抽象 -- virtio规范。虚拟机（VMM或Hypervisor）提供virtio设备的实现，virtio设备有着统一的virtio接口，guest操作系统只要能够实现这些通用的接口，就可以管理和控制各种virtio设备。而虚拟机与guest操作系统的virtio设备驱动程序间的通道是基于共享内存的异步访问方式来实现的，效率很高。虚拟机会进一步把相关的virtio设备的I/O操作转换成物理机上的物理外设的I/O操作。这就完成了整个I/O处理过程。
 
 由于virtio设备的设计，使得虚拟机不用模拟真实的外设，从而可以设计一种统一和高效的I/O操作规范来让guest操作系统处理各种I/O操作。这种I/O操作规范其实就形成了基于virtio的I/O设备抽象，并逐渐形成了事实的上的虚拟I/O设备的标准。
+
+外部设备为CPU提供存储、网络等多种服务，是计算机系统中除运算功能之外最为重要的功能载体。CPU与外设之间通过某种协议传递命令和执行结果；virtio协议最初是为虚拟机外设而设计的IO协议，但是随着应用范围逐步扩展到物理机外设，virtio协议正朝着更适合物理机使用的方向而演进。
 
 .. image:: virtio-simple-arch.png
    :align: center
@@ -249,25 +251,57 @@ virtio设备是虚拟外设，存在于QEMU模拟的RISC-V 64 virt 计算机中�
 virtio架构
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-总体上看，virtio 可以分为四层，包括前端 guest 中各种驱动程序模块，后端 Hypervisor （实现在Qemu上）上的处理程序模块，中间用于前后端通信的 virtio 层和 virtio-ring 层，virtio 这一层实现的是虚拟队列接口，算是前后端通信的桥梁，而 virtio-ring 则是该桥梁的具体实现，它实现了两个环形缓冲区，分别用于保存前端驱动程序和后端处理程序执行的信息。
+总体上看，virtio 可以分为四层，包括前端 guest操作系统中各种驱动程序模块，后端 Device（实现在Qemu上），中间用于前后端通信的 virtio 层和 virtio-ring 层，virtio 这一层实现的是虚拟队列接口，是前后端通信的桥梁。 virtio-ring 是该桥梁的具体实现，它实现为两个环形缓冲区，分别用于保存前端驱动程序和后端处理程序执行的信息。
 
 .. image:: virtio-arch.png
    :align: center
    :name: virtio-arch
 
 
-- 设备状态字段（Device status field）
+**virtio设备** 
+
+virtio设备支持3种设备呈现模式：
+
+- Virtio Over MMIO，虚拟设备直接挂载到系统总线上，我们实验中的虚拟计算机就是这种呈现模式；
+- Virtio Over PCI BUS，遵循PCI规范，挂在到PCI总线上，作为virtio-pci设备呈现，在虚拟x86计算机上采用的是这种模式；
+- Virtio Over Channel I/O：主要用在IBM s390平台上，virtio-ccw使用这种基于channel I/O的机制。
+
+virtio设备的基本组成要素如下：
+
+- 设备状态域（Device status field）
 - 特征位（Feature bits）
 - 设备配置空间（Device Configuration space）
 - 一个或多个virtqueues
 
-在virtio设备上进行批量数据传输的机制被称为virtqueue，每个virtio设备可以拥有零个或多个virtqueue，每个virtqueue由三部分组成：
+**设备状态域**
+
+其中设备状态域包含6种状态：
+
+- ACKNOWLEDGE（1）：GuestOS发现了这个设备，并且认为这是一个有效的virtio设备；
+- DRIVER (2) : GuestOS知道该如何驱动这个设备；
+- FAILED (128) : GuestOS无法正常驱动这个设备，Something is wriong；
+- FEATURES_OK (8) : GuestOS认识所有的feature，并且feature协商一完成；
+- DRIVER_OK (4) : 驱动加载完成，设备可以投入使用了；
+- DEVICE_NEEDS_RESET (64) ：设备触发了错误，需要重置才能继续工作。
+
+
+**特征位** 
+
+特征位用于表示VirtIO设备具有的各种特性。其中bit0-bit23是特定设备可以使用的feature bits， bit24-bit37预给队列和feature协商机制，bit38以上保留给未来其他用途。
+
+**设备配置空间**
+
+设备配置空间通常用于配置不常变动的设备参数，或者初始化阶段需要时设置的设备参数。特征位包含表示配置空间是否存在的bit位，并可通过在特征位的末尾新添新的bit位来扩展配置空间。
+
+**virtqueue** 
+
+在virtio设备上进行批量数据传输的机制被称为virtqueue，每个virtio设备可以拥有零个或多个virtqueue，每个virtqueue占用2个或者更多个4K的物理页。 virtqueue有Split Virtqueues和Packed Virtqueues两种模式。在Split virtqueues模式下，virtqueue被分成若干个部分， 每个部分都是前端驱动或者后端设备单向可写。 每个virtqueue都有一个16bit的 ``Queue Size`` 参数，表示队列的总长度。每个virtqueue由三部分组成：
 
 - Descriptor Table
-- Available Ring
+- Available Ring：记录了Descriptor Table表中的哪些项被更新了，前端Driver可写但后端只读；
 - Used Ring
 
-Descriptor Table用来描述virtio设备驱动程序与virtio设备进行数据交互的缓冲区，由 ``Queue Size`` 个Descriptor（描述符）组成。Descriptor中包括表示数据buffer的物理地址 -- addr字段，数据buffer的长度 -- len字段，可以链接到 ``next Descriptor`` 的next指针并形成描述符链。
+Descriptor Table用来存放IO传输请求信息，即是virtio设备驱动程序与virtio设备进行数据交互的缓冲区，由 ``Queue Size`` 个Descriptor（描述符）组成。Descriptor中包括表示数据buffer的物理地址 -- addr字段，数据buffer的长度 -- len字段，可以链接到 ``next Descriptor`` 的next指针并形成描述符链。
 
 Available Ring中的每个条目是一个是描述符链的头部。它仅由virtio设备驱动程序写入，并由virtio设备读出。virtio设备获取Descriptor后，Descriptor对应的缓冲区具有可读写属性，可读的缓冲区用于Driver发送数据，可写的缓冲区用于接收数据。
 
@@ -277,29 +311,42 @@ Used Ring中的每个条目也一个是描述符链的头部。这个描述符�
 vring机制
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-每个virtio设备可以拥有零个或多个virtqueue，每个virtqueue就是一个保存和传输I/O数据的抽象数据结构queue，可承载大量I/O数据，而virtqueue由vring（一种环形队列）来实现。
-
+virtio设备的virtqueue由vring（一种环形队列）来实现。
 
 .. image:: vring.png
    :align: center
    :name: vring
 
 
-
-
 当virtio设备驱动程序想要向virtio设备发送数据时，它会填充Descriptor Table中的一项或几项链接在一起，形成描述符链，并将描述符索引写入Available Ring中，然后它通知virtio设备（向queue notify寄存器写入队列index）。当virtio设备收到通知，并完成I/O操作后，virtio设备将描述符索引写入Used Ring中并发送中断，让操作系统进行进一步处理并回收描述符。
 
 
-virtio 设备操作
+virtio 设备的相关操作
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. https://rootw.github.io/2019/09/firecracker-virtio/
+
+对于设备驱动和外设之间采用virtio协议进行交互的原理如下图所示。
+
+
+.. image:: virtio-cpu-device-io2.png
+   :align: center
+   :name: virtio-cpu-device-io2
+
+
+设备驱动与外设可以共同访问内存，内存中存在一个称为环形队列的数据结构，该队列可分成由I/O请求组成的请求队列(Available Ring)和由I/O响应组成的响应队列(Used Ring)。一个IO的处理过程可以分成如下四步：
+
+1. 用户进程发出I/O请求时，设备驱动将I/O请求放入请求队列(Available Ring)中并通知设备；
+2. 设备收到通知后从请求队列中取出I/O请求并在内部进行实际处理；
+3. 设备将IO处理完成后，将结果作为I/O响应放入响应队列(Used Ring)并以中断方式通知CPU；
+4. 设备驱动从响应队列中取出I/O处理结果并最终返回给用户进程。
 
 **设备的初始化**
 
 1. 重启设备状态，状态位写入 0
 2. 设置状态为 ACKNOWLEDGE，guest(driver)端当前已经识别到了设备
 3. 设置状态为 Driver，guest 知道如何驱动当前设备
-4. 设备特定的安装和配置：特征位的协商，virtqueue 的安装，可选的 MSI-X 的安装，读写设备专属的配置空间等
+4. 设备特定的安装和配置：特征位的协商，virtqueue 的安装，读写设备专属的配置空间等
 5. 设置状态为 Driver_OK 或者 Failed（如果中途出现错误）
 6. 当前设备初始化完毕，可以进行配置和使用
 
@@ -311,46 +358,65 @@ virtio 设备操作
 
 该部分代码的实现具体为：
 
-1.选择 virtqueue 的索引，写入 Queue Select 寄存器
-2.读取 queue size 寄存器获得 virtqueue 的可用数目
-3.分配并清零连续物理内存用于存放 virtqueue。把内存地址除以 4096 写入 Queue Address 寄存器
-
-
+1. 选择 virtqueue 的索引，写入 Queue Select 寄存器
+2. 读取 queue size 寄存器获得 virtqueue 的可用数目
+3. 分配并清零连续物理内存用于存放 virtqueue。把内存地址除以 4096 写入 Queue Address 寄存器
 
 **Guest 向设备提供 buffer**
 
-1.把 buffer 添加到 description table 中,填充 addr,len,flags
-2.更新 available ring head
-3.更新 available ring 中的 index
-4.通知 device，通过写入 virtqueue index 到 Queue Notify 寄存器
+1. 把 buffer 添加到 description table 中,填充 addr,len,flags
+2. 更新 available ring head
+3. 更新 available ring 中的 index
+4. 通知 device，通过写入 virtqueue index 到 Queue Notify 寄存器
 
 **Device 使用 buffer 并填充 used ring**
 
 device 端使用 buffer 后填充 used ring 的过程如下：
 
-1.从描述符表格（descriptor table）中找到 available ring 中添加的 buffers，映射内存
-2.从分散-聚集的 buffer 读取数据
-3.取消内存映射,更新 ring[idx]中的 id 和 len 字段
-4.更新 vring_used 中的 idx
-5.如果设置了使能中断，产生中断并通知操作系统描述符已经使用
-
-**中断处理**
-
-？？？？
+1. 从描述符表格（descriptor table）中找到 available ring 中添加的 buffers，映射内存
+2. 从分散-聚集的 buffer 读取数据
+3. 取消内存映射,更新 ring[idx]中的 id 和 len 字段
+4. 更新响应队列 vring_used 中的 idx
+5. 如果设置了使能中断，产生中断并通知操作系统描述符已经使用
+6. 设备驱动从响应队列 vring_used 中取出IO处理结果并返回给应用程序
 
 
 
+基于MMIO方式的virtio设备
+-----------------------------------------
+
+基于MMIO方式的virtio设备没有基于总线的设备探测机制。 所以操作系统采用Device Tree的方式来探测各种基于MMIO方式的virtio设备，从而操作系统能知道与设备相关的寄存器和所用的中断。基于MMIO方式的virtio设备提供了一组内存映射的控制寄存器，后跟一个设备特定的配置空间，在形式上是位于一个特点地址上的内存区域。一旦操作系统找到了这个内存区域，就可以获得与这个设备相关的各种寄存器信息。比如，我们在 `virtio-drivers` crate 中就定义了基于MMIO方式的virtio设备的寄存器区域：
+
+.. code-block:: Rust
+
+   //virtio-drivers/src/header.rs L8
+   #[repr(C)]
+   #[derive(Debug)]
+   pub struct VirtIOHeader {
+      magic: ReadOnly<u32>,  //魔数 Magic value
+      version: ReadOnly<u32>, //设备版本号
+      device_id: ReadOnly<u32>, // Virtio子系统设备ID 
+      vendor_id: ReadOnly<u32>, // Virtio子系统供应商ID
+      device_features: ReadOnly<u32>, //设备支持的功能
+      device_features_sel: WriteOnly<u32>,//设备选择的功能
+      driver_features: WriteOnly<u32>, //驱动程序理解的设备功能
+      driver_features_sel: WriteOnly<u32>, //驱动程序选择的设备功能
+      guest_page_size: WriteOnly<u32>, //OS中页的大小（应为2的幂）
+      queue_sel: WriteOnly<u32>, //虚拟队列索引号
+      queue_num_max: ReadOnly<u32>,//虚拟队列最大容量值
+      queue_num: WriteOnly<u32>, //虚拟队列当前容量值
+      queue_align: WriteOnly<u32>,//虚拟队列的对齐边界（以字节为单位）
+      queue_pfn: Volatile<u32>, //虚拟队列所在的物理页号
+      queue_ready: Volatile<u32>, // new interface only
+      queue_notify: WriteOnly<u32>, //队列通知
+      interrupt_status: ReadOnly<u32>, //中断状态
+      interrupt_ack: WriteOnly<u32>, //中断确认
+      status: Volatile<DeviceStatus>, //设备状态
+      config_generation: ReadOnly<u32>, //配置空间
+   }
+
+这里列出了部分的关键的寄存器和它的基本功能描述。在后续的设备初始化，设备I/O操作中，都会用到这里列出的寄存器。
+
+接下来，我们将virtio设备驱动程序如何开始管理这些设备来完成I/O操作的。
 
 
-现在，我们将为每个部分提供更多详细信息，以及设备和驱动程序如何开始使用它们进行通信。
-
-virtio字符设备
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-virtio块设备
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-virtio显示设备
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
