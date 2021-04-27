@@ -22,6 +22,8 @@
 
 .. note::
 
+   **UNIX诞生是从磁盘驱动程序开始的** 
+
    如果翻看UNIX诞生的历史，你会发现一个有趣的故事。Ken Tompson在退出Mulitics开发后，还是想做操作系统。他首先做的就是给PDP-7计算机的磁盘驱动器写了一个包含磁盘调度算法的磁盘驱动程序和来提高计算机的磁盘I/O读写速度。为了测试磁盘访问性能，Ken Tompson花了三周时间写了一个操作系统，这就是Unix的诞生。
 
 本章的目标是深入理解I/O设备管理，并将站在I/O设备管理的角度来分析I/O设备的特征，操作系统与I/O设备的交互方式。接着会进一步通过串口，时钟，键盘鼠标，磁盘，图形显示等各种外设的具体实现来展现操作系统是如何管理I/O设备的，并展现设备驱动与操作系统内核其它重要部分的交互。
@@ -34,15 +36,14 @@
 
 .. code-block:: console
 
-   $ git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
-   $ cd rCore-Tutorial-v3
-   $ git checkout ch8
+   $ git clone https://github.com/rcore-os/virtio-drivers.git
+   $ cd virtio-drivers
+   $ cd examples/riscv
 
 在 qemu 模拟器上运行本章代码：
 
 .. code-block:: console
 
-   $ cd os
    $ make run
 
 
@@ -52,127 +53,51 @@
 
 .. code-block::
    :linenos:
-   :emphasize-lines: 50
 
+   virtio-drivers crate
+   ########################
    ./os/src
-   Rust        32 Files    2893 Lines
-   Assembly     3 Files      88 Lines
-   ./easyfs/src
-   Rust         7 Files     908 Lines
-   ├── bootloader
-   │   ├── rustsbi-k210.bin
-   │   └── rustsbi-qemu.bin
-   ├── Dockerfile
-   ├── easy-fs(新增：从内核中独立出来的一个简单的文件系统 EasyFileSystem 的实现)
-   │   ├── Cargo.toml
-   │   └── src
-   │       ├── bitmap.rs(位图抽象)
-   │       ├── block_cache.rs(块缓存层，将块设备中的部分块缓存在内存中)
-   │       ├── block_dev.rs(声明块设备抽象接口 BlockDevice，需要库的使用者提供其实现)
-   │       ├── efs.rs(实现整个 EasyFileSystem 的磁盘布局)
-   │       ├── layout.rs(一些保存在磁盘上的数据结构的内存布局)
-   │       ├── lib.rs
-   │       └── vfs.rs(提供虚拟文件系统的核心抽象，即索引节点 Inode)
-   ├── easy-fs-fuse(新增：将当前 OS 上的应用可执行文件按照 easy-fs 的格式进行打包)
-   │   ├── Cargo.toml
-   │   └── src
-   │       └── main.rs
+   Rust         8 Files    1150 Lines
+   ./examples/riscv/src
+   Rust         2 Files     138 Lines
+   
+   .
+   ├── Cargo.lock
+   ├── Cargo.toml
+   ├── examples
+   │   └── riscv
+   │       ├── Cargo.toml
+   │       ├── linker32.ld
+   │       ├── linker64.ld
+   │       ├── Makefile
+   │       ├── rust-toolchain
+   │       └── src
+   │           ├── main.rs （各种virtio设备的测试用例）
+   │           └── virtio_impl.rs (用于I/O数据的物理内存空间管理的简单实现)
    ├── LICENSE
-   ├── Makefile
-   ├── os
-   │   ├── build.rs
-   │   ├── Cargo.toml(修改：新增 Qemu 和 K210 两个平台的块设备驱动依赖 crate)
-   │   ├── Makefile(修改：新增文件系统的构建流程)
-   │   └── src
-   │       ├── config.rs(修改：新增访问块设备所需的一些 MMIO 配置)
-   │       ├── console.rs
-   │       ├── drivers(修改：新增 Qemu 和 K210 两个平台的块设备驱动)
-   │       │   ├── block
-   │       │   │   ├── mod.rs(将不同平台上的块设备全局实例化为 BLOCK_DEVICE 提供给其他模块使用)
-   │       │   │   ├── sdcard.rs(K210 平台上的 microSD 块设备, Qemu不会用)
-   │       │   │   └── virtio_blk.rs(Qemu 平台的 virtio-blk 块设备)
-   │       │   └── mod.rs
-   │       ├── entry.asm
-   │       ├── fs(修改：在文件系统中新增常规文件的支持)
-   │       │   ├── inode.rs(新增：将 easy-fs 提供的 Inode 抽象封装为内核看到的 OSInode
-   │       │   │            并实现 fs 子模块的 File Trait)
-   │       │   ├── mod.rs
-   │       │   ├── pipe.rs
-   │       │   └── stdio.rs
-   │       ├── lang_items.rs
-   │       ├── link_app.S
-   │       ├── linker-k210.ld
-   │       ├── linker-qemu.ld
-   │       ├── loader.rs(移除：应用加载器 loader 子模块，本章开始从文件系统中加载应用)
-   │       ├── main.rs
-   │       ├── mm
-   │       │   ├── address.rs
-   │       │   ├── frame_allocator.rs
-   │       │   ├── heap_allocator.rs
-   │       │   ├── memory_set.rs(修改：在创建地址空间的时候插入 MMIO 虚拟页面)
-   │       │   ├── mod.rs
-   │       │   └── page_table.rs
-   │       ├── sbi.rs
-   │       ├── syscall
-   │       │   ├── fs.rs(修改：新增 sys_open/sys_dup)
-   │       │   ├── mod.rs
-   │       │   └── process.rs(修改：sys_exec 改为从文件系统中加载 ELF，并支持命令行参数)
-   │       ├── task
-   │       │   ├── context.rs
-   │       │   ├── manager.rs
-   │       │   ├── mod.rs(修改初始进程 INITPROC 的初始化)
-   │       │   ├── pid.rs
-   │       │   ├── processor.rs
-   │       │   ├── switch.rs
-   │       │   ├── switch.S
-   │       │   └── task.rs
-   │       ├── timer.rs
-   │       └── trap
-   │           ├── context.rs
-   │           ├── mod.rs
-   │           └── trap.S
    ├── README.md
-   ├── rust-toolchain
-   ├── tools
-   │   ├── kflash.py
-   │   ├── LICENSE
-   │   ├── package.json
-   │   ├── README.rst
-   │   └── setup.py
-   └── user
-      ├── Cargo.lock
-      ├── Cargo.toml
-      ├── Makefile
-      └── src
-         ├── bin
-         │   ├── cat.rs(新增)
-         │   ├── cmdline_args.rs(新增)
-         │   ├── exit.rs
-         │   ├── fantastic_text.rs
-         │   ├── filetest_simple.rs(新增：简单文件系统测例)
-         │   ├── forktest2.rs
-         │   ├── forktest.rs
-         │   ├── forktest_simple.rs
-         │   ├── forktree.rs
-         │   ├── hello_world.rs
-         │   ├── initproc.rs
-         │   ├── matrix.rs
-         │   ├── pipe_large_test.rs
-         │   ├── pipetest.rs
-         │   ├── run_pipe_test.rs
-         │   ├── sleep.rs
-         │   ├── sleep_simple.rs
-         │   ├── stack_overflow.rs
-         │   ├── user_shell.rs(修改：支持命令行参数解析和输入/输出重定向)
-         │   ├── usertests.rs
-         │   └── yield.rs
-         ├── console.rs
-         ├── lang_items.rs
-         ├── lib.rs(修改：支持命令行参数解析)
-         ├── linker.ld
-         └── syscall.rs(修改：新增 sys_open 和 sys_dup)
+   └── src
+      ├── blk.rs (virtio-blk 驱动)
+      ├── gpu.rs (virtio-gpu 驱动)
+      ├── hal.rs (用于I/O数据的物理内存空间管理接口)
+      ├── header.rs (VirtIOHeader: MMIO Device Register Interface)
+      ├── input.rs (virtio-input 驱动)
+      ├── lib.rs
+      ├── net.rs (virtio-net 驱动)
+      └── queue.rs (virtqueues: 批量I/O数据传输的机制) 
+
+   4 directories, 20 files
 
 
 本章代码导读
 -----------------------------------------------------          
 
+本章涉及的代码主要与设备驱动相关，需要了解硬件，需要多遍阅读和运行测试相关代码。这里简要介绍一下在内核中添加设备驱动的大致开发过程。对于写设备驱动，首先需要大致了解对应设备的硬件规范。在本章中，主要有两类设备，一类是实际的物理设备 -- UART（QEMU模拟了这种NS16550A UART芯片规范）；另外一类是一类虚拟的抽象设备 -- virtio deivce，本来用于虚拟机运行环境，目前被很多运行在虚拟环境中的操作系统支持，其virtio规范貌似成为了一种事实上的标准。
+
+然后需要了解外设是如何与CPU连接的。首先是CPU访问外设的方式，在RISC-V环境中，把外设相关的控制寄存器映射为某特定的内存区域（即MMIO映射方式），然后CPU通过读写这些特殊区域来访问外设（即PIO访问方式）。外设可以通过DMA来读写主机内存中的数据，并可通过中断来通知CPU。外设并不直接连接CPU，这就需要了解RISC-V中的平台级中断控制器（Platform-Level Interrupt Controller，PLIC），它管理并收集各种外设中断信息，并传递给CPU。
+
+对于设备驱动程序对外设的具体管理过程，大致会有初始化外设和I/O操作。理解两种操作和对应的关键数据结构，就大致理解外设驱动要完成的功能包含哪些内容。每个设备驱动的关键数据结构和处理过程有共性部分和特定的部分。建议从 ``virtio-drivers`` crate 中的  ``examples/riscv/src/main.rs`` 这个virtio设备的功能测试例子入手来分析。
+
+以 ``virtio-blk`` 存储设备为例，可以看到，首先是访问 ``OpenSBI`` (这里没有用RustSBI，用的是QEMU内置的SBI实现)提供的设备树信息，了解QEMU硬件中存在的各种外设，根据外设ID来找到 ``virtio-blk`` 存储设备；找到后，就进行外设的初始化，如果学习了 virtio规范（需要关注的是 virtqueue、virtio-mmio device， virtio-blk device的描述内容），那就可以看出代码实现的初始化过程和virtio规范中的virtio设备初始化步骤基本上是一致的，但也有与具体设备相关的特定初始化内容，比如分配 I/O buffer等。初始化完毕后，设备驱动在收到上层内核发出的读写扇区/磁盘块的请求后，就能通过 ``virtqueue`` 传输通道发出 ``virtio-blk`` 设备能接受的I/O命令和I/O buffer的区域信息； ``virtio-blk`` 设备收到信息后，会通过DMA操作完成磁盘数据的读写，然后通过中断或其他方式让设备驱动知道命令完成或命令执行失败。而 ``virtio-gpu`` 设备驱动程序的设计实现与 ``virtio-blk`` 设备驱动程序类似。
+
+注：目前还没有提供相关的系统调用来方便应用程序访问这些外设。
