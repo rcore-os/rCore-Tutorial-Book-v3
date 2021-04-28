@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>进程管理机制的设计实现 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
@@ -17,10 +17,7 @@
 
   
   
-
   
-  
-
   
 
   
@@ -33,6 +30,7 @@
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -68,6 +66,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -89,7 +88,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
           
 
           
@@ -212,8 +211,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
-
-
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -227,7 +224,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="../_sources/chapter5/3implement-process-mechanism.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -275,52 +272,52 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>我们调用 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::new</span></code> 来创建一个进程控制块，它需要传入 ELF 可执行文件的数据切片作为参数，这可以通过加载器 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 子模块提供的 <code class="docutils literal notranslate"><span class="pre">get_app_data_by_name</span></code> 接口查找 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> 的 ELF 数据来获得。在初始化 <code class="docutils literal notranslate"><span class="pre">INITPROC</span></code> 之后，则在 <code class="docutils literal notranslate"><span class="pre">add_initproc</span></code> 中可以调用 <code class="docutils literal notranslate"><span class="pre">task</span></code> 的任务管理器 <code class="docutils literal notranslate"><span class="pre">manager</span></code> 子模块提供的 <code class="docutils literal notranslate"><span class="pre">add_task</span></code> 接口将其加入到任务管理器。</p>
 <p>接下来介绍 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::new</span></code> 是如何实现的：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span>
-<span class="normal">18</span>
-<span class="normal">19</span>
-<span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span>
-<span class="normal">23</span>
-<span class="normal">24</span>
-<span class="normal">25</span>
-<span class="normal">26</span>
-<span class="normal">27</span>
-<span class="normal">28</span>
-<span class="normal">29</span>
-<span class="normal">30</span>
-<span class="normal">31</span>
-<span class="normal">32</span>
-<span class="normal">33</span>
-<span class="normal">34</span>
-<span class="normal">35</span>
-<span class="normal">36</span>
-<span class="normal">37</span>
-<span class="normal">38</span>
-<span class="normal">39</span>
-<span class="normal">40</span>
-<span class="normal">41</span>
-<span class="normal">42</span>
-<span class="normal">43</span>
-<span class="normal">44</span>
-<span class="normal">45</span>
-<span class="normal">46</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
 
 <span class="k">use</span><span class="w"> </span><span class="k">super</span>::<span class="p">{</span><span class="n">PidHandle</span><span class="p">,</span><span class="w"> </span><span class="n">pid_alloc</span><span class="p">,</span><span class="w"> </span><span class="n">KernelStack</span><span class="p">};</span><span class="w"></span>
 <span class="k">use</span><span class="w"> </span><span class="k">super</span>::<span class="n">TaskContext</span><span class="p">;</span><span class="w"></span>
@@ -341,7 +338,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">kernel_stack_top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack</span><span class="p">.</span><span class="n">get_top</span><span class="p">();</span><span class="w"></span>
 <span class="w">    </span><span class="c1">// push a task context which goes to trap_return to the top of kernel stack</span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack</span><span class="p">.</span><span class="n">push_on_top</span><span class="p">(</span><span class="n">TaskContext</span>::<span class="n">goto_trap_return</span><span class="p">());</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_control_block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_control_block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="n">pid</span>: <span class="nc">pid_handle</span><span class="p">,</span><span class="w"></span>
 <span class="w">        </span><span class="n">kernel_stack</span><span class="p">,</span><span class="w"></span>
 <span class="w">        </span><span class="n">inner</span>: <span class="nc">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -400,35 +397,35 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">            </span><span class="n">set_next_trigger</span><span class="p">();</span><span class="w"></span>
 <span class="hll"><span class="w">            </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span><span class="w"></span>
 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="w">        </span><span class="p">...</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>随着进程概念的引入， <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 的实现也需要发生变化：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span>
-<span class="normal">18</span>
-<span class="normal">19</span>
-<span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/mod.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/mod.rs</span>
 
 <span class="k">use</span><span class="w"> </span><span class="n">processor</span>::<span class="p">{</span><span class="n">task_current_task</span><span class="p">,</span><span class="w"> </span><span class="n">schedule</span><span class="p">};</span><span class="w"></span>
 <span class="k">use</span><span class="w"> </span><span class="n">manager</span>::<span class="n">add_task</span><span class="p">;</span><span class="w"></span>
@@ -442,7 +439,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_cx_ptr2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">get_task_cx_ptr2</span><span class="p">();</span><span class="w"></span>
 <span class="w">    </span><span class="c1">// Change status to Ready</span>
 <span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Ready</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="c1">// ---- release current PCB lock</span>
 
 <span class="w">    </span><span class="c1">// push back to ready queue.</span>
@@ -460,45 +457,45 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="fork">
 <h3>fork 系统调用的实现<a class="headerlink" href="#fork" title="永久链接至标题">¶</a></h3>
 <p>在实现 fork 的时候，最为关键且困难的是为子进程创建一个和父进程几乎完全相同的应用地址空间。我们的实现如下：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span>
-<span class="normal">18</span>
-<span class="normal">19</span>
-<span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span>
-<span class="normal">23</span>
-<span class="normal">24</span>
-<span class="normal">25</span>
-<span class="normal">26</span>
-<span class="normal">27</span>
-<span class="normal">28</span>
-<span class="normal">29</span>
-<span class="normal">30</span>
-<span class="normal">31</span>
-<span class="normal">32</span>
-<span class="normal">33</span>
-<span class="normal">34</span>
-<span class="normal">35</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/memory_set.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/memory_set.rs</span>
 
 <span class="k">impl</span><span class="w"> </span><span class="n">MapArea</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">from_another</span><span class="p">(</span><span class="n">another</span>: <span class="kp">&amp;</span><span class="nc">MapArea</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">            </span><span class="n">vpn_range</span>: <span class="nc">VPNRange</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
 <span class="w">                </span><span class="n">another</span><span class="p">.</span><span class="n">vpn_range</span><span class="p">.</span><span class="n">get_start</span><span class="p">(),</span><span class="w"></span>
 <span class="w">                </span><span class="n">another</span><span class="p">.</span><span class="n">vpn_range</span><span class="p">.</span><span class="n">get_end</span><span class="p">()</span><span class="w"></span>
@@ -512,7 +509,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 <span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">from_existed_user</span><span class="p">(</span><span class="n">user_space</span>: <span class="kp">&amp;</span><span class="nc">MemorySet</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">memory_set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">Self</span>::<span class="n">new_bare</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">memory_set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Self</span>::<span class="n">new_bare</span><span class="p">();</span><span class="w"></span>
 <span class="w">        </span><span class="c1">// map trampoline</span>
 <span class="w">        </span><span class="n">memory_set</span><span class="p">.</span><span class="n">map_trampoline</span><span class="p">();</span><span class="w"></span>
 <span class="w">        </span><span class="c1">// copy data sections/trap_context/user_stack</span>
@@ -539,52 +536,52 @@ commentsRunWhenDOMLoaded(addUtterances);
 </li>
 </ul>
 <p>接着，我们实现 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::fork</span></code> 来从父进程的进程控制块创建一份子进程的控制块：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span>
-<span class="normal">18</span>
-<span class="normal">19</span>
-<span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span>
-<span class="normal">23</span>
-<span class="normal">24</span>
-<span class="normal">25</span>
-<span class="normal">26</span>
-<span class="normal">27</span>
-<span class="normal">28</span>
-<span class="normal">29</span>
-<span class="normal">30</span>
-<span class="normal">31</span>
-<span class="normal">32</span>
-<span class="normal">33</span>
-<span class="normal">34</span>
-<span class="normal">35</span>
-<span class="normal">36</span>
-<span class="normal">37</span>
-<span class="normal">38</span>
-<span class="normal">39</span>
-<span class="normal">40</span>
-<span class="normal">41</span>
-<span class="normal">42</span>
-<span class="normal">43</span>
-<span class="normal">44</span>
-<span class="normal">45</span>
-<span class="normal">46</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
 
 <span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">fork</span><span class="p">(</span><span class="bp">self</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -640,21 +637,21 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>我们在子进程内核栈上压入一个初始化的任务上下文，使得内核一旦通过任务切换到该进程，就会跳转到 <code class="docutils literal notranslate"><span class="pre">trap_return</span></code> 来进入用户态。而在复制地址空间的时候，子进程的 Trap 上下文也是完全从父进程复制过来的，这可以保证子进程进入用户态和其父进程回到用户态的那一瞬间 CPU 的状态是完全相同的（后面我们会让它们有一点不同从而区分两个进程）。而两个进程的应用数据由于地址空间复制的原因也是完全相同的，这是 fork 语义要求做到的。</p>
 <p>在具体实现 <code class="docutils literal notranslate"><span class="pre">sys_fork</span></code> 的时候，我们需要特别注意如何体现父子进程的差异：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/process.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/process.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_fork</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">current_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
@@ -678,35 +675,35 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="exec">
 <h3>exec 系统调用的实现<a class="headerlink" href="#exec" title="永久链接至标题">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">exec</span></code> 系统调用使得一个进程能够加载一个新的 ELF 可执行文件替换原有的应用地址空间并开始执行。我们先从进程控制块的层面进行修改：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span>
-<span class="normal">18</span>
-<span class="normal">19</span>
-<span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span>
-<span class="normal">23</span>
-<span class="normal">24</span>
-<span class="normal">25</span>
-<span class="normal">26</span>
-<span class="normal">27</span>
-<span class="normal">28</span>
-<span class="normal">29</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
 
 <span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exec</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">elf_data</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -744,37 +741,37 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>这里无需对任务上下文进行处理，因为这个进程本身已经在执行了，而只有被暂停的应用才需要在内核栈上保留一个任务上下文。</p>
 <p>借助它 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 就很容易实现了：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span>
-<span class="normal">18</span>
-<span class="normal">19</span>
-<span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span>
-<span class="normal">23</span>
-<span class="normal">24</span>
-<span class="normal">25</span>
-<span class="normal">26</span>
-<span class="normal">27</span>
-<span class="normal">28</span>
-<span class="normal">29</span>
-<span class="normal">30</span>
-<span class="normal">31</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/page_table.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/page_table.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">translated_str</span><span class="p">(</span><span class="n">token</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">String</span> <span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">page_table</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PageTable</span>::<span class="n">from_token</span><span class="p">(</span><span class="n">token</span><span class="p">);</span><span class="w"></span>
@@ -785,7 +782,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">ch</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">            </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">string</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">ch</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">char</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="n">string</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">ch</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">char</span><span class="p">);</span><span class="w"></span>
 <span class="w">            </span><span class="n">va</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
@@ -826,7 +823,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">sepc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
 <span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">syscall</span><span class="p">(</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">17</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">11</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">12</span><span class="p">]])</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="w">        </span><span class="p">...</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
@@ -851,7 +848,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">            </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
 <span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="w">        </span><span class="p">...</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
@@ -871,7 +868,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_read</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="n">FD_STDIN</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">len</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Only support len = 1 in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">len</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Only support len = 1 in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">c</span>: <span class="kt">usize</span><span class="p">;</span><span class="w"></span>
 <span class="w">            </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">                </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">console_getchar</span><span class="p">();</span><span class="w"></span>
@@ -888,7 +885,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">            </span><span class="mi">1</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
 <span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unsupported fd in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Unsupported fd in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
@@ -901,49 +898,49 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="id7">
 <h3>进程的退出<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h3>
 <p>当应用调用 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 系统调用主动退出或者出错由内核终止之后，会在内核中调用 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 函数退出当前任务并切换到下一个。使用方法如下：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span>
-<span class="normal">18</span>
-<span class="normal">19</span>
-<span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span>
-<span class="normal">23</span>
-<span class="normal">24</span>
-<span class="normal">25</span>
-<span class="normal">26</span>
-<span class="normal">27</span>
-<span class="normal">28</span>
-<span class="normal">29</span>
-<span class="normal">30</span>
-<span class="normal">31</span>
-<span class="normal">32</span>
-<span class="normal">33</span>
-<span class="normal">34</span>
-<span class="normal">35</span>
-<span class="normal">36</span>
-<span class="normal">37</span>
-<span class="normal">38</span>
-<span class="normal">39</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/process.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/process.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exit</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="hll"><span class="w">    </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="n">exit_code</span><span class="p">);</span><span class="w"></span>
-</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unreachable in sys_exit!&quot;</span><span class="p">);</span><span class="w"></span>
+</span><span class="w">    </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Unreachable in sys_exit!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 
 <span class="c1">// os/src/trap/mod.rs</span>
@@ -960,7 +957,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">InstructionPageFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
 <span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
 <span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadPageFault</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="w"></span>
+<span class="w">            </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="w"></span>
 <span class="w">                </span><span class="s">&quot;[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.&quot;</span><span class="p">,</span><span class="w"></span>
 <span class="w">                </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">(),</span><span class="w"></span>
 <span class="w">                </span><span class="n">stval</span><span class="p">,</span><span class="w"></span>
@@ -970,59 +967,59 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="hll"><span class="w">            </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">);</span><span class="w"></span>
 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
 <span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">IllegalInstruction</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;[kernel] IllegalInstruction in application, core dumped.&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;[kernel] IllegalInstruction in application, core dumped.&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">            </span><span class="c1">// illegal instruction exit code</span>
 <span class="hll"><span class="w">            </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">);</span><span class="w"></span>
 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="w">        </span><span class="p">...</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </td></tr></table></div>
 <p>相比前面的章节， <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 带有一个退出码作为参数。当在 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 正常退出的时候，退出码由应用传到内核中；而出错退出的情况（如第 29 行的访存错误或第 34 行的非法指令异常）则是由内核指定一个特定的退出码。这个退出码会在 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 写入当前进程的进程控制块中：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span>
-<span class="normal">18</span>
-<span class="normal">19</span>
-<span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span>
-<span class="normal">23</span>
-<span class="normal">24</span>
-<span class="normal">25</span>
-<span class="normal">26</span>
-<span class="normal">27</span>
-<span class="normal">28</span>
-<span class="normal">29</span>
-<span class="normal">30</span>
-<span class="normal">31</span>
-<span class="normal">32</span>
-<span class="normal">33</span>
-<span class="normal">34</span>
-<span class="normal">35</span>
-<span class="normal">36</span>
-<span class="normal">37</span>
-<span class="normal">38</span>
-<span class="normal">39</span>
-<span class="normal">40</span>
-<span class="normal">41</span>
-<span class="normal">42</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/memory_set.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/memory_set.rs</span>
 
 <span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">recycle_data_pages</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -1056,10 +1053,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
 <span class="w">    </span><span class="c1">// deallocate user space</span>
 <span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">memory_set</span><span class="p">.</span><span class="n">recycle_data_pages</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="c1">// **** release current PCB lock</span>
 <span class="w">    </span><span class="c1">// drop task manually to maintain rc correctly</span>
-<span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">drop</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="c1">// we do not have to save task context</span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">_unused</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
 <span class="w">    </span><span class="n">schedule</span><span class="p">(</span><span class="o">&amp;</span><span class="n">_unused</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">_</span><span class="p">);</span><span class="w"></span>
@@ -1078,47 +1075,47 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="id8">
 <h3>父进程回收子进程资源<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h3>
 <p>父进程通过 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 系统调用来回收子进程的资源并收集它的一些信息：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 1</span>
-<span class="normal"> 2</span>
-<span class="normal"> 3</span>
-<span class="normal"> 4</span>
-<span class="normal"> 5</span>
-<span class="normal"> 6</span>
-<span class="normal"> 7</span>
-<span class="normal"> 8</span>
-<span class="normal"> 9</span>
-<span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span>
-<span class="normal">18</span>
-<span class="normal">19</span>
-<span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span>
-<span class="normal">23</span>
-<span class="normal">24</span>
-<span class="normal">25</span>
-<span class="normal">26</span>
-<span class="normal">27</span>
-<span class="normal">28</span>
-<span class="normal">29</span>
-<span class="normal">30</span>
-<span class="normal">31</span>
-<span class="normal">32</span>
-<span class="normal">33</span>
-<span class="normal">34</span>
-<span class="normal">35</span>
-<span class="normal">36</span>
-<span class="normal">37</span>
-<span class="normal">38</span>
-<span class="normal">39</span>
-<span class="normal">40</span>
-<span class="normal">41</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/process.rs</span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/process.rs</span>
 
 <span class="sd">/// If there is not a child process whose pid is same as given, return -1.</span>
 <span class="sd">/// Else if there is a child process but it is still running, return -2.</span>
@@ -1147,7 +1144,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">((</span><span class="n">idx</span><span class="p">,</span><span class="w"> </span><span class="n">_</span><span class="p">))</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pair</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">remove</span><span class="p">(</span><span class="n">idx</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="c1">// confirm that child will be deallocated after removing from children list</span>
-<span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">strong_count</span><span class="p">(</span><span class="o">&amp;</span><span class="n">child</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">strong_count</span><span class="p">(</span><span class="o">&amp;</span><span class="n">child</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">found_pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">child</span><span class="p">.</span><span class="n">getpid</span><span class="p">();</span><span class="w"></span>
 <span class="w">        </span><span class="c1">// ++++ temporarily hold child lock</span>
 <span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">child</span><span class="p">.</span><span class="n">acquire_inner_lock</span><span class="p">().</span><span class="n">exit_code</span><span class="p">;</span><span class="w"></span>
@@ -1177,29 +1174,37 @@ commentsRunWhenDOMLoaded(addUtterances);
            
           </div>
           <footer>
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="4exercise.html" class="btn btn-neutral float-right" title="chapter5练习" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="2core-data-structures.html" class="btn btn-neutral float-left" title="进程管理的核心数据结构" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+      
+        <a href="4exercise.html" class="btn btn-neutral float-right" title="chapter5练习" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="2core-data-structures.html" class="btn btn-neutral float-left" title="进程管理的核心数据结构" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
     </div>
+  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &#169; 版权所有 2020, Yifan Wu.
+        
+        &copy; 版权所有 2020, Yifan Wu
 
     </p>
   </div>
     
     
     
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
+
         </div>
       </div>
 
