@@ -1,112 +1,189 @@
-在内核中实现设备驱动程序
+设备驱动程序（下）
 =========================================
 
 本节导读
 -----------------------------------------
 
+virtio设备驱动程序
+-----------------------------------------
 
-设备树
-------------------------------------------
+virtio设备是虚拟外设，存在于QEMU模拟的RISC-V 64 virt 计算机中，而我们要在操作系统中实现的virtio设备驱动程序，以能够管理和控制这些virtio虚拟设备。每一类virtio设备都有自己的virtio接口，virtio接口包括了数据结构和相关API的定义。这些定义中，很多在内容上都是一致的，只是在特定设备中，会根据设备的类型特征设定具体的属性内容。
 
-既然我们要实现把数据放在某个存储设备上并让操作系统来读取，首先操作系统就要有一个读取全部已接入设备信息的能力，而设备信息放在哪里又是谁帮我们来做的呢？在 RISC-V 中，这个一般是由 bootloader，即 OpenSBI or RustSBI 固件完成的。它来完成对于包括物理内存在内的各外设的扫描，将扫描结果以 **设备树二进制对象（DTB，Device Tree Blob）** 的格式保存在物理内存中的某个地方。而在我们的虚拟计算机中，QEMU会把这些信息准备好，而这个放置DTB的物理地址将放在 `a1` 寄存器中，而将会把 HART ID （**HART，Hardware Thread，硬件线程，可以理解为执行的 CPU 核**）放在 `a0` 寄存器上。
+virtio架构
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-在我们之前的函数中并没有使用过这两个参数，如果要使用，我们不需要修改任何入口汇编的代码，只需要给 `rust_main` 函数增加两个参数即可：
+总体上看，virtio 架构可以分为四层，包括前端 guest操作系统中各种驱动程序模块，后端 Device（实现在QEMU上），中间用于前后端通信的 virtio 层，这一层是虚拟队列（virtqueue），是前后端通信的桥梁，表示设备驱动程序与设备间的数据传输机制，不过这不涉及具体实现。虚拟队列的下层是 virtio-ring，是数据传输机制的具体实现，主要由环形缓冲区和相关操作组成，用于保存前端驱动程序和后端虚拟设备之间进行命令和数据交互的信息。
 
-.. code-block:: Rust
-
-   #[no_mangle]
-   extern "C" fn main(_hartid: usize, device_tree_paddr: usize) {
-      ...
-      init_dt(device_tree_paddr);
-      ...
-   }
-
-上面提到 OpenSBI 固件会把设备信息以设备树的格式放在某个地址上，哪设备树格式究竟是怎样的呢？在各种操作系统中，我们打开设备管理器（Windows）和系统报告（macOS）等内置的系统软件就可以看到我们使用的电脑的设备树，一个典型的设备树如下图所示：
-
-.. image:: device-tree.png
+.. image:: virtio-arch.png
    :align: center
-   :name: device-tree
-
-每个设备在物理上连接到了父设备上最后再通过总线等连接起来构成一整个设备树，在每个节点上都描述了对应设备的信息，如支持的协议是什么类型等等。而操作系统就是通过这些节点上的信息来实现对设备的识别的。   
-
-**[info] 设备节点属性**
-
-具体而言，一个设备节点上会有几个标准属性，这里简要介绍我们需要用到的几个：
-
-  - compatible：该属性指的是该设备的编程模型，一般格式为 "manufacturer,model"，分别指一个出厂标签和具体模型。如 "virtio,mmio" 指的是这个设备通过 virtio 协议、MMIO（内存映射 I/O）方式来驱动
-  - model：指的是设备生产商给设备的型号
-  - reg：当一些很长的信息或者数据无法用其他标准属性来定义时，可以用 reg 段来自定义存储一些信息
-
-设备树是一个比较复杂的标准，更多细节可以参考 `Device Tree Reference <https://elinux.org/Device_Tree_Reference>`_ 。
+   :name: virtio-arch
 
 
-解析设备树
+**virtio设备** 
+
+virtio设备支持三种设备呈现模式：
+
+- Virtio Over MMIO，虚拟设备直接挂载到系统总线上，我们实验中的虚拟计算机就是这种呈现模式；
+- Virtio Over PCI BUS，遵循PCI规范，挂在到PCI总线上，作为virtio-pci设备呈现，在虚拟x86计算机上采用的是这种模式；
+- Virtio Over Channel I/O：主要用在IBM s390平台上，virtio-ccw使用这种基于channel I/O的机制。
+
+virtio设备的基本组成要素如下：
+
+- 设备状态域（Device status field）
+- 特征位（Feature bits）
+- 设备配置空间（Device Configuration space）
+- 一个或多个虚拟队列（virtqueue）
+
+**设备状态域**
+
+其中设备状态域包含对设备初始化过程中设备具有的6种状态：
+
+- ACKNOWLEDGE（1）：设备驱动程序发现了这个设备，并且认为这是一个有效的virtio设备；
+- DRIVER (2) : 设备驱动程序知道该如何驱动这个设备；
+- FAILED (128) : 由于某种错误原因，设备驱动程序无法正常驱动这个设备；
+- FEATURES_OK (8) : 设备驱动程序认识设备的特征，并且与设备就设备特征协商达成一致；
+- DRIVER_OK (4) : 设备驱动程序加载完成，设备可以正常工作了；
+- DEVICE_NEEDS_RESET (64) ：设备触发了错误，需要重置才能继续工作。
+
+
+**特征位** 
+
+特征位用于表示VirtIO设备具有的各种特性。其中bit0-bit23是特定设备可以使用的feature bits， bit24-bit37预给队列和feature协商机制，bit38以上保留给未来其他用途。设备驱动程序与设备就设备的各种特性需要有一致的认识，这样才能正确的管理设备。
+
+**设备配置空间**
+
+设备配置空间通常用于配置不常变动的设备参数（属性），或者初始化阶段需要时设置的设备参数。设备的特征位中包含表示配置空间是否存在的bit位，并可通过在特征位的末尾新添新的bit位来扩展配置空间。
+
+.. _term-virtqueue:
+
+**虚拟队列（virtqueue）**与**virtio-ring**
+
+在virtio设备上进行批量数据传输的机制被称为virtqueue，virtio设备的虚拟队列（virtqueue）可以由virtio-ring（一种环形队列）来具体实现。每个virtio设备可以拥有零个或多个virtqueue，每个virtqueue占用2个或者更多个4K的物理页。 virtqueue有Split Virtqueues和Packed Virtqueues两种模式。在Split virtqueues模式下，virtqueue被分成若干个部分， 每个部分都是前端驱动或者后端设备单向可写。 每个virtqueue都有一个16bit的 ``Queue Size`` 参数，表示队列的总长度。每个virtqueue由三部分组成：
+
+- Descriptor Table
+- Available Ring：记录了Descriptor Table表中的哪些项被更新了，前端Driver可写但后端只读；
+- Used Ring
+
+Descriptor Table用来存放IO传输请求信息，即是virtio设备驱动程序与virtio设备进行数据交互的缓冲区，由 ``Queue Size`` 个Descriptor（描述符）组成。Descriptor中包括表示数据buffer的物理地址 -- addr字段，数据buffer的长度 -- len字段，可以链接到 ``next Descriptor`` 的next指针并形成描述符链。
+
+Available Ring中的每个条目是一个是描述符链的头部。它仅由virtio设备驱动程序写入，并由virtio设备读出。virtio设备获取Descriptor后，Descriptor对应的缓冲区具有可读写属性，可读的缓冲区用于Driver发送数据，可写的缓冲区用于接收数据。
+
+Used Ring中的每个条目也一个是描述符链的头部。这个描述符是Device完成相应I/O处理后，将Available Ring中的Descriptor移入到Used Ring中来，并通过轮询或中断机制来通知virtio设备驱动程序I/O完成，并让virtio设备驱动程序回收这个描述符。
+
+
+
+
+
+
+
+.. image:: vring.png
+   :align: center
+   :name: vring
+
+
+当virtio设备驱动程序想要向virtio设备发送数据时，它会填充Descriptor Table中的一项或几项链接在一起，形成描述符链，并将描述符索引写入Available Ring中，然后它通知virtio设备（向queue notify寄存器写入队列index）。当virtio设备收到通知，并完成I/O操作后，virtio设备将描述符索引写入Used Ring中并发送中断，让操作系统进行进一步处理并回收描述符。
+
+
+virtio 设备的相关操作
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-对于上面的属性，我们不需要自己来实现这件事情，可以直接调用 `rCore 中 device_tree 库 <https://github.com/rcore-os/device_tree-rs">`_ ，然后遍历树上节点即可：
+.. https://rootw.github.io/2019/09/firecracker-virtio/
+
+对于设备驱动和外设之间采用virtio协议进行交互的原理如下图所示。
+
+
+.. image:: virtio-cpu-device-io2.png
+   :align: center
+   :name: virtio-cpu-device-io2
+
+
+设备驱动与外设可以共同访问内存，内存中存在一个称为环形队列的数据结构，该队列可分成由I/O请求组成的请求队列(Available Ring)和由I/O响应组成的响应队列(Used Ring)。一个IO的处理过程可以分成如下四步：
+
+1. 用户进程发出I/O请求时，设备驱动将I/O请求放入请求队列(Available Ring)中并通知设备；
+2. 设备收到通知后从请求队列中取出I/O请求并在内部进行实际处理；
+3. 设备将IO处理完成后，将结果作为I/O响应放入响应队列(Used Ring)并以中断方式通知CPU；
+4. 设备驱动从响应队列中取出I/O处理结果并最终返回给用户进程。
+
+**设备的初始化**
+
+1. 重启设备状态，状态位写入 0
+2. 设置状态为 ACKNOWLEDGE，guest(driver)端当前已经识别到了设备
+3. 设置状态为 Driver，guest 知道如何驱动当前设备
+4. 设备特定的安装和配置：特征位的协商，virtqueue 的安装，读写设备专属的配置空间等
+5. 设置状态为 Driver_OK 或者 Failed（如果中途出现错误）
+6. 当前设备初始化完毕，可以进行配置和使用
+
+**设备的安装和配置**
+
+设备操作包括两个部分：driver提供 buffers 给设备，处理 device使用过的 buffers。
+
+**初始化 virtqueue**
+
+该部分代码的实现具体为：
+
+1. 选择 virtqueue 的索引，写入 Queue Select 寄存器
+2. 读取 queue size 寄存器获得 virtqueue 的可用数目
+3. 分配并清零连续物理内存用于存放 virtqueue。把内存地址除以 4096 写入 Queue Address 寄存器
+
+**Guest 向设备提供 buffer**
+
+1. 把 buffer 添加到 description table 中,填充 addr,len,flags
+2. 更新 available ring head
+3. 更新 available ring 中的 index
+4. 通知 device，通过写入 virtqueue index 到 Queue Notify 寄存器
+
+**Device 使用 buffer 并填充 used ring**
+
+device 端使用 buffer 后填充 used ring 的过程如下：
+
+1. 从描述符表格（descriptor table）中找到 available ring 中添加的 buffers，映射内存
+2. 从分散-聚集的 buffer 读取数据
+3. 取消内存映射,更新 ring[idx]中的 id 和 len 字段
+4. 更新响应队列 vring_used 中的 idx
+5. 如果设置了使能中断，产生中断并通知操作系统描述符已经使用
+6. 设备驱动从响应队列 vring_used 中取出IO处理结果并返回给应用程序
+
+
+
+基于MMIO方式的virtio设备
+-----------------------------------------
+
+基于MMIO方式的virtio设备没有基于总线的设备探测机制。 所以操作系统采用Device Tree的方式来探测各种基于MMIO方式的virtio设备，从而操作系统能知道与设备相关的寄存器和所用的中断。基于MMIO方式的virtio设备提供了一组内存映射的控制寄存器，后跟一个设备特定的配置空间，在形式上是位于一个特点地址上的内存区域。一旦操作系统找到了这个内存区域，就可以获得与这个设备相关的各种寄存器信息。比如，我们在 `virtio-drivers` crate 中就定义了基于MMIO方式的virtio设备的寄存器区域：
+
+.. _term-virtio-mmio-regs:
 
 .. code-block:: Rust
 
-   // 遍历设备树并初始化设备
-   fn init_dt(dtb: usize) {
-      info!("device tree @ {:#x}", dtb);
-      // 整个设备树的 Headers（用于验证和读取）
-      #[repr(C)]
-      struct DtbHeader {
-         be_magic: u32,
-         be_size: u32,
-      }
-      let header = unsafe { &*(dtb as *const DtbHeader) };
-      // from_be 是大小端序的转换（from big endian）
-      let magic = u32::from_be(header.be_magic);
-      const DEVICE_TREE_MAGIC: u32 = 0xd00dfeed;
-      // 验证 Device Tree Magic Number
-      assert_eq!(magic, DEVICE_TREE_MAGIC);
-      let size = u32::from_be(header.be_size);
-      // 拷贝dtb数据
-      let dtb_data = unsafe { core::slice::from_raw_parts(dtb as *const u8, size as usize) };
-      // 加载dtb数据
-      let dt = DeviceTree::load(dtb_data).expect("failed to parse device tree");
-      // 遍历dtb数据
-      walk_dt_node(&dt.root);
+   //virtio-drivers/src/header.rs L8
+   #[repr(C)]
+   #[derive(Debug)]
+   pub struct VirtIOHeader {
+      magic: ReadOnly<u32>,  //魔数 Magic value
+      version: ReadOnly<u32>, //设备版本号
+      device_id: ReadOnly<u32>, // Virtio子系统设备ID 
+      vendor_id: ReadOnly<u32>, // Virtio子系统供应商ID
+      device_features: ReadOnly<u32>, //设备支持的功能
+      device_features_sel: WriteOnly<u32>,//设备选择的功能
+      driver_features: WriteOnly<u32>, //驱动程序理解的设备功能
+      driver_features_sel: WriteOnly<u32>, //驱动程序选择的设备功能
+      guest_page_size: WriteOnly<u32>, //OS中页的大小（应为2的幂）
+      queue_sel: WriteOnly<u32>, //虚拟队列索引号
+      queue_num_max: ReadOnly<u32>,//虚拟队列最大容量值
+      queue_num: WriteOnly<u32>, //虚拟队列当前容量值
+      queue_align: WriteOnly<u32>,//虚拟队列的对齐边界（以字节为单位）
+      queue_pfn: Volatile<u32>, //虚拟队列所在的物理页号
+      queue_ready: Volatile<u32>, // new interface only
+      queue_notify: WriteOnly<u32>, //队列通知
+      interrupt_status: ReadOnly<u32>, //中断状态
+      interrupt_ack: WriteOnly<u32>, //中断确认
+      status: Volatile<DeviceStatus>, //设备状态
+      config_generation: ReadOnly<u32>, //配置空间
    }
 
-在开始的时候，有一步来验证 Magic Number，这一步是一个保证系统可靠性的要求，是为了验证这段内存到底是不是设备树。在遍历过程中，一旦发现了一个支持 "virtio,mmio" 的设备（其实就是 QEMU 模拟的各种virtio设备），就进入下一步加载驱动的逻辑。具体遍历设备树节点的实现如下：
+这里列出了部分的关键的寄存器和它的基本功能描述。在后续的设备初始化，设备I/O操作中，都会用到这里列出的寄存器。
 
-.. code-block:: Rust
+接下来，我们将分析virtio设备驱动程序如何管理这些设备来完成I/O操作的。
 
-   fn walk_dt_node(dt: &Node) {
-      if let Ok(compatible) = dt.prop_str("compatible") {
-         if compatible == "virtio,mmio" {
-            //确定是virtio设备
-            virtio_probe(dt);
-         }
-      }
-      for child in dt.children.iter() {
-         walk_dt_node(child);
-      }
-   }
-
-这是一个递归的过程，其中 `virtio_probe` 是分析具体virtio设备的函数，一旦找到这样的设备，就可以启动virtio设备初始化过程了。
-
-
-.. code-block:: Rust
-
-   fn virtio_probe(node: &Node) {
-      if let Some(reg) = node.prop_raw("reg") {
-         let paddr = reg.as_slice().read_be_u64(0).unwrap();
-         ...
-         let header = unsafe { &mut *(paddr as *mut VirtIOHeader) };
-         ...
-         match header.device_type() {
-               DeviceType::Block => virtio_blk(header),
-               ...
-               t => warn!("Unrecognized virtio device: {:?}", t),
-         }
-      }
-   }
-
-`virtio_probe` 函数会进一步查找virtio设备节点中的`reg` 属性，从而可以找到virtio设备的具体类型（如 `DeviceType::Block` 块设备类型）等参数。接下来，我们就可以对具体的virtio设备进行初始化和进行具体I/O操作了。
 
 virtio-blk设备
 ------------------------------------------

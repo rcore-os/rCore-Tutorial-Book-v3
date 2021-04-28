@@ -6,7 +6,7 @@
 
    0intro
    1io-interface
-   2device-driver
-   3drv-in-kernel
+   2device-driver-1
+   2device-driver-2
    4exercise
    
