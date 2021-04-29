@@ -12,7 +12,7 @@ virtio设备是虚拟外设，存在于QEMU模拟的RISC-V 64 virt 计算机中�
 virtio架构
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-总体上看，virtio 架构可以分为四层，包括前端 guest操作系统中各种驱动程序模块，后端 Device（实现在QEMU上），中间用于前后端通信的 virtio 层，这一层是虚拟队列（virtqueue），是前后端通信的桥梁，表示设备驱动程序与设备间的数据传输机制，不过这不涉及具体实现。虚拟队列的下层是 virtio-ring，是数据传输机制的具体实现，主要由环形缓冲区和相关操作组成，用于保存前端驱动程序和后端虚拟设备之间进行命令和数据交互的信息。
+总体上看，virtio 架构可以分为四层，包括运行在QEMU模拟器上的前端操作系统中各种驱动程序模块，在QEMU中模拟的各种后端 Device，中间用于前后端通信的 virtio 层，这一层是虚拟队列（virtqueue），是前后端通信的接口，表示设备驱动程序与设备间的数据传输机制，不过这不涉及具体实现。虚拟队列的下层是 virtio-ring，是数据传输机制的具体实现，主要由环形缓冲区和相关操作组成，用于保存前端驱动程序和后端虚拟设备之间进行命令和数据交互的信息。
 
 .. image:: virtio-arch.png
    :align: center
@@ -24,13 +24,14 @@ virtio架构
 virtio设备支持三种设备呈现模式：
 
 - Virtio Over MMIO，虚拟设备直接挂载到系统总线上，我们实验中的虚拟计算机就是这种呈现模式；
-- Virtio Over PCI BUS，遵循PCI规范，挂在到PCI总线上，作为virtio-pci设备呈现，在虚拟x86计算机上采用的是这种模式；
-- Virtio Over Channel I/O：主要用在IBM s390平台上，virtio-ccw使用这种基于channel I/O的机制。
+- Virtio Over PCI BUS，遵循PCI规范，挂在到PCI总线上，作为virtio-pci设备呈现，在QEMU虚拟的x86计算机上采用的是这种模式；
+- Virtio Over Channel I/O：主要用在虚拟IBM s390计算机上，virtio-ccw使用这种基于channel I/O的机制。
 
 virtio设备的基本组成要素如下：
 
 - 设备状态域（Device status field）
 - 特征位（Feature bits）
+- 通知（Notifications）
 - 设备配置空间（Device Configuration space）
 - 一个或多个虚拟队列（virtqueue）
 
@@ -48,7 +49,14 @@ virtio设备的基本组成要素如下：
 
 **特征位** 
 
-特征位用于表示VirtIO设备具有的各种特性。其中bit0-bit23是特定设备可以使用的feature bits， bit24-bit37预给队列和feature协商机制，bit38以上保留给未来其他用途。设备驱动程序与设备就设备的各种特性需要有一致的认识，这样才能正确的管理设备。
+特征位用于表示VirtIO设备具有的各种特性。其中bit0-bit23是特定设备可以使用的feature bits， bit24-bit37预给队列和feature协商机制，bit38以上保留给未来其他用途。设备驱动程序与设备就设备的各种特性需要协商，形成一致的共识，这样才能正确的管理设备。
+
+
+**通知**
+
+设备驱动程序和设备在交互中，需要互通通知对方，设备驱动程序组织好相关命令/信息要通知设备去处理I/O事务，设备处理完I/O事务后，要通知设备驱动程序进行后续事务，如回收内存，向用户进程反馈I/O事务的处理结果等。
+
+设备驱动程序通知设备用doorbell机制，即写特定寄存器，QEMU进行拦截再通知其模拟的设备。设备通知设备驱动程序一般用中断机制，即在QEMU中进行中断注入，让CPU响应并执行中断处理例程，来完成对I/O执行结果的处理。
 
 **设备配置空间**
 
@@ -56,7 +64,7 @@ virtio设备的基本组成要素如下：
 
 .. _term-virtqueue:
 
-**虚拟队列（virtqueue）**与**virtio-ring**
+**虚拟队列（virtqueue）** 与 **virtio-ring**
 
 在virtio设备上进行批量数据传输的机制被称为virtqueue，virtio设备的虚拟队列（virtqueue）可以由virtio-ring（一种环形队列）来具体实现。每个virtio设备可以拥有零个或多个virtqueue，每个virtqueue占用2个或者更多个4K的物理页。 virtqueue有Split Virtqueues和Packed Virtqueues两种模式。在Split virtqueues模式下，virtqueue被分成若干个部分， 每个部分都是前端驱动或者后端设备单向可写。 每个virtqueue都有一个16bit的 ``Queue Size`` 参数，表示队列的总长度。每个virtqueue由三部分组成：
 

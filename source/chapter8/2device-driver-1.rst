@@ -69,6 +69,7 @@
 操作系统在启动后需要了解计算机系统中所有接入的设备，这就要有一个读取全部已接入设备信息的能力，而设备信息放在哪里，又是谁帮我们来做的呢？在 RISC-V 中，这个一般是由 bootloader，即 OpenSBI or RustSBI 固件完成的。它来完成对于包括物理内存在内的各外设的探测，将探测结果以 **设备树二进制对象（DTB，Device Tree Blob）** 的格式保存在物理内存中的某个地方。然后bootloader会启动操作系统，即把放置DTB的物理地址将放在 ``a1`` 寄存器中，而将会把 HART ID （**HART，Hardware Thread，硬件线程，可以理解为执行的 CPU 核**）放在 ``a0`` 寄存器上，然后跳转到操作系统的入口地址处继续执行。例如，我们可以查看 ``virtio_drivers`` crate中的在裸机环境下使用设备驱动程序的例子。我们只需要给 `rust_main` 函数增加两个参数（即 ``a0`` 和 ``a1`` 寄存器中的值 ）即可：
 
 .. code-block:: Rust
+
    //virtio_drivers/examples/riscv/src/main.rs
    #[no_mangle]
    extern "C" fn main(_hartid: usize, device_tree_paddr: usize) {
