@@ -19,7 +19,8 @@ virtio架构
    :name: virtio-arch
 
 
-**virtio设备** 
+virtio设备
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 virtio设备支持三种设备呈现模式：
 
@@ -64,36 +65,31 @@ virtio设备的基本组成要素如下：
 
 .. _term-virtqueue:
 
-**虚拟队列（virtqueue）** 与 **virtio-ring**
+**virtqueue虚拟队列**
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-在virtio设备上进行批量数据传输的机制被称为virtqueue，virtio设备的虚拟队列（virtqueue）可以由virtio-ring（一种环形队列）来具体实现。每个virtio设备可以拥有零个或多个virtqueue，每个virtqueue占用2个或者更多个4K的物理页。 virtqueue有Split Virtqueues和Packed Virtqueues两种模式。在Split virtqueues模式下，virtqueue被分成若干个部分， 每个部分都是前端驱动或者后端设备单向可写。 每个virtqueue都有一个16bit的 ``Queue Size`` 参数，表示队列的总长度。每个virtqueue由三部分组成：
+在virtio设备上进行批量数据传输的机制被称为虚拟队列（virtqueue），virtio设备的虚拟队列（virtqueue）可以由各种数据结构（如数组、环形队列等）来具体实现。每个virtio设备可以拥有零个或多个virtqueue，每个virtqueue占用2个或者更多个4K的物理页。 virtqueue有Split Virtqueues（向下兼容的一种组织方式）和Packed Virtqueues（更高效的一种组织方式）两种模式。在Split virtqueues模式下，virtqueue被分成若干个部分， 每个部分都是前端驱动或者后端设备单向可写。 每个virtqueue都有一个16bit的 ``Queue Size`` 参数，表示队列的总长度。virtqueue由三部分地址连续的物理内存块组成：
 
-- Descriptor Table
-- Available Ring：记录了Descriptor Table表中的哪些项被更新了，前端Driver可写但后端只读；
-- Used Ring
+- 描述符表 Descriptor Table：IO传输请求信息（描述符）的数组，每个描述符都是对某buffer 的address/length描述。buffer中包含IO传输请求的命令/数据/返回结果等。
+- 可用环 Available Ring：记录了描述符表中被设备驱动程序更新的描述符的索引集合，需要后端的设备进行读取并完成相关I/O操作；
+- 已用环 Used Ring：记录了描述符表中被设备更新的描述符的索引集合，需要前端的设备驱动进行读取并完成对I/O操作结果的响应；
 
-Descriptor Table用来存放IO传输请求信息，即是virtio设备驱动程序与virtio设备进行数据交互的缓冲区，由 ``Queue Size`` 个Descriptor（描述符）组成。Descriptor中包括表示数据buffer的物理地址 -- addr字段，数据buffer的长度 -- len字段，可以链接到 ``next Descriptor`` 的next指针并形成描述符链。
+**描述符表**
 
-Available Ring中的每个条目是一个是描述符链的头部。它仅由virtio设备驱动程序写入，并由virtio设备读出。virtio设备获取Descriptor后，Descriptor对应的缓冲区具有可读写属性，可读的缓冲区用于Driver发送数据，可写的缓冲区用于接收数据。
+描述符表用来存放I/O传输请求信息，即是设备驱动程序与设备进行交互的缓冲区，由 ``Queue Size`` 个Descriptor（描述符）组成。描述符中包括buffer的物理地址 -- addr字段，数据buffer的长度 -- len字段，可以链接到 ``next Descriptor`` 的next指针并形成描述符链。buffer所在物理地址空间需要操作系统或运行时在初始化时分配好，并在后续由设备驱动程序在其中填写IO传输相关的命令/数据，或者是设备返回I/O操作的结果。多个描述符（I/O操作命令，I/O操作数据块，I/O操作的返回结果）形成的描述符链可以表示一个完整的I/O操作请求。
 
-Used Ring中的每个条目也一个是描述符链的头部。这个描述符是Device完成相应I/O处理后，将Available Ring中的Descriptor移入到Used Ring中来，并通过轮询或中断机制来通知virtio设备驱动程序I/O完成，并让virtio设备驱动程序回收这个描述符。
+**可用环** 
 
+可用环中的条目是一个描述符链的头部描述符的索引值，并有头尾指针表示其可用条目范围，形成一个环形队列。它仅由设备驱动程序写入，并由设备读出。virtio设备通过读取可以环中的条目可获取设备驱动程序发出的I/O操作请求对应的描述符链，然后就可以进行进一步的处理了。描述符指向的缓冲区具有可读写属性，可读的缓冲区用于Driver发送数据，可写的缓冲区用于接收数据。比如对于（I/O操作命令 -- “读磁盘块”，I/O操作数据块 -- “数据缓冲区”，I/O操作的返回结果 --“结果缓冲区”）这三个描述符形成的链，可通过读取第一个描述符指向的缓冲区了解到是“读磁盘块”操作，这样就可把磁盘块数据通过DMA操作放到第二个描述符指向的“数据缓冲区”中，然后把“OK”写入到第三个描述符指向的“结果缓冲区”中。
 
+**已用环**
 
-
-
-
-
-.. image:: vring.png
-   :align: center
-   :name: vring
+已用环中的条目也一个是描述符链的头部描述符的索引值，并有头尾指针表示其已用条目的范围，形成一个环形队列。这个描述符是Device完成相应I/O处理后，将可用环中的对应“I/O操作的返回结果”的描述符索引值移入到已用环中，并通过轮询或中断机制来通知virtio设备驱动程序，并让virtio设备驱动程序读取已用环中的这个描述符，从而进行对设备完成I/O操作后的进一步处理。
 
 
-当virtio设备驱动程序想要向virtio设备发送数据时，它会填充Descriptor Table中的一项或几项链接在一起，形成描述符链，并将描述符索引写入Available Ring中，然后它通知virtio设备（向queue notify寄存器写入队列index）。当virtio设备收到通知，并完成I/O操作后，virtio设备将描述符索引写入Used Ring中并发送中断，让操作系统进行进一步处理并回收描述符。
 
-
-virtio 设备的相关操作
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+设备驱动与设备之间的交互
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. https://rootw.github.io/2019/09/firecracker-virtio/
 
@@ -111,6 +107,17 @@ virtio 设备的相关操作
 2. 设备收到通知后从请求队列中取出I/O请求并在内部进行实际处理；
 3. 设备将IO处理完成后，将结果作为I/O响应放入响应队列(Used Ring)并以中断方式通知CPU；
 4. 设备驱动从响应队列中取出I/O处理结果并最终返回给用户进程。
+
+
+.. image:: vring.png
+   :align: center
+   :name: vring
+
+
+当virtio设备驱动程序想要向virtio设备发送数据时，它会填充Descriptor Table中的一项或几项链接在一起，形成描述符链，并将描述符索引写入Available Ring中，然后它通知virtio设备（向queue notify寄存器写入队列index）。当virtio设备收到通知，并完成I/O操作后，virtio设备将描述符索引写入Used Ring中并发送中断，让操作系统进行进一步处理并回收描述符。
+
+virtio设备驱动的执行流程
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **设备的初始化**
 
