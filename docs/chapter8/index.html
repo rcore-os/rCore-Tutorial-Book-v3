@@ -3,11 +3,11 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>第八章：阻塞（暂定） &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>第八章：I/O设备管理 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
@@ -17,10 +17,7 @@
 
   
   
-
   
-  
-
   
 
   
@@ -33,6 +30,7 @@
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -68,12 +66,15 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
     
     <link rel="index" title="索引" href="../genindex.html" />
-    <link rel="search" title="搜索" href="../search.html" /> 
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="引言" href="0intro.html" />
+    <link rel="prev" title="chapter7练习" href="../chapter7/5exercise.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -87,7 +88,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
           
 
           
@@ -119,7 +120,7 @@ commentsRunWhenDOMLoaded(addUtterances);
             
             
               <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
@@ -128,6 +129,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：进程间通信</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：文件系统与I/O重定向</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">第八章：I/O设备管理</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1io-interface.html">I/O设备</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-1.html">驱动程序（上）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-2.html">驱动程序（下）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4exercise.html">chapter8练习</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../lab8.html">chapter8练习</a></li>
 </ul>
 <p class="caption"><span class="caption-text">附录</span></p>
@@ -183,20 +192,18 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
-
-
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-      <li>第八章：阻塞（暂定）</li>
+      <li>第八章：I/O设备管理</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="../_sources/chapter8/index.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -210,9 +217,96 @@ commentsRunWhenDOMLoaded(addUtterances);
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="id1">
-<h1>第八章：阻塞（暂定）<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+  <div class="section" id="i-o">
+<h1>第八章：I/O设备管理<a class="headerlink" href="#i-o" title="永久链接至标题">¶</a></h1>
 <div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="0intro.html">引言</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="0intro.html#id2">本章导读</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0intro.html#id3">实践体验</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0intro.html#id4">本章代码树</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0intro.html#id5">本章代码导读</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="1io-interface.html">I/O设备</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="1io-interface.html#id1">本节导读</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1io-interface.html#id2">I/O设备概述</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#id3">I/O设备的发展</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="1io-interface.html#id4">I/O传输方式</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#programmed-i-o">Programmed I/O</a></li>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#interrupt-based-i-o">Interrupt based I/O</a></li>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#direct-memory-access">Direct Memory Access</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="1io-interface.html#id5">I/O设备抽象</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#id6">I/O接口的交互协议</a></li>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#id7">基于文件的I/O设备抽象</a></li>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#id8">基于流的I/O设备抽象</a></li>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#virtioi-o">基于virtio的I/O设备抽象</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="1io-interface.html#id9">I/O执行模型</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#io-blocking-io">阻塞IO（blocking IO）</a></li>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#io-non-blocking-io">非阻塞IO（non-blocking IO）</a></li>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#io-io-multiplexing">多路复用IO（IO multiplexing）</a></li>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#io-signal-driven-i-o">信号驱动IO（signal driven I/O）</a></li>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#io-asynchronous-i-o">异步IO（Asynchronous I/O）</a></li>
+<li class="toctree-l3"><a class="reference internal" href="1io-interface.html#io">五种IO执行模型对比</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="2device-driver-1.html">驱动程序（上）</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-1.html#id2">本节导读</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-1.html#id3">驱动程序概述</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-1.html#id4">硬件系统架构</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-1.html#id5">设备树</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-1.html#id6">传递设备树信息</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-1.html#id7">解析设备树信息</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-1.html#id8">平台级中断控制器</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-1.html#id9">串口驱动程序</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-1.html#id12">串口设备初始化</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-1.html#id13">串口设备输入输出操作</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-1.html#id14">对进程管理的改进</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="2device-driver-2.html">驱动程序（下）</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-2.html#id2">本节导读</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-2.html#virtio">virtio设备</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#id3">virtio架构</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#id4">virtio设备</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#virtqueue"><strong>virtqueue虚拟队列</strong></a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#mmiovirtio">基于MMIO方式的virtio设备</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-2.html#id5">virtio驱动程序</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#id6">驱动程序与设备之间的交互</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#id7">virtio驱动程序的执行流程</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-2.html#virtio-blk">virtio-blk驱动程序</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#id10">virtio-blk设备的关键数据结构</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#id11">初始化virtio-blk设备</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#virtio-blki-o">virtio-blk设备的I/O操作</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-2.html#virtio-gpu">virtio-gpu驱动程序</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#id12">virtio-gpu设备的关键数据结构</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#id13">初始化virtio-gpu设备</a></li>
+<li class="toctree-l3"><a class="reference internal" href="2device-driver-2.html#virtio-gpui-o">virtio-gpu设备的I/O操作</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-2.html#id14">测试virtio设备</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="4exercise.html">chapter8练习</a></li>
+</ul>
 </div>
 </div>
 
@@ -221,25 +315,37 @@ commentsRunWhenDOMLoaded(addUtterances);
            
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="0intro.html" class="btn btn-neutral float-right" title="引言" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../chapter7/5exercise.html" class="btn btn-neutral float-left" title="chapter7练习" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &#169; 版权所有 2020, Yifan Wu.
+        
+        &copy; 版权所有 2020, Yifan Wu
 
     </p>
   </div>
     
     
     
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
     
     provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
+
         </div>
       </div>
 
