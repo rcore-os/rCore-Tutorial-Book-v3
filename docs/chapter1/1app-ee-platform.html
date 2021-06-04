@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <title>应用程序执行环境与平台支持 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
@@ -13,11 +13,16 @@
   
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/my_style.css" type="text/css" />
 
   
   
+
   
+  
+
   
 
   
@@ -27,10 +32,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -66,7 +71,6 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -88,7 +92,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
           
 
           
@@ -102,7 +106,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="在文档中搜索" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -201,6 +205,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -214,8 +220,8 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li class="wy-breadcrumbs-aside">
         
-            
-            <a href="../_sources/chapter1/1app-ee-platform.rst.txt" rel="nofollow"> View page source</a>
+          
+            <a href="../_sources/chapter1/1app-ee-platform.rst.txt" rel="nofollow"> 查看页面源码</a>
           
         
       </li>
@@ -239,11 +245,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="id3">
 <h2>执行应用程序<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
 <p>我们先在Linux上开发并运行一个简单的“Hello, world”应用程序，看看一个简单应用程序从开发到执行的全过程。作为一切的开始，让我们使用 Cargo 工具来创建一个 Rust 项目。它看上去没有任何特别之处：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo new os --bin
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo new os --bin
 </pre></div>
 </div>
 <p>我们加上了 <code class="docutils literal notranslate"><span class="pre">--bin</span></code> 选项来告诉 Cargo 我们创建一个可执行项目而不是库项目。此时，项目的文件结构如下：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> tree os
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>tree os
 <span class="go">os</span>
 <span class="go">├── Cargo.toml</span>
 <span class="go">└── src</span>
@@ -255,16 +261,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>其中 <code class="docutils literal notranslate"><span class="pre">Cargo.toml</span></code> 中保存着项目的配置，包括作者的信息、联系方式以及库依赖等等。显而易见源代码保存在 <code class="docutils literal notranslate"><span class="pre">src</span></code> 目录下，目前为止只有 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 一个文件，让我们看一下里面的内容：</p>
 <div class="literal-block-wrapper docutils container" id="id6">
 <div class="code-block-caption"><span class="caption-text">最简单的 Rust 应用</span><a class="headerlink" href="#id6" title="永久链接至代码">¶</a></div>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
-2
-3</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Hello, world!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">2</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Hello, world!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">3</span><span class="p">}</span><span class="w"></span>
 </pre></div>
-</td></tr></table></div>
+</div>
 </div>
 <p>进入 os 项目根目录下，利用 Cargo 工具即可一条命令实现构建并运行项目：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo run
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo run
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">    Finished dev [unoptimized + debuginfo] target(s) in 1.15s</span>
 <span class="go">     Running `target/debug/os`</span>
@@ -320,10 +324,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>它只是想显示一下几乎感知不到的存在感。在编译后再运行，可以看到的情况是：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> rustc donothing.rs
-<span class="gp">$</span> ./donothing
-<span class="gp">$</span> <span class="o">(</span>无输出<span class="o">)</span>
-<span class="gp">$</span> strace ./donothing
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>rustc donothing.rs
+<span class="gp">$ </span>./donothing
+<span class="gp">$ </span><span class="o">(</span>无输出<span class="o">)</span>
+<span class="gp">$ </span>strace ./donothing
 <span class="go">  (多达 93 行的输出，表明 donothing 向 Linux 操作系统内核发出了93次各种各样的系统调用)</span>
 <span class="go">   execve(&quot;./donothing&quot;, [&quot;./donothing&quot;], 0x7ffe02c9ca10 /* 67 vars */) = 0</span>
 <span class="go">   brk(NULL)                               = 0x563ba0532000</span>
@@ -343,7 +347,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>它们都会导致最终生成的可执行文件有很大不同。需要指出的是，某些编译器支持同一份源代码无需修改就可编译到多个不同的目标平台并在上面运行。这种情况下，源代码是 <strong>跨平台</strong> 的。而另一些编译器则已经预设好了一个固定的目标平台。</p>
 <p id="term-target-triplet">我们可以通过 <strong>目标三元组</strong> (Target Triplet) 来描述一个目标平台。它一般包括 CPU 架构、CPU 厂商、操作系统和运行时库，它们确实都会控制可执行文件的生成。比如，我们可以尝试看一下之前的 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 的目标平台是什么。这可以通过打印编译器 rustc 的默认配置信息：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> rustc --version --verbose
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>rustc --version --verbose
 <span class="go">   rustc 1.51.0-nightly (d1aed50ab 2021-01-26)</span>
 <span class="go">   binary: rustc</span>
 <span class="go">   commit-hash: d1aed50ab81df3140977c610c5a7d00f36dc519f</span>
@@ -361,7 +365,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>x86 架构为了在升级换代的同时保持对基于旧版架构应用程序/内核的兼容性，存在大量的历史包袱，也就是一些对于目前的应用场景没有任何意义，但又必须花大量时间正确设置才能正常使用 CPU 的奇怪设定。为了建立并维护架构的应用生态，这确实是必不可少的，但站在教学的角度几乎完全是在浪费时间。而新生的 RISC-V 架构十分简洁，架构文档需要阅读的核心部分不足百页，且这些功能已经足以用来构造一个具有相当抽象能力的内核了。</p>
 </div>
 <p>可以看一下目前 Rust 编译器支持哪些基于 RISC-V 的平台：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> rustc --print target-list <span class="p">|</span> grep riscv
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>rustc --print target-list <span class="p">|</span> grep riscv
 <span class="go">riscv32gc-unknown-linux-gnu</span>
 <span class="go">riscv32i-unknown-none-elf</span>
 <span class="go">riscv32imac-unknown-none-elf</span>
@@ -390,7 +394,7 @@ linux-gnu 系统调用支持的版本 <code class="docutils literal notranslate"
 <div class="section" id="rust">
 <h2>Rust 标准库与核心库<a class="headerlink" href="#rust" title="永久链接至标题">¶</a></h2>
 <p>我们尝试一下将当前的 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序的目标平台换成 riscv64gc-unknown-none-elf 看看会发生什么事情：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> cargo run --target riscv64gc-unknown-none-elf
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo run --target riscv64gc-unknown-none-elf
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">error[E0463]: can&#39;t find crate for `std`</span>
 <span class="go">  |</span>
@@ -413,37 +417,29 @@ linux-gnu 系统调用支持的版本 <code class="docutils literal notranslate"
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="2remove-std.html" class="btn btn-neutral float-right" title="移除标准库依赖" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="0intro.html" class="btn btn-neutral float-left" title="引言" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="2remove-std.html" class="btn btn-neutral float-right" title="移除标准库依赖" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="0intro.html" class="btn btn-neutral float-left" title="引言" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; 版权所有 2020, Yifan Wu
+        &#169; 版权所有 2020, Yifan Wu.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
     
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    由 <a href="https://readthedocs.org">Read the Docs</a>开发. 
 
 </footer>
-
         </div>
       </div>
 

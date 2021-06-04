@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <title>驱动程序（上） &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
@@ -13,11 +13,16 @@
   
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/my_style.css" type="text/css" />
 
   
   
+
   
+  
+
   
 
   
@@ -27,10 +32,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -66,7 +71,6 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -88,7 +92,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
           
 
           
@@ -102,7 +106,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="在文档中搜索" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -209,6 +213,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
+
+
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -222,8 +228,8 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li class="wy-breadcrumbs-aside">
         
-            
-            <a href="../_sources/chapter8/2device-driver-1.rst.txt" rel="nofollow"> View page source</a>
+          
+            <a href="../_sources/chapter8/2device-driver-1.rst.txt" rel="nofollow"> 查看页面源码</a>
           
         
       </li>
@@ -267,13 +273,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="id5">
 <h3>设备树<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
 <p>首先，我们需要了解OS管理的计算机硬件系统– <code class="docutils literal notranslate"><span class="pre">QEMU</span> <span class="pre">riscv-64</span> <span class="pre">virt</span> <span class="pre">machine</span></code> 。这表示了一台虚拟的RISC-V 64计算机，CPU的个数是可以通过参数 <code class="docutils literal notranslate"><span class="pre">-cpu</span> <span class="pre">num</span></code> 配置的，内存也是可通过参数 <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">numM/G</span></code> 来配置。这是标配信息。这台虚拟计算机还有很多外设信息，每个设备在物理上连接到了父设备上最后再通过总线等连接起来构成一整个设备树。QEMU 可以把它模拟的机器细节信息全都导出到dtb格式的二进制文件中，并可通过 <code class="docutils literal notranslate"><span class="pre">dtc</span></code> Device Tree Compiler工具转成可理解的文本文件。如想详细了解这个文件的格式说明可以参考  <a class="reference external" href="https://buildmedia.readthedocs.org/media/pdf/devicetree-specification/latest/devicetree-specification.pdf">Devicetree Specification</a> 。</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> qemu-system-riscv64 -machine virt -machine <span class="nv">dumpdtb</span><span class="o">=</span>riscv64-virt.dtb -bios default
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>qemu-system-riscv64 -machine virt -machine <span class="nv">dumpdtb</span><span class="o">=</span>riscv64-virt.dtb -bios default
 
 <span class="go">qemu-system-riscv64: info: dtb dumped to riscv64-virt.dtb. Exiting.</span>
 
-<span class="gp">$</span> dtc -I dtb -O dts -o riscv64-virt.dts riscv64-virt.dtb
+<span class="gp">$ </span>dtc -I dtb -O dts -o riscv64-virt.dts riscv64-virt.dtb
 
-<span class="gp">$</span> less riscv64-virt.dts
+<span class="gp">$ </span>less riscv64-virt.dts
 <span class="gp">#</span>就可以看到QEMU RV64 virt计算机的详细硬件（包括各种外设）细节，包括CPU，内存，串口，时钟和各种virtio设备的信息。
 </pre></div>
 </div>
@@ -295,9 +301,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="c1">//virtio_drivers/examples/riscv/src/main.rs</span>
 <span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">(</span><span class="n">_hartid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">device_tree_paddr</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">   </span><span class="p">...</span><span class="w"></span>
+<span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="w">   </span><span class="n">init_dt</span><span class="p">(</span><span class="n">device_tree_paddr</span><span class="p">);</span><span class="w"></span>
-<span class="w">   </span><span class="p">...</span><span class="w"></span>
+<span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
@@ -320,7 +326,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="n">magic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">u32</span>::<span class="n">from_be</span><span class="p">(</span><span class="n">header</span><span class="p">.</span><span class="n">be_magic</span><span class="p">);</span><span class="w"></span>
 <span class="w">   </span><span class="k">const</span><span class="w"> </span><span class="n">DEVICE_TREE_MAGIC</span>: <span class="kt">u32</span> <span class="o">=</span><span class="w"> </span><span class="mh">0xd00dfeed</span><span class="p">;</span><span class="w"></span>
 <span class="w">   </span><span class="c1">// 验证 Device Tree Magic Number</span>
-<span class="w">   </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">magic</span><span class="p">,</span><span class="w"> </span><span class="n">DEVICE_TREE_MAGIC</span><span class="p">);</span><span class="w"></span>
+<span class="w">   </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">magic</span><span class="p">,</span><span class="w"> </span><span class="n">DEVICE_TREE_MAGIC</span><span class="p">);</span><span class="w"></span>
 <span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">u32</span>::<span class="n">from_be</span><span class="p">(</span><span class="n">header</span><span class="p">.</span><span class="n">be_size</span><span class="p">);</span><span class="w"></span>
 <span class="w">   </span><span class="c1">// 拷贝dtb数据</span>
 <span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="n">dtb_data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">core</span>::<span class="n">slice</span>::<span class="n">from_raw_parts</span><span class="p">(</span><span class="n">dtb</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
@@ -349,12 +355,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">virtio_probe</span><span class="p">(</span><span class="n">node</span>: <span class="kp">&amp;</span><span class="nc">Node</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">reg</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">node</span><span class="p">.</span><span class="n">prop_raw</span><span class="p">(</span><span class="s">&quot;reg&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">paddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reg</span><span class="p">.</span><span class="n">as_slice</span><span class="p">().</span><span class="n">read_be_u64</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">      </span><span class="p">...</span><span class="w"></span>
+<span class="w">      </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">header</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="n">paddr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
-<span class="w">      </span><span class="p">...</span><span class="w"></span>
+<span class="w">      </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="w">      </span><span class="k">match</span><span class="w"> </span><span class="n">header</span><span class="p">.</span><span class="n">device_type</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">            </span><span class="n">DeviceType</span>::<span class="n">Block</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">virtio_blk</span><span class="p">(</span><span class="n">header</span><span class="p">),</span><span class="w"></span>
-<span class="w">            </span><span class="p">...</span><span class="w"></span>
+<span class="w">            </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="w">            </span><span class="n">t</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">warn</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Unrecognized virtio device: {:?}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">),</span><span class="w"></span>
 <span class="w">      </span><span class="p">}</span><span class="w"></span>
 <span class="w">   </span><span class="p">}</span><span class="w"></span>
@@ -488,37 +494,29 @@ uart@10000000 <span class="o">{</span>
            
           </div>
           <footer>
-  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="2device-driver-2.html" class="btn btn-neutral float-right" title="驱动程序（下）" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="1io-interface.html" class="btn btn-neutral float-left" title="I/O设备" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
+        <a href="2device-driver-2.html" class="btn btn-neutral float-right" title="驱动程序（下）" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="1io-interface.html" class="btn btn-neutral float-left" title="I/O设备" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
     </div>
-  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        
-        &copy; 版权所有 2020, Yifan Wu
+        &#169; 版权所有 2020, Yifan Wu.
 
     </p>
   </div>
     
     
     
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
     
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
     
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    由 <a href="https://readthedocs.org">Read the Docs</a>开发. 
 
 </footer>
-
         </div>
       </div>
 
