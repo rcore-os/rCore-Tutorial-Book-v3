@@ -68,6 +68,8 @@
 
 下面以[CLion](https://www.jetbrains.com/clion/)中[Rust插件](https://plugins.jetbrains.com/plugin/8182-rust)为例。其他IDE的配置大同小异。
 
+注意：上面提供的GDB二进制版本过低，需要使用自己编译的最新版本的GDB。
+
 1. 在 CLion 中打开项目（os文件夹），选择 ``cargo project`` 。
 
 2. 在项目中新建一个 ``sh`` 文件，输入以下内容并给予可执行权限：
@@ -82,7 +84,7 @@
 
 .. image:: clion_config.jpg
 
-第 1 个红框中选择你的gdb路径
+第 1 个红框中选择你的自己编译的gdb路径
 第 3, 4 个红框中根据你的代码路径做适当修改
 第 5 个红框中，点击下面加号，选择`External Tools`，并选择上面新建的`sh`脚本。
 
