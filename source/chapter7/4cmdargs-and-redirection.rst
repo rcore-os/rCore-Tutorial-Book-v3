@@ -480,4 +480,121 @@ sys_exec 将命令行参数压入用户栈
 
 之后，就可以通过 ``exec`` 来执行应用了。
 
+标准输入输出重定向
+-------------------------------------------------
+
+同样地，我们可以实现经典的管道机制 ``|``。在 ch6 中我们已经提到过管道的结构与实现，接下来我们将实现 shell 层面对于 ``|`` 管道符号的支持。
+
+.. code-block:: shell
+
+    who                     # 登录 Linux 的用户信息
+    who | grep chyyuu       # 是否用户 ID 为 chyyuu 的用户登录了
+    who | grep chyyuu | wc  # chyyuu 用户目前在线登录的个数
+
+与标准输入输出重定向类似，首先我们检查是否存在通过 ``|`` 进行管道操作的情况，如果存在则需要从命令行中提取并去除。为了实现方便，我们这里同样假设输入 shell 程序的命令一定合法。
+
+.. code-block:: rust
+
+    // user/src/bin/user_shell.rs
+
+    // redirect pipe
+    let mut pipe_args_copy: Vec<String> = Vec::new();
+    if let Some((idx, _)) = args_copy
+        .iter()
+        .enumerate()
+        .find(|(_, arg)| arg.as_str() == "|\0")
+    {
+        pipe_args_copy = args_copy.drain(idx + 1..).collect();
+        args_copy.drain(idx..);
+    }
+
+然后接连通过两次 fork 创建 pipe 输入进程和输出进程，并仿照标准输入输出重定向替换对应 ``fd``
+
+.. code-block:: rust
+
+    // user/src/bin/user_shell.rs
+
+    // pipe redirection
+    if !pipe_args_copy.is_empty() {
+        close(pipe_fd[0]);
+        close(1);
+        assert_eq!(dup(pipe_fd[1]), 1);
+        close(pipe_fd[1]);
+    }
+
+.. code-block:: rust
+
+    // user/src/bin/user_shell.rs
+
+    if !pipe_args_copy.is_empty() {
+        let mut pipe_args_addr: Vec<*const u8> =
+            pipe_args_copy.iter().map(|arg| arg.as_ptr()).collect();
+        pipe_args_addr.push(0 as *const u8);
+
+        let pipe_pid = fork();
+        if pipe_pid == 0 {
+            close(pipe_fd[1]);
+            close(0);
+            assert_eq!(dup(pipe_fd[0]), 0);
+            close(pipe_fd[0]);
+            if exec(pipe_args_copy[0].as_str(), pipe_args_addr.as_slice()) == -1
+            {
+                println!("Error when executing!");
+                return -4;
+            }
+            unreachable!();
+        }
+
+        let mut exit_code: i32 = 0;
+        let exit_pid = waitpid(pipe_pid as usize, &mut exit_code);
+        assert_eq!(pipe_pid, exit_pid);
+        println!("Shell: Process {} exited with code {}", pipe_pid, exit_code);
+    }
+
+上下两段分别新建了两个子进程，他们同时是直属于 shell 进程的子进程。如果在 pipe 输入进程中 ``fork`` 出输出进程，回收起来会相对较复杂，可以自己尝试。注意同时要回收两个子进程的资源。
+
+为了检验管道操作的正确性，我们新增了 ``echo.rs`` 的测例，它与 Linux 中的 ``echo`` 工具非常相似。
+
+.. code-block:: rust
+
+    // user/src/bin/user_shell.rs
+
+    pub fn main(argc: usize, argv: &[&str]) -> i32 {
+        if argc == 2 {
+            println!("{}\0", argv[1]);
+        } else {
+            let mut line: String = String::new();
+            loop {
+                let c = getchar();
+                match c {
+                    LF | CR => {
+                        println!("");
+                        println!("{}", line);
+                        line.clear();
+                    }
+                    BS | DL => {
+                        if !line.is_empty() {
+                            print!("{}", BS as char);
+                            print!(" ");
+                            print!("{}", BS as char);
+                            line.pop();
+                        }
+                    }
+                    ET | NU => {
+                        println!("{}\0", line);
+                        return 0;
+                    }
+                    _ => {
+                        // print!("{}", c as char);
+                        line.push(c as char);
+                    }
+                }
+            }
+        }
+        0
+    }
+
+它与 ``user_shell.rs`` 的实现比较类似，每次读入一个字符，并判断是否需要输出/结束执行。有两种运行方式，一种从 ``argv`` 中获取数据，比如 ``echo chyyuu``；也可以直接通过 ``echo`` 运行，从标准输入中获取数据。二者均打印到标准输出。一些简单的测试方式诸如 ``echo chyyuu | echo`` 或 ``cat file | echo``。
+
+
 虽然 ``fork/exec/waitpid`` 三个经典的系统调用自它们于古老的 Unix 时代诞生以来已经过去了太长时间，从某种程度上来讲已经不太适合新的内核环境了。人们也已经提出了若干种替代品并已经在进行实践，比如 ``spawn`` 或者 Linux 上的 ``clone`` 系统调用。但是它们迄今为止仍然存在就证明在它们的设计中还能够找到可取之处。从本节介绍的重定向就可以看出它们的灵活性以及强大的功能性：我们能够进行重定向恰恰是因为执行应用分为 ``fork`` 和 ``exec`` 两个调用，那么在这两个调用之间我们就能够进行一些类似重定向的处理。在实现的过程中，我们还用到了 ``fork`` 出来的子进程会和父进程共享文件描述符表的性质。
