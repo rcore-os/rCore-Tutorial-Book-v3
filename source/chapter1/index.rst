@@ -12,6 +12,7 @@
    3-1-mini-rt-usrland
    3-2-mini-rt-baremetal
    4understand-prog
+   4-1-extended-reading
    5exercise
 
 

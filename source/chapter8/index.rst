@@ -8,5 +8,6 @@
    1io-interface
    2device-driver-1
    2device-driver-2
+   3-extended-reading
    4exercise
    

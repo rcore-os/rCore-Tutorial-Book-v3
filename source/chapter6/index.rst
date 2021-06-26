@@ -7,6 +7,8 @@
    0intro
    1file-descriptor
    2pipe
+   2-1-extended-reading
    3exercise
+   
 
 有团队协作能力的“迅猛龙”操作系统。

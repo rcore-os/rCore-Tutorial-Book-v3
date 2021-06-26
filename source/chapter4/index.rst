@@ -11,4 +11,5 @@
    4sv39-implementation-2
    5kernel-app-spaces
    6multitasking-based-on-as
+   6-1-extended-reading
    7exercise
