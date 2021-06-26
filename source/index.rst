@@ -20,7 +20,8 @@ rCore-Tutorial-Book 第三版
    chapter6/index
    chapter7/index
    chapter8/index
-   lab8
+   chapter9/index
+ 
    
 .. toctree::
    :maxdepth: 2
