@@ -8,6 +8,7 @@
    1process
    2core-data-structures
    3implement-process-mechanism
+   3-1-extended-reading
    4exercise
    
 MULTICS操作系统是侏罗纪的“霸王龙”操作系统。
