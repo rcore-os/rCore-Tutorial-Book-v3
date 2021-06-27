@@ -27,9 +27,23 @@ reStructuredText 基本语法
 
    下面继续我们的警告。
 
+.. attention:: Here is an attention.
+
+.. caution:: please be cautious!
+
 .. error::
 
    下面是一个错误。
+
+.. danger:: it is dangerous!
+
+
+.. tip:: here is a tip
+
+.. important:: this is important!
+
+.. hint:: this is a hint.
+
 
 
 这里是一行数学公式 :math:`\sin(\alpha+\beta)=\sin\alpha\cos\beta+\cos\alpha\sin\beta`。
