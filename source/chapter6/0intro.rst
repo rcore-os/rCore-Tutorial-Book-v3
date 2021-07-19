@@ -170,4 +170,4 @@
 
 到本章为止我们支持两种文件：标准输入输出和管道。不同于前面章节，我们将标准输入输出分别抽象成 ``Stdin`` 和 ``Stdout`` 两个类型，并为他们实现 ``File`` Trait 。在 ``TaskControlBlock::new`` 创建初始进程的时候，就默认打开了标准输入输出，并分别绑定到文件描述符 0 和 1 上面。
 
-管道 ``Pipe`` 是另一种文件，它可以用于父子进程间的单向进程间通信。我们也需要为它实现 ``File``　Trait 。 ``os/src/syscall/fs.rs`` 中的系统调用 ``sys_pipe`` 可以用来打开一个管道并返回读端/写端两个文件的文件描述符。管道的具体实现在 ``os/src/fs/pipe.rs`` 中，本章第二节 :doc:`/chapter6/2pipe` 中给出了详细的讲解。管道机制的测试用例可以参考 ``user/src/bin`` 目录下的 ``pipetest.rs`` 和 ``pipe_large_test.rs`` 两个文件。
+管道 ``Pipe`` 是另一种文件，它可以用于父子进程间的单向进程间通信。我们也需要为它实现 ``File`` Trait 。 ``os/src/syscall/fs.rs`` 中的系统调用 ``sys_pipe`` 可以用来打开一个管道并返回读端/写端两个文件的文件描述符。管道的具体实现在 ``os/src/fs/pipe.rs`` 中，本章第二节 :doc:`/chapter6/2pipe` 中给出了详细的讲解。管道机制的测试用例可以参考 ``user/src/bin`` 目录下的 ``pipetest.rs`` 和 ``pipe_large_test.rs`` 两个文件。

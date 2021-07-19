@@ -317,7 +317,7 @@ qemu
 
 .. warning::
 
-   **FIXME： 使用 GDB 跟踪 qemu 的运行状态**
+   **FIXME：使用 GDB 跟踪 qemu 的运行状态**
 
 
 k210 平台上可执行文件和二进制镜像的生成流程
