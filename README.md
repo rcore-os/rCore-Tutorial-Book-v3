@@ -10,3 +10,13 @@ If you cannot access `github.io` normally due to network problems, please visit 
 - [x] code tree in introduction
 - [ ] rust module system in chapter1
 - [x] update rustsbi to 0.1.1
+
+
+## Deploy docs on [github](https://rcore-os.github.io/rCore-Tutorial-Book-v3/)
+
+```
+$ git checkout deploy
+$ git merge main
+$ make deploy
+$ git check main
+```
