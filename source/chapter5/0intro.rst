@@ -242,7 +242,7 @@
 有了这些数据结构的支撑，我们在本章第三小节 :doc:`/chapter5/3implement-process-mechanism` 实现进程机制。它可以分成如下几个方面：
 
 - 初始进程的自动创建。在内核初始化的时候需要调用 ``os/src/task/mod.rs`` 中的 ``add_initproc`` 函数，它会调用 ``TaskControlBlock::new`` 读取并解析初始应用 ``initproc`` 的 ELF 文件数据并创建初始进程 ``INITPROC`` ，随后会将它加入到全局任务管理器 ``TASK_MANAGER`` 中参与调度。
-- 进程切换机制。当一个进程退出或者是主动/被动交出 CPU 使用权之后需要由内核将 CPU 使用权交给其他进程。在本章中我们沿用 ``os/src/task/mod.rs`` 中的 ``suspend_current_and_run_next`` 和 ``exit_current_and_run_next`` 两个接口来实现进程切换功能，但是需要适当调整它们的实现。我们需要调用 ``os/src/task/task.rs`` 中的 ``schedule`` 函数进行进程切换，它会首先切换到处理器的 idle 执行流（即 ``os/src/task/processor`` 的 ``Processor::run`` 方法），然后在里面选取要切换到的进程并切换过去。
+- 进程切换机制。当一个进程退出或者是主动/被动交出 CPU 使用权之后需要由内核将 CPU 使用权交给其他进程。在本章中我们沿用 ``os/src/task/mod.rs`` 中的 ``suspend_current_and_run_next`` 和 ``exit_current_and_run_next`` 两个接口来实现进程切换功能，但是需要适当调整它们的实现。我们需要调用 ``os/src/task/task.rs`` 中的 ``schedule`` 函数进行进程切换，它会首先切换到处理器的 idle 控制流（即 ``os/src/task/processor`` 的 ``Processor::run`` 方法），然后在里面选取要切换到的进程并切换过去。
 - 进程调度机制。在进程切换的时候我们需要选取一个进程切换过去。选取进程逻辑可以参考 ``os/src/task/manager.rs`` 中的 ``TaskManager::fetch_task`` 方法。
 - 进程生成机制。这主要是指 ``fork/exec`` 两个系统调用。它们的实现分别可以在 ``os/src/syscall/process.rs`` 中找到，分别基于 ``os/src/process/task.rs`` 中的 ``TaskControlBlock::fork/exec`` 。
 - 进程资源回收机制。当一个进程主动退出或出错退出的时候，在 ``exit_current_and_run_next`` 中会立即回收一部分资源并在进程控制块中保存退出码；而需要等到它的父进程通过 ``waitpid`` 系统调用（与 ``fork/exec`` 两个系统调用放在相同位置）捕获到它的退出码之后，它的进程控制块才会被回收，从而所有资源都被回收。
