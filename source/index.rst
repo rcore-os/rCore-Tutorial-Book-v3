@@ -20,7 +20,6 @@ rCore-Tutorial-Book 第三版
    chapter6/index
    chapter7/index
    chapter8/index
-   lab8
    
 .. toctree::
    :maxdepth: 2
@@ -32,6 +31,7 @@ rCore-Tutorial-Book 第三版
    :caption: 附录
    :hidden:
 
+   final-lab
    appendix-a/index
    appendix-b/index
    appendix-c/index
