@@ -3,26 +3,21 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>操作系统的接口 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>操作系统的系统调用接口 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/my_style.css" type="text/css" />
 
   
   
-
   
-  
-
   
 
   
@@ -32,10 +27,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -71,6 +66,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -92,7 +88,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
           
 
           
@@ -106,7 +102,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="在文档中搜索" />
+    <input type="text" name="q" placeholder="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -128,7 +124,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第零章：操作系统概述</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">为何要写这本操作系统书</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1what-is-os.html">什么是操作系统</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">操作系统的接口</a><ul class="simple">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">操作系统的系统调用接口</a><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="3os-hw-abstract.html">操作系统抽象</a></li>
@@ -200,8 +196,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
-
-
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -210,13 +204,13 @@ commentsRunWhenDOMLoaded(addUtterances);
         
           <li><a href="index.html">第零章：操作系统概述</a> &raquo;</li>
         
-      <li>操作系统的接口</li>
+      <li>操作系统的系统调用接口</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
-          
-            <a href="../_sources/chapter0/2os-interface.rst.txt" rel="nofollow"> 查看页面源码</a>
+            
+            <a href="../_sources/chapter0/2os-interface.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -230,17 +224,19 @@ commentsRunWhenDOMLoaded(addUtterances);
            <div itemprop="articleBody">
             
   <div class="section" id="id1">
-<h1>操作系统的接口<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<h1>操作系统的系统调用接口<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
-<p>站在使用操作系统的角度会比较容易对操作系统的功能产生初步的认识。操作系统内核是一个需要提供各种服务的软件，其服务对象是应用程序，而用户（这里可以理解为一般使用计算机的人）是通过应用程序的服务间接获得操作系统的服务的，因此操作系统内核藏在一般用户看不到的地方。但应用程序需要访问操作系统获得操作系统的服务，这就需要通过操作系统的接口才能完成。操作系统的接口的形式就是上一节提到的应用程序二进制接口 (ABI, Application Binary Interface)。但操作系统不是简单的一个函数库的编程接口 (API, Application Programming Interface) ，它的接口需要考虑安全因素，使得应用软件不能直接读写操作系统内部函数的地址空间，为此，操作系统设计了一套安全可靠的接口，我们称为系统调用接口 (System Call Interface)，应用程序可以通过系统调用接口请求获得操作系统的服务，但不能直接调用操作系统的函数和全局变量；操作系统提供完服务后，返回应用程序继续执行。</p>
+<p>站在使用操作系统的角度会比较容易对操作系统的功能产生初步的认识。操作系统内核是一个需要提供各种服务的软件，其服务对象是应用程序，而用户（这里可以理解为一般使用计算机的人）是通过应用程序的服务间接获得操作系统的服务的，因此操作系统内核藏在一般用户看不到的地方。但应用程序需要访问操作系统获得操作系统的服务，这就需要通过操作系统的接口才能完成。操作系统的接口形式就是上一节提到的应用程序二进制接口 (ABI, Application Binary Interface)。</p>
+<p>但操作系统不能只提供面向单一编程语言的函数库的编程接口 (API, Application Programming Interface) ，它的接口需要考虑对基于各种编程语言的应用支持，以及访问安全等因素，使得应用软件不能象访问函数库一样的直接访问操作系统内部函数，更不能直接读写操作系统内部的地址空间。为此，操作系统设计了一套安全可靠的接口，我们称为系统调用接口 (System Call Interface)。系统调用接口通常面向应用程序提供了API的描述，但在具体实现上，还需要提供ABI的接口描述规范。</p>
+<p>在现代处理器的安全支持（特权级隔离，内存空间隔离等）下，应用程序就不能直接以函数调用的方式访问操作系统的函数，以及直接读写操作系统的数据变量。不同类型的应用程序可以通过符合操作系统规定的ABI规范的系统调用接口，发出系统调用请求，来获得操作系统的服务。操作系统提供完服务后，返回应用程序继续执行。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>API 与 ABI 的区别</strong></p>
-<p>应用程序二进制接口 ABI 是不同二进制代码片段的连接纽带。ABI 定义了二进制机器代码级别的规则，主要包括基本数据类型，通用寄存器的使用，参数的传递规则，以及堆栈的使用等等。ABI 是用来约束链接器 (Linker) 和汇编器 (Assembler) 的。基于不同高级语言编写的应用程序、库和操作系统，如果遵循同样的 ABI 定义，那么它们就能正确链接和执行。</p>
+<p>应用程序二进制接口 ABI 是不同二进制代码片段的连接纽带。ABI 定义了二进制机器代码级别的规则，主要包括基本数据类型，通用寄存器的使用，参数的传递规则，以及堆栈的使用等等。ABI 与处理器和内存地址等硬件架构相关，是用来约束链接器 (Linker) 和汇编器 (Assembler) 的。在同一处理器下，基于不同高级语言编写的应用程序、库和操作系统，如果遵循同样的 ABI 定义，那么它们就能正确链接和执行。</p>
 <p>应用程序编程接口 API 是不同源代码片段的连接纽带。API 定义了一个源码级（如 C 语言）函数的参数，参数的类型，函数的返回值等。因此 API 是用来约束编译器 (Compiler) 的：一个 API 是给编译器的一些指令，它规定了源代码可以做以及不可以做哪些事。API 与编程语言相关，如 LibC 是基于 C 语言编写的标准库，那么基于 C 的应用程序就可以通过编译器建立与 LibC 的联系，并能在运行中正确访问 LibC 中的函数。</p>
 </div>
-<p>对于实际操作系统而言，具有大量的服务接口，比如目前 Linux 有三百个系统调用接口。下面列出了一些相对比较重要的操作系统接口或抽象：</p>
+<p>对于实际操作系统而言，具有大量的服务接口，比如目前 Linux 有超过三百个的系统调用接口。下面列出了一些相对比较重要的操作系统接口或抽象：</p>
 <ul class="simple">
 <li><p>进程（即程序运行过程）管理：复制创建进程 fork 、退出进程 exit 、执行进程 exec 等。</p></li>
 <li><p>同步互斥的并发控制：信号量 semaphore 、管程 monitor 、条件变量 condition variable 等。</p></li>
@@ -259,7 +255,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 </div>
 <img alt="../_images/run-app.png" class="align-center" id="run-app" src="../_images/run-app.png" />
-<p>有了这些接口，简单的应用程序就不用考虑底层硬件细节，可以在操作系统的服务支持和管理下简洁地完成其应用功能了。在现阶段，也许大家对进程、文件、地址空间等抽象概念还不了解，在接下来的章节会对这些概念有进一步的介绍。</p>
+<p>有了这些系统调用接口，简单的应用程序就不用考虑底层硬件细节，可以在操作系统的服务支持和管理下简洁地完成其应用功能了。在现阶段，也许大家对进程、文件、地址空间等抽象概念还不了解，在接下来的章节会对这些概念有进一步的介绍。</p>
 </div>
 
 
@@ -267,29 +263,37 @@ commentsRunWhenDOMLoaded(addUtterances);
            
           </div>
           <footer>
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="3os-hw-abstract.html" class="btn btn-neutral float-right" title="操作系统抽象" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="1what-is-os.html" class="btn btn-neutral float-left" title="什么是操作系统" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+      
+        <a href="3os-hw-abstract.html" class="btn btn-neutral float-right" title="操作系统抽象" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="1what-is-os.html" class="btn btn-neutral float-left" title="什么是操作系统" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
     </div>
+  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &#169; 版权所有 2020, Yifan Wu.
+        
+        &copy; 版权所有 2020, Yifan Wu
 
     </p>
   </div>
     
     
     
-    利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
     
-    由 <a href="https://readthedocs.org">Read the Docs</a>开发. 
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
+
         </div>
       </div>
 

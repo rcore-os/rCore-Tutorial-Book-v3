@@ -16,8 +16,8 @@
 系统环境配置
 -------------------------------
 
-目前实验仅支持 Ubuntu18.04 + 操作系统。对于 Windows10 和 macOS 上的用户，可以使用 VMware 或 
-VirtualBox 安装一台 Ubuntu18.04 虚拟机并在上面进行实验。
+目前实验仅支持 Ubuntu18.04 / 20.04 + 操作系统。对于 Windows10 和 macOS 上的用户，可以使用 VMware 或 
+VirtualBox 安装一台 Ubuntu18.04 / 20.04 虚拟机并在上面进行实验。
 
 特别的，Windows10 的用户可以通过系统内置的 WSL2 虚拟机（请不要使用 WSL1）来安装 Ubuntu 18.04 / 20.04 。
 步骤如下：
@@ -70,7 +70,7 @@ Visual Studio Code，能够更容易完成实验并撰写实验报告。
 
 
 你也可以在 Windows10 或 macOS 原生系统或者其他 Linux 发行版上进行实验，基本上不会出现太大的问题。不过由于
-时间问题我们只在 Ubuntu18.04 上进行了测试，后面的配置也都是基于它的。如果遇到了问题的话，请在本节的讨论区
+时间问题我们主要在 Ubuntu18.04 上进行了测试，后面的配置也都是基于它的。如果遇到了问题的话，请在本节的讨论区
 中留言，我们会尽量帮助解决。
 
 Rust 开发环境配置
@@ -290,7 +290,7 @@ GDB 调试支持
    并在 ``make sdcard`` 之前对 ``os/Makefile`` 的 ``SDCARD`` 配置做出适当的修改。不然，这有可能导致 **设备 /dev/sdb 上数据丢失**！
    
 随后，我们将 MicroSD 插入 K210 开发板，将 K210 开发板连接到 PC ，然后进入 ``os`` 目录 ``make run BOARD=k210`` 
-在 K210 开发板上跑 Tutorial 。 
+在 K210 开发板上跑 rCore Tutorial 。 
 
 .. image:: k210-final.gif
 

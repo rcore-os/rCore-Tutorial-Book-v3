@@ -3,9 +3,9 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>操作系统的特征 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
@@ -13,16 +13,11 @@
   
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/my_style.css" type="text/css" />
 
   
   
-
   
-  
-
   
 
   
@@ -32,10 +27,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -71,6 +66,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -92,7 +88,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
           
 
           
@@ -106,7 +102,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="在文档中搜索" />
+    <input type="text" name="q" placeholder="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -128,7 +124,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第零章：操作系统概述</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">为何要写这本操作系统书</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1what-is-os.html">什么是操作系统</a></li>
-<li class="toctree-l2"><a class="reference internal" href="2os-interface.html">操作系统的接口</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2os-interface.html">操作系统的系统调用接口</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3os-hw-abstract.html">操作系统抽象</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">操作系统的特征</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">虚拟性</a><ul>
@@ -209,8 +205,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
-
-
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -224,8 +218,8 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li class="wy-breadcrumbs-aside">
         
-          
-            <a href="../_sources/chapter0/4os-features.rst.txt" rel="nofollow"> 查看页面源码</a>
+            
+            <a href="../_sources/chapter0/4os-features.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -247,29 +241,32 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>虚拟性<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
 <div class="section" id="id3">
 <h3>内存虚拟化<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<p>首先来看看内存的虚拟化。程序员在写应用程序的时候，不用考虑其程序的起始内存地址要放到计算机内存的具体某个位置，而是用字符串符号定义了各种变量和函数，直接在代码中便捷地使用这些符号就行了。这是由于操作系统建立了一个 <em>地址固定</em> ， <em>空间巨大</em> 的虚拟内存给应用程序来运行，这是 <strong>空间虚拟化</strong> 。这里的每个符号在运行时是要对应到具体的内存地址的。这些内存地址的具体数值是什么？程序员不用关心。为什么？因为编译器会自动帮我们把这些符号翻译成地址，形成可执行程序。程序使用的内存是否占得太大了？在一般情况下，程序员也不用关心。</p>
+<p>首先来看看内存虚拟化。程序员在写应用程序的时候，不用考虑其程序的起始内存地址要放到计算机内存的具体某个位置，而是用字符串符号定义了各种变量和函数，直接在代码中便捷地使用这些符号就行了。这是由于操作系统建立了一个 <em>地址固定</em> ， <em>空间巨大</em> 的虚拟内存给应用程序来运行，这是 <strong>内存虚拟化</strong> ，其实是一种 <strong>”空间虚拟化“</strong> ， 可进一步细分为 <strong>内存地址虚拟化</strong> 和 <strong>内存大小虚拟化</strong> 。这里的每个符号在运行时是要对应到具体的内存地址的。这些内存地址的具体数值是什么？程序员不用关心。为什么？因为编译器会自动帮我们把这些符号翻译成地址，形成可执行程序。程序使用的内存是否占得太大了？在一般情况下，程序员也不用关心。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p>还记得虚拟地址（逻辑地址）的描述吗？</p>
 <p>实际上，编译器 (Compiler，比如 gcc) 和链接器 (linker，比如 ld) 也不知道程序每个符号对应的地址应该放在未来程序运行时的哪个物理内存地址中。所以，编译器的一个简单处理办法就是，设定一个固定地址（比如 0x10000）作为起始地址开始存放代码，代码之后是数据，所有变量和函数的符号都在这个起始地址之后的某个固定偏移位置。假定程序每次运行都是位于一个不会变化的起始地址。这里的变量指的是全局变量，其地址在编译链接后会确定不变。但局部变量是放在堆栈中的，会随着堆栈大小的动态变化而变化。这里编译器产生的地址就是虚拟地址。</p>
-<p>这里，编译器和链接器图省事，找了一个适合它们的解决办法。当程序要运行的时候，这个符号到机器物理内存的映射必须要解决了，这自然就推到了操作系统身上。操作系统会把编译器和链接器生成的执行代码和数据放到物理内存中的空闲区域中，并建立虚拟地址到物理地址的映射关系。由于物理内存中的空闲区域是动态变化的，这也导致虚拟地址到物理地址的映射关系是动态变化的，需要操作系统来维护好可变的映射关系，确保编译器“固定起始地址”的假设成立。只有操作系统维护好了这个映射关系，才能让程序员只需写一些易于人理解的字符串符号来代表一个内存空间地址，且编译器只需确定一个固定地址作为程序的起始地址就可以不用考虑将来这个程序要在哪里运行的问题，从而实现了 <strong>空间虚拟化</strong> 。</p>
+<p>这里，编译器和链接器图省事，找了一个适合它们的解决办法。当程序要运行的时候，这个符号所对应的虚拟内存地址到计算机的物理内存地址的映射必须要解决了，这自然就推到了操作系统身上。操作系统会把编译器和链接器生成的执行代码和数据放到空闲的物理内存中，并建立虚拟地址到物理地址的映射关系。由于物理内存中的空闲区域是动态变化的，这导致虚拟地址到物理地址的映射关系也是动态变化的，需要操作系统来维护好可变的映射关系，确保编译器“固定起始地址”的假设成立。只有操作系统维护好了这个映射关系，才能让程序员只需写一些易于人理解的字符串符号来代表一个内存空间地址，且编译器只需确定一个固定地址作为程序的起始地址就可以不用考虑将来这个程序要在哪里运行的问题，从而实现了 <strong>内存地址虚拟化</strong> 。</p>
 </div>
-<p>应用程序在运行时不用考虑当前物理内存是否够用。如果应用程序需要一定空间的内存，但由于在某些情况下，物理内存的空闲空间可能不多了，这时操作系统通过把物理内存中最近没使用的空间（不是空闲的，只是最近用得少）换出（就是“挪地”）到硬盘上暂时缓存起来，这样空闲空间就大了，就可以满足应用程序的运行时内存需求了，从而实现了 <strong>空间大小虚拟化</strong> 。</p>
+<p>应用程序在运行时不用考虑当前物理内存是否够用。如果应用程序需要一定空间的内存，但由于在某些情况下，物理内存的空闲空间可能不多了，这时操作系统通过把物理内存中最近没使用的空间（不是空闲的，只是最近用得少）换出（就是“挪地”）到硬盘上暂时缓存起来，这样空闲空间就大了，就可以满足应用程序的运行时内存需求了，从而实现了 <strong>内存大小虚拟化</strong> 。</p>
 </div>
 <div class="section" id="cpu">
 <h3>CPU 虚拟化<a class="headerlink" href="#cpu" title="永久链接至标题">¶</a></h3>
-<p>再来看 CPU 虚拟化。不同的应用程序可以在内存中并发运行，相同的应用程序也可有多个拷贝在内存中并发运行。而每个程序都“认为”自己完全独占了 CPU 在运行，这是”时间虚拟化“。这其实也是操作系统给了运行的应用程序一个幻象。其实是操作系统把时间分成小段，每个应用程序占用其中一小段时间片运行，用完这一时间片后，操作系统会切换到另外一个应用程序，让它运行。由于时间片很短，操作系统的切换开销也很小，人眼基本上是看不出的，反而感觉到多个程序各自在独立”并行“执行，从而实现了 <strong>时间虚拟化</strong> 。</p>
+<p>再来看 CPU 虚拟化。不同的应用程序可以在内存中并发运行，相同的应用程序也可有多个拷贝在内存中并发运行。而每个程序都“认为”自己完全独占了 CPU 在运行，这是 <strong>”CPU虚拟化“</strong>，也是一种 <strong>”时间虚拟化“</strong> 。操作系统给了运行的应用程序一个幻象，即操作系统把时间分成小段，每个应用程序占用其中一小段时间片运行，用完这一时间片后，操作系统会切换到另外一个应用程序，让它运行。由于时间片很短，操作系统的切换开销也很小，应用程序或使用应用程序的用户基本上是看不出的，反而感觉到多个程序各自在独立”并行“执行，从而实现了 <strong>CPU虚拟化</strong> 。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p>并行 (Parallel) 是指两个或者多个事件在同一时刻发生；而并发 (Concurrent) 是指两个或多个事件在同一时间间隔内发生。
-对于单 CPU 的计算机而言，各个”同时“运行的程序其实是串行分时复用一个 CPU ，任一个时刻点上只有一个程序在 CPU 上运行。
-这些虚拟性的特征给应用程序的开发和执行提供了非常方便的环境，但也给操作系统的设计与实现提出了很多挑战。</p>
+<ul class="simple">
+<li><p>并行 (Parallel) 是指两个或者多个事件在同一时刻发生；</p></li>
+<li><p>并发 (Concurrent) 是指两个或多个事件在同一时间间隔内发生。</p></li>
+</ul>
+<p>对于基于单 CPU 的计算机而言，各个”同时“运行的程序其实是串行分时复用一个 CPU ，任一个时刻点上只有一个程序在 CPU 上运行。
+这些虚拟性的特征给应用程序的开发和执行提供了非常方便的执行环境，但也给操作系统的设计与实现提出了很多挑战。</p>
 </div>
 </div>
 </div>
 <div class="section" id="id4">
 <h2>并发性<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
-<p>操作系统为了能够让 CPU 充分地忙起来并充分利用各种资源，就需要给很多任务给它去完成。这些任务是分时完成的，由操作系统来完成各个应用在运行时的任务切换。并发性虽然能有效改善系统资源的利用率，但也带来了对共享资源的争夺问题，即同步互斥问题；执行时间的不确定性问题，即并发程序在执行中是走走停停，断续推进的。并发性对操作系统的设计也带来了很多挑战，一不小心就会出现程序执行结果不确定，程序死锁等很难调试和重现的问题。</p>
+<p>操作系统为了能够让 CPU 充分地忙起来，并充分利用各种资源，就需要有多种不同的应用程序在执行。这些应用程序是分时执行的，并由操作系统来完成各个应用在运行时的任务切换。并发性虽然能有效改善系统资源的利用率，但也带来了对共享资源的争夺问题，即同步互斥问题。还会带来执行时间的不确定性问题，即并发程序在执行中是走走停停，断续推进的，使得应用程序的完成时间是不确定的。并发性对操作系统的设计也带来了很多挑战，一不小心就会出现程序执行结果不确定，程序死锁等很难调试和重现的问题。</p>
 </div>
 <div class="section" id="id5">
 <h2>异步性<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
@@ -277,7 +274,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id6">
 <h2>共享性<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
-<p>共享是指多个应用并发运行时，宏观上体现出它们可同时访问同一个资源，即这个资源可被共享。但其实在微观上，操作系统在硬件等的支持下要确保应用程序互斥或交替访问这个共享的资源。比如两个应用同时访问同一个内存单元，从宏观的应用层面上看，二者都能正确地读出同一个内存单元的内容。而在微观上，操作系统会调度应用程序的先后执行顺序，在数据总线上任何一个时刻，只有一个应用去访问存储单元。</p>
+<p>共享是指多个应用并发运行时，宏观上体现出它们可同时访问同一个资源，即这个资源可被共享。但其实在微观上，操作系统在硬件等的支持下要确保应用程序互斥访问这个共享的资源。比如，对于两个应用同时访问同一个内存单元的情况，从宏观的应用层面上看，二者都能正确地读出同一个内存单元的内容；而在微观上，操作系统会调度应用程序的先后执行顺序，确保在任何一个时刻，只有一个应用去访问存储单元。</p>
 </div>
 <div class="section" id="id7">
 <h2>持久性<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
@@ -295,29 +292,37 @@ commentsRunWhenDOMLoaded(addUtterances);
            
           </div>
           <footer>
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="5setup-devel-env.html" class="btn btn-neutral float-right" title="实验环境配置" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="3os-hw-abstract.html" class="btn btn-neutral float-left" title="操作系统抽象" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+      
+        <a href="5setup-devel-env.html" class="btn btn-neutral float-right" title="实验环境配置" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="3os-hw-abstract.html" class="btn btn-neutral float-left" title="操作系统抽象" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
     </div>
+  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &#169; 版权所有 2020, Yifan Wu.
+        
+        &copy; 版权所有 2020, Yifan Wu
 
     </p>
   </div>
     
     
     
-    利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
     
-    由 <a href="https://readthedocs.org">Read the Docs</a>开发. 
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
+
         </div>
       </div>
 

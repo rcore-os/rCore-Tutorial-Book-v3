@@ -3,26 +3,21 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>驱动程序（下） &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>virtio设备驱动程序 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/my_style.css" type="text/css" />
 
   
   
-
   
-  
-
   
 
   
@@ -32,10 +27,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
         <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
@@ -71,6 +66,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -78,7 +74,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
     <link rel="next" title="chapter8练习" href="4exercise.html" />
-    <link rel="prev" title="驱动程序（上）" href="2device-driver-1.html" /> 
+    <link rel="prev" title="外设平台与串口驱动程序" href="2device-driver-1.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -92,7 +88,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 
           
-            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> rCore-Tutorial-Book-v3
           
 
           
@@ -106,7 +102,7 @@ commentsRunWhenDOMLoaded(addUtterances);
           
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="在文档中搜索" />
+    <input type="text" name="q" placeholder="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -136,10 +132,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第八章：I/O设备管理</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1io-interface.html">I/O设备</a></li>
-<li class="toctree-l2"><a class="reference internal" href="2device-driver-1.html">驱动程序（上）</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">驱动程序（下）</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#virtio">virtio设备</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-1.html">外设平台与串口驱动程序</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">virtio设备驱动程序</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">本节导读</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">virtio设备</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id3">virtio架构</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id4">virtio设备</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#virtqueue"><strong>virtqueue虚拟队列</strong></a></li>
@@ -148,22 +144,22 @@ commentsRunWhenDOMLoaded(addUtterances);
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#id5">virtio驱动程序</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id6">驱动程序与设备之间的交互</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id7">virtio驱动程序的执行流程</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id7">virtio驱动程序的执行过程</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#virtio-blk">virtio-blk驱动程序</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id10">virtio-blk设备的关键数据结构</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id11">初始化virtio-blk设备</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id8">virtio-blk设备的关键数据结构</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id9">初始化virtio-blk设备</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#virtio-blki-o">virtio-blk设备的I/O操作</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#virtio-gpu">virtio-gpu驱动程序</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id12">virtio-gpu设备的关键数据结构</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id13">初始化virtio-gpu设备</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id10">virtio-gpu设备的关键数据结构</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id11">初始化virtio-gpu设备</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#virtio-gpui-o">virtio-gpu设备的I/O操作</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#id14">测试virtio设备</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id12">测试virtio设备</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="4exercise.html">chapter8练习</a></li>
@@ -224,8 +220,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 
 
-
-
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
@@ -234,13 +228,13 @@ commentsRunWhenDOMLoaded(addUtterances);
         
           <li><a href="index.html">第八章：I/O设备管理</a> &raquo;</li>
         
-      <li>驱动程序（下）</li>
+      <li>virtio设备驱动程序</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
-          
-            <a href="../_sources/chapter8/2device-driver-2.rst.txt" rel="nofollow"> 查看页面源码</a>
+            
+            <a href="../_sources/chapter8/2device-driver-2.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -253,18 +247,18 @@ commentsRunWhenDOMLoaded(addUtterances);
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="id1">
-<h1>驱动程序（下）<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
-<div class="section" id="id2">
-<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+  <div class="section" id="virtio">
+<h1>virtio设备驱动程序<a class="headerlink" href="#virtio" title="永久链接至标题">¶</a></h1>
+<div class="section" id="id1">
+<h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
 <p>本节主要介绍了QMU模拟的RISC-V计算机中的virtio设备的架构和重要组成部分，以及面向virtio设备的驱动程序的主要功能；并对virtio-blk设备及其驱动程序，virtio-gpu设备及其驱动程序进行了比较深入的分析。</p>
 </div>
-<div class="section" id="virtio">
-<h2>virtio设备<a class="headerlink" href="#virtio" title="永久链接至标题">¶</a></h2>
-<p>virtio设备是虚拟外设，存在于QEMU模拟的RISC-V 64 virt 计算机中，而我们要在操作系统中实现的virtio驱动程序，以能够管理和控制这些virtio虚拟设备。每一类virtio设备都有自己的virtio接口，virtio接口包括了数据结构和相关API的定义。这些定义中，很多在内容上都是一致的，只是在特定设备中，会根据设备的类型特征设定具体的属性内容。</p>
+<div class="section" id="id2">
+<h2>virtio设备<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>virtio设备是虚拟外设，存在于QEMU模拟的RISC-V 64 virt 计算机中，而我们要在操作系统中实现的virtio驱动程序，以能够管理和控制这些virtio虚拟设备。每一类virtio设备都有自己的virtio接口，virtio接口包括了数据结构和相关API的定义。这些定义中，有很多共性内容，也会有属于设备特定类型特征的非共性内容。</p>
 <div class="section" id="id3">
 <h3>virtio架构<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<p>总体上看，virtio 架构可以分为四层，包括运行在QEMU模拟器上的前端操作系统中各种驱动程序模块，在QEMU中模拟的各种后端 Device，中间用于前后端通信的 virtio 层，这一层是虚拟队列（virtqueue），是前后端通信的接口，表示驱动程序与设备间的数据传输机制，不过这不涉及具体实现。虚拟队列的下层是 virtio-ring，是数据传输机制的具体实现，主要由环形缓冲区和相关操作组成，用于保存前端驱动程序和后端虚拟设备之间进行命令和数据交互的信息。</p>
+<p>总体上看，virtio 架构可以分为上中下三层，上层包括运行在QEMU模拟器上的前端操作系统中各种驱动程序模块，下层是在QEMU中模拟的各种后端 Device，中间层包含两部分：上面部分是virtio接口定义，即用于前后端通信的 virtio 虚拟队列（virtqueue），是前后端通信的接口，表示驱动程序与设备间的数据传输机制，不涉及具体实现；下面部分是virtio实现，即数据传输机制的具体实现–virtio-ring，主要由环形缓冲区和相关操作组成，用于保存前端驱动程序和后端虚拟设备之间进行命令和数据交互的信息。</p>
 <img alt="../_images/virtio-arch.png" class="align-center" id="virtio-arch" src="../_images/virtio-arch.png" />
 </div>
 <div class="section" id="id4">
@@ -294,12 +288,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>DEVICE_NEEDS_RESET (64) ：设备触发了错误，需要重置才能继续工作。</p></li>
 </ul>
 <p><strong>特征位</strong></p>
-<p>特征位用于表示VirtIO设备具有的各种特性。其中bit0-bit23是特定设备可以使用的feature bits， bit24-bit37预给队列和feature协商机制，bit38以上保留给未来其他用途。驱动程序与设备就设备的各种特性需要协商，形成一致的共识，这样才能正确的管理设备。</p>
+<p>特征位用于表示VirtIO设备具有的各种特性。其中bit0-bit23是特定设备可以使用的feature bits， bit24-bit37预给队列和feature协商机制，bit38以上保留给未来其他用途。驱动程序与设备对设备特性进行协商，形成一致的共识，这样才能正确的管理设备。</p>
 <p><strong>通知</strong></p>
-<p>驱动程序和设备在交互中，需要互通通知对方，驱动程序组织好相关命令/信息要通知设备去处理I/O事务，设备处理完I/O事务后，要通知驱动程序进行后续事务，如回收内存，向用户进程反馈I/O事务的处理结果等。</p>
-<p>驱动程序通知设备可用``门铃 doorbell``机制，即写PIO或MMIO方式的设备特定寄存器，QEMU进行拦截再通知其模拟的设备。设备通知驱动程序一般用中断机制，即在QEMU中进行中断注入，让CPU响应并执行中断处理例程，来完成对I/O执行结果的处理。</p>
+<p>驱动程序和设备在交互中，需要相互通知对方，驱动程序组织好相关命令/信息要通知设备去处理I/O事务，设备处理完I/O事务后，要通知驱动程序进行后续事务，如回收内存，向用户进程反馈I/O事务的处理结果等。</p>
+<p>驱动程序通知设备可用``门铃 doorbell``机制，即采用PIO或MMIO方式访问设备特定寄存器，QEMU进行拦截再通知其模拟的设备。设备通知驱动程序一般用中断机制，即在QEMU中进行中断注入，让CPU响应并执行中断处理例程，来完成对I/O执行结果的处理。</p>
 <p><strong>设备配置空间</strong></p>
-<p>设备配置空间通常用于配置不常变动的设备参数（属性），或者初始化阶段需要时设置的设备参数。设备的特征位中包含表示配置空间是否存在的bit位，并可通过在特征位的末尾新添新的bit位来扩展配置空间。</p>
+<p>设备配置空间通常用于配置不常变动的设备参数（属性），或者初始化阶段需要时设置的设备参数。设备的特征位中包含表示配置空间是否存在的bit位，并可通过在特征位的末尾添加新的bit位来扩展配置空间。</p>
 </div>
 <div class="section" id="virtqueue">
 <span id="term-virtqueue"></span><h3><strong>virtqueue虚拟队列</strong><a class="headerlink" href="#virtqueue" title="永久链接至标题">¶</a></h3>
@@ -312,7 +306,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p><strong>描述符表</strong></p>
 <p>描述符表用来指向I/O传输请求的信息，即是驱动程序与设备进行交互的缓冲区（buffer），由 <code class="docutils literal notranslate"><span class="pre">Queue</span> <span class="pre">Size</span></code> 个Descriptor（描述符）组成。描述符中包括buffer的物理地址 – addr字段，buffer的长度 – len字段，可以链接到 <code class="docutils literal notranslate"><span class="pre">next</span> <span class="pre">Descriptor</span></code> 的next指针（用于把多个描述符链接成描述符链）。buffer所在物理地址空间需要操作系统或运行时在初始化时分配好，并在后续由驱动程序在其中填写IO传输相关的命令/数据，或者是设备返回I/O操作的结果。多个描述符（I/O操作命令，I/O操作数据块，I/O操作的返回结果）形成的描述符链可以表示一个完整的I/O操作请求。</p>
 <p><strong>可用环</strong></p>
-<p>可用环中的条目是一个描述符链的头部描述符的索引值，并有头尾指针表示其可用条目范围，形成一个环形队列。它仅由驱动程序写入，并由设备读出。virtio设备通过读取可以环中的条目可获取驱动程序发出的I/O操作请求对应的描述符链，然后就可以进行进一步的处理了。描述符指向的缓冲区具有可读写属性，可读的缓冲区用于Driver发送数据，可写的缓冲区用于接收数据。比如对于（I/O操作命令 – “读磁盘块”，I/O操作数据块 – “数据缓冲区”，I/O操作的返回结果 –“结果缓冲区”）这三个描述符形成的链，可通过读取第一个描述符指向的缓冲区了解到是“读磁盘块”操作，这样就可把磁盘块数据通过DMA操作放到第二个描述符指向的“数据缓冲区”中，然后把“OK”写入到第三个描述符指向的“结果缓冲区”中。</p>
+<p>可用环中的条目是一个描述符链的头部描述符的索引值，并有头尾指针表示其可用条目范围，形成一个环形队列。它仅由驱动程序写入，并由设备读出。virtio设备通过读取可用环中的条目可获取驱动程序发出的I/O操作请求对应的描述符链，然后就可以进行进一步的处理了。描述符指向的缓冲区具有可读写属性，可读的缓冲区用于Driver发送数据，可写的缓冲区用于接收数据。比如对于（I/O操作命令 – “读磁盘块”，I/O操作数据块 – “数据缓冲区”，I/O操作的返回结果 –“结果缓冲区”）这三个描述符形成的链，可通过读取第一个描述符指向的缓冲区了解到是“读磁盘块”操作，这样就可把磁盘块数据通过DMA操作放到第二个描述符指向的“数据缓冲区”中，然后把“OK”写入到第三个描述符指向的“结果缓冲区”中。</p>
 <p><strong>已用环</strong></p>
 <p>已用环中的条目也一个是描述符链的头部描述符的索引值，并有头尾指针表示其已用条目的范围，形成一个环形队列。这个描述符是Device完成相应I/O处理后，将可用环中的对应“I/O操作的返回结果”的描述符索引值移入到已用环中，并通过轮询或中断机制来通知virtio驱动程序，并让virtio驱动程序读取已用环中的这个描述符，从而进行对设备完成I/O操作后的进一步处理。</p>
 </div>
@@ -352,7 +346,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id5">
 <h2>virtio驱动程序<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<p>这部分内容是各种virtio驱动程序的共性部分，主要包括驱动程序与设备的交互步骤，初始化设备，以及驱动程序执行流程中的一些实现细节。</p>
+<p>这部分内容是各种virtio驱动程序的共性部分，主要包括驱动程序与设备的交互步骤，初始化设备，以及驱动程序执行过程中的一些实现细节。</p>
 <div class="section" id="id6">
 <h3>驱动程序与设备之间的交互<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h3>
 <p>对于驱动程序和外设之间采用virtio机制（也可称为协议）进行交互的原理如下图所示。</p>
@@ -369,7 +363,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <img alt="../_images/vring.png" class="align-center" id="vring" src="../_images/vring.png" />
 </div>
 <div class="section" id="id7">
-<h3>virtio驱动程序的执行流程<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h3>
+<h3>virtio驱动程序的执行过程<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h3>
 <p><strong>设备的初始化</strong></p>
 <p>操作系统通过某种方式（设备发现，基于设备树的查找等）找到virtio设备后，驱动程序进行设备初始化的常规步骤如下所示：</p>
 <ol class="arabic simple">
@@ -377,7 +371,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>设置设备状态域为 <code class="docutils literal notranslate"><span class="pre">ACKNOWLEDGE</span></code> ，表明当前已经识别到了设备</p></li>
 <li><p>设置设备状态域为 <code class="docutils literal notranslate"><span class="pre">DRIVER</span></code> ，表明驱动程序知道如何驱动当前设备</p></li>
 <li><p>进行设备特定的安装和配置，包括协商特征位，建立virtqueue，访问设备配置空间等, 设置设备状态域为 <code class="docutils literal notranslate"><span class="pre">FEATURES_OK</span></code></p></li>
-<li><p>设置设备状态域为 <code class="docutils literal notranslate"><span class="pre">DRIVER_OK</span></code> 或者 <a href="#id8"><span class="problematic" id="id9">``</span></a>FAILED``（如果中途出现错误）</p></li>
+<li><p>设置设备状态域为 <code class="docutils literal notranslate"><span class="pre">DRIVER_OK</span></code> 或者 <code class="docutils literal notranslate"><span class="pre">FAILED</span></code> （如果中途出现错误）</p></li>
 </ol>
 <p>注意，上述的步骤不是必须都要做到的，但最终需要设置设备状态域为 <code class="docutils literal notranslate"><span class="pre">DRIVER_OK</span></code> ，这样驱动程序才能正常访问设备。</p>
 <p><strong>虚拟队列的相关操作</strong></p>
@@ -389,11 +383,20 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>驱动程序将缓冲区的地址和长度信息放入描述符表中的空闲描述符中，并根据需要把多个描述符进行链接，形成一个描述符链（表示一个I/O操作请求）；</p></li>
 <li><p>驱动程序将描述符链头的索引放入可用环的下一个环条目中；</p></li>
 <li><p>如果可以进行批处理（batching），则可以重复执行步骤1和2，这样通过（可用环–&gt;描述符–&gt;缓冲区）来找到缓冲区；</p></li>
-<li><p>驱动程序执行适当的内存屏障操作，以确保设备能看到更新的描述符表和可用环，并追踪找到可用缓冲区；</p></li>
+<li><p>驱动程序执行适当的内存屏障操作（Memory Barrier），以确保设备能看到更新的描述符表和可用环，并追踪找到可用缓冲区；</p></li>
 <li><p>根据添加到可用环中的描述符链头的数量，增加 <code class="docutils literal notranslate"><span class="pre">available</span> <span class="pre">idx</span></code> ；</p></li>
 <li><p>驱动程序执行适当的内存屏障操作，以确保在检查通知前更新 <code class="docutils literal notranslate"><span class="pre">available</span> <span class="pre">idx</span></code> ；</p></li>
 <li><p>驱动程序会将”有可用的缓冲区”的通知发送给设备，这样设备根据它内部的idx信息与 <code class="docutils literal notranslate"><span class="pre">available</span> <span class="pre">idx</span></code> 的差值知道有多少个缓冲区要处理。</p></li>
 </ol>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p>内存屏障 (Memory Barrier)</p>
+<p>大多数现代计算机为了提高性能而采取乱序执行，这使得内存屏障在某些情况下成为必须要执行的操作。内存屏障是一类同步屏障指令，它使得 CPU 或编译器在对内存进行操作的时候, 严格按照一定的顺序来执行, 也就是说在内存屏障之前的指令和内存屏障之后的指令不会由于系统优化等原因而导致乱序。内存屏障分为写屏障（Store Barrier）、读屏障（Load Barrier）和全屏障（Full Barrier），其作用是：</p>
+<ul class="simple">
+<li><p>防止指令之间的重排序</p></li>
+<li><p>保证数据的可见性</p></li>
+</ul>
+</div>
 <p><strong>将缓冲区放入描述符表</strong></p>
 <p>缓冲区用于表示一个I/O请求的具体内容，由零个或多个设备可读/可写的物理地址连续的内存块组成（一般前面是可读的内存块，后续跟着可写的内存块）。我们把构成缓冲区的内存块称为缓冲区元素，把缓冲区映射到描述符表中以形成描述符链的具体步骤：</p>
 <p>对于每个缓冲区元素 <code class="docutils literal notranslate"><span class="pre">b</span></code> ：</p>
@@ -426,7 +429,26 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>从设备接收 <code class="docutils literal notranslate"><span class="pre">已用缓冲区</span></code></p>
 <p>一旦设备使用（可以是读或写，取决于设备和虚拟队列的属性）了描述符所指向的缓冲区，设备便会向驱动程序发送 <code class="docutils literal notranslate"><span class="pre">已用缓冲区通知（used</span> <span class="pre">buffer</span> <span class="pre">notification）</span></code> 。</p>
 <p>为了优化性能，驱动程序可以在处理已用环（used ring）时禁用 <code class="docutils literal notranslate"><span class="pre">已用缓冲区通知</span></code> ，但是要注意在清空环和重新启用通知之间丢失通知的问题。这通常可以通过在重新启用通知后重新检查更多的 <code class="docutils literal notranslate"><span class="pre">已用缓冲区</span></code> 的方法来解决，相关的伪代码如下所示：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="c1">//禁用 已用缓冲区通知</span>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">//禁用 已用缓冲区通知</span>
 <span class="n">virtq_disable_used_buffer_notifications</span><span class="p">(</span><span class="n">vq</span><span class="p">);</span><span class="w"></span>
 
 <span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -447,29 +469,45 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">      </span><span class="n">vq</span><span class="p">.</span><span class="n">last_seen_used</span><span class="o">++</span><span class="p">;</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
-</div>
+</td></tr></table></div>
 </div>
 </div>
 <div class="section" id="virtio-blk">
 <h2>virtio-blk驱动程序<a class="headerlink" href="#virtio-blk" title="永久链接至标题">¶</a></h2>
 <p>virtio-blk设备是一种virtio存储设备，在QEMU模拟的RISC-V 64计算机中，以MMIO的方式来与驱动程序进行交互。</p>
-<div class="section" id="id10">
-<h3>virtio-blk设备的关键数据结构<a class="headerlink" href="#id10" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id8">
+<h3>virtio-blk设备的关键数据结构<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h3>
 <p>这里我们首先需要定义virtio-blk设备的结构：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">   </span><span class="n">header</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">,</span><span class="w"></span>
-<span class="w">   </span><span class="n">queue</span>: <span class="nc">VirtQueue</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlk</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">   </span><span class="n">header</span>: <span class="kp">&amp;</span><span class="nb">&#39;static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">,</span><span class="w"></span>
+<span class="w">   </span><span class="n">queue</span>: <span class="nc">VirtQueue</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
 <span class="w">   </span><span class="n">capacity</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
-</div>
+</td></tr></table></div>
 <p>其中的 <code class="docutils literal notranslate"><span class="pre">VirtIOHeader</span></code> 数据结构的内存布局与上一节描述 <a class="reference internal" href="#term-virtio-mmio-regs"><span class="std std-ref">virt-mmio设备的寄存器内存布局</span></a> 是一致的。而 <code class="docutils literal notranslate"><span class="pre">VirtQueue</span></code> 数据结构与上一节描述的 <a class="reference internal" href="#term-virtqueue"><span class="std std-ref">virtqueue</span></a> 在表达的含义上基本一致的。</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[repr(C)]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtQueue</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="cp">#[repr(C)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtQueue</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">   </span><span class="n">dma</span>: <span class="nc">DMA</span><span class="p">,</span><span class="w"> </span><span class="c1">// DMA guard</span>
-<span class="w">   </span><span class="n">desc</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span> <span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="n">Descriptor</span><span class="p">],</span><span class="w"> </span><span class="c1">// 描述符表</span>
-<span class="w">   </span><span class="n">avail</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span> <span class="nc">mut</span><span class="w"> </span><span class="n">AvailRing</span><span class="p">,</span><span class="w"> </span><span class="c1">// 可用环 Available ring</span>
-<span class="w">   </span><span class="n">used</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span> <span class="nc">mut</span><span class="w"> </span><span class="n">UsedRing</span><span class="p">,</span><span class="w"> </span><span class="c1">// 已用环 Used ring</span>
+<span class="w">   </span><span class="n">desc</span>: <span class="kp">&amp;</span><span class="na">&#39;a</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="n">Descriptor</span><span class="p">],</span><span class="w"> </span><span class="c1">// 描述符表</span>
+<span class="w">   </span><span class="n">avail</span>: <span class="kp">&amp;</span><span class="na">&#39;a</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">AvailRing</span><span class="p">,</span><span class="w"> </span><span class="c1">// 可用环 Available ring</span>
+<span class="w">   </span><span class="n">used</span>: <span class="kp">&amp;</span><span class="na">&#39;a</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">UsedRing</span><span class="p">,</span><span class="w"> </span><span class="c1">// 已用环 Used ring</span>
 <span class="w">   </span><span class="n">queue_idx</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="c1">//虚拟队列索引值</span>
 <span class="w">   </span><span class="n">queue_size</span>: <span class="kt">u16</span><span class="p">,</span><span class="w"> </span><span class="c1">// 虚拟队列长度</span>
 <span class="w">   </span><span class="n">num_used</span>: <span class="kt">u16</span><span class="p">,</span><span class="w"> </span><span class="c1">// 已经使用的队列项目数</span>
@@ -478,27 +516,45 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">   </span><span class="n">last_used_idx</span>: <span class="kt">u16</span><span class="p">,</span><span class="w"> </span><span class="c1">//上次已用环的索引值</span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
-</div>
+</td></tr></table></div>
 <p>其中成员变量 <code class="docutils literal notranslate"><span class="pre">free_head</span></code> 指空闲描述符链表头，初始时所有描述符通过 <code class="docutils literal notranslate"><span class="pre">next</span></code> 指针依次相连形成空闲链表，成员变量 <code class="docutils literal notranslate"><span class="pre">last_used_idx</span></code> 是指设备上次已取的已用环元素位置。成员变量 <code class="docutils literal notranslate"><span class="pre">avail_idx</span></code> 是指设备上次已取的已用环元素位置。</p>
 </div>
-<div class="section" id="id11">
-<h3>初始化virtio-blk设备<a class="headerlink" href="#id11" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id9">
+<h3>初始化virtio-blk设备<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h3>
 <p>在 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> crate的 <code class="docutils literal notranslate"><span class="pre">examples\riscv\src\main.rs</span></code> 文件中的 <code class="docutils literal notranslate"><span class="pre">virtio_probe</span></code> 函数识别出virtio-blk设备后，会调用 <code class="docutils literal notranslate"><span class="pre">virtio_blk(header)</span></code> 来完成对virtio-blk设备的初始化过程。其实具体的初始化过程与virtio规范中描述的一般virtio设备的初始化过程大致一样，步骤（实际实现可以简化）如下：</p>
 <ol class="arabic simple">
-<li><p>（忽略）通过将0写入状态寄存器来复位器件；</p></li>
+<li><p>（可忽略）通过将0写入状态寄存器来复位器件；</p></li>
 <li><p>将状态寄存器的ACKNOWLEDGE状态位置1；</p></li>
 <li><p>将状态寄存器的DRIVER状态位置1；</p></li>
 <li><p>从host_features寄存器读取设备功能；</p></li>
-<li><p>协商功能集并将接受的内容写如guest_features寄存器；</p></li>
+<li><p>协商功能集并将接受的内容写入guest_features寄存器；</p></li>
 <li><p>将状态寄存器的FEATURES_OK状态位置1；</p></li>
-<li><p>（忽略）重新读取状态寄存器，以确认设备已接受您的功能；</p></li>
+<li><p>（可忽略）重新读取状态寄存器，以确认设备已接受您的功能；</p></li>
 <li><p>执行特定于设备的设置：读取设备配置空间，建立虚拟队列；</p></li>
 <li><p>将状态寄存器的DRIVER_OK状态位置1，使得该设备处于活跃可用状态。</p></li>
 </ol>
 <p>具体实现，在如下代码中：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// virtio-drivers/src/blk.rs</span>
-<span class="k">impl</span><span class="w"> </span><span class="n">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">   </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">header</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="bp">Self</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">// virtio-drivers/src/blk.rs</span>
+<span class="k">impl</span><span class="w"> </span><span class="n">VirtIOBlk</span><span class="o">&lt;</span><span class="na">&#39;_</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">   </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">header</span>: <span class="kp">&amp;</span><span class="nb">&#39;static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="n">Self</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">      </span><span class="n">header</span><span class="p">.</span><span class="n">begin_init</span><span class="p">(</span><span class="o">|</span><span class="n">features</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">         </span><span class="kd">let</span><span class="w"> </span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BlkFeature</span>::<span class="n">from_bits_truncate</span><span class="p">(</span><span class="n">features</span><span class="p">);</span><span class="w"></span>
 <span class="w">         </span><span class="c1">// negotiate these flags only</span>
@@ -516,16 +572,21 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">      </span><span class="p">})</span><span class="w"></span>
 <span class="w">   </span><span class="p">}</span><span class="w"></span>
 </pre></div>
-</div>
+</td></tr></table></div>
 <p>在 <code class="docutils literal notranslate"><span class="pre">new</span></code> 成员函数的实现中， <code class="docutils literal notranslate"><span class="pre">header.begin_init</span></code> 函数完成了常规步骤的前六步；第七步在这里被忽略；第八步是对 <code class="docutils literal notranslate"><span class="pre">guest_page_size</span></code> 寄存器的设置（写寄存器的值为4096），并进一步读取virtio-blk设备的配置空间的设备相关的信息：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="n">capacity</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="w">   </span><span class="c1">//32个扇区，即16KB</span>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="n">capacity</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="w">   </span><span class="c1">//32个扇区，即16KB</span>
 <span class="n">seg_max</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">254</span><span class="w"></span>
 <span class="n">cylinders</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="w"></span>
 <span class="n">heads</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span><span class="w"></span>
 <span class="n">sectors</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="mi">63</span><span class="w"></span>
 <span class="n">blk_size</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span><span class="w"> </span><span class="c1">//扇区大小为512字节</span>
 </pre></div>
-</div>
+</td></tr></table></div>
 <p>了解了virtio-blk设备的扇区个数，扇区大小和总体容量后，还需调用 `` VirtQueue::new`` 成员函数来创建传输层的 <code class="docutils literal notranslate"><span class="pre">VirtQueue</span></code> 数据结构的实例，这样才能进行后续的磁盘读写操作。这个函数主要完成的事情是：</p>
 <ul class="simple">
 <li><p>设定 <code class="docutils literal notranslate"><span class="pre">queue_size</span></code> （即VirtQueue实例的虚拟队列条目数）为16；</p></li>
@@ -542,7 +603,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>virtio-blk设备使用 <code class="docutils literal notranslate"><span class="pre">VirtQueue</span></code> 数据结构来表示虚拟队列进行数据传输，此数据结构主要由三段连续内存组成：描述符表 <code class="docutils literal notranslate"><span class="pre">Descriptor[]</span></code> 、环形队列结构的 <code class="docutils literal notranslate"><span class="pre">AvailRing</span></code> 和 <code class="docutils literal notranslate"><span class="pre">UsedRing</span></code>  。驱动程序和virtio-blk设备都能访问到此数据结构。
 在 virtio_probe 函数识别出virtio-blk设备后，会调用 virtio_blk(header) 来完成对virtio-blk设备的初始化过程。
 描述符表由固定长度(16字节)的描述符Descriptor组成，其个数等于环形队列长度，其中每个Descriptor的结构为：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[repr(C, align(16))]</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="cp">#[repr(C, align(16))]</span><span class="w"></span>
 <span class="cp">#[derive(Debug)]</span><span class="w"></span>
 <span class="k">struct</span> <span class="nc">Descriptor</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">   </span><span class="n">addr</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
@@ -551,7 +619,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">   </span><span class="n">next</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
-</div>
+</td></tr></table></div>
 <p>包含四个域：addr代表某段内存的起始地址，长度为8个字节；len代表某段内存的长度，本身占用4个字节(因此代表的内存段最大为4GB)；flags代表内存段读写属性等，长度为2个字节；next代表下一个内存段对应的Descpriptor在描述符表中的索引，因此通过next字段可以将一个请求对应的多个内存段连接成链表。</p>
 <p>可用环 <code class="docutils literal notranslate"><span class="pre">AvailRing</span></code> 的结构为：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[repr(C)]</span><span class="w"></span>
@@ -567,7 +635,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>可用环由头部的 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 和 <code class="docutils literal notranslate"><span class="pre">idx</span></code> 域及 <code class="docutils literal notranslate"><span class="pre">ring</span></code> 数组组成： <code class="docutils literal notranslate"><span class="pre">flags</span></code> 与通知机制相关； <code class="docutils literal notranslate"><span class="pre">idx</span></code> 代表最新放入IO请求的编号，从零开始单调递增，将其对队列长度取余即可得该I/O请求在可用环数组中的索引；可用环数组元素用来存放I/O请求占用的首个描述符在描述符表中的索引，数组长度等于可用环的长度(不开启event_idx特性)。</p>
 <p>已用环 <code class="docutils literal notranslate"><span class="pre">UsedRing</span></code> 的结构为：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[repr(C)]</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="cp">#[repr(C)]</span><span class="w"></span>
 <span class="cp">#[derive(Debug)]</span><span class="w"></span>
 <span class="k">struct</span> <span class="nc">UsedRing</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">   </span><span class="n">flags</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
@@ -576,12 +651,31 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">   </span><span class="n">avail_event</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="c1">// unused</span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
-</div>
+</td></tr></table></div>
 <p>已用环由头部的 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 和 <code class="docutils literal notranslate"><span class="pre">idx</span></code> 域及 <code class="docutils literal notranslate"><span class="pre">ring</span></code> 数组组成： <code class="docutils literal notranslate"><span class="pre">flags</span></code> 与通知机制相关； <code class="docutils literal notranslate"><span class="pre">idx</span></code> 代表最新放入I/O响应的编号，从零开始单调递增，将其对队列长度取余即可得该I/O响应在已用环数组中的索引；已用环数组元素主要用来存放I/O响应占用的首个描述符在描述符表中的索引， 数组长度等于已用环的长度(不开启event_idx特性)。</p>
 <p>针对用户进程发出的I/O请求，经过系统调用，文件系统等一系列处理后，最终会形成对virtio-blk驱动程序的调用。对于写操作，具体实现如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="c1">//virtio-drivers/src/blk.rs</span>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="c1">//virtio-drivers/src/blk.rs</span>
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write_block</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="nb">Result</span> <span class="p">{</span><span class="w"></span>
-<span class="w">   </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">buf</span><span class="p">.</span><span class="n">len</span><span class="p">(),</span><span class="w"> </span><span class="n">BLK_SIZE</span><span class="p">);</span><span class="w"></span>
+<span class="w">   </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">buf</span><span class="p">.</span><span class="n">len</span><span class="p">(),</span><span class="w"> </span><span class="n">BLK_SIZE</span><span class="p">);</span><span class="w"></span>
 <span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="n">req</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BlkReq</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">      </span><span class="n">type_</span>: <span class="nc">ReqType</span>::<span class="n">Out</span><span class="p">,</span><span class="w"></span>
 <span class="w">      </span><span class="n">reserved</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
@@ -600,7 +694,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">   </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
-</div>
+</td></tr></table></div>
 <p>基本流程如下：</p>
 <ol class="arabic simple">
 <li><p>一个完整的virtio-blk的I/O写请求由三部分组成，包括表示I/O写请求信息的结构 <code class="docutils literal notranslate"><span class="pre">BlkReq</span></code> ，要传输的数据块 <code class="docutils literal notranslate"><span class="pre">buf</span></code>，一个表示设备响应信息的结构 <code class="docutils literal notranslate"><span class="pre">BlkResp</span></code>  。这三部分需要三个描述符来表示；</p></li>
@@ -615,34 +709,79 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="virtio-gpu">
 <h2>virtio-gpu驱动程序<a class="headerlink" href="#virtio-gpu" title="永久链接至标题">¶</a></h2>
-<p>让操作系统能够显示图形是我们的想要完成的有趣目标。这可以通过在QEMU或带显示屏的开发板上写显示驱动程序来完成。这里我们主要介绍如何驱动基于QEMU的virtio-gpu虚拟显示设备。我们看到的图形显示屏幕其实是由一个一个的像素点来组成的。显示驱动程序的主要目标就是把每个像素点用内存单元来表示，并把代表所有这些像素点的内存区域（也称显示内存，显存， frame buffer）“通知”显示I/O控制器（也称图形适配器，graphics adapter），然后显示I/O控制器会根据内存内容渲染到图形显示屏上。</p>
-<div class="section" id="id12">
-<h3>virtio-gpu设备的关键数据结构<a class="headerlink" href="#id12" title="永久链接至标题">¶</a></h3>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOGpu</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">   </span><span class="n">header</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">,</span><span class="w"></span>
+<p>让操作系统能够显示图形是一个有趣的目标。这可以通过在QEMU或带显示屏的开发板上写显示驱动程序来完成。这里我们主要介绍如何驱动基于QEMU的virtio-gpu虚拟显示设备。大家不用觉得这个驱动实现很困难，其实它主要完成的事情就是对显示内存进行写操作而已。我们看到的图形显示屏幕其实是由一个一个的像素点来组成的，显示驱动程序的主要目标就是把每个像素点用内存单元来表示，并把代表所有这些像素点的内存区域（也称显示内存，显存， frame buffer）“通知”显示I/O控制器（也称图形适配器，graphics adapter），然后显示I/O控制器会根据内存内容渲染到图形显示屏上。</p>
+<div class="section" id="id10">
+<h3>virtio-gpu设备的关键数据结构<a class="headerlink" href="#id10" title="永久链接至标题">¶</a></h3>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOGpu</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">   </span><span class="n">header</span>: <span class="kp">&amp;</span><span class="nb">&#39;static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">,</span><span class="w"></span>
 <span class="w">   </span><span class="n">rect</span>: <span class="nc">Rect</span><span class="p">,</span><span class="w"></span>
 <span class="w">   </span><span class="sd">/// DMA area of frame buffer.</span>
 <span class="w">   </span><span class="n">frame_buffer_dma</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">DMA</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
 <span class="w">   </span><span class="sd">/// Queue for sending control commands.</span>
-<span class="w">   </span><span class="n">control_queue</span>: <span class="nc">VirtQueue</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="w">   </span><span class="n">control_queue</span>: <span class="nc">VirtQueue</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
 <span class="w">   </span><span class="sd">/// Queue for sending cursor commands.</span>
-<span class="w">   </span><span class="n">cursor_queue</span>: <span class="nc">VirtQueue</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="w">   </span><span class="n">cursor_queue</span>: <span class="nc">VirtQueue</span><span class="o">&lt;</span><span class="na">&#39;a</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
 <span class="w">   </span><span class="sd">/// Queue buffer DMA</span>
 <span class="w">   </span><span class="n">queue_buf_dma</span>: <span class="nc">DMA</span><span class="p">,</span><span class="w"></span>
 <span class="w">   </span><span class="sd">/// Send buffer for queue.</span>
-<span class="w">   </span><span class="n">queue_buf_send</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span> <span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">],</span><span class="w"></span>
+<span class="w">   </span><span class="n">queue_buf_send</span>: <span class="kp">&amp;</span><span class="na">&#39;a</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">],</span><span class="w"></span>
 <span class="w">   </span><span class="sd">/// Recv buffer for queue.</span>
-<span class="w">   </span><span class="n">queue_buf_recv</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span> <span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">],</span><span class="w"></span>
+<span class="w">   </span><span class="n">queue_buf_recv</span>: <span class="kp">&amp;</span><span class="na">&#39;a</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">],</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
-</div>
+</td></tr></table></div>
 <p><code class="docutils literal notranslate"><span class="pre">header</span></code> 结构是virtio设备的共有属性，包括版本号、设备id、设备特征等信息。显存区域 <code class="docutils literal notranslate"><span class="pre">frame_buffer_dma</span></code> 是一块要由操作系统或运行时分配的内存，后续的像素点的值就会写在这个区域中。virtio-gpu驱动程序与virtio-gpu设备之间通过两个 virtqueue 来进行交互访问，<code class="docutils literal notranslate"><span class="pre">control_queue</span></code> 用于驱动程序发送显示相关控制命令， <code class="docutils literal notranslate"><span class="pre">cursor_queue</span></code> 用于驱动程序发送显示鼠标更新的相关控制命令（这里暂时不用）。 <code class="docutils literal notranslate"><span class="pre">queue_buf_dma</span></code> 是存放控制命令和返回结果的内存， <code class="docutils literal notranslate"><span class="pre">queue_buf_send</span></code> 和 <code class="docutils literal notranslate"><span class="pre">queue_buf_recv</span></code> 是 <code class="docutils literal notranslate"><span class="pre">queue_buf_dma</span></code> 的切片。</p>
 </div>
-<div class="section" id="id13">
-<h3>初始化virtio-gpu设备<a class="headerlink" href="#id13" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id11">
+<h3>初始化virtio-gpu设备<a class="headerlink" href="#id11" title="永久链接至标题">¶</a></h3>
 <p>在 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> crate的 <code class="docutils literal notranslate"><span class="pre">examples\riscv\src\main.rs</span></code> 文件中的 <code class="docutils literal notranslate"><span class="pre">virtio_probe</span></code> 函数识别出virtio-gpu设备后，会调用 <code class="docutils literal notranslate"><span class="pre">virtio_gpu(header)</span></code> 函数来完成对virtio-gpu设备的初始化过程。virtio-gpu设备初始化的工作主要是查询显示设备的信息（如分辨率等），并将该信息用于初始显示扫描（scanout）设置。具体过程如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="k">impl</span><span class="w"> </span><span class="n">VirtIOGpu</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">header</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="bp">Self</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">impl</span><span class="w"> </span><span class="n">VirtIOGpu</span><span class="o">&lt;</span><span class="na">&#39;_</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">header</span>: <span class="kp">&amp;</span><span class="nb">&#39;static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="n">Self</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">     </span><span class="n">header</span><span class="p">.</span><span class="n">begin_init</span><span class="p">(</span><span class="o">|</span><span class="n">features</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">         </span><span class="kd">let</span><span class="w"> </span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Features</span>::<span class="n">from_bits_truncate</span><span class="p">(</span><span class="n">features</span><span class="p">);</span><span class="w"></span>
 <span class="w">         </span><span class="kd">let</span><span class="w"> </span><span class="n">supported_features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Features</span>::<span class="n">empty</span><span class="p">();</span><span class="w"></span>
@@ -656,8 +795,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">     </span><span class="kd">let</span><span class="w"> </span><span class="n">cursor_queue</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">VirtQueue</span>::<span class="n">new</span><span class="p">(</span><span class="n">header</span><span class="p">,</span><span class="w"> </span><span class="n">QUEUE_CURSOR</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w"></span>
 
 <span class="w">     </span><span class="kd">let</span><span class="w"> </span><span class="n">queue_buf_dma</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DMA</span>::<span class="n">new</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">?</span><span class="p">;</span><span class="w"></span>
-<span class="w">     </span><span class="kd">let</span><span class="w"> </span><span class="n">queue_buf_send</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">queue_buf_dma</span><span class="p">.</span><span class="n">as_buf</span><span class="p">()[</span><span class="o">..</span><span class="n">PAGE_SIZE</span><span class="p">]</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
-<span class="w">     </span><span class="kd">let</span><span class="w"> </span><span class="n">queue_buf_recv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">queue_buf_dma</span><span class="p">.</span><span class="n">as_buf</span><span class="p">()[</span><span class="n">PAGE_SIZE</span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
+<span class="w">     </span><span class="kd">let</span><span class="w"> </span><span class="n">queue_buf_send</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">queue_buf_dma</span><span class="p">.</span><span class="n">as_buf</span><span class="p">()[..</span><span class="n">PAGE_SIZE</span><span class="p">]</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
+<span class="w">     </span><span class="kd">let</span><span class="w"> </span><span class="n">queue_buf_recv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">queue_buf_dma</span><span class="p">.</span><span class="n">as_buf</span><span class="p">()[</span><span class="n">PAGE_SIZE</span><span class="p">..]</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
 
 <span class="w">     </span><span class="n">header</span><span class="p">.</span><span class="n">finish_init</span><span class="p">();</span><span class="w"></span>
 
@@ -673,10 +812,54 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">     </span><span class="p">})</span><span class="w"></span>
 <span class="w"> </span><span class="p">}</span><span class="w"></span>
 </pre></div>
-</div>
+</td></tr></table></div>
 <p>首先是 <code class="docutils literal notranslate"><span class="pre">header.begin_init</span></code> 函数完成了对virtio设备的共性初始化的常规步骤的前六步；第七步在这里被忽略；第八步完成对virtio-gpu设备的配置空间（config space）信息，不过这里面并没有我们关注的显示分辨率等信息；紧接着是创建两个虚拟队列，并分配两个 page （8KB）的内存空间用于放置虚拟队列中的控制命令和返回结果；最后的第九步，调用 <code class="docutils literal notranslate"><span class="pre">header.finish_init</span></code> 函数，将virtio-gpu设备设置为活跃可用状态。</p>
-<p>虽然virtio-gpu初始化完毕，但它目前还不能进行显示。为了能够进行正常的显示，我们还需建立显存区域 frame buffer，并绑定在virtio-gpu设备上。这主要是通过 <code class="docutils literal notranslate"><span class="pre">VirtIOGpu.setp_framebuffer</span></code> 函数来完成的。</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">setup_framebuffer</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;&amp;</span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<p>虽然virtio-gpu初始化完毕，但它目前还不能进行显示。为了能够进行正常的显示，我们还需建立显存区域 frame buffer，并绑定在virtio-gpu设备上。这主要是通过 <code class="docutils literal notranslate"><span class="pre">VirtIOGpu.setup_framebuffer</span></code> 函数来完成的。</p>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">setup_framebuffer</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;&amp;</span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">     </span><span class="c1">// get display info</span>
 <span class="w">     </span><span class="kd">let</span><span class="w"> </span><span class="n">display_info</span>: <span class="nc">RespDisplayInfo</span><span class="w"> </span><span class="o">=</span><span class="w"></span>
 <span class="w">         </span><span class="bp">self</span><span class="p">.</span><span class="n">request</span><span class="p">(</span><span class="n">CtrlHeader</span>::<span class="n">with_type</span><span class="p">(</span><span class="n">Command</span>::<span class="n">GetDisplayInfo</span><span class="p">))</span><span class="o">?</span><span class="p">;</span><span class="w"></span>
@@ -722,7 +905,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">     </span><span class="nb">Ok</span><span class="p">(</span><span class="n">buf</span><span class="p">)</span><span class="w"></span>
 <span class="w"> </span><span class="p">}</span><span class="w"></span>
 </pre></div>
-</div>
+</td></tr></table></div>
 <p>上面的函数主要完成的工作有如下几个步骤，其实就是驱动程序给virtio-gpu设备发控制命令，建立好显存区域：</p>
 <p>1. 发出 <code class="docutils literal notranslate"><span class="pre">GetDisplayInfo</span></code> 命令，获得virtio-gpu设备的显示分辨率;
 1. 发出 <code class="docutils literal notranslate"><span class="pre">ResourceCreate2D</span></code> 命令，让设备以分辨率大小（ <code class="docutils literal notranslate"><span class="pre">width</span> <span class="pre">*height</span></code> ），像素信息（ <code class="docutils literal notranslate"><span class="pre">Red/Green/Blue/Alpha</span></code> 各占1字节大小，即一个像素占4字节），来配置设备显示资源；
@@ -733,8 +916,17 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="virtio-gpui-o">
 <h3>virtio-gpu设备的I/O操作<a class="headerlink" href="#virtio-gpui-o" title="永久链接至标题">¶</a></h3>
 <p>接下来的显示操作比较简单，就是在显存中更新像素信息，然后给设备发出刷新指令，就可以显示了，具体的示例代码如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="k">for</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">768</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">   </span><span class="k">for</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">1024</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">for</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="p">..</span><span class="mi">768</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">   </span><span class="k">for</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="p">..</span><span class="mi">1024</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">idx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">y</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
 <span class="w">      </span><span class="n">fb</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span><span class="w">       </span><span class="c1">//Blue</span>
 <span class="w">      </span><span class="n">fb</span><span class="p">[</span><span class="n">idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span><span class="w">   </span><span class="c1">//Green</span>
@@ -744,11 +936,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 <span class="n">gpu</span><span class="p">.</span><span class="n">flush</span><span class="p">().</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;failed to flush&quot;</span><span class="p">);</span><span class="w"></span>
 </pre></div>
+</td></tr></table></div>
 </div>
 </div>
-</div>
-<div class="section" id="id14">
-<h2>测试virtio设备<a class="headerlink" href="#id14" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id12">
+<h2>测试virtio设备<a class="headerlink" href="#id12" title="永久链接至标题">¶</a></h2>
 <p>在 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> crate的 <code class="docutils literal notranslate"><span class="pre">examples\riscv\src\main.rs</span></code> 文件是一个可让virtio-blk设备读写磁盘，让virtio-gpu设备显示图像的测试用例，我们可以通过执行如下命令来尝试这些virtio设备：</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$ <span class="nb">cd</span> virtio-driver/examples/riscv64
 $ make run
@@ -764,29 +956,37 @@ $ make run
            
           </div>
           <footer>
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="4exercise.html" class="btn btn-neutral float-right" title="chapter8练习" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="2device-driver-1.html" class="btn btn-neutral float-left" title="驱动程序（上）" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+      
+        <a href="4exercise.html" class="btn btn-neutral float-right" title="chapter8练习" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="2device-driver-1.html" class="btn btn-neutral float-left" title="外设平台与串口驱动程序" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
     </div>
+  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &#169; 版权所有 2020, Yifan Wu.
+        
+        &copy; 版权所有 2020, Yifan Wu
 
     </p>
   </div>
     
     
     
-    利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
     
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
     
-    由 <a href="https://readthedocs.org">Read the Docs</a>开发. 
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
+
         </div>
       </div>
 
