@@ -65,7 +65,7 @@ challenge: 实现多核，可以并行调度。
 
 - 实验目录要求
 
-    目录要求不变(参考lab1目录或者示例代码目录结构)。同样在 os 目录下 `make run` 之后可以正确加载用户程序并执行。
+    目录要求不变（参考 lab1 目录或者示例代码目录结构）。同样在 os 目录下 `make run` 之后可以正确加载用户程序并执行。
 
     目标用户目录 ``../user/build/bin``。
 
@@ -78,7 +78,7 @@ challenge: 实现多核，可以并行调度。
 
 (1) 简要描述这一章的进程调度策略。何时进行进程切换？如何选择下一个运行的进程？如何处理新加入的进程？
 
-(2) 在 C 版代码中，同样实现了类似 RR 的调度算法，但是由于没有 VecDeque 这样直接可用的数据结构（Rust很棒对不对），C 版代码的实现严格来讲存在一定问题。大致情况如下：C版代码使用一个进程池（也就是一个 struct proc 的数组）管理进程调度，当一个时间片用尽后，选择下一个进程逻辑在 `chapter３相关代码 <https://github.com/DeathWish5/ucore-Tutorial/blob/ch3/kernel/proc.c#L60-L74>`_ ，也就是当第 i 号进程结束后，会以 i -> max_num -> 0 -> i 的顺序遍历进程池，直到找到下一个就绪进程。C 版代码新进程在调度池中的位置选择见 `chapter5相关代码 <https://github.com/DeathWish5/ucore-Tutorial/blob/ch5/kernel/proc.c#L90-L98>`_ ，也就是从头到尾遍历进程池，找到第一个空位。
+(2) 在 C 版代码中，同样实现了类似 RR 的调度算法，但是由于没有 VecDeque 这样直接可用的数据结构（Rust 很棒对不对），C 版代码的实现严格来讲存在一定问题。大致情况如下：C 版代码使用一个进程池（也就是一个 struct proc 的数组）管理进程调度，当一个时间片用尽后，选择下一个进程逻辑在 `chapter3相关代码 <https://github.com/DeathWish5/ucore-Tutorial/blob/ch3/kernel/proc.c#L60-L74>`_ ，也就是当第 i 号进程结束后，会以 i -> max_num -> 0 -> i 的顺序遍历进程池，直到找到下一个就绪进程。C 版代码新进程在调度池中的位置选择见 `chapter5相关代码 <https://github.com/DeathWish5/ucore-Tutorial/blob/ch5/kernel/proc.c#L90-L98>`_ ，也就是从头到尾遍历进程池，找到第一个空位。
 
     (2-1) 在目前这一章（chapter3）两种调度策略有实质不同吗？考虑在一个完整的 os 中，随时可能有新进程产生，这两种策略是否实质相同？
 
@@ -122,7 +122,7 @@ challenge: 实现多核，可以并行调度。
 
 (3) stride 算法深入
 
-    stride算法原理非常简单，但是有一个比较大的问题。例如两个 pass = 10 的进程，使用 8bit 无符号整形储存 stride， p1.stride = 255, p2.stride = 250，在 p2 执行一个时间片后，理论上下一次应该 p1 执行。
+    stride 算法原理非常简单，但是有一个比较大的问题。例如两个 pass = 10 的进程，使用 8bit 无符号整形储存 stride， p1.stride = 255, p2.stride = 250，在 p2 执行一个时间片后，理论上下一次应该 p1 执行。
 
     - 实际情况是轮到 p1 执行吗？为什么？
 
@@ -167,12 +167,12 @@ challenge: 实现多核，可以并行调度。
 
 参考信息
 -------------------------------
-如果有兴趣进一步了解　stride　调度相关内容，可以尝试看看：
+如果有兴趣进一步了解 stride 调度相关内容，可以尝试看看：
 
 - `作者 Carl A. Waldspurger 写这个调度算法的原论文 <https://people.cs.umass.edu/~mcorner/courses/691J/papers/PS/waldspurger_stride/waldspurger95stride.pdf>`_
 - `作者 Carl A. Waldspurger 的博士生答辩slide <http://www.waldspurger.org/carl/papers/phd-mit-slides.pdf>`_ 
 - `南开大学实验指导中对Stride算法的部分介绍 <https://nankai.gitbook.io/ucore-os-on-risc-v64/lab6/tiao-du-suan-fa-kuang-jia#stride-suan-fa>`_
-- `NYU OS课关于Stride Scheduling的Slide <https://cs.nyu.edu/rgrimm/teaching/sp08-os/stride.pdf>`_
+- `NYU OS课关于Stride Scheduling的Slide <https://cs.nyu.edu/~rgrimm/teaching/sp08-os/stride.pdf>`_
 
 如果有兴趣进一步了解用户态线程实现的相关内容，可以尝试看看：
 
