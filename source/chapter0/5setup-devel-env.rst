@@ -196,7 +196,7 @@ Qemu 模拟器安装
    # 安装编译所需的依赖包
    sudo apt install autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
                  gawk build-essential bison flex texinfo gperf libtool patchutils bc \
-                 zlib1g-dev libexpat-dev pkg-config  libglib2.0-dev libpixman-1-dev git tmux python3
+                 zlib1g-dev libexpat-dev pkg-config  libglib2.0-dev libpixman-1-dev git tmux python3 python3-pip
    # 下载源码包 
    # 如果下载速度过慢可以使用我们提供的百度网盘链接：https://pan.baidu.com/s/1z-iWIPjxjxbdFS2Qf-NKxQ
    # 提取码 8woe
@@ -248,7 +248,7 @@ K210 真机串口通信
 .. code-block:: bash
 
    pip3 install pyserial
-   sudo apt install python-serial
+   sudo apt install python3-serial
 
 GDB 调试支持
 ------------------------------
