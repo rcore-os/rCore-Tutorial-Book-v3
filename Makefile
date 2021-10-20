@@ -31,3 +31,6 @@ deploy:
 	@git add -A
 	@git commit -m "Deploy"
 	@git push
+
+htmlpath:
+	echo file://$(PWD)/build/html/index.html
