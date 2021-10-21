@@ -34,7 +34,7 @@ release = '0.1'
 # ones.
 
 extensions = [
-    #"sphinx_comments"
+    "sphinx_comments"
 ]
 
 comments_config = {
