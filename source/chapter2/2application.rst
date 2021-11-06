@@ -210,7 +210,7 @@ Rust 中的 ``asm!`` 宏的完整格式如下：
 
    **Rust 语法卡片：内联汇编**
 
-   我们这里使用的 ``asm!`` 宏是将 Rust 底层 IR LLVM 中提供的内联汇编包装成的，更多信息可以参考 `llvm_asm 文档 <https://doc.rust-lang.org/unstable-book/library-features/llvm-asm.html>`_ 。 
+   我们这里使用的 ``asm!`` 宏是将 Rust 底层 IR LLVM 中提供的内联汇编包装成的，更多信息可以参考 `asm 文档 <https://doc.rust-lang.org/unstable-book/library-features/asm.html>`_ 。 
 
 ..   在未来的 Rust 版本推荐使用功能更加强大且方便易用的 ``asm!`` 宏，但是目前还未稳定，可以查看 `inline-asm RFC <https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html>`_ 了解最新进展。
 

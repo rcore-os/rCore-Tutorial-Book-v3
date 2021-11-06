@@ -97,7 +97,7 @@ MMU 在地址转换的时候使用内核的多级页表，这一切均在一行�
                 let satp = self.page_table.token();
                 unsafe {
                     satp::write(satp);
-                    llvm_asm!("sfence.vma" :::: "volatile");
+                    asm!("sfence.vma" :::: "volatile");
                 }
             }
         }
@@ -704,8 +704,8 @@ MMU 仅需单次访存就能找到页表项并完成地址转换，而多级页�
         }
         let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
         unsafe {
-            llvm_asm!("fence.i" :::: "volatile");
-            llvm_asm!("jr $0" 
+            asm!("fence.i" :::: "volatile");
+            asm!("jr $0" 
                 :: "r"(restore_va), "{a0}"(trap_cx_ptr), "{a1}"(user_satp) 
                 :: "volatile"
             );

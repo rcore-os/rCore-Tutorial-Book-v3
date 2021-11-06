@@ -189,7 +189,7 @@
         }
         println!("[kernel] Loading app_{}", app_id);
         // clear icache
-        llvm_asm!("fence.i" :::: "volatile");
+        asm!("fence.i" :::: "volatile");
         // clear app area
         (APP_BASE_ADDRESS..APP_BASE_ADDRESS + APP_SIZE_LIMIT).for_each(|addr| {
             (addr as *mut u8).write_volatile(0);
