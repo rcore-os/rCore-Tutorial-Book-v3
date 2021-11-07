@@ -23,13 +23,13 @@
 
 .. _term-input-output:
 
-尽管 CPU 可以一直在跑应用了，但是其利用率仍有上升的空间。随着应用需求的不断复杂，有的时候会在内核的监督下访问一些外设，它们也是计算机系统的另一个非常重要的组成部分，即 **输入/输出** (I/O, Input/Output) 。CPU 会将请求和一些附加的参数传递给外设，待外设处理完毕之后， CPU 便可以从外设读到其发出请求的处理结果。比如在从作为外部存储的磁盘上读取数据的时候，CPU 将要读取的扇区的编号以及放置读数据的内存物理地址传给磁盘，在磁盘把扇区数据拷贝到物理内存的事务完成之后，CPU就能在物理内存中看到要读取的数据了。
+尽管 CPU 可以一直在跑应用了，但是其利用率仍有上升的空间。随着应用需求的不断复杂，有的时候会在内核的监督下访问一些外设，它们也是计算机系统的另一个非常重要的组成部分，即 **输入/输出** (I/O, Input/Output) 。CPU 会把I/O请求传递给外设，待外设处理完毕之后， CPU 便可以从外设读到其发出的I/O请求的处理结果。比如在从作为外部存储的磁盘上读取数据的时候，CPU 将要读取的扇区的编号以及放置读数据的内存物理地址传给磁盘，在磁盘把扇区数据拷贝到物理内存的事务完成之后，CPU就能在物理内存中看到要读取的数据了。
 
-在一个应用对外设发出了请求之后，它不能立即继续执行，而是要等待外设将请求处理完毕并拿到完整的处理结果之后才能继续。那么如何知道外设是否已经完成了请求呢？通常外设会提供一个可读的寄存器记录它目前的工作状态，于是 CPU 需要不断原地循环读取它直到它的结果显示设备已经将请求处理完毕了，才能继续执行。然而，外设的计算速度和 CPU 相比可能慢了几个数量级，这就导致 CPU 有大量时间浪费在等待外设这件事情上，这段时间它几乎没有做任何事情，也在一定程度上造成了 CPU 的利用率不够理想。
+在CPU对外设发出了I/O请求之后，由于CPU速度远快于外设速度，使得CPU不能立即继续执行，而是要等待（忙等或睡眠等）外设将请求处理完毕并拿到完整的处理结果之后才能继续。那么如何知道外设是否已经完成了请求呢？通常外设会提供一个可读的寄存器记录它目前的工作状态，于是 CPU 需要不断原地循环读取它直到它的结果显示设备已经将请求处理完毕了，才能继续执行（这就是 **忙等** 的含义）。然而，外设的计算速度和 CPU 相比可能慢了几个数量级，这就导致 CPU 有大量时间浪费在等待外设这件事情上，这段时间它几乎没有做任何事情，也在一定程度上造成了 CPU 的利用率不够理想。
 
-我们暂时考虑 CPU 只能单向地通过读取外设提供的寄存器信息来获取外设处理I/O的状态。多道程序的思想在于：内核同时管理多个应用。如果外设处理I/O的时间足够长，那我们可以先进行任务切换去执行其他应用，在某次切换回来之后，应用再次读取设备寄存器，发现I/O请求已经处理完毕了，那么就可以用拿到的完整的数据继续向下执行了。这样的话，只要同时存在的应用足够多，就能保证 CPU 不必浪费时间在等待外设上，而是几乎一直在进行计算。这种任务切换，是让应用 **主动** 调用 ``sys_yield`` 系统调用来实现的，这意味着应用主动交出 CPU 的使用权给其他应用。
+我们暂时考虑 CPU 只能单向地通过读取外设提供的寄存器信息来获取外设处理I/O的完成状态。多道程序的思想在于：内核同时管理多个应用。如果外设处理I/O的时间足够长，那我们可以先进行任务切换去执行其他应用；在某次切换回来之后，应用再次读取设备寄存器，发现I/O请求已经处理完毕了，那么就可以根据返回的I/O结果继续向下执行了。这样的话，只要同时存在的应用足够多，就能保证 CPU 不必浪费时间在等待外设上，而是几乎一直在进行计算。这种任务切换，是让应用 **主动** 调用 ``sys_yield`` 系统调用来实现的，这意味着应用主动交出 CPU 的使用权给其他应用。
 
-这正是本节标题的后半部分“协作式”的含义。一个应用会持续运行下去，直到它主动调用 ``sys_yield`` 系统调用来交出 CPU 使用权。内核将很大的权力下放到应用，让所有的应用互相协作来最终达成最大化 CPU 利用率，充分利用计算资源这一终极目标。在计算机发展的早期，由于应用基本上都是一些简单的计算任务，且程序员都比较遵守规则，因此内核可以信赖应用，这样协作式的制度是没有问题的。
+这正是本节标题的后半部分“协作式”的含义。一个应用会持续运行下去，直到它主动调用 ``sys_yield`` 系统调用来交出 CPU 使用权。内核将很大的权力下放到应用，让所有的应用互相协作来最终达成最大化 CPU 利用率，充分利用计算资源这一终极目标。在计算机发展的早期，由于应用基本上都是一些简单的计算任务，且程序员都比较遵守规则，因此内核可以信赖应用，这样协作式的方案是没有问题的。
 
 .. image:: multiprogramming.png
 
@@ -114,20 +114,13 @@
 
     // os/src/task/task.rs
 
+    #[derive(Copy, Clone)]
     pub struct TaskControlBlock {
-        pub task_cx_ptr: usize,
         pub task_status: TaskStatus,
+        pub task_cx: TaskContext,
     }
 
-    impl TaskControlBlock {
-        pub fn get_task_cx_ptr2(&self) -> *const usize {
-            &self.task_cx_ptr as *const usize
-        }
-    }
-
-可以看到我们还在 ``task_cx_ptr`` 字段中维护了一个上一小节中提到的任务上下文的地址指针（指向应用被换出时内核栈上的任务上下文的指针）。而在任务切换函数 ``__switch`` 中我们需要用这个 ``task_cx_ptr`` 的指针作为参数并代表这个应用，于是 ``TaskControlBlock`` 还提供了获取这个指针的指针 ``task_cx_ptr2`` 的方法 ``get_task_cx_ptr2`` 。
-
-任务控制块非常重要，它是内核管理应用的核心数据结构。在后面的章节我们还会不断向里面添加更多内容，从而实现内核对应用更全面的管理。
+可以看到我们还在 ``task_cx`` 字段中维护了上一小节中提到的任务上下文。任务控制块非常重要，它是内核管理应用的核心数据结构。在后面的章节我们还会不断向里面添加更多内容，从而实现内核对应用更全面的管理。
 
 任务管理器
 --------------------------------------
@@ -140,7 +133,7 @@
 
     pub struct TaskManager {
         num_app: usize,
-        inner: RefCell<TaskManagerInner>,
+        inner: UPSafeCell<TaskManagerInner>,
     }
 
     struct TaskManagerInner {
@@ -148,11 +141,9 @@
         current_task: usize,
     }
 
-    unsafe impl Sync for TaskManager {}
-
 其中仍然使用到了变量与常量分离的编程风格：字段 ``num_app`` 仍然表示任务管理器管理的应用的数目，它在 ``TaskManager`` 初始化之后就不会发生变化；而包裹在 ``TaskManagerInner`` 内的任务控制块数组 ``tasks`` 以及表示 CPU 正在执行的应用编号 ``current_task`` 会在执行应用的过程中发生变化：每个应用的运行状态都会发生变化，而 CPU 执行的应用也在不断切换。
 
-再次强调，这里的 ``current_task`` 与第二章批处理系统中的含义不同。在批处理系统中，它表示一个既定的应用序列中的执行进度，可推测出在该应用之前的应用都已经执行完毕，之后的应用都没有执行；而在本章，我们只能通过它知道 CPU 正在执行哪个应用，而不能推测出其他应用的任何信息。
+再次强调，这里的 ``current_task`` 与第二章批处理系统中的含义不同。在批处理系统中，它除了表示 CPU 正在执行哪个应用外，表示一个既定的应用序列中的执行进度，可推测出在该应用之前的应用都已经执行完毕，之后的应用都没有执行；而在本章，我们只能通过它知道 CPU 正在执行哪个应用，而不能推测出其他应用的任何信息。
 
 我们可重用并扩展之前初始化 ``TaskManager`` 的全局实例 ``TASK_MANAGER`` （为此也需要将 ``TaskManager`` 标记为 ``Sync``）：
 
@@ -165,28 +156,31 @@
         pub static ref TASK_MANAGER: TaskManager = {
             let num_app = get_num_app();
             let mut tasks = [
-                TaskControlBlock { task_cx_ptr: 0, task_status: TaskStatus::UnInit };
+                TaskControlBlock {
+                    task_cx: TaskContext::zero_init(),
+                    task_status: TaskStatus::UnInit
+                };
                 MAX_APP_NUM
             ];
             for i in 0..num_app {
-                tasks[i].task_cx_ptr = init_app_cx(i) as * const _ as usize;
+                tasks[i].task_cx = TaskContext::goto_restore(init_app_cx(i));
                 tasks[i].task_status = TaskStatus::Ready;
             }
             TaskManager {
                 num_app,
-                inner: RefCell::new(TaskManagerInner {
+                inner: unsafe { UPSafeCell::new(TaskManagerInner {
                     tasks,
                     current_task: 0,
-                }),
+                })},
             }
         };
     }
 
 - 第 5 行：调用 ``loader`` 子模块提供的 ``get_num_app`` 接口获取链接到内核的应用总数，后面会用到；
-- 第 6~9 行：创建一个初始化的 ``tasks`` 数组，其中的每个任务控制块的运行状态都是 ``UnInit`` ：表示尚未初始化；
-- 第 10~12 行：依次对每个任务控制块进行初始化，将其运行状态设置为 ``Ready`` ：表示可以运行，并在它的内核栈栈顶压入一些初始化
-  的上下文，然后更新它的 ``task_cx_ptr`` 。一些细节我们会稍后介绍。
-- 从第 14 行开始：创建 ``TaskManager`` 实例并返回。
+- 第 6~12 行：创建一个初始化的 ``tasks`` 数组，其中的每个任务控制块的运行状态都是 ``UnInit`` ：表示尚未初始化；
+- 第 13~16 行：依次对每个任务控制块进行初始化，将其运行状态设置为 ``Ready`` ：表示可以运行，并初始化它的
+  任务上下文；
+- 从第 17 行开始：创建 ``TaskManager`` 实例并返回。
 
 实现 sys_yield 和 sys_exit 系统调用
 ----------------------------------------------------------------------------
@@ -284,26 +278,28 @@
     impl TaskManager {
         fn run_next_task(&self) {
             if let Some(next) = self.find_next_task() {
-                let mut inner = self.inner.borrow_mut();
+                let mut inner = self.inner.exclusive_access();
                 let current = inner.current_task;
                 inner.tasks[next].task_status = TaskStatus::Running;
                 inner.current_task = next;
-                let current_task_cx_ptr2 = inner.tasks[current].get_task_cx_ptr2();
-                let next_task_cx_ptr2 = inner.tasks[next].get_task_cx_ptr2();
-                core::mem::drop(inner);
+                let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
+                let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
+                drop(inner);
+                // before this, we should drop local variables that must be dropped manually
                 unsafe {
                     __switch(
-                        current_task_cx_ptr2,
-                        next_task_cx_ptr2,
+                        current_task_cx_ptr,
+                        next_task_cx_ptr,
                     );
                 }
+                // go back to user mode
             } else {
                 panic!("All applications completed!");
             }
         }
     }
 
-``run_next_task`` 使用任务管理器的全局实例 ``TASK_MANAGER`` 的 ``run_next_task`` 方法。它会调用 ``find_next_task`` 方法尝试寻找一个运行状态为 ``Ready`` 的应用并返回其 ID 。注意到其返回的类型是 ``Option<usize>`` ，也就是说不一定能够找到，当所有的应用都退出并将自身状态修改为 ``Exited`` 就会出现这种情况，此时 ``find_next_task`` 应该返回 ``None`` 。如果能够找到下一个可运行的应用的话，我们就可以分别拿到当前应用 ``current`` 和即将被切换到的应用 ``next`` 的 ``task_cx_ptr2`` ，然后调用 ``__switch`` 接口进行切换。如果找不到的话，说明所有的应用都运行完毕了，我们可以直接 panic 退出内核。
+``run_next_task`` 使用任务管理器的全局实例 ``TASK_MANAGER`` 的 ``run_next_task`` 方法。它会调用 ``find_next_task`` 方法尝试寻找一个运行状态为 ``Ready`` 的应用并返回其 ID 。注意到其返回的类型是 ``Option<usize>`` ，也就是说不一定能够找到，当所有的应用都退出并将自身状态修改为 ``Exited`` 就会出现这种情况，此时 ``find_next_task`` 应该返回 ``None`` 。如果能够找到下一个可运行的应用的话，我们就可以分别拿到当前应用 ``current_task_cx_ptr`` 和即将被切换到的应用 ``next_task_cx_ptr`` 的任务上下文指针，然后调用 ``__switch`` 接口进行切换。如果找不到的话，说明所有的应用都运行完毕了，我们可以直接 panic 退出内核。
 
 注意：（第16行代码）在实际切换之前我们需要手动 drop 掉我们获取到的 ``TaskManagerInner`` 的可变引用。因为一般情况下它是在函数退出之后才会被自动释放，从而 ``TASK_MANAGER`` 的 ``inner`` 字段得以回归到未被借用的状态，之后可以再借用。如果不手动 drop 的话，编译器会在 ``__switch`` 返回时，也就是当前应用被切换回来的时候才 drop，这期间我们都不能修改 ``TaskManagerInner`` ，甚至不能读（因为之前是可变借用）。正因如此，我们需要在 ``__switch`` 前提早手动 drop 掉 ``inner`` 。
 
@@ -316,7 +312,7 @@
 
     impl TaskManager {
         fn find_next_task(&self) -> Option<usize> {
-            let inner = self.inner.borrow();
+            let inner = self.inner.exclusive_access();
             let current = inner.current_task;
             (current + 1..current + self.num_app + 1)
                 .map(|id| id % self.num_app)
@@ -345,7 +341,7 @@
 
 在应用真正跑起来之前，需要 CPU 第一次从内核态进入用户态。我们在第二章批处理系统中也介绍过实现方法，只需在内核栈上压入构造好的 Trap 上下文，然后 ``__restore`` 即可。本章的思路大致相同，但是有一些变化。
 
-当被任务切换出去的应用即将再次运行的时候，它实际上是通过 ``__switch`` 函数又完成一次任务切换，只是这次是被切换进来，取得了CPU的使用权。如果该应用是之前被切换出去的，那么此时它的内核栈上应该有 Trap 上下文和任务上下文，切换机制可以正常工作。但是如果应用是第一次被执行，那内核应该怎么办呢？类似构造Trap上下文的方法，内核需要在应用的内核栈上构造一个用于第一次执行的任务上下文。我们是在创建 ``TaskManager`` 的全局实例 ``TASK_MANAGER`` 的时候来进行这个初始化的。
+当被任务切换出去的应用即将再次运行的时候，它实际上是通过 ``__switch`` 函数又完成一次任务切换，只是这次是被切换进来，取得了CPU的使用权。如果该应用是之前被切换出去的，那么它需要有任务上下文和内核栈上的 Trap 上下文，让切换机制可以正常工作。但是如果应用是第一次被执行，那内核应该怎么办呢？类似构造Trap上下文的方法，内核需要在应用的任务控制块上构造一个用于第一次执行的任务上下文。我们是在创建 ``TaskManager`` 的全局实例 ``TASK_MANAGER`` 的时候来进行这个初始化的。
 
 .. code-block:: rust
 
@@ -373,18 +369,14 @@
         fn get_sp(&self) -> usize {
             self.data.as_ptr() as usize + KERNEL_STACK_SIZE
         }
-        pub fn push_context(&self, trap_cx: TrapContext, task_cx: TaskContext) -> &'static mut TaskContext {
-            unsafe {
-                let trap_cx_ptr = (self.get_sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
-                *trap_cx_ptr = trap_cx;
-                let task_cx_ptr = (trap_cx_ptr as usize - core::mem::size_of::<TaskContext>()) as *mut TaskContext;
-                *task_cx_ptr = task_cx;
-                task_cx_ptr.as_mut().unwrap()
-            }
+        pub fn push_context(&self, trap_cx: TrapContext) -> usize {
+            let trap_cx_ptr = (self.get_sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
+            unsafe { *trap_cx_ptr = trap_cx; }
+            trap_cx_ptr as usize
         }
     }
 
-这里 ``KernelStack`` 的 ``push_context`` 方法先压入一个和之前相同的 Trap 上下文，再在它上面压入一个任务上下文，然后返回任务上下文的地址。这个任务上下文是我们通过 ``TaskContext::goto_restore`` 构造的：
+这里 ``KernelStack`` 的 ``push_context`` 方法先压入一个和之前相同的 Trap 上下文，然后返回Trap上下文的地址。这个任务上下文是我们通过 ``TaskContext::goto_restore`` 构造的：
 
 .. code-block:: rust
 
@@ -413,27 +405,31 @@
     // os/src/task/mod.rs
 
     impl TaskManager {
-        fn run_first_task(&self) {
-            self.inner.borrow_mut().tasks[0].task_status = TaskStatus::Running;
-            let next_task_cx_ptr2 = self.inner.borrow().tasks[0].get_task_cx_ptr2();
-            let _unused: usize = 0;
+        fn run_first_task(&self) -> ! {
+            let mut inner = self.inner.exclusive_access();
+            let task0 = &mut inner.tasks[0];
+            task0.task_status = TaskStatus::Running;
+            let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
+            drop(inner);
+            let mut _unused = TaskContext::zero_init();
+            // before this, we should drop local variables that must be dropped manually
             unsafe {
                 __switch(
-                    &_unused as *const _,
-                    next_task_cx_ptr2,
+                    &mut _unused as *mut TaskContext,
+                    next_task_cx_ptr,
                 );
             }
+            panic!("unreachable in run_first_task!");
         }
-    }
 
     pub fn run_first_task() {
         TASK_MANAGER.run_first_task();
     }
 
-这里我们取出即将最先执行的编号为 0 的应用的 ``task_cx_ptr2`` 并希望能够切换过去。注意 ``__switch`` 有两个参数分别表示当前应用和即将切换到的应用的 ``task_cx_ptr2`` ，其第一个参数存在的意义是记录当前应用的任务上下文被保存在哪里，也就是当前应用内核栈的栈顶，这样之后才能继续执行该应用。但在 ``run_first_task`` 的时候，我们并没有执行任何应用， ``__switch`` 前半部分的保存仅仅是在启动栈上保存了一些之后不会用到的数据，自然也无需记录启动栈栈顶的位置。
+这里我们取出即将最先执行的编号为 0 的应用的任务上下文指针 ``next_task_cx_ptr`` 并希望能够切换过去。注意 ``__switch`` 有两个参数分别表示当前应用和即将切换到的应用的任务上下文指针，其第一个参数存在的意义是记录当前应用的任务上下文被保存在哪里，也就是当前应用内核栈的栈顶，这样之后才能继续执行该应用。但在 ``run_first_task`` 的时候，我们并没有执行任何应用， ``__switch`` 前半部分的保存仅仅是在启动栈上保存了一些之后不会用到的数据，自然也无需记录启动栈栈顶的位置。
 
 因此，我们显式声明了一个 ``_unused`` 变量，并将它的地址作为第一个参数传给 ``__switch`` ，这样保存一些寄存器之后的启动栈栈顶的位置将会保存在此变量中。然而无论是此变量还是启动栈我们之后均不会涉及到，一旦应用开始运行，我们就开始在应用的用户栈和内核栈之间开始切换了。这里声明此变量的意义仅仅是为了避免覆盖到其他数据。
 
-我们的“始初龙”协作式操作系统就算是实现完毕了。它支持把多个应用的代码和数据放置到内存中；并能够执行每个应用；在应用程序发出 ``sys_yeild`` 系统调用时，切换应用，从而让CPU尽可能忙于每个应用的计算任务，提高了任务调度的灵活性和CPU的使用效率。但“始初龙”协作式操作系统中任务调度的主动权在于应用程序的“自觉性”上，操作系统自身缺少强制的任务调度的手段，下一节我们将开始改进这方面的问题。
+我们的“始初龙”协作式操作系统就算是实现完毕了。它支持把多个应用的代码和数据放置到内存中；并能够执行每个应用；在应用程序发出 ``sys_yeild`` 系统调用时，能切换应用，从而让CPU尽可能忙于每个应用的计算任务，提高了任务调度的灵活性和CPU的使用效率。但“始初龙”协作式操作系统中任务调度的主动权在于应用程序的“自觉性”上，操作系统自身缺少强制的任务调度的手段，下一节我们将开始改进这方面的问题。
 
 .. [#eoraptor] 始初龙（也称始盗龙）是后三叠纪时期的两足食肉动物，也是目前所知最早的恐龙，它们只有一米长，却代表着恐龙的黎明。
