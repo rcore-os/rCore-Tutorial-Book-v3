@@ -252,18 +252,18 @@
 接下来就需要在内核中实现简化版的进程管理机制并支持新增的系统调用。在本章第二小节 :doc:`/chapter5/2core-data-structures` 中我们对一些进程管理机制相关的数据结构进行了重构或者修改：
 
 - 为了支持基于应用名而不是应用 ID 来查找应用 ELF 可执行文件，从而实现灵活的应用加载，在 ``os/build.rs`` 以及 ``os/src/loader.rs`` 中更新了 ``link_app.S`` 的格式使得它包含每个应用的名字，另外提供 ``get_app_data_by_name`` 接口获取应用的 ELF 数据。
-- 在本章之前，任务管理器 ``TaskManager`` 不仅负责管理所有的任务状态，还维护着我们的 CPU 当前正在执行哪个任务。这种设计耦合度较高，我们将后一个功能分离到 ``os/src/task/processor.rs`` 中的处理器管理结构 ``Processor`` 中，它负责管理 CPU 上执行的任务和一些其他信息；而 ``os/src/task/manager.rs`` 中的任务管理器 ``TaskManager`` 仅负责管理所有任务。
+- 在本章之前，任务管理器 ``TaskManager`` 不仅负责管理所有的任务状态，还维护着 CPU 当前正在执行的任务。这种设计耦合度较高，我们将后一个功能分离到 ``os/src/task/processor.rs`` 中的处理器管理结构 ``Processor`` 中，它负责管理 CPU 上执行的任务和一些其他信息；而 ``os/src/task/manager.rs`` 中的任务管理器 ``TaskManager`` 仅负责管理所有任务。
 - 针对新的进程模型，我们复用前面章节的任务控制块 ``TaskControlBlock`` 作为进程控制块来保存进程的一些信息，相比前面章节还要新增 PID、内核栈、应用数据大小、父子进程、退出码等信息。它声明在 ``os/src/task/task.rs`` 中。
-- 从本章开始，进程的 PID 将作为查找进程控制块的索引，这样进程的内核栈在内核地址空间中的位置（进程控制块中的一项）就可以通过进程的 PID 来找到。 同时我们还面向进程控制块提供一些相应的资源自动回收机制。具体实现，可以参考 ``os/src/task/pid.rs`` 。
+- 从本章开始，进程的 PID 将作为查找进程控制块的索引，这样就可以通过进程的 PID 来查找到进程的内核栈等各种进程相关信息。 同时我们还面向进程控制块提供相应的资源自动回收机制。具体实现可以参考 ``os/src/task/pid.rs`` 。
 
 有了这些数据结构的支撑，我们在本章第三小节 :doc:`/chapter5/3implement-process-mechanism` 实现进程管理机制。它可以分成如下几个方面：
 
-- 初始进程的自动创建。在内核初始化的时候需要调用 ``os/src/task/mod.rs`` 中的 ``add_initproc`` 函数，它会调用 ``TaskControlBlock::new`` 读取并解析初始应用 ``initproc`` 的 ELF 文件数据并创建初始进程 ``INITPROC`` ，随后会将它加入到全局任务管理器 ``TASK_MANAGER`` 中参与调度。
-- 进程切换机制。当一个进程退出或者是主动/被动交出 CPU 使用权之后需要由内核将 CPU 使用权交给其他进程。在本章中我们沿用 ``os/src/task/mod.rs`` 中的 ``suspend_current_and_run_next`` 和 ``exit_current_and_run_next`` 两个接口来实现进程切换功能，但是需要适当调整它们的实现。我们需要调用 ``os/src/task/task.rs`` 中的 ``schedule`` 函数进行进程切换，它会首先切换到处理器的 idle 控制流（即 ``os/src/task/processor`` 的 ``Processor::run`` 方法），然后在里面选取要切换到的进程并切换过去。
-- 进程调度机制。在进程切换的时候我们需要选取一个进程切换过去。选取进程逻辑可以参考 ``os/src/task/manager.rs`` 中的 ``TaskManager::fetch_task`` 方法。
-- 进程生成机制。这主要是指 ``fork/exec`` 两个系统调用。它们的实现分别可以在 ``os/src/syscall/process.rs`` 中找到，分别基于 ``os/src/process/task.rs`` 中的 ``TaskControlBlock::fork/exec`` 。
-- 进程资源回收机制。当一个进程主动退出或出错退出的时候，在 ``exit_current_and_run_next`` 中会立即回收一部分资源并在进程控制块中保存退出码；而需要等到它的父进程通过 ``waitpid`` 系统调用（与 ``fork/exec`` 两个系统调用放在相同位置）捕获到它的退出码之后，它的进程控制块才会被回收，从而所有资源都被回收。
-- 进程的I/O输入机制。为了支持用户终端 ``user_shell`` 读取用户键盘输入的功能，还需要实现 ``read`` 系统调用，它可以在 ``os/src/syscall/fs.rs`` 中找到。
+- 初始进程的创建：在内核初始化的时候需要调用 ``os/src/task/mod.rs`` 中的 ``add_initproc`` 函数，它会调用 ``TaskControlBlock::new`` 读取并解析初始应用 ``initproc`` 的 ELF 文件数据并创建初始进程 ``INITPROC`` ，随后会将它加入到全局任务管理器 ``TASK_MANAGER`` 中参与调度。
+- 进程切换机制：当一个进程退出或者是主动/被动交出 CPU 使用权之后，需要由内核将 CPU 使用权交给其他进程。在本章中我们沿用 ``os/src/task/mod.rs`` 中的 ``suspend_current_and_run_next`` 和 ``exit_current_and_run_next`` 两个接口来实现进程切换功能，但是需要适当调整它们的实现。我们需要调用 ``os/src/task/task.rs`` 中的 ``schedule`` 函数进行进程切换，它会首先切换到处理器的 idle 控制流（即 ``os/src/task/processor`` 的 ``Processor::run`` 方法），然后在里面选取要切换到的进程并切换过去。
+- 进程调度机制：在进程切换的时候我们需要选取一个进程切换过去。选取进程逻辑可以参考 ``os/src/task/manager.rs`` 中的 ``TaskManager::fetch_task`` 方法。
+- 进程生成机制：这主要是指 ``fork/exec`` 两个系统调用。它们的实现分别可以在 ``os/src/syscall/process.rs`` 中找到，分别基于 ``os/src/process/task.rs`` 中的 ``TaskControlBlock::fork/exec`` 。
+- 进程资源回收机制：当一个进程主动退出或出错退出的时候，在 ``exit_current_and_run_next`` 中会立即回收一部分资源并在进程控制块中保存退出码；而需要等到它的父进程通过 ``waitpid`` 系统调用（与 ``fork/exec`` 两个系统调用放在相同位置）捕获到它的退出码之后，它的进程控制块才会被回收，从而该进程的所有资源都被回收。
+- 进程的I/O输入机制：为了支持用户终端 ``user_shell`` 读取用户键盘输入的功能，还需要实现 ``read`` 系统调用，它可以在 ``os/src/syscall/fs.rs`` 中找到。
 
 
 .. [#troodon] 伤齿龙是一种灵活的小型恐龙，生存于7500万年前的晚白垩纪，伤齿龙的脑袋与身体的比例是恐龙中最大之一，因此伤齿龙被认为是最有智能的恐龙之一。
