@@ -152,7 +152,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>库操作系统（Library OS，LibOS）</strong></p>
-<p>LibOS以函数库的形式存在，为应用程序提供操作系统的基本功能。它最早来源于MIT的Exokernel（外核）架构设计 <a class="footnote-reference brackets" href="#exokernel" id="id3">1</a> 中，即把传统的单体内核分为两部分，一部分以库的形式（即LibOS）与应用程序紧耦合，另外一部分（即外核）仅仅听最基础的硬件保护和复用机制，来给LibOS提供基本的硬件访问服务。这样的设计思路可以针对应用程序的特征定制LibOS，达到高性能的目标。</p>
+<p>LibOS以函数库的形式存在，为应用程序提供操作系统的基本功能。它最早来源于MIT的Exokernel（外核）架构设计 <a class="footnote-reference brackets" href="#exokernel" id="id3">1</a> 中，即把传统的单体内核分为两部分，一部分以库的形式（即LibOS）与应用程序紧耦合，另外一部分（即外核）仅仅包含最基础的硬件保护和复用机制，来给LibOS提供基本的硬件访问服务。这样的设计思路可以针对应用程序的特征定制LibOS，达到高性能的目标。</p>
 </div>
 </section>
 <section id="println">
@@ -164,8 +164,15 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p id="term-cross-compile">这会对于 cargo 工具在 os 目录下的行为进行调整：现在默认会使用 riscv64gc 作为目标平台而不是原先的默认 x86_64-unknown-linux-gnu。事实上，这是一种编译器运行的平台(x86_64)与可执行文件运行的目标平台(riscv-64)不同的情况。我们把这种情况称为 <strong>交叉编译</strong> (Cross Compile)。</p>
-<p>当然，这只是使得我们之后在 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> 的时候不必再加上 <code class="docutils literal notranslate"><span class="pre">--target</span></code> 参数的一个小 trick。如果我们现在执行 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> ，还是会和上一小节一样出现找不到标准库 std 的错误。于是我们开始着手移除标准库，当然，这会产生一些副作用。</p>
-<p>我们在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的开头加上一行 <code class="docutils literal notranslate"><span class="pre">#![no_std]</span></code> 来告诉 Rust 编译器不使用 Rust 标准库 std 转而使用核心库 core。编译器报出如下错误：</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>本地编译与交叉编译</strong></p>
+<p>下面指的 <strong>平台</strong> 主要由CPU硬件和操作系统这两个要素组成。</p>
+<p>本地编译，即在当平台下编译出来的程序，也只是放到当前平台下运行。如在Linux x86-64平台上，编写代码并编译成可在Linux x86-64平台上执行的程序。</p>
+<p>交叉编译，是一个与本地编译相对应的概念，即在一种平台上编译出在另一种平台上运行的程序。程序编译的环境与程序运行的环境不一样。如我们后续会讲到，在Linux x86-64平台上，编写代码并编译成可在rCore （这是我们要编写的操作系统内核）riscv64gc（这是CPU硬件）平台上执行的程序。</p>
+</div>
+<p>当然，这只是使得我们之后在 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> 的时候不必再加上 <code class="docutils literal notranslate"><span class="pre">--target</span></code> 参数的一个小 trick。如果我们现在执行 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">build</span></code> ，还是会和上一小节一样出现找不到标准库 std 的错误。于是我们需要在着手移除标准库的过程中一步一步地解决这些错误。</p>
+<p>我们在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的开头加上一行 <code class="docutils literal notranslate"><span class="pre">#![no_std]</span></code> 来告诉 Rust 编译器不使用 Rust 标准库 std 转而使用核心库 core（core库不需要操作系统的支持）。编译器报出如下错误：</p>
 <div class="admonition error">
 <p class="admonition-title">错误</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build
@@ -178,7 +185,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 </div>
-<p>我们之前提到过， println! 宏是由标准库 std 提供的，且会使用到一个名为 write 的系统调用。现在我们的代码功能还不足以自己实现一个 println! 宏。由于使用了系统调用也不能在核心库 core 中找到它，所以我们目前先通过将它注释掉来绕过它。</p>
+<p>我们之前提到过， println! 宏是由标准库 std 提供的，且会使用到一个名为 write 的系统调用。现在我们的代码功能还不足以自己实现一个 println! 宏。由于程序使用了系统调用，但不能在核心库 core 中找到它，所以我们目前先通过将把 println! 宏注释掉，来暂时绕过这个问题。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>Rust std库和core库</strong></p>
@@ -279,13 +286,13 @@ error: requires `start` lang_item
 <span class="go">   target/riscv64gc-unknown-none-elf/debug/os:       file format elf64-littleriscv</span>
 </pre></div>
 </div>
-<p>通过 <code class="docutils literal notranslate"><span class="pre">file</span></code> 工具对二进制程序 <code class="docutils literal notranslate"><span class="pre">os</span></code> 的分析可以看到它好像是一个合法的 RV64 执行程序，但通过 <code class="docutils literal notranslate"><span class="pre">rust-readobj</span></code> 工具进一步分析，发现它的入口地址 Entry 是 <code class="docutils literal notranslate"><span class="pre">0</span></code> ，这就比较奇怪了，地址从 0 执行，好像不对。再通过 <code class="docutils literal notranslate"><span class="pre">rust-objdump</span></code> 工具把它反汇编，可以看到没有生成汇编代码。所以，我们可以断定，这个二进制程序虽然合法，但它是一个空程序。这不是我们希望的，我们希望的是与源码对应的有具体内容的执行程序。为什么会这样呢？原因是我们缺少了编译器需要找到的入口函数 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 。</p>
+<p>通过 <code class="docutils literal notranslate"><span class="pre">file</span></code> 工具对二进制程序 <code class="docutils literal notranslate"><span class="pre">os</span></code> 的分析可以看到它好像是一个合法的 RISC-V 64 执行程序，但通过 <code class="docutils literal notranslate"><span class="pre">rust-readobj</span></code> 工具进一步分析，发现它的入口地址 Entry 是 <code class="docutils literal notranslate"><span class="pre">0</span></code> ，这就比较奇怪了，地址从 0 执行，好像不对。再通过 <code class="docutils literal notranslate"><span class="pre">rust-objdump</span></code> 工具把它反汇编，可以看到没有生成汇编代码。所以，我们可以断定，这个二进制程序虽然合法，但它是一个空程序。这不是我们希望的，我们希望的是与源码对应的有具体内容的执行程序。为什么会这样呢？原因是我们缺少了编译器需要找到的入口函数 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 。</p>
 <p>在下面几节，我们将建立有支持显示字符串的最小执行环境。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>在 x86_64 平台上移除标准库依赖</strong></p>
 <p>有兴趣的同学可以将目标平台换回之前默认的 <code class="docutils literal notranslate"><span class="pre">x86_64-unknown-linux-gnu</span></code> 并重复本小节所做的事情，比较两个平台从 ISA 到操作系统
-的差异。可以参考 <a class="reference external" href="https://os.phil-opp.com/freestanding-rust-binary/">BlogOS 的相关内容</a> 。</p>
+的差异。可以参考 <a class="reference external" href="https://os.phil-opp.com/freestanding-rust-binary/">BlogOS 的相关内容</a> <a class="footnote-reference brackets" href="#id7" id="id5">2</a> 。</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
@@ -299,6 +306,9 @@ error: requires `start` lang_item
 </ol>
 </li>
 </ol>
+</dd>
+<dt class="label" id="id7"><span class="brackets"><a class="fn-backref" href="#id5">2</a></span></dt>
+<dd><p><a class="reference external" href="https://os.phil-opp.com/freestanding-rust-binary/">https://os.phil-opp.com/freestanding-rust-binary/</a></p>
 </dd>
 </dl>
 </section>

@@ -51,7 +51,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
@@ -160,16 +160,32 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>执行环境</p></li>
 </ul>
 </div></blockquote>
-<p>这些知识与编译器有直接的关系，而且操作系统的执行过程，会涉及到这些知识。如果读者已经了解上述基础知识，可直接跳过本节，进入下一节学习。</p>
+<p>这些知识与编译原理和组成原理有直接的关系，而且同学理解操作系统的执行过程，会涉及到这些知识。如果同学们已经了解上述基础知识，可直接跳过本节，进入下一节学习。</p>
 </section>
 <section id="term-physical-memory">
 <span id="term-physical-address"></span><span id="id3"></span><h2>物理内存与物理地址<a class="headerlink" href="#term-physical-memory" title="永久链接至标题"></a></h2>
 <p>物理内存是计算机体系结构中一个重要的组成部分。在存储方面，CPU 唯一能够直接访问的只有物理内存中的数据，它可以通过访存指令来达到这一目的。
 从 CPU 的视角看来，可以将物理内存看成一个大字节数组，而物理地址则对应于一个能够用来访问数组中某个元素的下标。与我们日常编程习惯不同的
-是，该下标通常不以 0 开头，而通常以 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头。简言之， CPU 可以通过物理地址来 <strong>逐字节</strong> 地访问物理内存中保存的
+是，该下标通常不以 0 开头，而通常以一个常数，如 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头。简言之， CPU 可以通过物理地址来寻址，并 <strong>逐字节</strong> 地访问物理内存中保存的
 数据。</p>
-<p>值得一提的是，当 CPU 以多个字节（比如 2/4/8 或更多）为单位访问物理内存（事实上并不局限于物理内存）中的数据时，就有可能会引入端序和
-地址对齐的问题。由于这并不是重点，我们在这里不展开说明。</p>
+<p>值得一提的是，当 CPU 以多个字节（比如 2/4/8 或更多）为单位访问物理内存（事实上并不局限于物理内存，也包括I/O外设的数据空间）中的数据时，就有可能会引入端序（也称字节顺序）和
+内存地址对齐的问题。由于这并不是重点，我们在这里不展开说明。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<blockquote>
+<div><p><strong>端序或尾序（英语：Endianness）</strong></p>
+</div></blockquote>
+<p>端序或尾序（英语：Endianness），又称字节顺序。在计算机科学领域中，指电脑内存中或在数字通信链路中，多字节组成的字（Word）的字节（Byte）的排列顺序。字节的排列方式有两个通用规则。例如，将一个多位数的低位放在较小的地址处，高位放在较大的地址处，则称小端序（little-endian）；反之则称大端序（big-endian）。常见的x86、RISC-V等处理器采用的是小端序。</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<blockquote>
+<div><p><strong>内存地址对齐</strong></p>
+</div></blockquote>
+<p>内存地址对齐是内存中的数据排列，以及CPU访问内存数据的方式，包含了基本数据对齐和结构体数据对齐的两部分。CPU在内存中读写数据是按字节块进行操作，理论上任意类型的变量访问可以从内存的任何地址开始，但在计算机系统中，CPU访问内存是通过数据总线（决定了每次读取的数据位数）和地址总线（决定了寻址范围）来进行的，基于计算机的物理组成和性能需求，CPU一般会要求访问内存数据的首地址的值为4 bit或者8 bit的整数倍。</p>
+<p>基本类型数据对齐是指数据在内存中的偏移地址必须为一个字的整数倍，这种存储数据的方式，可以提升系统在读取数据时的性能。结构体数据对齐，是指在结构体中的上一个数据域结束和下一个数据域开始的地方填充一些无用的字节，以保证每个数据域（假定是基本类型数据）都能够对齐（即按基本类型数据对齐）。</p>
+<p>对于RISC-V处理器而言，load/store指令进行数据访存时，数据在内存中的地址应该对齐。如果访存32位数据，内存地址应当按32位（4字节）对齐，。如果数据的地址没有对齐，执行访存操作将产生异常。这也是在学习内核编程中经常碰到的一种bug。</p>
+</div>
 </section>
 <section id="function-call-and-stack">
 <span id="id4"></span><h2>函数调用与栈<a class="headerlink" href="#function-call-and-stack" title="永久链接至标题"></a></h2>
@@ -238,22 +254,22 @@ commentsRunWhenDOMLoaded(addUtterances);
 物理内存中的一个区域 <strong>保存</strong> (Save) 函数调用上下文中的寄存器；而在函数执行完毕后，我们会从内存中同样的区域读取并 <strong>恢复</strong> (Restore) 函数调用上下文
 中的寄存器。实际上，这一工作是由子函数的调用者和被调用者（也就是子函数自身）合作完成。函数调用上下文中的寄存器被分为如下两类：</p>
 <span id="term-callee-saved"></span><ul class="simple" id="term-caller-saved">
-<li><p><strong>被调用者保存</strong> (Callee-Saved) 寄存器，即被调用的函数保存的寄存器，即由被调用的函数来保证在调用它前后，这些寄存器保持不变；</p></li>
-<li><p><strong>调用者保存</strong> (Caller-Saved) 寄存器，被调用的函数可能会覆盖这些寄存器，所以需要发起调用的函数来保存这些寄存器。</p></li>
+<li><p><strong>被调用者保存(Callee-Saved) 寄存器</strong> ：被调用的函数可能会覆盖这些寄存器，需要被调用的函数来保存的寄存器，即由被调用的函数来保证在调用前后，这些寄存器保持不变；</p></li>
+<li><p><strong>调用者保存(Caller-Saved) 寄存器</strong> ：被调用的函数可能会覆盖这些寄存器，需要发起调用的函数来保存的寄存器，即由发起调用的函数来保证在调用前后，这些寄存器保持不变。</p></li>
 </ul>
 <p>从名字中可以看出，函数调用上下文由调用者和被调用者分别保存，其具体过程分别如下：</p>
 <ul class="simple">
-<li><p>调用者：首先保存不希望在函数调用过程中发生变化的 <strong>调用者保存寄存器</strong> ，然后通过 jal/jalr 指令调用子函数，返回之后恢复这些寄存器。</p></li>
-<li><p>被调用者：在被调用函数的起始，先保存函数执行过程中被用到的 <strong>被调用者保存寄存器</strong> ，然后执行函数，最后在函数退出之前恢复这些寄存器。</p></li>
+<li><p>调用函数：首先保存不希望在函数调用过程中发生变化的 <strong>调用者保存寄存器</strong> ，然后通过 jal/jalr 指令调用子函数，返回之后恢复这些寄存器。</p></li>
+<li><p>被调用函数：在被调用函数的起始，先保存函数执行过程中被用到的 <strong>被调用者保存寄存器</strong> ，然后执行函数，最后在函数退出之前恢复这些寄存器。</p></li>
 </ul>
 <p id="term-epilogue"><span id="term-prologue"></span>我们发现无论是调用函数还是被调用函数，都会因调用行为而需要两段匹配的保存和恢复寄存器的汇编代码，可以分别将其称为 <strong>开场</strong> (Prologue) 和
 <strong>结尾</strong> (Epilogue)，它们会由编译器帮我们自动插入，来完成相关寄存器的保存与恢复。一个函数既有可能作为调用者调用其他函数，也有可能作为被调用者被其他函数调用。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>寄存器保存与编译器优化</strong></p>
-<p>这里值得说明的是，调用者和被调用者实际上只需分别按需保存调用者保存寄存器和被调用者保存寄存器的一个子集。对于调用函数而言，在调用子函数的时候，即使子函数修改了 <strong>调用者保存寄存器</strong> ，编译器在调用函数中插入的代码会恢复这些寄存器；而对于被调用函数而言，在其执行过程中没有
-使用到的被调用者保存寄存器也无需保存。编译器作为寄存器的使用者自然知道在这两个场景中，分别有哪些值得保存的寄存器。
-从这一角度也可以理解为何要将函数调用上下文分成两类：可以在尽可能早的时候优化掉一些无用的寄存器保存与恢复。</p>
+<p>这里值得说明的是，调用者和被调用者实际上只需分别按需保存调用者保存寄存器和被调用者保存寄存器的一个子集。对于调用函数而言，在调用子函数的时候，即使子函数修改了调用者保存寄存器，编译器在调用函数中插入的代码会恢复这些寄存器；而对于被调用函数而言，在其执行过程中没有
+使用到的被调用者保存寄存器也无需保存。编译器在进行后端代码生成时，知道在这两个场景中分别有哪些值得保存的寄存器。
+从这一角度也可以理解为何要将函数调用上下文分成两类：可以让编译器尽可能早地优化掉一些无用的寄存器保存与恢复操作，提高程序的执行性能。</p>
 </div>
 </section>
 <section id="term-calling-convention">
@@ -285,35 +301,41 @@ commentsRunWhenDOMLoaded(addUtterances);
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>a0~a7</p></td>
+<tr class="row-even"><td><p>a0~a7（ <code class="docutils literal notranslate"><span class="pre">x10~x17</span></code> ）</p></td>
 <td><p>调用者保存</p></td>
 <td><p>用来传递输入参数。其中的 a0 和 a1 还用来保存返回值。</p></td>
 </tr>
-<tr class="row-odd"><td><p>t0~t6</p></td>
+<tr class="row-odd"><td><p>t0~t6( <code class="docutils literal notranslate"><span class="pre">x5~x7,x28~x31</span></code> )</p></td>
 <td><p>调用者保存</p></td>
-<td><p>作为临时寄存器使用，在函数中可以随意使用无需保存。</p></td>
+<td><p>作为临时寄存器使用，在被调函数中可以随意使用无需保存。</p></td>
 </tr>
-<tr class="row-even"><td><p>s0~s11</p></td>
+<tr class="row-even"><td><p>s0~s11( <code class="docutils literal notranslate"><span class="pre">x8~x9,x18~x27</span></code> )</p></td>
 <td><p>被调用者保存</p></td>
-<td><p>作为临时寄存器使用，保存后才能在函数中使用。</p></td>
+<td><p>作为临时寄存器使用，被调函数保存后才能在被调函数中使用。</p></td>
 </tr>
 </tbody>
 </table>
 <p>剩下的 5 个通用寄存器情况如下：</p>
 <ul class="simple">
-<li><p>zero(x0) 之前提到过，它恒为零，函数调用不会对它产生影响；</p></li>
-<li><p>ra(x1) 是调用者保存的，不过它并不会在每次调用子函数的时候都保存一次，而是在函数的开头和结尾保存/恢复即可。虽然  <code class="docutils literal notranslate"><span class="pre">ra</span></code> 看上去和其它被调用者保存寄存器保存的位置一样，但是它确实是调用者保存的。</p></li>
-<li><p>sp(x2) 是被调用者保存的。这个是之后就会提到的栈指针寄存器。</p></li>
-<li><p>gp(x3) 和 tp(x4) 在一个程序运行期间都不会变化，因此不必放在函数调用上下文中。它们的用途在后面的章节会提到。</p></li>
+<li><p>zero( <code class="docutils literal notranslate"><span class="pre">x0</span></code> ) 之前提到过，它恒为零，函数调用不会对它产生影响；</p></li>
+<li><p>ra( <code class="docutils literal notranslate"><span class="pre">x1</span></code> ) 是调用者保存的，不过它并不会在每次调用子函数的时候都保存一次，而是在函数的开头和结尾保存/恢复即可。虽然  <code class="docutils literal notranslate"><span class="pre">ra</span></code> 看上去和其它被调用者保存寄存器保存的位置一样，但是它确实是调用者保存的。</p></li>
+<li><p>sp( <code class="docutils literal notranslate"><span class="pre">x2</span></code> ) 是被调用者保存的。这个是之后就会提到的栈指针 (Stack Pointer) 寄存器。</p></li>
+<li><p>fp( <code class="docutils literal notranslate"><span class="pre">s0</span></code> )，它既可作为s0临时寄存器，也可作为栈帧指针（Frame Pointer）寄存器，表示当前栈帧的起始位置，是一个被调用者保存寄存器。</p></li>
+<li><p>gp( <code class="docutils literal notranslate"><span class="pre">x3</span></code> ) 和 tp( <code class="docutils literal notranslate"><span class="pre">x4</span></code> ) 在一个程序运行期间都不会变化，因此不必放在函数调用上下文中。它们的用途在后面的章节会提到。</p></li>
 </ul>
 <p>更加详细的内容可以参考 Cornell 大学的 <a class="reference external" href="http://www.cs.cornell.edu/courses/cs3410/2019sp/schedule/slides/10-calling-notes-bw.pdf">课件内容</a> 。</p>
 </div>
 <p id="term-stack-frame"><span id="term-stack-pointer"></span><span id="term-stack"></span>之前我们讨论了函数调用上下文的保存/恢复时机以及寄存器的选择，但我们并没有详细说明这些寄存器保存在哪里，只是用“内存中的一块区域”草草带过。实际上，
-它更确切的名字是 <strong>栈</strong> (Stack) 。 sp(x2) 常用来保存 <strong>栈指针</strong> (Stack Pointer)，它指向内存中栈顶地址。在
+它更确切的名字是 <strong>栈</strong> (Stack) 。  <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器常用来保存 <strong>栈指针</strong> (Stack Pointer)，它指向内存中栈顶地址。在
 RISC-V 架构中，栈是从高地址向低地址增长的。在一个函数中，作为起始的开场代码负责分配一块新的栈空间，即将 <code class="docutils literal notranslate"><span class="pre">sp</span></code>
 的值减小相应的字节数即可，于是物理地址区间 <span class="math notranslate nohighlight">\([\text{新sp},\text{旧sp})\)</span> 对应的物理内存的一部分便可以被这个函数用来进行函数调用上下文的保存/恢复
 ，这块物理内存被称为这个函数的 <strong>栈帧</strong> (Stackframe)。同理，函数中的结尾代码负责将开场代码分配的栈帧回收，这也仅仅需要
 将 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 的值增加相同的字节数回到分配之前的状态。这也可以解释为什么 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 是一个被调用者保存寄存器。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>栈帧 stack frame</strong></p>
+<p>我们知道程序在执行函数调用时，调用函数和被调用函数使用的是同一个栈。在通常的情况下，我们并不需要区分调用函数函数和被调用函数分别使用了栈的哪个部分。但是，当我们需要在执行过程中对函数调用进行调试或backtrace的时候，这一信息就很重要了。简单的说，栈帧（stack frame）就是一个函数所使用的栈的一部分区域，所有函数的的栈帧串起来就组成了一个完整的栈。一般而言，当前执行函数的栈帧的两个边界分别由栈指针 (Stack Pointer)寄存器和栈帧指针（frame pointer）寄存器来限定。</p>
+</div>
 <figure class="align-center" id="id11">
 <img alt="../_images/CallStack.png" src="../_images/CallStack.png" />
 <figcaption>
@@ -345,7 +367,7 @@ RISC-V 架构中，栈是从高地址向低地址增长的。在一个函数中�
 <li><p>其他被调用者保存寄存器 <code class="docutils literal notranslate"><span class="pre">s1</span></code> ~ <code class="docutils literal notranslate"><span class="pre">s11</span></code> ；</p></li>
 <li><p>函数所使用到的局部变量。</p></li>
 </ul>
-<p>因此，栈上 <code class="docutils literal notranslate"><span class="pre">fp</span></code> 信息实际上保存了一条完整的函数调用链，通过适当的方式我们可以实现对函数调用关系的跟踪。</p>
+<p>因此，栈上多个 <code class="docutils literal notranslate"><span class="pre">fp</span></code> 信息实际上保存了一条完整的函数调用链，通过适当的方式我们可以实现对函数调用关系的跟踪。</p>
 <p>至此，我们基本上说明了函数调用是如何基于栈来实现的。不过我们可以暂时先忽略掉这些细节，因为我们现在只是需要在初始化阶段完成栈的设置，也就是
 设置好栈指针 <code class="docutils literal notranslate"><span class="pre">`sp</span></code> 寄存器，编译器会帮我们自动完成后面的函数调用相关机制的代码生成。麻烦的是， <code class="docutils literal notranslate"><span class="pre">sp</span></code> 的值也不能随便设置，至少我们需要保证它指向合法的物理内存，
 而且不能与程序的其他代码、数据段相交，因为在函数调用的过程中，栈区域里面的内容会被修改。如何保证这一点呢？此外，之前我们还提到我们编写的
@@ -403,6 +425,7 @@ gp 加上一个偏移量来访问的。</p></li>
 <li><p><a class="reference external" href="https://pdos.csail.mit.edu/6.828/2020/lec/l-riscv-slides.pdf">Lecture from MIT 6.828 2020</a></p></li>
 </ul>
 </div>
+<p>当同学读完本节后，建议再回头看看前面几节中涉及到的执行程序，通过各种工具静态和动态地分析一下这些函数在函数调用、内存布局、执行环境上，是否与本节讲的内容是一致的，从而能对应用程序的执行环境与操作系统的关系有更加全面的理解。</p>
 </section>
 </section>
 

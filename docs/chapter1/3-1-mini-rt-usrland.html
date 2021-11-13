@@ -153,7 +153,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <section id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
-<p>在这里，我们先设计实现一个用户态的最小执行环境（就是上节提到的用户态的LibOS）以支持最简单的用户态 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序，再改进这个最小执行环境，让它能在内核态运行（即可以在裸机上运行的嵌入式OS），支持裸机应用程序。这样设计实现的原因是，
+<p>本节的主要目标是通过设计实现应用程序最小执行环境来理解一个应用程序要正常执行所需要的一些非常基本的支持。
+在这里，我们先设计实现一个用户态的最小执行环境（就是上节提到的用户态LibOS）以支持最简单的用户态 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序，再改进这个最小执行环境，让它能在内核态运行（即可以在裸机上运行的嵌入式OS），支持裸机应用程序。这样设计实现的原因是，
 它能帮助我们理解这两个不同的执行环境在支持同样一个应用程序时的的相同和不同之处，这将加深对执行环境的理解，并对后续写自己的OS和运行在OS上的应用程序都有帮助。
 所以，本节将先建立一个用户态的最小执行环境，即 <strong>恐龙虾</strong> 操作系统 <a class="footnote-reference brackets" href="#shrimp" id="id3">1</a> 。</p>
 <p>本节开始我们将着手自己来实现之前被我们移除的 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 程序中用户态执行环境的功能。
@@ -172,7 +173,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>对上述代码重新编译，再用分析工具分析，可以看到：</p>
+<p>对上述代码重新编译，再用 <code class="docutils literal notranslate"><span class="pre">rust-readobj</span></code> 和  <code class="docutils literal notranslate"><span class="pre">rust-objdump</span></code> 等分析工具分析，可以看到：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">    Finished dev [unoptimized + debuginfo] target(s) in 0.06s</span>
@@ -208,7 +209,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>通过 <code class="docutils literal notranslate"><span class="pre">file</span></code> 工具对二进制程序 <code class="docutils literal notranslate"><span class="pre">os</span></code> 的分析可以看到它依然是一个合法的 RV64 执行程序，但通过 <code class="docutils literal notranslate"><span class="pre">rust-readobj</span></code> 工具进一步分析，发现它的入口地址 Entry 是 <code class="docutils literal notranslate"><span class="pre">0x11120</span></code> ，这好像是一个合法的地址。再通过 <code class="docutils literal notranslate"><span class="pre">rust-objdump</span></code> 工具把它反汇编，可以看到编译器生成的汇编代码！</p>
-<p>仔细读读这两条指令，发现就是一个死循环的汇编代码，且其第一条指令的地址与入口地址 Entry 的值一致，这说明编译器生成的目标执行程序已经是一个合理的程序了。如果我们用 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span> <span class="pre">target/riscv64gc-unknown-none-elf/debug/os</span></code> 执行这个程序，可以看到好像就是在执行死循环。</p>
+<p>仔细读读这两条指令，发现就是一个死循环的汇编代码，且其第一条指令的地址与入口地址 Entry 的值一致，这说明编译器生成的目标执行程序已经是一个合理的程序了。如果我们用 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span> <span class="pre">target/riscv64gc-unknown-none-elf/debug/os</span></code> 执行这个程序，没有输出，也不会退出，好像程序就是在执行死循环的效果。</p>
 </section>
 <section id="id6">
 <h3>程序正常退出<a class="headerlink" href="#id6" title="永久链接至标题"></a></h3>
@@ -236,16 +237,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>QEMU有两种运行模式： <code class="docutils literal notranslate"><span class="pre">User</span> <span class="pre">mode</span></code> 模式，即用户态模拟，如 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 程序，能够模拟不同处理器的用户态指令的执行，并可以直接解析ELF可执行文件，加载运行那些为不同处理器编译的用户级Linux应用程序（ELF可执行文件）；在翻译并执行不同应用程序中的不同处理器的指令时，如果碰到是系统调用相关的汇编指令，它会把不同处理器（如RISC-V）的Linux系统调用转换为本机处理器（如x86-64）上的Linux系统调用，这样就可以让本机Linux完成系统调用，并返回结果（再转换成RISC-V能识别的数据）给这些应用。 <code class="docutils literal notranslate"><span class="pre">System</span> <span class="pre">mode</span></code> 模式，即系统态模式，如 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 程序，能够模拟一个完整的基于不同CPU的硬件系统，包括处理器、内存及其他外部设备，支持运行完整的操作系统。</p>
 </div>
 <p>回顾一下最开始的输出 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 的简单应用程序，其入口函数名字是 <code class="docutils literal notranslate"><span class="pre">main</span></code> ，编译时用的是标准库 std 。它可以正常执行。再仔细想想，当一个应用程序出错的时候，最上层为操作系统的执行环境会把它给杀死。但如果一个应用的入口函数正常返回，执行环境应该优雅地让它退出才对。没错！目前的执行环境还缺了一个退出机制。</p>
-<p>先了解一下，操作系统会提供一个退出的系统调用服务接口，但应用程序调用这个接口，那这个程序就退出了。这里先给出代码：</p>
+<p>先了解一下，操作系统会提供一个退出的系统调用服务接口，如果应用程序调用这个接口，那这个程序就会在操作系统的帮助和管理下退出了。这里先给出代码：</p>
 <div class="highlight-rust notranslate" id="term-llvm-syscall"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
-<span class="cp">#![feature(llvm_asm)]</span><span class="w"></span>
+<span class="cp">#![feature(asm)]</span><span class="w"></span>
 
 <span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_EXIT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">93</span><span class="p">;</span><span class="w"></span>
 
 <span class="k">fn</span> <span class="nf">syscall</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">args</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">3</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ret</span>: <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
 <span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="fm">llvm_asm!</span><span class="p">(</span><span class="s">&quot;ecall&quot;</span><span class="w"></span>
+<span class="w">        </span><span class="fm">asm!</span><span class="p">(</span><span class="s">&quot;ecall&quot;</span><span class="w"></span>
 <span class="w">            </span>: <span class="s">&quot;={x10}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="p">)</span><span class="w"></span>
 <span class="w">            </span>: <span class="s">&quot;{x10}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x11}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x12}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x17}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"></span>
 <span class="w">            </span>: <span class="s">&quot;memory&quot;</span><span class="w"></span>
@@ -285,7 +286,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <section id="id7">
 <h2>有显示支持的用户态执行环境<a class="headerlink" href="#id7" title="永久链接至标题"></a></h2>
 <p>没有显示功能，终究觉得缺了点啥。在没有通常开发应用程序时常用的动态调试工具的情况下，其实能显示字符串，就已经能够满足绝大多数情况下的操作系统调试需求了。</p>
-<p>Rust 的 core 库内建了以一系列帮助实现显示字符的基本 Trait 和数据结构，函数等，我们可以对其中的关键部分进行扩展，就可以实现定制的 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 功能。</p>
+<p>Rust 的 core 库内建了以一系列帮助实现显示字符的基本 Trait 、数据结构、函数和宏等，我们可以对其中的关键部分进行扩展，就可以实现定制的 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 功能。</p>
 <section id="id8">
 <h3>实现输出字符串的相关函数<a class="headerlink" href="#id8" title="永久链接至标题"></a></h3>
 <p>首先封装一下对 <code class="docutils literal notranslate"><span class="pre">SYSCALL_WRITE</span></code> 系统调用。这个是 Linux 操作系统内核提供的系统调用，其 <code class="docutils literal notranslate"><span class="pre">ID</span></code> 就是 <code class="docutils literal notranslate"><span class="pre">SYSCALL_WRITE</span></code>。</p>
@@ -336,7 +337,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>整体工作完成！当然，我们实现的很简陋，用户态执行环境和应用程序都放在一个文件里面，以后会通过我们学习的软件工程的知识，进行软件重构，让代码更清晰和模块化。</p>
+<p>整体工作完成！当然，我们实现的很简陋，用户态执行环境和应用程序都放在一个文件里面，以后会通过软件工程的相关知识，进行软件重构，让代码更清晰和模块化。</p>
 <p>现在，我们编译并执行一下，可以看到正确的字符串输出，且程序也能正确结束！</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build --target riscv64gc-unknown-none-elf
 <span class="go">   Compiling os v0.1.0 (/media/chyyuu/ca8c7ba6-51b7-41fc-8430-e29e31e5328f/thecode/rust/os_kernel_lab/os)</span>

@@ -51,7 +51,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
@@ -152,8 +152,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>地址空间<a class="headerlink" href="#id1" title="永久链接至标题"></a></h1>
 <section id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
-<p>直到现在，我们的操作系统给应用看到的是一个非常原始的物理内存空间，可以简单地理解为一个可以随便访问的大数组。为了限制应用访问内存空间的范围并给操作系统提供内存管理的灵活性，计算机硬件引入了各种内存保护/映射硬件机制，如RISC-V的基址-边界翻译和保护机制、x86的分段机制、RISC-V/x86/ARM都有的分页机制。它们的共同之处在于CPU访问数据和指令的内存地址是虚地址。需要通过某种硬件机制（比如MMU+页表查询）进行地址转换，找到对应的物理地址。如果在地址转换过程中，无法找到物理地址或访问权限有误，则处理器产生非法访问内存的异常错误。为了用好这种硬件机制，操作系统需要升级自己的能力。</p>
-<p>为了让操作系统更好地管理物理内存和虚拟内存，并给应用程序提供统一的虚拟内存访问接口，计算机科学家提出了 <code class="docutils literal notranslate"><span class="pre">地址空间</span> <span class="pre">Address</span> <span class="pre">Space</span></code> 抽象，并在内核中建立虚实地址空间的映射机制，给应用程序提供一个相互被隔离开的安全的虚拟内存环境，让应用程序简单灵活地使用内存。</p>
+<p>直到现在，我们的操作系统给应用看到的是一个非常原始的物理内存空间，可以简单地理解为一个可以随便访问的大数组。为了限制应用访问内存空间的范围并给操作系统提供内存管理的灵活性，计算机硬件引入了各种内存保护/映射/地址转换硬件机制，如RISC-V的基址-边界翻译和保护机制、x86的分段机制、RISC-V/x86/ARM都有的分页机制。如果在地址转换过程中，无法找到物理地址或访问权限有误，则处理器产生非法访问内存的异常错误。</p>
+<p>为了发挥上述硬件机制的能力，操作系统也需要升级自己的能力，更好地管理物理内存和虚拟内存，并给应用程序提供统一的虚拟内存访问接口。计算机科学家观察到这些不同硬件中的共同之处，即CPU访问数据和指令的内存地址是虚地址，通过硬件机制（比如MMU+页表查询）进行地址转换，找到对应的物理地址。为此，计算机科学家提出了 <code class="docutils literal notranslate"><span class="pre">地址空间</span> <span class="pre">Address</span> <span class="pre">Space</span></code> 抽象，并在内核中建立虚实地址空间的映射机制，给应用程序提供一个基于 <code class="docutils literal notranslate"><span class="pre">地址空间</span> <span class="pre">Address</span> <span class="pre">Space</span></code> 的安全虚拟内存环境，让应用程序简单灵活地使用内存。</p>
 <p>本节将结合操作系统的发展历程回顾来介绍 <code class="docutils literal notranslate"><span class="pre">地址空间</span> <span class="pre">Address</span> <span class="pre">Space</span></code> 抽象的实现策略
 是如何变化的。</p>
 </section>
@@ -161,7 +161,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>虚拟地址与地址空间<a class="headerlink" href="#id3" title="永久链接至标题"></a></h2>
 <section id="id4">
 <h3>地址虚拟化出现之前<a class="headerlink" href="#id4" title="永久链接至标题"></a></h3>
-<p>我们之前介绍过，在最早整套硬件资源只用来执行单个裸机应用的时候，并不存在真正意义上的操作系统，而只能算是一种应用
+<p>我们之前介绍过，在远古计算机时代，整硬件资源只用来执行单个裸机应用的时候，并不存在真正意义上的操作系统，而只能算是一种应用
 函数库。那个时候，物理内存的一部分用来保存函数库的代码和数据，余下的部分都交给应用来使用。从功能上可以将应用
 占据的内存分成几个段：代码段、全局数据段、堆和栈等。当然，由于就只有这一个应用，它想如何调整布局都是它自己的
 事情。从内存使用的角度来看，批处理系统和裸机应用很相似：批处理系统的每个应用也都是独占内核之外的全部内存空间，
@@ -198,8 +198,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>从此，应用能够直接看到并访问的内存就只有操作系统提供的地址空间，且它的任何一次访存使用的地址都是虚拟地址，无论取指令来执行还是读写
 栈、堆或是全局数据段都是如此。事实上，特权级机制被拓展，使得应用不再具有直接访问物理内存的能力。应用所处的执行环境在安全方面被进一步强化，形成了用户态特权级和地址空间的二维安全措施。</p>
 <p>由于每个应用独占一个地址空间，里面只含有自己的各个段，于是它可以随意规划
-各个段的分布而无需考虑和其他应用冲突；同时，它完全无法窃取或者破坏其他应用的数据，毕竟那些段在其他应用的地址空间
-内，鉴于应用只能通过虚拟地址读写它自己的地址空间，这是它没有能力去访问的。这是 <strong>地址空间</strong> 抽象对应用程序执行的安全性和稳定性的一种保障。</p>
+属于它自己的各个段的分布而无需考虑和其他应用冲突；同时鉴于应用只能通过虚拟地址读写它自己的地址空间，它完全无法窃取或者破坏其他应用的数据，毕竟那些段在其他应用的地址空间内，这是它没有能力去访问的。这是 <strong>地址空间</strong> 抽象和具体硬件机制对应用程序执行的安全性和稳定性的一种保障。</p>
 <img alt="../_images/address-translation.png" src="../_images/address-translation.png" />
 <p id="term-address-translation"><span id="term-mmu"></span>我们知道应用的数据终归还是存在物理内存中的，那么虚拟地址如何形成地址空间，虚拟地址空间如何转换为物理内存呢？操作系统可以设计巧妙的数据结构来表示地址空间。但如果完全由操作系统来完成转换每次处理器地址访问所需的虚实地址转换，那开销就太大了。这就需要扩展硬件功能来加速地址转换过程（回忆 <em>计算机组成原理</em> 课上讲的 <code class="docutils literal notranslate"><span class="pre">MMU</span></code> 和 <code class="docutils literal notranslate"><span class="pre">TLB</span></code> ）。</p>
 </section>
@@ -233,9 +232,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 的大小限制（此时需要借助特权级机制通过异常来进行处理），然后做一个线性映射，将虚拟地址加上 <span class="math notranslate nohighlight">\(\text{base}\)</span>
 就得到了数据实际所在的物理地址。</p>
 <p id="term-bitmap">可以看出，这种实现极其简单：MMU 只需要 <span class="math notranslate nohighlight">\(\text{base,bound}\)</span> 两个寄存器，在地址转换进行比较或加法运算即可；
-而内核只需要在任务切换时切换 <span class="math notranslate nohighlight">\(\text{base}\)</span> 寄存器，内存
-管理方面它只需考虑一组插槽的占用状态，可以用一个 <strong>位图</strong> (Bitmap) 来表示，随着应用的新增和退出对应置位或清空。</p>
-<p id="term-internal-fragment">然而，它的问题在于：浪费的内存资源过多。注意到应用地址空间预留了一部分，它是用来让栈得以向低地址增长，同时允许堆
+而内核只需要在任务切换时完成切换 <span class="math notranslate nohighlight">\(\text{base}\)</span> 寄存器。在对一个应用的内存
+管理方面，只需考虑一组插槽的占用状态，可以用一个 <strong>位图</strong> (Bitmap) 来表示，随着应用的新增和退出对应置位或清空。</p>
+<p id="term-internal-fragment">然而，它的问题在于：可能浪费的内存资源过多。注意到应用地址空间预留了一部分，它是用来让栈得以向低地址增长，同时允许堆
 往高地址增长（支持应用运行时进行动态内存分配）。每个应用的情况都不同，内核只能按照在它能力范围之内的消耗内存最多
 的应用的情况来统一指定地址空间的大小，而其他内存需求较低的应用根本无法充分利用内核给他们分配的这部分空间。
 但这部分空间又是一个完整的插槽的一部分，也不能再交给其他应用使用。这种在已分配/使用的地址空间内部无法被充分利用的空间就是
@@ -259,7 +258,7 @@ MMU 需要用一对不同的 <span class="math notranslate nohighlight">\(\text{
 用于分配，这就是 <strong>外碎片</strong> (External Fragment) 。</p>
 <p>如果这时再想分配一个比较大的块，
 就需要将这些不连续的外碎片“拼起来”，形成一个大的连续块。然而这是一件开销很大的事情，涉及到极大的内存读写开销。具体而言，这需要移动和调整一些已分配内存块在物理内存上的位置，才能让那些小的外碎片能够合在一起，形成一个大的空闲块。如果连续内存分配算法
-选取得当，可以尽可能减少这种操作。课上所讲到的那些算法，包括 first-fit/worst-fit/best-fit 或是 buddy
+选取得当，可以尽可能减少这种操作。操作系统课上所讲到的那些算法，包括 first-fit/worst-fit/best-fit 或是 buddy
 system，其具体表现取决于实际的应用需求，各有优劣。</p>
 <p>那么，分段内存管理带来的外碎片和连续内存分配算法比较复杂的
 问题可否被解决呢？</p>

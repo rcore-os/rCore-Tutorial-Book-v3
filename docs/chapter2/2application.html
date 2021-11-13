@@ -151,7 +151,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <section id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
-<p>本节主要讲解如何设计实现被批处理系统逐个加载并运行的应用程序。应用程序是假定在用户态（U 特权级模式）下运行的前提下而设计实现的。实际上，如果应用程序的代码都符合它要运行的用户态的约束，那它完全可能在用户态中运行；但如果应用程序执行特权指令或非法操作（如访问一个非法的地址等），那会产生异常，并导致程序退出。保证应用程序的代码在 U 模式运行是接下来将实现的批处理系统的关键任务之一。其涉及的设计实现要点是：</p>
+<p>本节主要讲解如何设计实现被批处理系统逐个加载并运行的应用程序。这有个前提，即应用程序假定在用户态（U 特权级模式）下运行。实际上，如果应用程序的代码都符合用户态特权级的约束，那它完全可能在用户态中运行；但如果应用程序执行特权指令或非法操作（如执行非法指令，访问一个非法的地址等），那会产生异常，并导致程序退出。保证应用程序的代码在用户态能正常运行是将要实现的批处理系统的关键任务之一。应用程序的设计实现要点是：</p>
 <ul class="simple">
 <li><p>应用程序的内存布局</p></li>
 <li><p>应用程序发出的系统调用</p></li>
@@ -172,7 +172,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">00hello_world</span></code>：在屏幕上打印一行 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">01store_fault</span></code>：访问一个非法的物理地址，测试批处理系统是否会被该错误影响</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">02power</span></code>：不断在计算操作和打印字符串操作之间切换</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">02power</span></code>：不断在计算操作和打印字符串操作之间进行特权级切换</p></li>
 </ul>
 <p>批处理系统会按照文件名开头的数字编号从小到大的顺序加载并运行它们。</p>
 <p>每个应用程序的实现都在对应的单个文件中。打开其中一个文件，会看到里面只有一个 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数和若干相关的函数所形成的整个应用程序逻辑。</p>
@@ -271,7 +271,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">syscall</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">args</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">3</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
 <span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ret</span>: <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
 <span class="linenos"> 5</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">        </span><span class="fm">llvm_asm!</span><span class="p">(</span><span class="s">&quot;ecall&quot;</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="fm">asm!</span><span class="p">(</span><span class="s">&quot;ecall&quot;</span><span class="w"></span>
 <span class="linenos"> 7</span><span class="w">            </span>: <span class="s">&quot;={x10}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="p">)</span><span class="w"></span>
 <span class="linenos"> 8</span><span class="w">            </span>: <span class="s">&quot;{x10}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x11}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x12}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span><span class="w"> </span><span class="s">&quot;{x17}&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"></span>
 <span class="linenos"> 9</span><span class="w">            </span>: <span class="s">&quot;memory&quot;</span><span class="w"></span>
@@ -283,11 +283,11 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 </pre></div>
 </div>
 <p>第 3 行，我们将所有的系统调用都封装成 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 函数，可以看到它支持传入 syscall ID 和 3 个参数。</p>
-<p>第 6 行开始，我们使用 Rust 提供的 <code class="docutils literal notranslate"><span class="pre">llvm_asm!</span></code> 宏在代码中内嵌汇编，在本行也给出了具体要插入的汇编指令，也就是 <code class="docutils literal notranslate"><span class="pre">ecall</span></code>，但这并不是
-全部，后面我们还需要进行一些相关设置。这个宏在 Rust 中还不稳定，因此我们需要在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 开头加入 <code class="docutils literal notranslate"><span class="pre">#![feature(llvm_asm)]</span></code> 。
+<p>第 6 行开始，我们使用 Rust 提供的 <code class="docutils literal notranslate"><span class="pre">asm!</span></code> 宏在代码中内嵌汇编，在本行也给出了具体要插入的汇编指令，也就是 <code class="docutils literal notranslate"><span class="pre">ecall</span></code>，但这并不是
+全部，后面我们还需要进行一些相关设置。这个宏在 Rust 中还不稳定，因此我们需要在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 开头加入 <code class="docutils literal notranslate"><span class="pre">#![feature(asm)]</span></code> 。
 此外，编译器无法判定插入汇编代码这个行为的安全性，所以我们需要将其包裹在 unsafe 块中自己来对它负责。</p>
-<p>Rust 中的 <code class="docutils literal notranslate"><span class="pre">llvm_asm!</span></code> 宏的完整格式如下：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="fm">llvm_asm!</span><span class="p">(</span><span class="n">assembly</span><span class="w"> </span><span class="n">template</span><span class="w"></span>
+<p>Rust 中的 <code class="docutils literal notranslate"><span class="pre">asm!</span></code> 宏的完整格式如下：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="fm">asm!</span><span class="p">(</span><span class="n">assembly</span><span class="w"> </span><span class="n">template</span><span class="w"></span>
 <span class="w">   </span>: <span class="nc">output</span><span class="w"> </span><span class="n">operands</span><span class="w"></span>
 <span class="w">   </span>: <span class="nc">input</span><span class="w"> </span><span class="n">operands</span><span class="w"></span>
 <span class="w">   </span>: <span class="nc">clobbers</span><span class="w"></span>
@@ -307,12 +307,11 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 的汇编代码中的过程中会发生变化。我们这里则是告诉编译器：程序在执行嵌入汇编代码中指令的时候会修改内存。这能给编译器提供更多信息以生成正确的代码。</p>
 <p>第 10 行用于告知编译器将我们在程序中给出的嵌入汇编代码保持原样放到最终构建的可执行文件中。如果不这样做的话，编译器可能会把它和其他代码
 一视同仁并放在一起进行一些我们期望之外的优化。为了保证语义的正确性，一些比较关键的汇编代码需要加上该选项。</p>
-<p>上面这一段汇编代码的含义和内容与第一章中的 <a class="reference internal" href="../chapter1/3-1-mini-rt-usrland.html#term-llvm-syscall"><span class="std std-ref">第一章中U-Mode应用程序中的系统调用汇编代码</span></a> 的是一致的，且与 <a class="reference internal" href="../chapter1/3-2-mini-rt-baremetal.html#term-llvm-sbicall"><span class="std std-ref">第一章中的RustSBI输出到屏幕的SBI调用汇编代码</span></a> 涉及的汇编指令一样，但传递参数的寄存器的含义是不同的。有兴趣的读者可以回顾第一章的 <code class="docutils literal notranslate"><span class="pre">console.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sbi.rs</span></code> 。</p>
+<p>上面这一段汇编代码的含义和内容与第一章中的 <a class="reference internal" href="../chapter1/3-1-mini-rt-usrland.html#term-llvm-syscall"><span class="std std-ref">第一章中U-Mode应用程序中的系统调用汇编代码</span></a> 的是一致的，且与 <a class="reference internal" href="../chapter1/3-2-mini-rt-baremetal.html#term-llvm-sbicall"><span class="std std-ref">第一章中的RustSBI输出到屏幕的SBI调用汇编代码</span></a> 涉及的汇编指令一样，但传递参数的寄存器的含义是不同的。有兴趣的同学可以回顾第一章的 <code class="docutils literal notranslate"><span class="pre">console.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sbi.rs</span></code> 。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>Rust 语法卡片：内联汇编</strong></p>
-<p>我们这里使用的 <code class="docutils literal notranslate"><span class="pre">llvm_asm!</span></code> 宏是将 Rust 底层 IR LLVM 中提供的内联汇编包装成的，更多信息可以参考 <a class="reference external" href="https://doc.rust-lang.org/unstable-book/library-features/llvm-asm.html">llvm_asm 文档</a> 。</p>
-<p>在未来的 Rust 版本推荐使用功能更加强大且方便易用的 <code class="docutils literal notranslate"><span class="pre">asm!</span></code> 宏，但是目前还未稳定，可以查看 <a class="reference external" href="https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html">inline-asm RFC</a> 了解最新进展。</p>
+<p>我们这里使用的 <code class="docutils literal notranslate"><span class="pre">asm!</span></code> 宏是将 Rust 底层 IR LLVM 中提供的内联汇编包装成的，更多信息可以参考 <a class="reference external" href="https://doc.rust-lang.org/unstable-book/library-features/asm.html">asm 文档</a> 。</p>
 </div>
 <p>于是 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 只需将 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 进行包装：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/syscall.rs</span>
@@ -330,8 +329,8 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 </pre></div>
 </div>
 <p id="term-fat-pointer">注意 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 使用一个 <code class="docutils literal notranslate"><span class="pre">&amp;[u8]</span></code> 切片类型来描述缓冲区，这是一个 <strong>胖指针</strong> (Fat Pointer)，里面既包含缓冲区的起始地址，还
-包含缓冲区的长度。我们可以分别通过 <code class="docutils literal notranslate"><span class="pre">as_ptr</span></code> 和 <code class="docutils literal notranslate"><span class="pre">len</span></code> 方法取出它们并独立的作为实际的系统调用参数。</p>
-<p>我们将上述两个系统调用在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中进一步封装，从而更加接近在 Linux 等平台的实际体验：</p>
+包含缓冲区的长度。我们可以分别通过 <code class="docutils literal notranslate"><span class="pre">as_ptr</span></code> 和 <code class="docutils literal notranslate"><span class="pre">len</span></code> 方法取出它们并独立地作为实际的系统调用参数。</p>
+<p>我们将上述两个系统调用在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中进一步封装，从而更加接近在 Linux 等平台的实际系统调用接口：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// user/src/lib.rs</span>
 <span class="linenos">2</span><span class="k">use</span><span class="w"> </span><span class="n">syscall</span>::<span class="o">*</span><span class="p">;</span><span class="w"></span>
 <span class="linenos">3</span>
@@ -376,7 +375,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <p id="term-csr-instr-app">假定我们已经完成了编译并生成了ELF 可执行文件格式的应用程序，我们就可以来试试。首先看看应用程序执行 <a class="reference internal" href="1rv-privilege.html#term-csr-instr"><span class="std std-ref">RV64的S模式特权指令</span></a> 会出现什么情况。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p>下载编译特权指令的应用需要获取</p>
+<p>下载并编译包含特权指令的用户态应用程序</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git clone -b v4-illegal-priv-code-csr-in-u-mode-app https://github.com/chyyuu/os_kernel_lab.git
 <span class="gp">$ </span><span class="nb">cd</span> os_kernel_lab/user
 <span class="gp">$ </span>make build
@@ -388,7 +387,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <span class="linenos">2</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="linenos">3</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Hello, world!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">4</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">5</span><span class="w">        </span><span class="fm">llvm_asm!</span><span class="p">(</span><span class="s">&quot;sret&quot;</span><span class="w"></span>
+<span class="linenos">5</span><span class="w">        </span><span class="fm">asm!</span><span class="p">(</span><span class="s">&quot;sret&quot;</span><span class="w"></span>
 <span class="linenos">6</span><span class="w">            </span>: : : :
 <span class="linenos">7</span>        <span class="p">);</span><span class="w"></span>
 <span class="linenos">8</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
@@ -422,7 +421,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <span class="gp"># </span>执行访问特权级CSR的指令出错
 </pre></div>
 </div>
-<p>看来RV64的特权级机制确实有用。那对于一般的应用程序，在 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 模拟器下能正确执行吗？</p>
+<p>看来RV64的特权级机制确实有用。那对于一般的用户态应用程序，在 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 模拟器下能正确执行吗？</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> user
 <span class="gp">$ </span><span class="nb">cd</span> target/riscv64gc-unknown-none-elf/release/
 <span class="gp">$ </span>ls
@@ -454,7 +453,7 @@ S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们
 <span class="gp"># </span>正确地完成了计算
 </pre></div>
 </div>
-<p>三个应用都能够执行并顺利结束！是由于得到了本机操作系统Linux的支持。我们期望我们在下一节开始实现的泥盆纪“邓式鱼”操作系统也能够正确加载和执行上面的应用程序。</p>
+<p>这三个应用程序都能够执行并顺利结束！这是由于它们在运行时得到了操作系统Linux for RISC-V 64的支持。我们期望在下一节开始实现的泥盆纪“邓式鱼”操作系统也能够正确加载和执行这些应用程序。</p>
 </section>
 </section>
 

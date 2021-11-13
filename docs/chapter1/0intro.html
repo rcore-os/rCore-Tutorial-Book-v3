@@ -145,7 +145,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>引言<a class="headerlink" href="#id1" title="永久链接至标题"></a></h1>
 <section id="id2">
 <h2>本章导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
-<p>本章展现了操作系统的一个基本功能：让应用与硬件隔离，简化了应用访问硬件的难度和复杂性。这也是远古操作系统雏形和现代的一些简单嵌入式操作系统的主要功能。具有这样功能的操作系统的形态就是一个函数库，可以被应用访问，并通过函数库的函数来访问硬件。</p>
+<p>本章展现了操作系统的一个基本目标：让应用与硬件隔离，简化了应用访问硬件的难度和复杂性。这也是远古操作系统雏形和现代的一些简单嵌入式操作系统的主要功能。具有这样功能的操作系统的形态就是一个函数库，可以被应用访问，并通过函数库的函数来访问硬件。</p>
 <p>大多数程序员的第一行代码都从 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 开始，当我们满怀着好奇心在编辑器内键入仅仅数个字节，再经过几行命令编译（靠的是编译器）、运行（靠的是操作系统），终于在黑洞洞的终端窗口中看到期望中的结果的时候，一扇通往编程世界的大门已经打开。在本章第一节 <a class="reference internal" href="1app-ee-platform.html"><span class="doc">应用程序执行环境与平台支持</span></a> 中，可以看到用Rust语言编写的非常简单的“Hello, world”应用程序是如何被进一步拆解和分析的。</p>
 <p>不过我们能够隐约意识到编程工作能够如此方便简洁并不是理所当然的，实际上有着多层硬件和软件工具和支撑环境隐藏在它背后，才让我们不必付出那么多努力就能够创造出功能强大的应用程序。生成应用程序二进制执行代码所依赖的是以 <strong>编译器</strong> 为主的开发环境；运行应用程序执行码所依赖的是以 <strong>操作系统</strong> 为主的执行环境。</p>
 <p>本章主要是讲解如何设计和实现建立在裸机上的执行环境，从中对应用程序和它所依赖的执行环境有一个全面和深入的理解。</p>
@@ -242,10 +242,10 @@ Assembly    1 Files    11 Lines
 </section>
 <section id="id5">
 <h2>本章代码导读<a class="headerlink" href="#id5" title="永久链接至标题"></a></h2>
-<p>操作系统虽然是软件，但它不是常规的应用软件，需要运行在没有操作系统的裸机环境中。如果采用通常编程方法和编译手段，无法开发出操作系统。其中一个重要的原因编译器编译出的应用软件在缺省情况下是要链接标准库（Rust 编译器和 C 编译器都是这样的），而标准库是依赖于操作系统（如 Linux、Windows 等）的。所以，本章主要是让读者能够脱离常规应用软件开发的思路，理解如何开发没有操作系统支持的操作系统内核。</p>
+<p>操作系统虽然是软件，但它不是常规的应用软件，需要运行在没有操作系统的裸机环境中。如果采用通常编程方法和编译手段，无法开发出操作系统。其中一个重要的原因编译器编译出的应用软件在缺省情况下是要链接标准库（Rust 编译器和 C 编译器都是这样的），而标准库是依赖于操作系统（如 Linux、Windows 等）的。所以，本章主要是让同学能够脱离常规应用软件开发的思路，理解如何开发没有操作系统支持的操作系统内核。</p>
 <p>为了做到这一步，首先需要写出不需要标准库的软件并通过编译。为此，先把一般应用所需要的标准库的组件给去掉，这会导致编译失败。然后再逐步添加不需要操作系统的极少的运行时支持代码，让编译器能够正常编译出不需要标准库的正常程序。但此时的程序没有显示输出，更没有输入等，但可以正常通过编译，这样就为进一步扩展程序内容打下了一个 <strong>可正常编译OS</strong> 的前期基础。具体可看 <a class="reference internal" href="2remove-std.html#term-remove-std"><span class="std std-ref">移除标准库依赖</span></a> 一节的内容。</p>
 <p>操作系统代码无法像应用软件那样，可以有方便的调试（Debug）功能。这是因为应用之所以能够被调试，也是由于操作系统提供了方便的调试相关的系统调用。而我们不得不再次认识到，需要运行在没有操作系统的裸机环境中，当然没法采用依赖操作系统的传统调试方法了。所以，我们只能采用 <code class="docutils literal notranslate"><span class="pre">print</span></code> 这种原始且有效的调试方法。这样，第二步就是让脱离了标准库的软件有输出，这样，我们就能看到程序的运行情况了。为了简单起见，我们可以先在用户态尝试构建没有标准库的支持显示输出的最小运行时执行环境，比较特别的地方在于如何写内嵌汇编完成简单的系统调用。具体可看 <a class="reference internal" href="3-1-mini-rt-usrland.html#term-print-userminienv"><span class="std std-ref">构建用户态执行环境</span></a> 一节的内容。</p>
-<p>接下来就是尝试构建可在裸机上支持显示的最小运行时执行环境。相对于用户态执行环境，读者需要能够做更多的事情，比如如何关机，如何配置软件运行所在的物理内存空间，特别是栈空间，如何清除 <code class="docutils literal notranslate"><span class="pre">bss</span></code> 段，如何通过 <code class="docutils literal notranslate"><span class="pre">RustSBI</span></code> 的 <code class="docutils literal notranslate"><span class="pre">SBI_CONSOLE_PUTCHAR</span></code> 接口简洁地实现信息输出。这里比较特别的地方是需要了解 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 文件中对OS的代码和数据所在地址空间布局的描述，以及基于RISC-V 64的汇编代码 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 如何进行栈的设置和初始化，以及如何跳转到Rust语言编写 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 主函数中，并开始内核最小运行时执行环境的运行。具体可看 <a class="reference internal" href="3-2-mini-rt-baremetal.html#term-print-kernelminienv"><span class="std std-ref">构建裸机执行环境</span></a> 一节的内容。</p>
+<p>接下来就是尝试构建可在裸机上支持显示的最小运行时执行环境。相对于用户态执行环境，同学需要能够做更多的事情，比如如何关机，如何配置软件运行所在的物理内存空间，特别是栈空间，如何清除 <code class="docutils literal notranslate"><span class="pre">bss</span></code> 段，如何通过 <code class="docutils literal notranslate"><span class="pre">RustSBI</span></code> 的 <code class="docutils literal notranslate"><span class="pre">SBI_CONSOLE_PUTCHAR</span></code> 接口简洁地实现信息输出。这里比较特别的地方是需要了解 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 文件中对OS的代码和数据所在地址空间布局的描述，以及基于RISC-V 64的汇编代码 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 如何进行栈的设置和初始化，以及如何跳转到Rust语言编写 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 主函数中，并开始内核最小运行时执行环境的运行。具体可看 <a class="reference internal" href="3-2-mini-rt-baremetal.html#term-print-kernelminienv"><span class="std std-ref">构建裸机执行环境</span></a> 一节的内容。</p>
 </section>
 </section>
 

@@ -51,7 +51,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
@@ -145,14 +145,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>多道程序放置与加载<a class="headerlink" href="#id1" title="永久链接至标题"></a></h1>
 <section id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
-<p>本节我们将实现可以把多个应用放置到内存中的二叠纪“锯齿螈” <a class="footnote-reference brackets" href="#prionosuchus" id="id3">1</a> 操作系统。能实现二叠纪“锯齿螈”操作系统的一个重要前提是计算机中物理内存容量增加了，足以容纳多个应用程序的内容。在计算机的发展史上，我们也确实看到，随着集成电路的快速发展，计算机的内存容量也越来越大了。</p>
-<p>在本章的引言中我们提到每个应用都需要按照它的编号被分别放置并加载到内存中不同的位置。本节我们就来介绍多应用的内存放置是如何实现的。通过具体实现，可以看到多个应用程序被一次性地加载到内存中，这样在切换到另外一个应用程序执行会很快，不像前一章介绍的操作系统，还要有清空前一个应用，然后加载当前应用的过程与开销。</p>
+<p>本节我们将实现可以把多个应用放置到内存中的二叠纪“锯齿螈” <a class="footnote-reference brackets" href="#prionosuchus" id="id3">1</a> 操作系统，“锯齿螈”能够上陆了！能实现二叠纪“锯齿螈”操作系统的一个重要前提是计算机中物理内存容量增加了，足以容纳多个应用程序的内容。在计算机的发展史上，我们也确实看到，随着集成电路的快速发展，计算机的内存容量也越来越大了。</p>
+<p>在本章的引言中我们提到每个应用都需要按照它的编号被分别放置并加载到内存中不同的位置。本节我们就来介绍多应用的内存放置是如何实现的。通过具体实现，可以看到多个应用程序被一次性地加载到内存中，这样在切换到另外一个应用程序执行会很快，不像前一章介绍的操作系统，还要有清空前一个应用，然后加载当前应用的过程开销。</p>
 <p>但我们也会了解到，每个应用程序需要知道自己运行时在内存中的不同位置，这对应用程序的编写带来了一定的麻烦。而且操作系统也要知道每个应用程序运行时的位置，不能任意移动应用程序所在的内存空间，即不能在运行时根据内存空间的动态空闲情况，把应用程序调整到合适的空闲空间中。这是“锯齿螈” <a class="footnote-reference brackets" href="#prionosuchus" id="id4">1</a> 操作系统在动态内存管理上的不足之处。</p>
 </section>
 <section id="id5">
 <h2>多道程序放置<a class="headerlink" href="#id5" title="永久链接至标题"></a></h2>
-<p>与第二章相同，所有应用的 ELF格式的执行文件都经过 <code class="docutils literal notranslate"><span class="pre">objcopy</span></code> 工具丢掉所有 ELF header 和符号变为二进制镜像文件，随后以同样的格式通过在操作系统内核中嵌入 <code class="docutils literal notranslate"><span class="pre">link_user.S</span></code> 文件，在编译时直接把应用链接到内核的数据段中。不同的是，我们对相关模块进行了调整：在第二章中应用的加载和执行进度控制都交给 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块，而在第三章中我们将应用的加载这部分功能分离出来在 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 子模块中实现，应用的执行和切换功能则交给 <code class="docutils literal notranslate"><span class="pre">task</span></code> 子模块。</p>
-<p>注意，我们需要调整每个应用被构建时使用的链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中的起始地址 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> ，这个地址是应用被内核加载到内存中的起始地址。也就是要做到：应用知道自己会被加载到某个地址运行，而内核也确实能做到将它加载到那个地址。这算是应用和内核在某种意义上达成的一种协议。之所以要有这么苛刻的条件，是因为目前的操作系统内核的能力还是比较弱的，对应用程序通用性的支持也不够，这也进一步导致了应用程序的通用性不够（比如不支持被加载到内存中的任意地址运行）。事实上，目前应用程序的编址方式是基于绝对位置的，并没做到与位置无关，内核也没有提供相应的地址重定位机制。</p>
+<p>与第二章相同，所有应用的 ELF格式执行文件都经过 <code class="docutils literal notranslate"><span class="pre">objcopy</span></code> 工具丢掉所有 ELF header 和符号变为二进制镜像文件，随后以同样的格式通过在操作系统内核中嵌入 <code class="docutils literal notranslate"><span class="pre">link_user.S</span></code> 文件，在编译时直接把应用链接到内核的数据段中。不同的是，我们对相关模块进行了调整：在第二章中应用的加载和执行进度控制都交给 <code class="docutils literal notranslate"><span class="pre">batch</span></code> 子模块，而在第三章中我们将应用的加载这部分功能分离出来在 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 子模块中实现，应用的执行和切换功能则交给 <code class="docutils literal notranslate"><span class="pre">task</span></code> 子模块。</p>
+<p>注意，我们需要调整每个应用被构建时使用的链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中的起始地址 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> ，这个地址是应用被内核加载到内存中的起始地址。也就是要做到：应用知道自己会被加载到某个地址运行，而内核也确实能做到将应用加载到它指定的那个地址。这算是应用和内核在某种意义上达成的一种协议。之所以要有这么苛刻的条件，是因为目前的操作系统内核的能力还是比较弱的，对应用程序通用性的支持也不够（比如不支持加载应用到内存中的任意地址运行），这也进一步导致了应用程序编程上不够方便和通用（应用需要指定自己运行的内存地址）。事实上，目前应用程序的编址方式是基于绝对位置的，并没做到与位置无关，内核也没有提供相应的地址重定位机制。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p>对于编址方式，需要再回顾一下编译原理课讲解的后端代码生成技术，以及计算机组成原理课的指令寻址方式的内容。可以在 <a class="reference external" href="https://nju-projectn.github.io/ics-pa-gitbook/ics2020/4.2.html">这里</a> 找到更多有关
@@ -210,7 +210,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos"> 8</span><span class="w">         </span><span class="n">core</span>::<span class="n">slice</span>::<span class="n">from_raw_parts</span><span class="p">(</span><span class="n">num_app_ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="n">num_app</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"></span>
 <span class="linenos"> 9</span><span class="w">     </span><span class="p">};</span><span class="w"></span>
 <span class="linenos">10</span><span class="w">     </span><span class="c1">// clear i-cache first</span>
-<span class="linenos">11</span><span class="w">     </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="fm">llvm_asm!</span><span class="p">(</span><span class="s">&quot;fence.i&quot;</span><span class="w"> </span>:::: <span class="s">&quot;volatile&quot;</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">     </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="fm">asm!</span><span class="p">(</span><span class="s">&quot;fence.i&quot;</span><span class="w"> </span>:::: <span class="s">&quot;volatile&quot;</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="linenos">12</span><span class="w">     </span><span class="c1">// load apps</span>
 <span class="linenos">13</span><span class="w">     </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">num_app</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos">14</span><span class="w">         </span><span class="kd">let</span><span class="w"> </span><span class="n">base_i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_base_i</span><span class="p">(</span><span class="n">i</span><span class="p">);</span><span class="w"></span>
@@ -241,8 +241,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos">5</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>我们可以在 <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块中找到这两个常数。从这一章开始， <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块用来存放内核中所有的常数。看到 <code class="docutils literal notranslate"><span class="pre">APP_BASE_ADDRESS</span></code> 被设置为 <code class="docutils literal notranslate"><span class="pre">0x80400000</span></code> ，而 <code class="docutils literal notranslate"><span class="pre">APP_SIZE_LIMIT</span></code> 和上一章一样被设置为 <code class="docutils literal notranslate"><span class="pre">0x20000</span></code> ，也就是每个应用二进制镜像的大小限制。因此，应用的内存布局就很明朗了——就是从 <code class="docutils literal notranslate"><span class="pre">APP_BASE_ADDRESS</span></code> 开始依次为每个应用预留一段空间。</p>
-<p>这样，我们就说明了多个应用是如何被构建和加载的。</p>
+<p>我们可以在 <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块中找到这两个常数。从这一章开始， <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块用来存放内核中所有的常数。看到 <code class="docutils literal notranslate"><span class="pre">APP_BASE_ADDRESS</span></code> 被设置为 <code class="docutils literal notranslate"><span class="pre">0x80400000</span></code> ，而 <code class="docutils literal notranslate"><span class="pre">APP_SIZE_LIMIT</span></code> 和上一章一样被设置为 <code class="docutils literal notranslate"><span class="pre">0x20000</span></code> ，也就是每个应用二进制镜像的大小限制。因此，应用的内存布局就很明朗了——就是从 <code class="docutils literal notranslate"><span class="pre">APP_BASE_ADDRESS</span></code> 开始依次为每个应用预留一段空间。
+这样，我们就说清楚了多个应用是如何被构建和加载的。</p>
 </section>
 <section id="id8">
 <h2>执行应用程序<a class="headerlink" href="#id8" title="永久链接至标题"></a></h2>
@@ -251,7 +251,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>跳转到应用程序（编号 <span class="math notranslate nohighlight">\(i\)</span> ）的入口点 <span class="math notranslate nohighlight">\(\text{entry}_i\)</span></p></li>
 <li><p>将使用的栈切换到用户栈 <span class="math notranslate nohighlight">\(\text{stack}_i\)</span></p></li>
 </ul>
-<p>我们的“锯齿螈”操作系统就算是实现完毕了。它支持把多个应用的代码和数据放置到内存中，并能够依次执行每个应用，提高了应用切换的效率，这就达到了本节对操作系统的基本需求。但“锯齿螈”操作系统在任务调度的灵活性上还有很大的改进空间，下一节我们将开始改进这方面的问题。</p>
+<p>我们的“锯齿螈”初级多道程序操作系统就算是实现完毕了。它支持把多个应用的代码和数据放置到内存中，并能够依次执行每个应用，提高了应用切换的效率，这就达到了本章对操作系统的初级需求。但“锯齿螈”操作系统在任务调度的灵活性上还有很大的改进空间，下一节我们将开始改进这方面的问题。</p>
 <dl class="footnote brackets">
 <dt class="label" id="prionosuchus"><span class="brackets">1</span><span class="fn-backref">(<a href="#id3">1</a>,<a href="#id4">2</a>)</span></dt>
 <dd><p>锯齿螈身长可达9米，是迄今出现过的最大的两栖动物，是二叠纪时期江河湖泊和沼泽中的顶级掠食者。</p>

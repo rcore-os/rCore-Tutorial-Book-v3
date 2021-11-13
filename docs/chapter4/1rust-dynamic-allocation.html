@@ -150,41 +150,37 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>Rust 中的动态内存分配<a class="headerlink" href="#rust" title="永久链接至标题"></a></h1>
 <section id="id1">
 <h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题"></a></h2>
-<p>到目前为止，如果将我们的内核也看成一个应用，那么其中所有的变量都是被静态分配在内存中的，这样在对空闲内存的使用方面缺少灵活性。我们希望能在操作系统中提供动态申请和释放内存的能力，这样就可以加强操作系统对各种以内存为基础的资源分配与管理。</p>
+<p>到目前为止，如果将当前的操作系统内核也看成一个应用，那么其中所有的变量都是被静态分配在内存中的，这样在对空闲内存的动态使用方面缺少灵活性。我们希望能在操作系统中提供动态申请和释放内存的能力，这样就可以加强操作系统对各种以内存为基础的资源分配与管理。</p>
 <p>在应用程序的视角中，动态内存分配中的内存，其实就是操作系统管理的“堆 （Heap）”。但现在要实现操作系统，那么就需要操作系统自身能提供动态内存分配的能力。如果要实现动态内存分配的能力，需要操作系统需要有如下功能：</p>
 <ul class="simple">
 <li><p>初始时能提供一块大内存空间作为初始的“堆”。在没有分页机制情况下，这块空间是物理内存空间，否则就是虚拟内存空间。</p></li>
-<li><p>提供在堆上分配一块内存的函数接口。这样函数调用方就能够得到一块地址连续的空闲内存块进行读写。</p></li>
-<li><p>提供释放内存的函数接口。能够回收内存，以备后续的内存分配请求。</p></li>
-<li><p>提供空闲空间管理的连续内存分配算法。能够有效地管理空闲快，这样就能够动态地维护一系列空闲和已分配的内存块。</p></li>
+<li><p>提供在堆上分配和释放内存的函数接口。这样函数调用方通过分配内存函数接口得到地址连续的空闲内存块进行读写，也能通过释放内存函数接口回收内存，以备后续的内存分配请求。</p></li>
+<li><p>提供空闲空间管理的连续内存分配算法。相关算法能动态地维护一系列空闲和已分配的内存块，从而有效地管理空闲块。</p></li>
 <li><p>（可选）提供建立在堆上的数据结构和操作。有了上述基本的内存分配与释放函数接口，就可以实现类似动态数组，动态字典等空间灵活可变的堆数据结构，提高编程的灵活性。</p></li>
 </ul>
-<p>考虑到我们是用Rust来编程的，为了在接下来的一些操作系统的实现功能中进一步释放 Rust 语言的强表达能力来减轻我们的编码负担，本节我们尝试在内核中支持动态内存分配以可以使用各种需要动态内存支持的Rust功能，如Vec、HashMap等。</p>
+<p>考虑到我们是用Rust来编写操作系统，为了在接下来的一些操作系统的实现功能中进一步释放 Rust 语言的强表达能力来减轻我们的编码负担，本节我们尝试在内核中支持动态内存分配，以能使用Rust 核心库中各种灵活的动态数据结构，如Vec、HashMap等，且不用考虑这些数据结构的动态内存释放的繁琐操作，充分利用 Rust 语言保证的内存安全能力。</p>
 </section>
 <section id="id2">
 <h2>静态与动态内存分配<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
 <section id="id3">
 <h3>静态分配<a class="headerlink" href="#id3" title="永久链接至标题"></a></h3>
-<p>若在某一时间点观察一个应用的地址空间，可以看到若干块连续内存，每一块都对应于一个生命周期尚未结束的变量。这个变量可能
-是一个局部变量，它来自于当前正在执行的函数或者当前函数调用栈上某个正在等待调用返回的函数的栈帧，即它是被分配在栈上；这个变量也可能是一个全局变量，它被分配在数据段中。它们有一个共同点：在编译器编译程序时已经知道这些变量所占的字节大小，
-于是给它们分配一块固定的内存将它们存储其中，这块内存在变量所属函数的栈帧/数据段中的位置就被固定了下来。</p>
+<p>若在某一时间点观察一个应用的地址空间，可以看到若干个内存块，每一块都对应于一个生命周期尚未结束的变量。这个变量可能
+是一个局部变量，它来自于正在执行的当前函数调用栈上，即它是被分配在栈上；这个变量也可能是一个全局变量，它一般被分配在数据段中。它们有一个共同点：在编译器编译程序时已经知道这些变量所占的字节大小，
+于是给它们分配一块固定的内存将它们存储其中，这样变量在栈帧/数据段中的位置就被固定了下来。</p>
 <p id="term-static-allocation">这些变量是被 <strong>静态分配</strong> (Static Allocation) 的，这一过程来源于我们在程序中对变量的声明，在编译期由编译器完成。
-如果应用仅使用静态分配，它也许可以应付一部分的需求，但是某些情况则不够灵活。比如，需要将一个文件读到内存进行处理，
-而且必须将文件一次性完整读进来处理才能正确。此时，可以选择声明一个栈上的局部变量或者数据段中的全局变量作为缓冲区来暂存文件的内容。但我们在编程的时候并不知道待处理的文件的大小，只能根据经验将缓冲区的大小设置为某一固定常数。在代码真正运行
-的时候，如果待处理的文件很小，那么缓冲区多出的部分是被浪费掉的，也拉高了应用的内存占用；如果待处理的文件很大，应用则
-无法正常运行。就像缓冲区的大小设置一样，还有很多其他的问题来源于某些数据结构需求的内存大小取决于应用的实际运行情况。</p>
+如果应用仅使用静态分配，它可以应付一部分的需求，但是对于其它情况，如某些数据结构需求的内存大小取决于程序的实际运行情况，就不够灵活了。比如，需要将一个文件读到内存进行处理，
+而且必须将文件一次性完整读进来处理。我们可以选择声明一个栈上的数组（局部变量）或者数据段中的数组（全局变量），作为缓冲区来暂存文件的内容。但我们在编程的时候并不知道待处理的文件大小，只能根据经验将缓冲区的大小设置为某一固定常数。在程序真正运行
+的时候，如果待处理的文件很小，那么缓冲区多出的部分被浪费掉了；如果待处理的文件很大，应用则
+无法正常运行。</p>
 </section>
 <section id="id4">
 <h3>动态分配<a class="headerlink" href="#id4" title="永久链接至标题"></a></h3>
-<p id="term-dynamic-allocation">此时，使用 <strong>动态分配</strong> (Dynamic Allocation) 则可以解决这个问题。动态分配就是指应用不仅在自己的地址空间放置那些
-自编译期开始就大小固定、用于静态内存分配的逻辑段（如全局数据段、栈段），还另外放置一个大小可以随着应用的运行动态增减
-的逻辑段，它的名字叫做堆。同时，应用还要能够将这个段真正管理起来，即支持在运行的时候从里面分配一块空间来存放变量，而
+<p id="term-dynamic-allocation">如果使用 <strong>动态分配</strong> (Dynamic Allocation) 则可以解决上述问题。应用另外放置了一个大小可以随着应用的运行动态增减
+的内存空间 – 堆（Heap）。同时，应用还要能够将这个堆管理起来，即支持在运行的时候从里面分配一块空间来存放变量，而
 在变量的生命周期结束之后，这块空间需要被回收以待后面的使用。如果堆的大小固定，那么这其实就是一个连续内存分配问题，
-我们课上所介绍到的那些算法都可以随意使用。取决于应用的实际运行状况，每次分配的空间大小可能会有不同，因此也会产生外碎片。
-如果在某次分配的时候发现堆空间不足，我们并不会移动变量的存放位置让它们紧凑起来从而释放间隙用来分配
-（事实上它很难做到这一点），
-一般情况下应用会直接通过系统调用（如类 Unix 内核提供的 <code class="docutils literal notranslate"><span class="pre">sbrk</span></code> 系统调用）来向内核请求增加它地址空间内堆的大小，之后
-就可以正常分配了。当然，这一类系统调用也能缩减堆的大小。</p>
+同学们可以使用操作系统课上所介绍到的各种连续内存分配算法。
+一般情况下，应用所依赖的基础系统库（如Linux中的glibc库等）会直接通过系统调用（如类 Unix 内核提供的 <code class="docutils literal notranslate"><span class="pre">sbrk</span></code> 系统调用）来向内核请求增加/缩减应用地址空间内堆的大小，之后
+应用就可以基于基础系统库提供的内存分配/释放函数来获取和释放内存了。应用进行多次不同大小的内存分配和释放操作后，会产生内存空间的浪费，即存在无法被应用使用的空闲内存碎片。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>内存碎片</strong></p>
@@ -193,15 +189,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>内碎片：已被分配出去（属于某个在运行的应用）内存区域，占有这些区域的应用并不使用这块区域，操作系统也无法利用这块区域。</p></li>
 <li><p>外碎片：还没被分配出去（不属于任何在运行的应用）内存空闲区域，由于太小而无法分配给提出申请内存空间的应用。</p></li>
 </ul>
+<p>为何应用开发者在编程中“看不到”内存碎片？这是因为动态内存管理有更底层的系统标准库来完成的，它能看到并进行管理。而应用开发者只需调用系统标准库提供的内存申请/释放函数接口即可。</p>
 </div>
-<p>鉴于动态分配是一项非常基础的功能，很多高级语言的标准库中都实现了它。以 C 语言为例，C 标准库中提供了如下两个动态分配
+<p>鉴于动态分配是一项非常基础的功能，很多高级语言的系统标准库中都实现了它。以 C 语言为例，C 标准库中提供了如下两个动态分配
 的接口函数：</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="nf">malloc</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span><span class="w"></span>
 <span class="kt">void</span><span class="w"> </span><span class="nf">free</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">ptr</span><span class="p">);</span><span class="w"></span>
 </pre></div>
 </div>
 <p>其中，<code class="docutils literal notranslate"><span class="pre">malloc</span></code> 的作用是从堆中分配一块大小为 <code class="docutils literal notranslate"><span class="pre">size</span></code> 字节的空间，并返回一个指向它的指针。而后续不用的时候，将这个
-指针传给 <code class="docutils literal notranslate"><span class="pre">free</span></code> 即可在堆中回收这块空间。我们通过返回的指针变量来 <strong>间接</strong> 访问堆空间上的数据。事实上，我们在程序中能够 <strong>直接</strong> 看到的变量都是被静态分配在栈或者全局数据段上的，它们大小在编译期已知。比如我们可以把固定大小的指针可以放到栈（（局部变量））或数据段（全局变量）上，然后通过指针来指向运行时才确定的堆空间上的数据，并进行访问。这样就可以通过指针来实现对编译时大小不确定的堆数据的访问。</p>
+指针传给 <code class="docutils literal notranslate"><span class="pre">free</span></code> 即可在堆中回收这块空间。我们通过返回的指针变量来 <strong>间接</strong> 访问堆空间上的数据。事实上，我们在程序中能够 <strong>直接</strong> 看到的变量都是被静态分配在栈或者全局数据段上的，它们大小在编译期已知。比如我们可以把固定大小的指针放到栈（（局部变量））或数据段（全局变量）上，然后通过指针来指向运行时才确定的堆空间上的数据，并进行访问。这样就可以通过确定大小的指针来实现对编译时大小不确定的堆数据的访问。</p>
 <p>除了可以灵活利用内存之外，动态分配还允许我们以尽可能小的代价灵活调整变量的生命周期。一个局部变量被静态分配在它所在函数
 的栈帧中，一旦函数返回，这个局部变量的生命周期也就结束了；而静态分配在数据段中的全局变量则是在应用的整个运行期间均存在。
 动态分配允许我们构造另一种并不一直存在也不绑定于函数调用的变量生命周期：以 C 语言为例，可以说自 <code class="docutils literal notranslate"><span class="pre">malloc</span></code> 拿到指向
@@ -224,15 +221,15 @@ commentsRunWhenDOMLoaded(addUtterances);
 (Borrow Check) ，来确保在编译期就解决掉很多内存不安全问题。具体要求包括：</p>
 <blockquote>
 <div><ul class="simple">
-<li><p>引用的生命周期必须在被借用的变量的生命周期之内；</p></li>
-<li><p>可变借用和不可变借用不能共存；</p></li>
-<li><p>一个变量可以同时存在多个不可变借用；</p></li>
-<li><p>一个变量的可变借用同时最多只能存在一个。</p></li>
+<li><p>引用的生命周期必须在被借用的变量的生命周期之内</p></li>
+<li><p>可变借用和不可变借用不能共存</p></li>
+<li><p>一个变量可以同时存在多个不可变借用</p></li>
+<li><p>一个变量的可变借用同时最多只能存在一个</p></li>
 </ul>
 </div></blockquote>
 </li>
-<li><p>智能指针不仅包含它指向区域的地址范围，还含有一些额外的信息，因此这个类型的字节大小大于平台的位宽，属于一种胖指针。
-从用途上看，它不仅可以作为一个媒介来访问它指向的数据，还能在这个过程中起到一些管理和控制的功能。</p></li>
+<li><p>智能指针不仅包含它指向区域的地址范围，还含有一些额外的信息，因此这个类型的大小大于裸指针的大小，属于一种“胖”指针。
+从用途上看，它不仅可以作为一个媒介来访问它指向的数据，还能在这个过程中起到管理和控制的功能。</p></li>
 </ul>
 <p>在 Rust 中，与动态内存分配相关的智能指针主要有如下这些：</p>
 <ul>
@@ -240,24 +237,24 @@ commentsRunWhenDOMLoaded(addUtterances);
 不同的是，当 <code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 被回收的时候，它指向的那个变量（位于堆上）也会被回收。<code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 可以对标 C++ 的 <code class="docutils literal notranslate"><span class="pre">std::unique_ptr</span></code> 。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">Rc&lt;T&gt;</span></code> 是一个单线程上使用的引用计数类型，它提供了
 多所有权支持，即可同时存在多个智能指针指向同一个堆上变量的 <code class="docutils literal notranslate"><span class="pre">Rc&lt;T&gt;</span></code> ，它们都可以拿到指向变量的不可变引用来
-访问这同一个变量。而它同时也是一个引用计数，事实上在堆上的另一个位置维护了堆上这个变量目前被引用了多少次，
-也就是存在多少个 <code class="docutils literal notranslate"><span class="pre">Rc&lt;T&gt;</span></code> 智能指针。这个计数会随着 <code class="docutils literal notranslate"><span class="pre">Rc&lt;T&gt;</span></code> 智能指针的创建或复制而增加，并在 <code class="docutils literal notranslate"><span class="pre">Rc&lt;T&gt;</span></code> 智能指针生命周期结束
+访问这同一个变量。而它同时也是一个引用计数，事实上在堆上的另一个位置维护了这个变量目前被引用的次数 N ，
+即存在 N 个 <code class="docutils literal notranslate"><span class="pre">Rc&lt;T&gt;</span></code> 智能指针。这个计数会随着 <code class="docutils literal notranslate"><span class="pre">Rc&lt;T&gt;</span></code> 智能指针的创建或复制而增加，并在 <code class="docutils literal notranslate"><span class="pre">Rc&lt;T&gt;</span></code> 智能指针生命周期结束
 时减少。当这个计数变为零之后，这个智能指针变量本身以及被引用的变量都会被回收。 <code class="docutils literal notranslate"><span class="pre">Arc&lt;T&gt;</span></code> 与 <code class="docutils literal notranslate"><span class="pre">Rc&lt;T&gt;</span></code> 功能相同，只是``Arc&lt;T&gt;`` 可以在多线程上使用。 <code class="docutils literal notranslate"><span class="pre">Arc&lt;T&gt;</span></code> 类似于 C++ 的 <code class="docutils literal notranslate"><span class="pre">std::shared_ptr</span></code> 。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">RefCell&lt;T&gt;</span></code> 与  <code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 等智能指针不同，其 <strong>借用检查</strong> 在运行时进行。对于 RefCell&lt;T&gt;，如果违反借用规则，程序会编译通过，但会在运行时 panic 并退出。使用 <code class="docutils literal notranslate"><span class="pre">RefCell&lt;T&gt;</span></code> 的好处是，可在其自身是不可变的情况下修改其内部的值。在Rust语言中，在不可变值内部改变值是一种 <a class="reference internal" href="../chapter2/3batch-system.html#term-interior-mutability"><span class="std std-ref">内部可变性</span></a> 的设计模式。</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 是一个互斥锁，在多线程中使用，它可以保护里层被动态分配到堆上的变量同一时间只有一个线程能对它
+<li><p><code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 是一个互斥锁，在多线程中使用。它可以保护里层的堆上的变量同一时间只有一个线程能对它
 进行操作，从而避免数据竞争，这是并发安全的问题，会在后面详细说明。同时，它也能够提供
 <a class="reference internal" href="../chapter2/3batch-system.html#term-interior-mutability"><span class="std std-ref">内部可变性</span></a> 。<code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 时常和 <code class="docutils literal notranslate"><span class="pre">Arc&lt;T&gt;</span></code> 配套使用，因为它是用来
 保护多线程（线程概念在后面会讲，这里可简单理解为运行程序）可同时访问的数据，其前提就是多个线程都拿到指向同一块堆上数据的 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 。于是，要么
-这个 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 作为全局变量被分配到数据段上，要么将 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 包裹上一层多所有权变成
-<code class="docutils literal notranslate"><span class="pre">Arc&lt;Mutex&lt;T&gt;&gt;</span></code> ，让它可以在线程间进行传递。请记住 <code class="docutils literal notranslate"><span class="pre">Arc&lt;Mutex&lt;T&gt;&gt;</span></code> 这个经典组合，我们后面会用到。</p>
+这个 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 作为全局变量被分配到数据段上，要么将 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 包裹上一层多所有权 <code class="docutils literal notranslate"><span class="pre">Arc</span></code> ，变成
+<code class="docutils literal notranslate"><span class="pre">Arc&lt;Mutex&lt;T&gt;&gt;</span></code> 这种经典组合结构，让最里层基于泛型 <code class="docutils literal notranslate"><span class="pre">T</span></code> 数据结构的变量可以在线程间安全传递。</p>
 <p>在讲解 <strong>同步互斥</strong> 之前我们通过 <code class="docutils literal notranslate"><span class="pre">RefCell&lt;T&gt;</span></code> 来获得内部可变性。可以将 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 看成 <code class="docutils literal notranslate"><span class="pre">RefCell&lt;T&gt;</span></code> 的多线程版本，
 因为 <code class="docutils literal notranslate"><span class="pre">RefCell&lt;T&gt;</span></code> 是只能在单线程上使用的。而且 <code class="docutils literal notranslate"><span class="pre">RefCell&lt;T&gt;</span></code> 并不会在堆上分配内存，它仅用于基于数据段的静态内存
 分配。</p>
 </li>
 </ul>
-<p id="term-container"><span id="term-collection"></span>随后，是一些 <strong>集合</strong> (Collection) 或称 <strong>容器</strong> (Container) 类型，它们负责管理一组数目可变的元素，这些元素
+<p id="term-container"><span id="term-collection"></span>基于上述智能指针，可形成更强大的 <strong>集合</strong> (Collection) 或称 <strong>容器</strong> (Container) 类型，它们负责管理一组数目可变的元素，这些元素
 的类型相同或是有着一些同样的特征。在 C++/Python/Java 等高级语言中我们已经对它们的使用方法非常熟悉了，对于
-Rust 而言，我们则可以直接使用以下容器：</p>
+Rust 而言，我们可以直接使用以下容器：</p>
 <ul class="simple">
 <li><p>向量 <code class="docutils literal notranslate"><span class="pre">Vec&lt;T&gt;</span></code> 类似于 C++ 中的 <code class="docutils literal notranslate"><span class="pre">std::vector</span></code> ；</p></li>
 <li><p>键值对容器 <code class="docutils literal notranslate"><span class="pre">BTreeMap&lt;K,</span> <span class="pre">V&gt;</span></code> 类似于 C++ 中的 <code class="docutils literal notranslate"><span class="pre">std::map</span></code> ；</p></li>
@@ -268,7 +265,7 @@ Rust 而言，我们则可以直接使用以下容器：</p>
 </ul>
 <p>下面是一张 Rust 智能指针/容器及其他类型的内存布局的 <a class="reference external" href="https://docs.google.com/presentation/d/1q-c7UAyrUlM-eZyTo1pd8SZ0qwA_wYxmPZVOQkoDmH4/edit#slide=id.p">经典图示</a> 。</p>
 <img alt="../_images/rust-containers.png" src="../_images/rust-containers.png" />
-<p>让我们先来看其它一些语言使用动态内存的方式：</p>
+<p>有对比才有更深入的理解，让我们先来看其它一些语言使用动态内存的方式：</p>
 <span id="term-reference-counting"></span><ul class="simple" id="term-garbage-collection">
 <li><p>C 语言仅支持 <code class="docutils literal notranslate"><span class="pre">malloc/free</span></code> 这一对操作，它们必须恰好成对使用，否则就会出现各种内存错误。比如分配了之后没有回收，则会导致
 内存溢出；回收之后再次 free 相同的指针，则会造成 Double-Free 问题；又如回收之后再尝试通过指针访问它指向的区域，这
@@ -276,15 +273,15 @@ Rust 而言，我们则可以直接使用以下容器：</p>
 <li><p>Python/Java 通过 <strong>引用计数</strong> (Reference Counting) 对所有的对象进行运行时的动态管理，一套 <strong>垃圾回收</strong>
 (GC, Garbage Collection) 机制会被自动定期触发，每次都会检查所有的对象，如果其引用计数为零则可以将该对象占用的内存
 从堆上回收以待后续其他的对象使用。这样做完全杜绝了内存安全问题，但是性能开销则很大，而且 GC 触发的时机和每次 GC 的
-耗时都是无法预测的，还使得性能不够稳定。</p></li>
-<li><p>C++ 的 <strong>资源获取即初始化</strong> (RAII, Resource Acquisition Is Initialization) 风格则致力于解决上述问题。RAII 是指，将一个使用前必须获取的资源的生命周期绑定到一个变量上，变量释放时，对应的资源也一并释放。</p></li>
+耗时都是无法预测的，还使得软件的执行性能不够确定。</p></li>
+<li><p>C++ 的智能指针（shared_ptr、unique_ptr、weak_ptr、auto_ptr等）和 <strong>资源获取即初始化</strong> (RAII, Resource Acquisition Is Initialization，指将一个使用前必须获取的资源的生命周期绑定到一个变量上，变量释放时，对应的资源也一并释放。) 风格都是致力于解决内存安全问题。但这些编程方式是“建议”而不是“强制”。</p></li>
 </ul>
-<p>可以发现，在动态内存分配方面， Rust 和 C++ 很像，事实上 Rust 有意从 C++ 借鉴了这部分优秀特性，并强制Rust编程人员遵守 <strong>借用规则</strong> 。以 <code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 为例，在它被创建的时候，会在堆上分配一块空间保存它指向的数据；而在 <code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 生命周期结束被回收的时候，堆上的那块空间也会立即被一并回收。这也就是说，我们无需手动回收资源，它和绑定的变量会被自动回收；同时，由于编译器清楚每个变量的生命周期，则变量对应的资源何时被回收是完全可预测的，回收操作的开销也是确定的。在 Rust 中，不限于堆内存，将某种资源的生命周期与一个变量绑定的这种 RAII 的思想无处不见，甚至这种资源可能只是另外一种类型的变量。</p>
+<p>可以发现，在动态内存分配方面， Rust 和 C++ 很像，事实上 Rust 有意从 C++ 借鉴了这部分优秀特性，并强制Rust编程人员遵守 <strong>借用规则</strong> 。以 <code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 为例，在它被创建的时候，会在堆上分配一块空间保存它指向的数据；而在 <code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 生命周期结束被回收的时候，堆上的那块空间也会立即被一并回收。这也就是说，我们无需手动回收资源，它和绑定的变量会被自动回收；同时，由于编译器清楚每个变量的生命周期，则变量对应的资源何时被回收是完全可预测的，回收操作的开销也是确定的。在 Rust 中，不限于堆内存，将某种资源的生命周期与一个变量绑定的这种 RAII 的思想无处不在，甚至这种资源可能只是另外一种类型的变量。</p>
 </section>
 <section id="term-raii">
 <span id="id7"></span><h2>在内核中支持动态内存分配<a class="headerlink" href="#term-raii" title="永久链接至标题"></a></h2>
-<p>如果要在操作系统内核中支持动态内存分配，则需要实现在本节开始介绍的一系列功能：初始化堆、分配/释放内存块的函数接口、连续内存分配算法。相对于C语言而言，Rust语言在 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> crate中设定了一套简洁规范的接口，只要实现了这套接口，内核就可以很方便地支持动态内存分配了。</p>
-<p>上边介绍的那些与堆相关的智能指针或容器都可以在 Rust 自带的 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> crate 中找到。当我们使用 Rust 标准库
+<p>如果要在操作系统内核中支持动态内存分配，则需要实现在本节开始介绍的一系列功能：初始化堆、分配/释放内存块的函数接口、连续内存分配算法。相对于 C 语言而言，Rust语言在 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> crate中设定了一套简洁规范的接口，只要实现了这套接口，内核就可以很方便地支持动态内存分配了。</p>
+<p>上述与堆相关的智能指针或容器都可以在 Rust 自带的 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> crate 中找到。当我们使用 Rust 标准库
 <code class="docutils literal notranslate"><span class="pre">std</span></code> 的时候可以不用关心这个 crate ，因为标准库内已经已经实现了一套堆管理算法，并将 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 的内容包含在
 <code class="docutils literal notranslate"><span class="pre">std</span></code> 名字空间之下让开发者可以直接使用。然而操作系统内核运行在禁用标准库（即 <code class="docutils literal notranslate"><span class="pre">no_std</span></code> ）的裸机平台上，核心库
 <code class="docutils literal notranslate"><span class="pre">core</span></code> 也并没有动态内存分配的功能，这个时候就要考虑利用 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 库定义的接口来实现基本的动态内存分配器。</p>
@@ -393,7 +390,7 @@ Rust 而言，我们则可以直接使用以下容器：</p>
 </pre></div>
 </div>
 <p>其中分别使用智能指针 <code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 和向量 <code class="docutils literal notranslate"><span class="pre">Vec&lt;T&gt;</span></code> 在堆上分配数据并管理它们，通过 <code class="docutils literal notranslate"><span class="pre">as_ref</span></code> 和 <code class="docutils literal notranslate"><span class="pre">as_ptr</span></code>
-方法可以分别看到它们指向的数据的位置，能够确认它们的确在 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的堆上。</p>
+方法可以分别看到它们指向的数据的位置，能够确认它们的确在位于 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的堆上。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p>本节部分内容参考自 <a class="reference external" href="https://os.phil-opp.com/heap-allocation/">BlogOS 的相关章节</a> 。</p>

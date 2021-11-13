@@ -305,7 +305,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 
 <span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">PID_ALLOCATOR</span><span class="w"> </span>: <span class="nc">Mutex</span><span class="o">&lt;</span><span class="n">PidAllocator</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">PidAllocator</span>::<span class="n">new</span><span class="p">());</span><span class="w"></span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">PID_ALLOCATOR</span><span class="w"> </span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">PidAllocator</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">PidAllocator</span>::<span class="n">new</span><span class="p">())</span><span class="w"></span>
+<span class="w">    </span><span class="p">};</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
@@ -313,7 +315,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/pid.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">pid_alloc</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">PidHandle</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">PID_ALLOCATOR</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">alloc</span><span class="p">()</span><span class="w"></span>
+<span class="w">    </span><span class="n">PID_ALLOCATOR</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">alloc</span><span class="p">()</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
@@ -322,7 +324,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 
 <span class="k">impl</span><span class="w"> </span><span class="nb">Drop</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">PidHandle</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">fn</span> <span class="nf">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">PID_ALLOCATOR</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">dealloc</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">PID_ALLOCATOR</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">dealloc</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
@@ -350,7 +352,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos">12</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pid_handle</span><span class="p">.</span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
 <span class="linenos">13</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">kernel_stack_bottom</span><span class="p">,</span><span class="w"> </span><span class="n">kernel_stack_top</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack_position</span><span class="p">(</span><span class="n">pid</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">14</span><span class="w">        </span><span class="n">KERNEL_SPACE</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">            </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">            </span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">()</span><span class="w"></span>
 <span class="linenos">16</span><span class="w">            </span><span class="p">.</span><span class="n">insert_framed_area</span><span class="p">(</span><span class="w"></span>
 <span class="linenos">17</span><span class="w">                </span><span class="n">kernel_stack_bottom</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
 <span class="linenos">18</span><span class="w">                </span><span class="n">kernel_stack_top</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
@@ -386,13 +388,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">kernel_stack_bottom</span><span class="p">,</span><span class="w"> </span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack_position</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">pid</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">kernel_stack_bottom_va</span>: <span class="nc">VirtAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack_bottom</span><span class="p">.</span><span class="n">into</span><span class="p">();</span><span class="w"></span>
 <span class="w">        </span><span class="n">KERNEL_SPACE</span><span class="w"></span>
-<span class="w">            </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span><span class="w"></span>
+<span class="w">            </span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">()</span><span class="w"></span>
 <span class="w">            </span><span class="p">.</span><span class="n">remove_area_with_start_vpn</span><span class="p">(</span><span class="n">kernel_stack_bottom_va</span><span class="p">.</span><span class="n">into</span><span class="p">());</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>这仅需要为 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> 实现 <code class="docutils literal notranslate"><span class="pre">Drop</span></code> Trait，一旦它的生命周期结束则在内核地址空间中将对应的逻辑段删除（为此在 <code class="docutils literal notranslate"><span class="pre">MemorySet</span></code> 中新增了一个名为 <code class="docutils literal notranslate"><span class="pre">remove_area_with_start_vpn</span></code> 的方法，感兴趣的读者可以参考其实现），由前面章节的介绍我们知道这也就意味着那些物理页帧被同时回收掉了。</p>
+<p>这仅需要为 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> 实现 <code class="docutils literal notranslate"><span class="pre">Drop</span></code> Trait，一旦它的生命周期结束则在内核地址空间中将对应的逻辑段删除（为此在 <code class="docutils literal notranslate"><span class="pre">MemorySet</span></code> 中新增了一个名为 <code class="docutils literal notranslate"><span class="pre">remove_area_with_start_vpn</span></code> 的方法，感兴趣的同学可以参考其实现），由前面章节的介绍我们知道这也就意味着那些物理页帧被同时回收掉了。</p>
 </section>
 <section id="id7">
 <h2>进程控制块<a class="headerlink" href="#id7" title="永久链接至标题"></a></h2>
@@ -405,7 +407,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos"> 5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">pid</span>: <span class="nc">PidHandle</span><span class="p">,</span><span class="w"></span>
 <span class="linenos"> 6</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">kernel_stack</span>: <span class="nc">KernelStack</span><span class="p">,</span><span class="w"></span>
 <span class="linenos"> 7</span><span class="w">    </span><span class="c1">// mutable</span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="n">inner</span>: <span class="nc">Mutex</span><span class="o">&lt;</span><span class="n">TaskControlBlockInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">TaskControlBlockInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
 <span class="linenos"> 9</span><span class="p">}</span><span class="w"></span>
 <span class="linenos">10</span>
 <span class="linenos">11</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -423,7 +425,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>任务控制块中包含两部分：</p>
 <ul class="simple">
 <li><p>在初始化之后就不再变化的元数据：直接放在任务控制块中。这里将进程标识符 <code class="docutils literal notranslate"><span class="pre">PidHandle</span></code> 和内核栈 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> 放在其中；</p></li>
-<li><p>在运行过程中可能发生变化的元数据：则放在 <code class="docutils literal notranslate"><span class="pre">TaskControlBlockInner</span></code> 中，将它再包裹上一层互斥锁 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 放在任务控制块中。这是因为在我们的设计中外层只能获取任务控制块的不可变引用，若想修改里面的部分内容的话这需要 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 所提供的内部可变性。另外，当后续真正可能有多核同时修改同一个任务控制块中的内容时， <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 可以提供互斥从而避免数据竞争。</p></li>
+<li><p>在运行过程中可能发生变化的元数据：则放在 <code class="docutils literal notranslate"><span class="pre">TaskControlBlockInner</span></code> 中，将它再包裹上一层 <code class="docutils literal notranslate"><span class="pre">UPSafeCell&lt;T&gt;</span></code> 放在任务控制块中。这是因为在我们的设计中外层只能获取任务控制块的不可变引用，若想修改里面的部分内容的话这需要 <code class="docutils literal notranslate"><span class="pre">UPSafeCell&lt;T&gt;</span></code> 所提供的内部可变性。</p></li>
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">TaskControlBlockInner</span></code> 中则包含下面这些内容：</p>
 <ul class="simple">
@@ -463,8 +465,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
 
 <span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">acquire_inner_lock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">MutexGuard</span><span class="o">&lt;</span><span class="n">TaskControlBlockInner</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">lock</span><span class="p">()</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">inner_exclusive_access</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">RefMut</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="p">,</span><span class="w"> </span><span class="n">TaskControlBlockInner</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">()</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">getpid</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">pid</span><span class="p">.</span><span class="mi">0</span><span class="w"></span>
@@ -476,7 +478,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">acquire_inner_lock</span></code> 尝试获取互斥锁来得到一个 <code class="docutils literal notranslate"><span class="pre">MutexGuard</span></code> ，它可以被看成一个内层 <code class="docutils literal notranslate"><span class="pre">TaskControlBlockInner</span></code> 的可变引用并可以对它指向的内容进行修改。之所以要包装为一个方法而不是直接通过 <code class="docutils literal notranslate"><span class="pre">self.inner.lock</span></code> 是由于这样接口的定义更加清晰明确。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">inner_exclusive_access</span></code> 通过 <code class="docutils literal notranslate"><span class="pre">UPSafeCell&lt;T&gt;.exclusive_access()</span></code> 来得到一个 <code class="docutils literal notranslate"><span class="pre">RefMut&lt;'_,</span> <span class="pre">TaskControlBlockInner&gt;</span></code> ，它可以被看成一个内层 <code class="docutils literal notranslate"><span class="pre">TaskControlBlockInner</span></code> 的可变引用并可以对它指向的内容进行修改。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">getpid</span></code> 以 <code class="docutils literal notranslate"><span class="pre">usize</span></code> 的形式返回当前进程的进程标识符。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">new</span></code> 用来创建一个新的进程，目前仅用于内核中手动创建唯一一个初始进程 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> 。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">exec</span></code> 用来实现 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 系统调用，即当前进程加载并执行另一个 ELF 格式可执行文件。</p></li>
@@ -507,61 +509,55 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos">18</span><span class="p">}</span><span class="w"></span>
 <span class="linenos">19</span>
 <span class="linenos">20</span><span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">TASK_MANAGER</span>: <span class="nc">Mutex</span><span class="o">&lt;</span><span class="n">TaskManager</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskManager</span>::<span class="n">new</span><span class="p">());</span><span class="w"></span>
-<span class="linenos">22</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">23</span>
-<span class="linenos">24</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">add_task</span><span class="p">(</span><span class="n">task</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">    </span><span class="n">TASK_MANAGER</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">add</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">26</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">27</span>
-<span class="linenos">28</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">fetch_task</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">29</span><span class="w">    </span><span class="n">TASK_MANAGER</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">fetch</span><span class="p">()</span><span class="w"></span>
-<span class="linenos">30</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">TASK_MANAGER</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">TaskManager</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">        </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskManager</span>::<span class="n">new</span><span class="p">())</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">    </span><span class="p">};</span><span class="w"></span>
+<span class="linenos">24</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">25</span>
+<span class="linenos">26</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">add_task</span><span class="p">(</span><span class="n">task</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">    </span><span class="n">TASK_MANAGER</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">add</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">28</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">29</span>
+<span class="linenos">30</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">fetch_task</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">    </span><span class="n">TASK_MANAGER</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">fetch</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">32</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 将所有的任务控制块用引用计数 <code class="docutils literal notranslate"><span class="pre">Arc</span></code> 智能指针包裹后放在一个双端队列 <code class="docutils literal notranslate"><span class="pre">VecDeque</span></code> 中。正如之前介绍的那样，我们并不直接将任务控制块放到 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 里面，而是将它们放在内核堆上，在任务管理器中仅存放他们的引用计数智能指针，这也是任务管理器的操作单位。这样做的原因在于，任务控制块经常需要被放入/取出，如果直接移动任务控制块自身将会带来大量的数据拷贝开销，而对于智能指针进行移动则没有多少开销。其次，允许任务控制块的共享引用在某些情况下能够让我们的实现更加方便。</p>
 <p><code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 提供 <code class="docutils literal notranslate"><span class="pre">add/fetch</span></code> 两个操作，前者表示将一个任务加入队尾，后者则表示从队头中取出一个任务来执行。从调度算法来看，这里用到的就是最简单的 RR 算法。全局实例 <code class="docutils literal notranslate"><span class="pre">TASK_MANAGER</span></code> 则提供给内核的其他子模块 <code class="docutils literal notranslate"><span class="pre">add_task/fetch_task</span></code> 两个函数。</p>
-<p>在我们的设计中，即使在多核情况下，我们也只有单个任务管理器共享给所有的核来使用。然而在其他设计中，每个核可能都有一个自己独立的任务管理器来管理仅可以在自己上面运行的任务。</p>
 </section>
 <section id="id9">
 <h2>处理器管理结构<a class="headerlink" href="#id9" title="永久链接至标题"></a></h2>
-<p>处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 负责从任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 分离出去的那部分维护 CPU 状态的职责：</p>
+<p>处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 负责从任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 中分出去的维护 CPU 状态的职责：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/processor.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">Processor</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">inner</span>: <span class="nc">RefCell</span><span class="o">&lt;</span><span class="n">ProcessorInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
-
-<span class="k">unsafe</span><span class="w"> </span><span class="k">impl</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Processor</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
-
-<span class="k">struct</span> <span class="nc">ProcessorInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="n">current</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">idle_task_cx_ptr</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">idle_task_cx</span>: <span class="nc">TaskContext</span><span class="p">,</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 
 <span class="k">impl</span><span class="w"> </span><span class="n">Processor</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">inner</span>: <span class="nc">RefCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">ProcessorInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                </span><span class="n">current</span>: <span class="nb">None</span><span class="p">,</span><span class="w"></span>
-<span class="w">                </span><span class="n">idle_task_cx_ptr</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
-<span class="w">            </span><span class="p">}),</span><span class="w"></span>
+<span class="w">            </span><span class="n">current</span>: <span class="nb">None</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">idle_task_cx</span>: <span class="nc">TaskContext</span>::<span class="n">zero_init</span><span class="p">(),</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>在 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 中仅有一个被 <code class="docutils literal notranslate"><span class="pre">RefCell&lt;T&gt;</span></code> 包裹起来的 <code class="docutils literal notranslate"><span class="pre">ProcessorInner</span></code> 结构体，存放所有在运行过程中可能变化的内容，目前包括：</p>
+<p>在 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 中存放所有在运行过程中可能变化的内容，目前包括：</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">current</span></code> 表示在当前处理器上正在执行的任务；</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">idle_task_cx_ptr</span></code> 表示当前处理器上的 idle 控制流的任务上下文的地址。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">idle_task_cx</span></code> 表示当前处理器上的 idle 控制流的任务上下文。</p></li>
 </ul>
-<p><code class="docutils literal notranslate"><span class="pre">Processor</span></code> 是一种 per-CPU 的数据结构，即每个核都有一份专属的 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 结构体，只有这个核自己会访问它，它很容易被拓展到多核环境下使用。因此无论是单核还是多核环境，在访问 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 的时候都不会带来任何隐含的数据竞争风险，这样我们就可以将 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 标记为 <code class="docutils literal notranslate"><span class="pre">Sync</span></code> 并全局实例化。但是由于在运行时我们还需要对里面的内容进行修改，故而我们使用一个 <code class="docutils literal notranslate"><span class="pre">RefCell&lt;T&gt;</span></code> 将可能被修改的内容包裹起来以提供内部可变性。</p>
-<p>在单核环境下，我们仅创建单个 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 的全局实例 <code class="docutils literal notranslate"><span class="pre">PROCESSOR</span></code> ：</p>
+<p><code class="docutils literal notranslate"><span class="pre">Processor</span></code> 是描述CPU 执行状态 的数据结构。在单核CPU环境下，我们仅创建单个 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 的全局实例 <code class="docutils literal notranslate"><span class="pre">PROCESSOR</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/processor.rs</span>
 
 <span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">PROCESSOR</span>: <span class="nc">Processor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Processor</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">PROCESSOR</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">Processor</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">Processor</span>::<span class="n">new</span><span class="p">())</span><span class="w"></span>
+<span class="w">    </span><span class="p">};</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
@@ -571,99 +567,99 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/processor.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">Processor</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">take_current</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">().</span><span class="n">current</span><span class="p">.</span><span class="n">take</span><span class="p">()</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">take_current</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="p">.</span><span class="n">take</span><span class="p">()</span><span class="w"></span>
 <span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="linenos"> 7</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow</span><span class="p">().</span><span class="n">current</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">task</span><span class="o">|</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">task</span><span class="p">))</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">task</span><span class="o">|</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">task</span><span class="p">))</span><span class="w"></span>
 <span class="linenos"> 9</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="linenos">10</span><span class="p">}</span><span class="w"></span>
 <span class="linenos">11</span>
 <span class="linenos">12</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">take_current_task</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="n">PROCESSOR</span><span class="p">.</span><span class="n">take_current</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="n">PROCESSOR</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">take_current</span><span class="p">()</span><span class="w"></span>
 <span class="linenos">14</span><span class="p">}</span><span class="w"></span>
 <span class="linenos">15</span>
 <span class="linenos">16</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_task</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">    </span><span class="n">PROCESSOR</span><span class="p">.</span><span class="n">current</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">    </span><span class="n">PROCESSOR</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">current</span><span class="p">()</span><span class="w"></span>
 <span class="linenos">18</span><span class="p">}</span><span class="w"></span>
 <span class="linenos">19</span>
 <span class="linenos">20</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_user_token</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
 <span class="linenos">21</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">acquire_inner_lock</span><span class="p">().</span><span class="n">get_user_token</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">get_user_token</span><span class="p">();</span><span class="w"></span>
 <span class="linenos">23</span><span class="w">    </span><span class="n">token</span><span class="w"></span>
 <span class="linenos">24</span><span class="p">}</span><span class="w"></span>
 <span class="linenos">25</span>
 <span class="linenos">26</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_trap_cx</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">TrapContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">    </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">acquire_inner_lock</span><span class="p">().</span><span class="n">get_trap_cx</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">    </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">get_trap_cx</span><span class="p">()</span><span class="w"></span>
 <span class="linenos">28</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <ul class="simple">
-<li><p>第 4 行的 <code class="docutils literal notranslate"><span class="pre">Processor::take_current</span></code> 可以取出当前正在执行的任务。注意首先需要通过 <code class="docutils literal notranslate"><span class="pre">inner.borrow_mut</span></code> 来获得里层 <code class="docutils literal notranslate"><span class="pre">ProcessorInner</span></code> 的可变引用，而后通过 <code class="docutils literal notranslate"><span class="pre">Option::take</span></code> 来将正在执行的任务取出并返回，这意味着 <code class="docutils literal notranslate"><span class="pre">ProcessorInner</span></code> 里面的 <code class="docutils literal notranslate"><span class="pre">current</span></code> 字段也变为 <code class="docutils literal notranslate"><span class="pre">None</span></code> 。</p></li>
-<li><p>第 7 行的 <code class="docutils literal notranslate"><span class="pre">Processor::current</span></code> 返回当前执行的任务的一份拷贝，这并不会影响到 <code class="docutils literal notranslate"><span class="pre">ProcessorInner</span></code> 里面的 <code class="docutils literal notranslate"><span class="pre">current</span></code> 字段，因此只需通过 <code class="docutils literal notranslate"><span class="pre">borrow</span></code> 来获取 <code class="docutils literal notranslate"><span class="pre">ProcessorInner</span></code> 的不可变引用。</p></li>
+<li><p>第 4 行的 <code class="docutils literal notranslate"><span class="pre">Processor::take_current</span></code> 可以取出当前正在执行的任务。</p></li>
+<li><p>第 7 行的 <code class="docutils literal notranslate"><span class="pre">Processor::current</span></code> 返回当前执行的任务的一份拷贝。</p></li>
 <li><p>第 12 行的 <code class="docutils literal notranslate"><span class="pre">take_current_task</span></code> 以及第 16 行的 <code class="docutils literal notranslate"><span class="pre">current_task</span></code> 是对 <code class="docutils literal notranslate"><span class="pre">Processor::take_current/current</span></code> 进行封装并提供给内核其他子模块的接口。</p></li>
 <li><p>第 20 行的 <code class="docutils literal notranslate"><span class="pre">current_user_token</span></code> 和第 26 行的 <code class="docutils literal notranslate"><span class="pre">current_trap_cx</span></code> 基于 <code class="docutils literal notranslate"><span class="pre">current_task</span></code> 实现，可以提供当前正在执行的任务的更多信息。</p></li>
 </ul>
 </section>
 <section id="idle">
 <h3>任务调度的 idle 控制流<a class="headerlink" href="#idle" title="永久链接至标题"></a></h3>
-<p>每个 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 都有一个不同的 idle 控制流，它们运行在每个核各自的启动栈上，功能是尝试从任务管理器中选出一个任务来在当前核上执行。在内核初始化完毕之后，每个核都会通过调用 <code class="docutils literal notranslate"><span class="pre">run_tasks</span></code> 函数来进入 idle 控制流：</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">Processor</span></code> 有一个不同的 idle 控制流，它运行在这个CPU核的启动栈上，功能是尝试从任务管理器中选出一个任务来在当前CPU核上执行。在内核初始化完毕之后，会通过调用 <code class="docutils literal notranslate"><span class="pre">run_tasks</span></code> 函数来进入 idle 控制流：</p>
+</div></blockquote>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/processor.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">Processor</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">fn</span> <span class="nf">get_idle_task_cx_ptr2</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">        </span><span class="o">&amp;</span><span class="n">inner</span><span class="p">.</span><span class="n">idle_task_cx_ptr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">run</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">        </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fetch_task</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">idle_task_cx_ptr2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">get_idle_task_cx_ptr2</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">                </span><span class="c1">// acquire</span>
-<span class="linenos">13</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">acquire_inner_lock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">next_task_cx_ptr2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">get_task_cx_ptr2</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">                </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Running</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">                </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">                </span><span class="c1">// release</span>
-<span class="linenos">18</span><span class="w">                </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">().</span><span class="n">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">                </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">                    </span><span class="n">__switch</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">                        </span><span class="n">idle_task_cx_ptr2</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">                        </span><span class="n">next_task_cx_ptr2</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">                    </span><span class="p">);</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">                </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">28</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">29</span>
-<span class="linenos">30</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">run_tasks</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">31</span><span class="w">    </span><span class="n">PROCESSOR</span><span class="p">.</span><span class="n">run</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">32</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">run_tasks</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">processor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PROCESSOR</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fetch_task</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">idle_task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">processor</span><span class="p">.</span><span class="n">get_idle_task_cx_ptr</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">            </span><span class="c1">// access coming task TCB exclusively</span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">next_task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_cx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">            </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Running</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">            </span><span class="c1">// release coming task TCB manually</span>
+<span class="linenos">14</span><span class="w">            </span><span class="n">processor</span><span class="p">.</span><span class="n">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">            </span><span class="c1">// release processor manually</span>
+<span class="linenos">16</span><span class="w">            </span><span class="nb">drop</span><span class="p">(</span><span class="n">processor</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">            </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">                </span><span class="n">__switch</span><span class="p">(</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">                    </span><span class="n">idle_task_cx_ptr</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">                    </span><span class="n">next_task_cx_ptr</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">                </span><span class="p">);</span><span class="w"></span>
+<span class="linenos">22</span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">23</span>
+<span class="linenos">24</span><span class="k">impl</span><span class="w"> </span><span class="n">Processor</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">    </span><span class="k">fn</span> <span class="nf">get_idle_task_cx_ptr</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">        </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">idle_task_cx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">_</span><span class="w"></span>
+<span class="linenos">27</span><span class="p">}</span><span class="w">  </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>可以看到，调度功能的主体在第 8 行的 <code class="docutils literal notranslate"><span class="pre">Processor::run</span></code> 中实现。它循环调用 <code class="docutils literal notranslate"><span class="pre">fetch_task</span></code> 直到顺利从任务管理器中取出一个任务，随后便准备通过任务切换的方式来执行：</p>
+<p>可以看到，调度功能的主体是 <code class="docutils literal notranslate"><span class="pre">run_tasks()</span></code> 。它循环调用 <code class="docutils literal notranslate"><span class="pre">fetch_task</span></code> 直到顺利从任务管理器中取出一个任务，随后便准备通过任务切换的方式来执行：</p>
 <ul class="simple">
-<li><p>第 11 行得到 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的第一个参数，也就是当前 idle 控制流的 task_cx_ptr2，这调用了第 4 行的 <code class="docutils literal notranslate"><span class="pre">get_idle_task_cx_ptr2</span></code> 方法。</p></li>
-<li><p>第 13~16 行需要先获取从任务管理器中取出的任务的互斥锁再对对应的任务控制块进行操作，因为在多核环境下有可能会产生并发冲突。在里面我们获取任务的 task_cx_ptr2 作为 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的第二个参数并修改任务的状态。第 16 行我们需要手动释放互斥锁，这样才能划分出更加精确的临界区。如果依赖编译器在循环的末尾自动释放的话，相当于扩大了临界区，有可能会导致死锁。</p></li>
-<li><p>第 18 行我们修改当前 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 正在执行的任务为我们取出的任务。注意这里相当于 <code class="docutils literal notranslate"><span class="pre">Arc&lt;TaskControlBlock&gt;</span></code> 形式的任务从任务管理器流动到了处理器管理结构中。也就是说，在稳定的情况下，每个尚未结束的进程的任务控制块都只能被引用一次，要么在任务管理器中，要么则是在某个处理器的 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 中。</p></li>
+<li><p>第 7 行得到 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的第一个参数，也就是当前 idle 控制流的 task_cx_ptr，这调用了第 25 行的 <code class="docutils literal notranslate"><span class="pre">Processor.get_idle_task_cx_ptr</span></code> 方法。</p></li>
+<li><p>第 9~11 行需要先获取从任务管理器中取出对应的任务控制块，并获取任务块内部的 <code class="docutils literal notranslate"><span class="pre">next_task_cx_ptr</span></code> 作为 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的第二个参数，然后修改任务的状态为 <code class="docutils literal notranslate"><span class="pre">Running</span></code> 。</p></li>
+<li><p>第 12 行需要手动释放老的任务控制块引用，这样才能划分出更加精确的临界区。如果依赖编译器在循环的末尾自动释放的话，相当于扩大了临界区，有可能会导致死锁。</p></li>
+<li><p>第 14 行我们修改当前 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 正在执行的任务为我们取出的任务。注意这里相当于 <code class="docutils literal notranslate"><span class="pre">Arc&lt;TaskControlBlock&gt;</span></code> 形式的任务从任务管理器流动到了处理器管理结构中。也就是说，在稳定的情况下，每个尚未结束的进程的任务控制块都只能被引用一次，要么在任务管理器中，要么则是在代表CPU处理器的 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 中。</p></li>
 <li><p>第 20 行我们调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 来从当前的 idle 控制流切换到接下来要执行的任务。</p></li>
 </ul>
-<p>上面介绍了从 idle 控制流通过任务调度切换到某个任务开始执行的过程。而反过来，当一个应用用尽了内核本轮分配给它的时间片或者它主动调用 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 系统调用交出 CPU 使用权之后，进入内核后它会调用 <code class="docutils literal notranslate"><span class="pre">schedule</span></code> 函数来切换到 idle 控制流并开启新一轮的任务调度。</p>
+<p>上面介绍了从 idle 控制流通过任务调度切换到某个任务开始执行的过程。而反过来，当一个应用用尽了内核本轮分配给它的时间片或者它主动调用 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 系统调用交出 CPU 使用权之后，内核会调用 <code class="docutils literal notranslate"><span class="pre">schedule</span></code> 函数来切换到 idle 控制流并开启新一轮的任务调度。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/processor.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">schedule</span><span class="p">(</span><span class="n">switched_task_cx_ptr2</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">idle_task_cx_ptr2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PROCESSOR</span><span class="p">.</span><span class="n">get_idle_task_cx_ptr2</span><span class="p">();</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">schedule</span><span class="p">(</span><span class="n">switched_task_cx_ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">processor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PROCESSOR</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">idle_task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">processor</span><span class="p">.</span><span class="n">get_idle_task_cx_ptr</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">processor</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="n">__switch</span><span class="p">(</span><span class="w"></span>
-<span class="w">            </span><span class="n">switched_task_cx_ptr2</span><span class="p">,</span><span class="w"></span>
-<span class="w">            </span><span class="n">idle_task_cx_ptr2</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">switched_task_cx_ptr</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">idle_task_cx_ptr</span><span class="p">,</span><span class="w"></span>
 <span class="w">        </span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>这里，我们需要传入即将被切换出去的任务的 task_cx_ptr2 来在合适的位置保存任务上下文，之后就可以通过 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 来切换到 idle 控制流。切换回去之后，从源代码级来看，我们将跳转到 <code class="docutils literal notranslate"><span class="pre">Processor::run</span></code> 中 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 返回之后的位置，也即开启了下一轮循环。</p>
+<p>这里，我们需要传入即将被切换出去的任务的 task_cx_ptr 来在合适的位置保存任务上下文，之后就可以通过 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 来切换到 idle 控制流。从源代码来看，切换回去之后，内核将跳转到 <code class="docutils literal notranslate"><span class="pre">Processor::run</span></code> 中 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 返回之后的位置，也即开启了下一轮的调度循环。</p>
 </section>
 </section>
 </section>

@@ -51,7 +51,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
@@ -157,14 +157,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>本节的内容有：</p>
 <ul class="simple">
 <li><p>介绍进程的概念以及它和一些其他相近的概念的比较；</p></li>
-<li><p>从应用开发者或是用户的角度介绍我们的实现中一种简单的类 Unix 进程模型；</p></li>
-<li><p>介绍三个最重要的进程相关的系统调用并给出一些用例。</p></li>
+<li><p>从应用开发者或是用户的角度介绍我们实现的一种简单类 Unix 进程模型；</p></li>
+<li><p>介绍三个最重要的进程相关系统调用并给出一些用例。</p></li>
 </ul>
 </section>
 <section id="id3">
 <h2>进程概念<a class="headerlink" href="#id3" title="永久链接至标题"></a></h2>
-<p id="term-process">在本章的引言中，出于方便应用开发和使得应用功能更加强大的目标，我们引入了进程的概念。在本章之前，我们有 <strong>任务</strong> 的概念，即 <strong>正在执行的程序</strong> ，主角是程序。而相比于 <strong>任务</strong> ， <strong>进程</strong> (Process) 的含义是 <strong>在操作系统管理下的程序的一次执行过程</strong>，程序成了形容词，而执行过程成为了主角，这充分体现了动态变化的执行特点。尽管这说起来很容易，但事实上进程是一个内涵相当丰富且深刻、难以从单个角度解释清楚的抽象概念。我们可以先试着从动态和静态的角度来进行初步的思考。我们知道，当一个应用被成功构建之后，它会从源代码变为某种格式的可执行文件，如果将其展开的话可以在它的内存布局中看到若干个功能迥异的逻辑段。但仅是如此的话，它也就只是某种格式特殊的、被 <strong>静态</strong> 归档到存储器上的一个文件而已。</p>
-<p>然而，可执行文件与其他类型文件的决定性的不同就在于它可以被内核加载并执行。这一执行过程自然是不能凭空进行的，而是需要占据某些真实的硬件资源。例如，可执行文件一定需要被加载到物理内存的某些区域中才能执行，另外还可能需要预留一些可执行文件内存布局中未规划的区域（比如堆和栈），这就会消耗掉部分内存空间；在执行的时候需要占据一个 CPU 的全部硬件资源，我们之前介绍过的有通用寄存器（其中程序计数器 pc 和栈指针 sp 两个意义尤其重大）、CSR 、各级 cache 、TLB 等。</p>
+<p id="term-process">在本章的引言中，出于方便应用开发和使得应用功能更加强大的目标，我们引入了进程的概念。在本章之前，我们有 <strong>任务</strong> 的概念，即 <strong>正在执行的程序</strong> ，主角是程序。而相比于 <strong>任务</strong> ， <strong>进程</strong> (Process) 的含义是 <strong>在操作系统管理下的程序的一次执行过程</strong>。这里的程序成了形容词，而执行过程成为了主角，这充分体现了动态变化的执行特点。尽管这说起来很容易，但事实上进程是一个内涵相当丰富且深刻、难以从单个角度解释清楚的抽象概念。我们可以先试着从动态和静态的角度来进行初步的思考。我们知道，当一个应用的源程序被编译器成功构建之后，它会从源代码变为某种格式的可执行文件，如果将其展开，可以在它的内存布局中看到若干个功能迥异的逻辑段。但如果仅是这样，它也就只是某种格式特殊的、被 <strong>静态</strong> 归档到存储器上的一个文件而已。</p>
+<p>然而，可执行文件与其他类型文件的根本性不同在于它可以被内核加载并执行。这一执行过程自然是不能凭空进行的，而是需要占据某些真实的硬件资源。例如，可执行文件一定需要被加载到物理内存的某些区域中才能执行，另外还可能需要预留一些可执行文件内存布局中未规划的区域（比如堆和栈），这就会消耗掉部分内存空间；在执行的时候需要占据一个 CPU 的全部硬件资源，我们之前介绍过的有通用寄存器（其中程序计数器 pc 和栈指针 sp 两个意义尤其重大）、CSR 、各级 cache 、TLB 等。</p>
 <p>打一个比方，可执行文件本身可以看成一张编译器解析源代码之后总结出的一张记载如何利用各种硬件资源进行一轮生产流程的 <strong>蓝图</strong> 。而内核的一大功能便是作为一个硬件资源管理器，它可以随时启动一轮生产流程（即执行任意一个应用），这需要选中一张蓝图（此时确定执行哪个可执行文件），接下来就需要内核按照蓝图上所记载的对资源的需求来对应的将各类资源分配给它，让这轮生产流程得以顺利进行。当按照蓝图上的记载生产流程完成（应用退出）之后，内核还需要将对应的硬件资源回收以便后续的重复利用。</p>
 <p>因此，进程就是操作系统选取某个可执行文件并对其进行一次动态执行的过程。相比可执行文件，它的动态性主要体现在：</p>
 <ol class="arabic simple">
@@ -178,7 +178,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p class="admonition-title">注解</p>
 <p><strong>为何要在这里才引入进程</strong></p>
 <p>根据我们多年来的OS课程经验，学生对 <code class="docutils literal notranslate"><span class="pre">进程</span></code> 的简单定义“ <strong>正在执行的程序</strong> ”比较容易理解。但对于多个运行的程序之间如何切换，会带来哪些并发问题，进程创建与虚拟内存的关系是啥等问题很难一下子理解清楚，也不清楚试图解决这些问题的原因。这主要是由于学生对进程的理解是站在应用程序角度来看的。</p>
-<p>如果变化一下，让学生站在操作系统的角度来看，那么在 <code class="docutils literal notranslate"><span class="pre">进程</span></code> 这个定义背后，有特权级切换、异常处理，程序执行的上下文切换、地址映射、地址空间、虚存管理等一系列的知识的支撑，才能理解清楚操作系统对进程的整个管理过程。所以，我们在前面几章对上述知识进行了铺垫。并以此为基础，更加全面地来分析操作系统是如何管理进程的。</p>
+<p>如果变化一下，让学生站在操作系统的角度来看，那么在 <code class="docutils literal notranslate"><span class="pre">进程</span></code> 这个定义背后，有特权级切换、异常处理，程序执行的上下文切换、地址映射、地址空间、虚存管理等一系列的知识支撑，才能理解清楚操作系统对进程的整个管理过程。所以，我们在前面几章对上述知识进行了铺垫。并以此为基础，更加全面地来分析操作系统是如何管理进程的。</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
@@ -187,13 +187,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>从历史角度上看，它们依次出现的顺序是进程、线程和协程。在还没有进程抽象的早期操作系统中，计算机科学家把程序在计算机上的一次执行过程称为一个任务（task）或一个工作（job），其特点是任务和工作在其整个的执行过程中，不会被切换。这样其他任务必须等待一个任务结束后，才能执行，这样系统的效率会比较低。</p>
 <p>在引入面向CPU的分时切换机制和面向内存的虚拟内存机制后，进程的概念就被提出了，进程成为CPU（也称处理器）调度（scheduling）和分派（switch）的对象，各个进程间以时间片为单位轮流使用CPU，且每个进程有各自独立的一块内存，使得各个进程之间内存地址相互隔离。这时，操作系统通过进程这个抽象来完成对应用程序在CPU和内存使用上的管理。</p>
 <p>随着计算机的发展，对计算机系统性能的要求越来越高，而进程之间的切换开销相对较大，于是计算机科学家就提出了线程。线程是程序执行中一个单一的顺序控制流程，线程是进程的一部分，一个进程可以包含一个或多个线程。各个线程之间共享进程的地址空间，但线程要有自己独立的栈（用于函数访问，局部变量等）和独立的控制流。且线程是处理器调度和分派的基本单位。对于线程的调度和管理，可以在操作系统层面完成，也可以在用户态的线程库中完成。用户态线程也称为绿色线程（GreenThread）。如果是在用户态的线程库中完成，操作系统是“看不到”这样的线程的，也就谈不上对这样线程的管理了。</p>
-<p>协程（coroutines，也称纤程（Fiber）），也是程序执行中一个单一的顺序控制流程，建立在线程之上（即一个线程上可以有多个协程），但又比线程更加轻量级的处理器调度对象。协程一般是由用户态的协程管理库来进行管理和调度，这样操作系统是看不到协程的。而且多个协程共享同一线程的栈，这样协程在时间和空间的管理开销上，相对于线程又有很大的改善。在具体实现上，协程可以在用户态运行时库这一层面通过函数调用来实现；也可在语言级支持协程，比如Rust语言引入的 <code class="docutils literal notranslate"><span class="pre">async</span></code> 、 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 关键字等，通过编译器和运行时库二者配合来简化程序员编程的负担并提高整体的性能。</p>
+<p>协程（coroutines，也称纤程（Fiber）），也是程序执行中一个单一的顺序控制流程，建立在线程之上（即一个线程上可以有多个协程），但又是比线程更加轻量级的处理器调度对象。协程一般是由用户态的协程管理库来进行管理和调度，这样操作系统是看不到协程的。而且多个协程共享同一线程的栈，这样协程在时间和空间的管理开销上，相对于线程又有很大的改善。在具体实现上，协程可以在用户态运行时库这一层面通过函数调用来实现；也可在语言级支持协程，比如Rust语言引入的 <code class="docutils literal notranslate"><span class="pre">async</span></code> 、 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 关键字等，通过编译器和运行时库二者配合来简化程序员编程的负担并提高整体的性能。</p>
 </div>
 </section>
 <section id="id4">
 <h2>进程模型与重要系统调用<a class="headerlink" href="#id4" title="永久链接至标题"></a></h2>
-<p>目前，我们只介绍一种我们的内核实现中所采用的一种非常简单的进程模型。这个进程模型有三个运行状态：就绪态、运行态和等待态；有基于独立的页表的地址空间；可被操作系统调度来分时占用CPU执行；可以动态创建和退出；可通过系统调用获得操作系统的服务。
-前面我们并没有给出进程需要使用哪些类型的资源，这其实取决于内核提供给应用的系统调用接口以及内核的具体实现。我们实现的进程模型建立在地址空间抽象之上：每个进程都需要一个地址空间，它涵盖了它选择的可执行文件的内存布局，还包含一些其他的逻辑段。且进程模型呈现出的交互灵活性和动态特征需要操作系统支持一些重要的系统调用：创建进程、执行新程序、等待进程结束等，来达到应用程序执行的动态灵活性。接下来会介绍这些系统调用的基本功能和设计思路。</p>
+<p>目前，我们只介绍本章实现的内核中采用的一种非常简单的进程模型。这个进程模型有三个运行状态：就绪态、运行态和等待态；有基于独立页表的地址空间；可被操作系统调度来分时占用CPU执行；可以动态创建和退出；可通过系统调用获得操作系统的服务。
+前面我们并没有给出进程需要使用哪些类型的资源，这其实取决于内核提供给应用的系统调用接口以及内核的具体实现。我们实现的进程模型建立在地址空间抽象之上：每个进程都需要一个地址空间，它涵盖了它选择的可执行文件的内存布局，还包含一些其他的逻辑段。且进程模型需要操作系统支持一些重要的系统调用：创建进程、执行新程序、等待进程结束等，来达到应用程序执行的动态灵活性。接下来会介绍这些系统调用的基本功能和设计思路。</p>
 <section id="fork">
 <h3>fork 系统调用<a class="headerlink" href="#fork" title="永久链接至标题"></a></h3>
 <p id="term-initial-process"><span id="term-pid"></span>系统中同一时间存在的每个进程都被一个不同的 <strong>进程标识符</strong> (PID, Process Identifier) 所标识。在内核初始化完毕之后会创建一个进程——即 <strong>用户初始进程</strong> (Initial Process) ，它是目前在内核中以硬编码方式创建的唯一一个进程。其他所有的进程都是通过一个名为 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 的系统调用来创建的。</p>
@@ -204,8 +204,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>进程A调用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 系统调用之后，内核会创建一个新进程B，这个进程B和调用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 的进程A在返回用户态那一瞬间几乎处于相同的状态：这意味着它们包含的用户态的代码段、堆栈段及其他数据段的内容完全相同，但是它们是被放在两个独立的地址空间中的。因此新进程的地址空间需要从原有进程的地址空间完整拷贝一份。两个进程通用寄存器也几乎完全相同。例如， pc 相同意味着两个进程会从同一位置的一条相同指令（我们知道其上一条指令一定是用于系统调用的 ecall 指令）开始向下执行， sp 相同则意味着两个进程的用户栈在各自的地址空间中的位置相同。其余的寄存器相同则确保了二者回到了相同的控制流状态。</p>
-<p id="term-parent-process"><span id="term-child-process"></span>但是唯有用来保存 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 系统调用返回值的 a0 寄存器（这是 RV64 函数调用规范规定的函数返回值所用的寄存器）的值是不同的。这区分了两个进程：原进程的返回值为新创建进程的 PID ，而新创建进程的返回值为 0 。由于新的进程是原进程主动调用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 衍生出来的，我们称新进程为原进程的 <strong>子进程</strong> (Child Process) ，相对的原进程则被称为新进程的 <strong>父进程</strong> (Parent Process) 。这样二者就建立了一种父子关系。注意到每个进程可能有多个子进程，但最多只能有一个父进程，于是所有进程可以被组织成一颗有根树，其根节点正是代表用户初始程序-initproc的第一个用户态的初始进程。</p>
-<p>相比创建一个进程， <code class="docutils literal notranslate"><span class="pre">fork</span></code> 更重要的功能是建立一对新的父子关系。在我们的进程模型中，父进程和子进程之间的联系更为紧密，它们更容易进行合作或通信，而且一些重要的机制也需要在它们之间才能展开。</p>
+<p id="term-parent-process"><span id="term-child-process"></span>但是唯有用来保存 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 系统调用返回值的 a0 寄存器（这是 RISC-V 64 的函数调用规范规定的函数返回值所用的寄存器）的值是不同的。这区分了两个进程：原进程的返回值为它新创建进程的 PID ，而新创建进程的返回值为 0 。由于新的进程是原进程主动调用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 衍生出来的，我们称新进程为原进程的 <strong>子进程</strong> (Child Process) ，相对的原进程则被称为新进程的 <strong>父进程</strong> (Parent Process) 。这样二者就建立了一种父子关系。注意到每个进程可能有多个子进程，但最多只能有一个父进程，于是所有进程可以被组织成一颗树，其根节点正是代表用户初始程序-initproc的第一个用户态的初始进程。</p>
+<p>相比创建一个进程， <code class="docutils literal notranslate"><span class="pre">fork</span></code> 的另一个重要功能是建立一对新的父子关系。在我们的进程模型中，父进程和子进程之间的联系更为紧密，它们更容易进行合作或通信，而且一些重要的机制（如下一章会涉及的进程间通信机制）也需要在它们之间才能展开。</p>
 </section>
 <section id="waitpid">
 <h3>waitpid 系统调用<a class="headerlink" href="#waitpid" title="永久链接至标题"></a></h3>
@@ -219,7 +219,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_waitpid</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">isize</span><span class="p">,</span><span class="w"> </span><span class="n">exit_code</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
 </pre></div>
 </div>
-<p>一般情况下一个进程要负责通过 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 系统调用来等待所有它 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 出来的子进程结束并回收掉它们占据的资源，这也是父子进程间的一种同步手段。但这并不是必须的：如果一个进程先于它的子进程结束，在它退出的时候，它的所有子进程将成为进程树的根节点——用户初始进程的子进程，同时这些子进程的父进程也会变成用户初始进程。这之后，这些子进程的资源就由用户初始进程负责回收了，这也是用户初始进程很重要的一个用途。后面我们会介绍用户初始进程是如何实现的。</p>
+<p>一般情况下一个进程要负责通过 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 系统调用来等待它 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 出来的子进程结束并回收掉它们占据的资源，这也是父子进程间的一种同步手段。但这并不是必须的。如果一个进程先于它的子进程结束，在它退出的时候，它的所有子进程将成为进程树的根节点——用户初始进程的子进程，同时这些子进程的父进程也会转成用户初始进程。这之后，这些子进程的资源就由用户初始进程负责回收了，这也是用户初始进程很重要的一个用途。后面我们会介绍用户初始进程是如何实现的。</p>
 </section>
 <section id="exec">
 <h3>exec 系统调用<a class="headerlink" href="#exec" title="永久链接至标题"></a></h3>
@@ -243,7 +243,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="admonition note" id="term-redirection">
 <p class="admonition-title">注解</p>
 <p><strong>为何创建进程要通过两个系统调用而不是一个？</strong></p>
-<p>读者可能会有疑问，对于要达成执行不同应用的目标，我们为什么不设计一个系统调用接口同时实现创建一个新进程并加载给定的可执行文件两种功能？
+<p>同学可能会有疑问，对于要达成执行不同应用的目标，我们为什么不设计一个系统调用接口同时实现创建一个新进程并加载给定的可执行文件两种功能？
 如果使用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 和 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 的组合，那么 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 出来的进程仅仅是为了 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 一个新应用提供空间。而执行 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 中对父进程的地址空间拷贝没有用处，还浪费了时间，且在后续清空地址空间的时候还会产生一些资源回收的额外开销。
 这样的设计来源于早期的MULTICS <a class="footnote-reference brackets" href="#multics" id="id5">1</a> 和UNIX操作系统  <a class="footnote-reference brackets" href="#unix" id="id6">2</a> ，在当时是经过实践考验的，事实上 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 和 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 是一种灵活的系统调用组合，在当时内存空间比较小的情况下，可以支持更快的进程创建，且上述的开销能够通过一些结合虚存的技术方法（如 <code class="docutils literal notranslate"><span class="pre">copy</span> <span class="pre">on</span> <span class="pre">write</span></code> 等）来缓解。而且拆分为两个系统调用后，可以灵活地支持 <strong>重定向</strong> (Redirection) 等功能。
 上述方法是UNIX类操作系统的典型做法。</p>
@@ -253,10 +253,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 </section>
 <section id="id7">
 <h2>应用程序示例<a class="headerlink" href="#id7" title="永久链接至标题"></a></h2>
-<p>我们刚刚介绍了 <code class="docutils literal notranslate"><span class="pre">fork/waitpid/exec</span></code> 三个重要系统调用，借助它们我们可以开发功能更为强大的应用程序。下面我们通过描述两个重要的应用程序： <strong>用户初始程序-init</strong> 和 <strong>shell程序-user_shell</strong> 的开发过程，来展示这些重要系统调用的使用方法。</p>
+<p>我们刚刚介绍了 <code class="docutils literal notranslate"><span class="pre">fork/waitpid/exec</span></code> 三个重要系统调用，我们可以借助它们和之前实现的系统调用开发出功能更为强大的应用程序。下面我们通过描述两个重要的应用程序： <strong>用户初始程序-init</strong> 和 <strong>shell程序-user_shell</strong> 的开发过程，来展示这些重要系统调用的使用方法。</p>
 <section id="id8">
 <h3>系统调用封装<a class="headerlink" href="#id8" title="永久链接至标题"></a></h3>
-<p>读者可以在 <code class="docutils literal notranslate"><span class="pre">user/src/syscall.rs</span></code> 中看到以 <code class="docutils literal notranslate"><span class="pre">sys_*</span></code> 开头的系统调用的函数原型，它们后续还会在 <code class="docutils literal notranslate"><span class="pre">user/src/lib.rs</span></code> 中被封装成方便应用程序使用的形式。如 <code class="docutils literal notranslate"><span class="pre">sys_fork</span></code> 被封装成 <code class="docutils literal notranslate"><span class="pre">fork</span></code> ，而 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 被封装成 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 。这里值得一提的是 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 被封装成两个不同的 API ：</p>
+<p>同学可以在 <code class="docutils literal notranslate"><span class="pre">user/src/syscall.rs</span></code> 中看到以 <code class="docutils literal notranslate"><span class="pre">sys_*</span></code> 开头的系统调用的函数原型，它们后续还会在 <code class="docutils literal notranslate"><span class="pre">user/src/lib.rs</span></code> 中被封装成方便应用程序使用的形式。如 <code class="docutils literal notranslate"><span class="pre">sys_fork</span></code> 被封装成 <code class="docutils literal notranslate"><span class="pre">fork</span></code> ，而 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 被封装成 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 。这里值得一提的是 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 被封装成两个不同的 API ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/lib.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">wait</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
@@ -280,7 +280,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos">21</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>其中 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 表示等待任意一个子进程结束，根据 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 的约定它需要传的 pid 参数为 <code class="docutils literal notranslate"><span class="pre">-1</span></code> ；而 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 则等待一个 PID 固定的子进程结束。在具体实现方面，我们看到当 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 返回值为 <code class="docutils literal notranslate"><span class="pre">-2</span></code> ，即要等待的子进程存在但它却尚未退出的时候，我们调用 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 主动交出 CPU 使用权，待下次 CPU 使用权被内核交还给它的时候再次调用 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 查看要等待的子进程是否退出。这样做可以减小 CPU 资源的浪费。</p>
+<p>其中 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 表示等待任意一个子进程结束，根据 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 的约定它需要传的 pid 参数为 <code class="docutils literal notranslate"><span class="pre">-1</span></code> ；而 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 则等待一个进程标识符的值为pid 的子进程结束。在具体实现方面，我们看到当 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 返回值为 <code class="docutils literal notranslate"><span class="pre">-2</span></code> ，即要等待的子进程存在但它却尚未退出的时候，我们调用 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 主动交出 CPU 使用权，待下次 CPU 使用权被内核交还给它的时候再次调用 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 查看要等待的子进程是否退出。这样做可以减小 CPU 资源的浪费。</p>
 <p>目前的实现风格是尽可能简化内核，因此 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 是立即返回的，即它的返回值只能给出返回这一时刻的状态。如果这一时刻要等待的子进程还尚未结束，那么也只能如实向应用报告这一结果。于是用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 就需要负责对返回状态进行持续的监控，因此它里面便需要进行循环检查。在后面的实现中，我们会将  <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 的内核实现设计为 <strong>阻塞</strong> 的，也即直到得到一个确切的结果位置都停在内核内，也就意味着内核返回给应用的结果可以直接使用。那是 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 和 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 两个 API 的实现便会更加简单。</p>
 </section>
 <section id="initproc">
@@ -326,7 +326,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <ul class="simple">
 <li><p>第 19 行为 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 返回值为 0 的分支，表示子进程，此行直接通过 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 执行shell程序 <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> ，注意我们需要在字符串末尾手动加入 <code class="docutils literal notranslate"><span class="pre">\0</span></code> ，因为 Rust 在将这些字符串连接到只读数据段的时候不会插入 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 。</p></li>
-<li><p>第 21 行开始则为返回值不为 0 的分支，表示调用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 的用户初始程序-initproc自身。可以看到它在不断循环调用 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 来等待那些被移交到它下面的子进程并回收它们占据的资源。如果回收成功的话则会打印一条报告信息给出被回收子进程的 PID 和返回值；否则就 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 交出 CPU 资源并在下次轮到它执行的时候再回收看看。这也可以看出，用户初始程序-initproc对于资源的回收并不算及时，但是对于已经退出的僵尸进程，用户初始程序-initproc最终总能够成功回收它们的资源。</p></li>
+<li><p>第 21 行开始则为返回值不为 0 的分支，表示调用 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 的用户初始程序-initproc自身。可以看到它在不断循环调用 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 来等待那些被移交到它下面的子进程并回收它们占据的资源。如果回收成功的话则会打印一条报告信息给出被回收子进程的 pid 值 和返回值；否则就 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 交出 CPU 资源并在下次轮到它执行的时候再回收看看。这也可以看出，用户初始程序-initproc对于资源的回收并不算及时，但是对于已经退出的僵尸进程，用户初始程序-initproc最终总能够成功回收它们的资源。</p></li>
 </ul>
 </section>
 <section id="shell-user-shell">
@@ -466,20 +466,23 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 </div>
 <ul>
-<li><p>如果用户输入回车键（第 28 行），那么user_shell 会 fork 出一个子进程（第 34 行开始）并试图通过 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 系统调用执行一个应用，应用的名字在字符串 <code class="docutils literal notranslate"><span class="pre">line</span></code> 中给出。这里我们需要注意的是由于子进程是从user_shell 进程中 fork 出来的，它们除了 fork 的返回值不同之外均相同，自然也可以看到一个和user_shell 进程维护的版本相同的字符串 <code class="docutils literal notranslate"><span class="pre">line</span></code> 。第 35 行对 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 的返回值进行了判断，如果返回值为 -1 的话目前说明在应用管理器中找不到名字相同的应用，此时子进程就直接打印错误信息并退出；反之 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 则根本不会返回，而是开始执行目标应用。</p>
+<li><p>如果用户输入回车键（第 28 行），那么user_shell 会 fork 出一个子进程（第 34 行开始）并试图通过 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 系统调用执行一个应用，应用的名字在字符串 <code class="docutils literal notranslate"><span class="pre">line</span></code> 中给出。这里我们需要注意的是，由于子进程是从user_shell 进程中 fork 出来的，它们除了 fork 的返回值不同之外均相同，自然也可以看到一个和user_shell 进程维护的版本相同的字符串 <code class="docutils literal notranslate"><span class="pre">line</span></code> 。第 35 行对 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 的返回值进行了判断，如果返回值为 -1 则说明在应用管理器中找不到名字相同的应用，此时子进程就直接打印错误信息并退出；反之 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 则根本不会返回，而是开始执行目标应用。</p>
 <p>fork 之后的user_shell 进程自己的逻辑可以在第 41 行找到。可以看出它只是在等待 fork 出来的子进程结束并回收掉它的资源，还会顺带收集子进程的退出状态并打印出来。</p>
 </li>
 <li><p>如果用户输入退格键（第 53 行），首先我们需要将屏幕上当前行的最后一个字符用空格替换掉，这可以通过输入一个特殊的退格字节 <code class="docutils literal notranslate"><span class="pre">BS</span></code> 来实现。其次，user_shell 进程内维护的 <code class="docutils literal notranslate"><span class="pre">line</span></code> 也需要弹出最后一个字符。</p></li>
 <li><p>如果用户输入了一个其他字符（第 61 行），它将会被视为用户的正常输入，我们直接将它打印在屏幕上并加入到 <code class="docutils literal notranslate"><span class="pre">line</span></code> 中。</p></li>
 </ul>
-<p>当内核初始化完毕之后，它会从可执行文件 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> 中加载并执行用户初始程序-initproc，而用户初始程序-initproc中又会 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 并 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 来运行shell程序- <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> 。这两个应用虽然都是在 CPU 的 U 特权级执行的，但是相比其他应用，它们要更加基础。原则上应该将它们作为一个组件打包在操作系统中。但这里为了实现更加简单，我们并不将它们和其他应用进行区分。</p>
-<p>除此之外，我们还从 <span class="math notranslate nohighlight">\(\mu\text{core}\)</span> 中借鉴了很多应用测例。它们可以做到同一时间 <strong>并发</strong> 多个进程并能够有效检验我们内核实现的正确性。感兴趣的读者可以参考 <code class="docutils literal notranslate"><span class="pre">matrix</span></code> 和 <code class="docutils literal notranslate"><span class="pre">forktree</span></code> 等应用。</p>
+<p>当内核初始化完毕之后，它会从可执行文件 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> 中加载并执行用户初始程序-initproc，而用户初始程序-initproc中又会 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 并 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 来运行shell程序- <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> 。这两个应用虽然都是在 CPU 的 U 特权级执行的，但是相比其他应用，它们要更加底层和基础。原则上应该将它们作为一个组件打包在操作系统中。但这里为了实现更加简单，我们并不将它们和其他应用进行区分。</p>
+<p>除此之外，我们还从 <span class="math notranslate nohighlight">\(\mu\text{Core}\)</span>  <a class="footnote-reference brackets" href="#ucore" id="id9">3</a> 中借鉴了很多应用测例。它们可以做到同一时间 <strong>并发</strong> 多个进程并能够有效检验我们内核实现的正确性。感兴趣的同学可以参考 <code class="docutils literal notranslate"><span class="pre">matrix</span></code> 和 <code class="docutils literal notranslate"><span class="pre">forktree</span></code> 等应用。</p>
 <dl class="footnote brackets">
 <dt class="label" id="multics"><span class="brackets"><a class="fn-backref" href="#id5">1</a></span></dt>
 <dd><p>1965年，MIT、通用电气公司、贝尔实验室联合开发MULTICS操作系统，开发不够成功，但产生了很多新的设计思想，并催生了UNIX操作系统。</p>
 </dd>
 <dt class="label" id="unix"><span class="brackets"><a class="fn-backref" href="#id6">2</a></span></dt>
 <dd><p>1969年，贝尔实验室的Ken Thompson和Dennis Ritchie在退出MUITICS操作系统研发后，吸收其好的想法，设计实现了UNIX操作系统和C语言，并开始广泛推广。</p>
+</dd>
+<dt class="label" id="ucore"><span class="brackets"><a class="fn-backref" href="#id9">3</a></span></dt>
+<dd><p>uCore OS是用于清华大学计算机系本科操作系统课程的OS教学试验内容。 uCore OS起源于MIT CSAIL PDOS课题组开发的xv6&amp;jos、哈佛大学开发的 OS161教学操作系统、以及Linux-2.4内核。目前rCore Tutorial OS逐步代替uCore OS成为新的教学OS。</p>
 </dd>
 </dl>
 </section>

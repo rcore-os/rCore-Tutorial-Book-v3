@@ -51,7 +51,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
@@ -156,7 +156,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>SV39 多级页表的硬件机制<a class="headerlink" href="#sv39" title="永久链接至标题"></a></h1>
 <section id="id1">
 <h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题"></a></h2>
-<p>在上一小节中我们已经简单介绍了分页的内存管理策略，现在我们尝试在 RV64 架构提供的 SV39 分页硬件机制的基础上完成内核中的软件对应实现。由于内容过多，我们将分成两个小节进行讲解。本节主要讲解在RV64架构下的虚拟地址与物理地址的访问属性（可读，可写，可执行等），组成结构（页号，帧号，偏移量等），访问的空间范围，硬件实现地址转换的多级页表访问过程等；以及如何用Rust语言来设计有类型的页表项。</p>
+<p>在上一小节中我们已经简单介绍了分页的内存管理策略，现在我们尝试在 RISC-V 64 架构提供的 SV39 分页硬件机制的基础上完成内核中的软件对应实现。由于内容过多，我们将分成两个小节进行讲解。本节主要讲解在RISC-V 64架构下的虚拟地址与物理地址的访问属性（可读，可写，可执行等），组成结构（页号，帧号，偏移量等），访问的空间范围，硬件实现地址转换的多级页表访问过程等；以及如何用Rust语言来设计有类型的页表项。</p>
 </section>
 <section id="id2">
 <h2>虚拟地址和物理地址<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
@@ -170,16 +170,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>M 特权级的访存地址被视为一个物理地址还是一个需要经历和 S/U 特权级相同的地址转换的虚拟地址取决于硬件配置，在这里我们不会进一步探讨。</p>
 </div>
 <img alt="../_images/satp.png" id="satp-layout" src="../_images/satp.png" />
-<p>上图是 RV64 架构下 <code class="docutils literal notranslate"><span class="pre">satp</span></code> 的字段分布，含义如下：</p>
+<p>上图是 RISC-V 64 架构下 <code class="docutils literal notranslate"><span class="pre">satp</span></code> 的字段分布，含义如下：</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">MODE</span></code> 控制 CPU 使用哪种页表实现。</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ASID</span></code> 表示地址空间标识符，这里还没有涉及到进程的概念，我们不需要管这个地方。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MODE</span></code> 控制 CPU 使用哪种页表实现；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ASID</span></code> 表示地址空间标识符，这里还没有涉及到进程的概念，我们不需要管这个地方；</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">PPN</span></code> 存的是根页表所在的物理页号。这样，给定一个虚拟页号，CPU 就可以从三级页表的根页表开始一步步的将其映射到一个物理页号。</p></li>
 </ul>
 <p>当 <code class="docutils literal notranslate"><span class="pre">MODE</span></code> 设置为 0 的时候，代表所有访存都被视为物理地址；而设置为 8
 的时候，SV39 分页机制被启用，所有 S/U 特权级的访存被视为一个 39 位的虚拟地址，它们需要先经过 MMU 的地址转换流程，
-如果顺利的话，则会变成一个 56 位的物理地址来访问物理内存；否则则会触发异常，这体现了该机制的内存保护能力。</p>
-<p>虚拟地址和物理地址都是字节地址，39 位的虚拟地址可以用来访问理论上最大 <span class="math notranslate nohighlight">\(512\text{GiB}\)</span> 的地址空间，
+如果顺利的话，则会变成一个 56 位的物理地址来访问物理内存；否则则会触发异常，这体现了分页机制的内存保护能力。</p>
+<p>39 位的虚拟地址可以用来访问理论上最大 <span class="math notranslate nohighlight">\(512\text{GiB}\)</span> 的地址空间，
 而 56 位的物理地址在理论上甚至可以访问一块大小比这个地址空间的还高出几个数量级的物理内存。但是实际上无论是
 虚拟地址还是物理地址，真正有意义、能够通过 MMU 的地址转换或是 CPU 内存控制单元的检查的地址仅占其中的很小
 一部分，因此它们的理论容量上限在目前都没有实际意义。</p>
@@ -198,7 +198,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 在页表中查到其对应的物理页号（如果存在的话），最后将得到的44位的物理页号与虚拟地址的12位页内偏移依序拼接到一起就变成了56位的物理地址。</p>
 <div class="admonition note" id="high-and-low-256gib">
 <p class="admonition-title">注解</p>
-<p><strong>RV64 架构中虚拟地址为何只有 39 位？</strong></p>
+<p><strong>RISC-V 64 架构中虚拟地址为何只有 39 位？</strong></p>
 <p>在 64 位架构上虚拟地址长度确实应该和位宽一致为 64 位，但是在启用 SV39 分页模式下，只有低 39 位是真正有意义的。
 SV39 分页模式规定 64 位虚拟地址的 <span class="math notranslate nohighlight">\([63:39]\)</span> 这 25 位必须和第 38 位相同，否则 MMU 会直接认定它是一个
 不合法的虚拟地址。通过这个检查之后 MMU 再取出低 39 位尝试将其转化为一个 56 位的物理地址。</p>
@@ -229,8 +229,8 @@ SV39 分页模式规定 64 位虚拟地址的 <span class="math notranslate nohi
 </pre></div>
 </div>
 <p id="term-type-convertion">上面分别给出了物理地址、虚拟地址、物理页号、虚拟页号的 Rust 类型声明，它们都是 Rust 的元组式结构体，可以看成
-usize 的一种简单包装。我们刻意将它们各自抽象出来而不是都使用 usize 保存，就是为了在 Rust 编译器的帮助下进行
-多种方便且安全的 <strong>类型转换</strong> (Type Convertion) 。</p>
+usize 的一种简单包装。我们刻意将它们各自抽象出不同的类型而不是都使用与RISC-V 64硬件直接对应的 usize 基本类型，就是为了在 Rust 编译器的帮助下，通过
+多种方便且安全的 <strong>类型转换</strong> (Type Convertion) 来构建页表。</p>
 <p>首先，这些类型本身可以和 usize 之间互相转换，以物理地址 <code class="docutils literal notranslate"><span class="pre">PhysAddr</span></code> 为例，我们需要：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/address.rs</span>
 
@@ -317,7 +317,7 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 <li><p>A(Accessed)：处理器记录自从页表项上的这一位被清零之后，页表项的对应虚拟页面是否被访问过；</p></li>
 <li><p>D(Dirty)：处理器记录自从页表项上的这一位被清零之后，页表项的对应虚拟页表是否被修改过。</p></li>
 </ul>
-<p>除了 <code class="docutils literal notranslate"><span class="pre">G</span></code> 外的上述位可以被操作系统设置，只有 <code class="docutils literal notranslate"><span class="pre">A</span></code> 位和 <code class="docutils literal notranslate"><span class="pre">D</span></code> 位会被处理器动态地直接设置为 <code class="docutils literal notranslate"><span class="pre">1</span></code> ，表示对应的页被访问过或修改过。让我们先来实现页表项中的标志位 <code class="docutils literal notranslate"><span class="pre">PTEFlags</span></code> ：</p>
+<p>除了 <code class="docutils literal notranslate"><span class="pre">G</span></code> 外的上述位可以被操作系统设置，只有 <code class="docutils literal notranslate"><span class="pre">A</span></code> 位和 <code class="docutils literal notranslate"><span class="pre">D</span></code> 位会被处理器动态地直接设置为 <code class="docutils literal notranslate"><span class="pre">1</span></code> ，表示对应的页被访问过或修改过（ 注：<code class="docutils literal notranslate"><span class="pre">A</span></code> 位和 <code class="docutils literal notranslate"><span class="pre">D</span></code> 位能否被处理器硬件直接修改，取决于处理器的具体实现）。让我们先来实现页表项中的标志位 <code class="docutils literal notranslate"><span class="pre">PTEFlags</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
 
 <span class="cp">#[macro_use]</span><span class="w"></span>
@@ -343,7 +343,7 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 </div>
 <p><a class="reference external" href="https://docs.rs/bitflags/1.2.1/bitflags/">bitflags</a> 是一个 Rust 中常用来比特标志位的 crate 。它提供了
 一个 <code class="docutils literal notranslate"><span class="pre">bitflags!</span></code> 宏，如上面的代码段所展示的那样，可以将一个 <code class="docutils literal notranslate"><span class="pre">u8</span></code> 封装成一个标志位的集合类型，支持一些常见的集合
-运算。它的一些使用细节这里不展开，请读者自行参考它的官方文档。注意，在使用之前我们需要引入该 crate 的依赖：</p>
+运算。它的一些使用细节这里不展开，请同学自行参考它的官方文档。注意，在使用之前我们需要引入该 crate 的依赖：</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/Cargo.toml</span>
 
 <span class="k">[dependencies]</span>
@@ -423,7 +423,7 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 自然不需要占用任何内存， MMU 在地址转换的时候无需关心页表的内容而是将所有的虚拟页号均判为不合法即可。而在后面，
 内核已经决定好了一个应用的各逻辑段存放位置之后，它就需要负责从零开始以虚拟页面为单位来让该应用的地址空间的某些部分
 变得合法，反映在该应用的页表上也就是一对对映射顺次被插入进来，自然页表所占据的内存大小也就逐渐增加。</p>
-<p>这种思想在计算机科学中得到了广泛应用：为了方便接下来的说明，我们可以举一道数据结构的题目作为例子。设想我们要维护
+<p>这种 <strong>按需分配</strong> 思想在计算机科学中得到了广泛应用：为了方便接下来的说明，我们可以举一道数据结构的题目作为例子。设想我们要维护
 一个字符串的多重集，集合中所有的字符串的字符集均为 <span class="math notranslate nohighlight">\(\alpha=\{a,b,c\}\)</span> ，长度均为一个给定的常数
 <span class="math notranslate nohighlight">\(n\)</span> 。该字符串集合一开始为空集。我们要支持两种操作，第一种是将一个字符串插入集合，第二种是查询一个字符串在当前
 的集合中出现了多少次。</p>
@@ -442,7 +442,7 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 此时我们无法访问到其他未分配的节点，如根节点的 <code class="docutils literal notranslate"><span class="pre">b/c</span></code> 或是 <code class="docutils literal notranslate"><span class="pre">a</span></code> 节点的 <code class="docutils literal notranslate"><span class="pre">a/b</span></code> 均为空指针。
 如果后续再插入一个字符串，那么 <strong>至多分配两个新节点</strong> ，因为如果走的路径上有节点已经存在，就无需重复分配了。
 这可以说明，字典树中节点的数目（或者说字典树消耗的内存）是随着插入字符串的数目逐渐线性增加的。</p>
-<p>读者可能很好奇，为何在这里要用相当一部分篇幅来介绍字典树呢？事实上 SV39 分页机制等价于一颗字典树。 <span class="math notranslate nohighlight">\(27\)</span> 位的
+<p>同学可能很好奇，为何在这里要用相当一部分篇幅来介绍字典树呢？事实上 SV39 分页机制等价于一颗字典树。 <span class="math notranslate nohighlight">\(27\)</span> 位的
 虚拟页号可以看成一个长度 <span class="math notranslate nohighlight">\(n=3\)</span> 的字符串，字符集为 <span class="math notranslate nohighlight">\(\alpha=\{0,1,2,...,511\}\)</span> ，因为每一位字符都
 由 <span class="math notranslate nohighlight">\(9\)</span> 个比特组成。而我们也不再维护所谓字符串的计数，而是要找到字符串（虚拟页号）对应的页表项。
 因此，每个叶节点都需要保存 <span class="math notranslate nohighlight">\(512\)</span> 个 <span class="math notranslate nohighlight">\(8\)</span> 字节的页表项，一共正好 <span class="math notranslate nohighlight">\(4\text{KiB}\)</span> ，
@@ -453,7 +453,7 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 指向下一级节点的页表项（对于非叶节点）或是能够直接用来地址转换的页表项（对于叶节点）。</p>
 <p id="term-page-index"><span id="term-multi-level-page-table"></span>这种页表实现被称为 <strong>多级页表</strong> (Multi-Level Page-Table) 。由于 SV39 中虚拟页号被分为三级 <strong>页索引</strong>
 (Page Index) ，因此这是一种三级页表。</p>
-<p>非叶节点的页表项标志位含义和叶节点相比有一些不同：</p>
+<p>非叶节点（页目录表，非末级页表）的表项标志位含义和叶节点（页表，末级页表）相比有一些不同：</p>
 <ul class="simple">
 <li><p>当 <code class="docutils literal notranslate"><span class="pre">V</span></code> 为 0 的时候，代表当前指针是一个空指针，无法走向下一级节点，即该页表项对应的虚拟地址范围是无效的；</p></li>
 <li><p>只有当 <code class="docutils literal notranslate"><span class="pre">V</span></code> 为1 且 <code class="docutils literal notranslate"><span class="pre">R/W/X</span></code> 均为 0 时，表示是一个合法的页目录表项，其包含的指针会指向下一级的页表；</p></li>
@@ -466,8 +466,8 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 <div class="admonition note" id="term-huge-page">
 <p class="admonition-title">注解</p>
 <p><strong>大页</strong> (Huge Page)</p>
-<p>所谓大页就是某些页的大小（如 <span class="math notranslate nohighlight">\(2\text{MiB}\)</span> , <span class="math notranslate nohighlight">\(1\text{GiB}\)</span>  ）大于常规缺省的页大小（如 <span class="math notranslate nohighlight">\(4\text{KiB}\)</span> ）。本教程中并没有用到大页的知识，这里只是作为拓展，不感兴趣的读者可以跳过。</p>
-<p>RV64处理器在地址转换过程中，只要表项中的 <code class="docutils literal notranslate"><span class="pre">V</span></code> 为 1 且 <code class="docutils literal notranslate"><span class="pre">R/W/X</span></code> 不全为 0 就会直接从当前的页表项中取出物理页号，再拼接上页内偏移，就完成最终的地址转换。注意这个过程可以发生在多级页表的任意一级。
+<p>所谓大页就是某些页的大小（如 <span class="math notranslate nohighlight">\(2\text{MiB}\)</span> , <span class="math notranslate nohighlight">\(1\text{GiB}\)</span>  ）大于常规缺省的页大小（如 <span class="math notranslate nohighlight">\(4\text{KiB}\)</span> ）。本教程中并没有用到大页的知识，这里只是作为拓展，不感兴趣的同学可以跳过。</p>
+<p>RISC-V 64处理器在地址转换过程中，只要表项中的 <code class="docutils literal notranslate"><span class="pre">V</span></code> 为 1 且 <code class="docutils literal notranslate"><span class="pre">R/W/X</span></code> 不全为 0 就会直接从当前的页表项中取出物理页号，再拼接上页内偏移，就完成最终的地址转换。注意这个过程可以发生在多级页表的任意一级。
 如果这一过程并没有发生在多级页表的最深层，那么在地址转换的时候，物理页号对应的物理页帧的起始物理地址的位数与页内偏移的位数都和按缺省页处理时的情况不同了。我们需要按 <strong>大页</strong> 的地址转换方式来处理。</p>
 <p>这里需要进一步理解将物理页号和页内偏移“接起来”这一行为，它的本质是将物理页号对应的物理页帧的起始物理地址和
 页内偏移进行求和，物理页帧的起始物理地址是将物理页号左移上页内偏移的位数得到，因此看上去恰好就是将物理页号和页内偏移接在一起。
@@ -486,7 +486,7 @@ usize 的一种简单包装。我们刻意将它们各自抽象出来而不是�
 </div>
 <p>那么 SV39 多级页表相比线性表到底能节省多少内存呢？这里直接给出结论：设某个应用地址空间实际用到的区域总大小为
 <span class="math notranslate nohighlight">\(S\)</span> 字节，则地址空间对应的多级页表消耗内存为 <span class="math notranslate nohighlight">\(\frac{S}{512}\)</span> 左右。下面给出了详细分析，对此
-不感兴趣的读者可以直接跳过。</p>
+不感兴趣的同学可以直接跳过。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>分析 SV39 多级页表的内存占用</strong></p>

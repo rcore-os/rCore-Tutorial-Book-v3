@@ -51,7 +51,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
         <script src="../_static/translations.js"></script>
-        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
@@ -155,13 +155,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>管理 SV39 多级页表<a class="headerlink" href="#sv39" title="永久链接至标题"></a></h1>
 <section id="id1">
 <h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题"></a></h2>
-<p>本节我们继续来实现 SV39 多级页表机制。这还需进一步了解和管理当前已经使用是或空闲的物理页帧，这样操作系统才能给应用程序动态分配或回收物理地址空间。有了有效的物理内存空间的管理，操作系统就能够在物理内存空间中建立多级页表（页表占用物理内存），为应用程序和操作系统自身建立虚实地址映射关系，从而实现虚拟内存空间，即给应用“看到”的地址空间。</p>
+<p>上一节更多的是站在硬件的角度来分析SV39多级页表的硬件机制，本节我们主要讲解基于 SV39 多级页表机制的操作系统内存管理。这还需进一步管理计算机系统中当前已经使用是或空闲的物理页帧，这样操作系统才能给应用程序动态分配或回收物理地址空间。有了有效的物理内存空间的管理，操作系统就能够在物理内存空间中建立多级页表（页表占用物理内存），为应用程序和操作系统自身建立虚实地址映射关系，从而实现虚拟内存空间，即给应用“看到”的地址空间。</p>
 </section>
 <section id="id2">
 <h2>物理页帧管理<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
-<p>从前面的介绍可以看出物理页帧的重要性：它既可以用来实际存放应用/内核的数据/代码，也能够用来存储应用/内核的多级页表中的一个节点。
-目前的物理内存上已经有一部分用于放置内核的代码和数据，我们需要将剩下可用的部分以单个物理页帧为单位管理起来，
-当需要存放应用数据或是应用的多级页表需要一个新节点的时候分配一个物理页帧，并在应用出错或退出的时候回收它占有
+<p>从前面的介绍可以看出物理页帧的重要性：它既可以用来实际存放应用/内核的数据/代码，也能够用来存储应用/内核的多级页表。
+但Bootloader把操作系统内核加载到物理内存中后，物理内存上已经有一部分用于放置内核的代码和数据。我们需要将剩下的空闲内存以单个物理页帧为单位管理起来，
+当需要存放应用数据或扩展应用的多级页表时分配空闲的物理页帧，并在应用出错或退出的时候回收应用占有
 的所有物理页帧。</p>
 <section id="id3">
 <h3>可用物理页的分配与回收<a class="headerlink" href="#id3" title="永久链接至标题"></a></h3>
@@ -192,19 +192,19 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>即创建一个实例，还有以物理页号为单位进行物理页帧的分配和回收。</p>
+<p>即创建一个物理页帧管理器的实例，以及以物理页号为单位进行物理页帧的分配和回收。</p>
 <p>我们实现一种最简单的栈式物理页帧管理策略 <code class="docutils literal notranslate"><span class="pre">StackFrameAllocator</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">StackFrameAllocator</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">current</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">end</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">current</span>: <span class="kt">usize</span><span class="p">,</span><span class="w">  </span><span class="c1">//空闲内存的起始物理页号</span>
+<span class="w">    </span><span class="n">end</span>: <span class="kt">usize</span><span class="p">,</span><span class="w">      </span><span class="c1">//空闲内存的结束物理页号</span>
 <span class="w">    </span><span class="n">recycled</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">usize</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>其中各字段的含义是：物理页号区间 <span class="math notranslate nohighlight">\([\text{current},\text{end})\)</span> 此前均 <em>从未</em> 被分配出去过，而向量
-<code class="docutils literal notranslate"><span class="pre">recycled</span></code> 以后入先出的方式保存了被回收的物理页号（注意我们已经自然的将内核堆用起来了）。</p>
+<p>其中各字段的含义是：物理页号区间 [ <code class="docutils literal notranslate"><span class="pre">current</span></code> , <code class="docutils literal notranslate"><span class="pre">end</span></code> ) 此前均 <em>从未</em> 被分配出去过，而向量
+<code class="docutils literal notranslate"><span class="pre">recycled</span></code> 以后入先出的方式保存了被回收的物理页号（注：我们已经自然的将内核堆用起来了）。</p>
 <p>初始化非常简单。在通过 <code class="docutils literal notranslate"><span class="pre">FrameAllocator</span></code> 的 <code class="docutils literal notranslate"><span class="pre">new</span></code> 方法创建实例的时候，只需将区间两端均设为 <span class="math notranslate nohighlight">\(0\)</span> ，
 然后创建一个新的向量；而在它真正被使用起来之前，需要调用 <code class="docutils literal notranslate"><span class="pre">init</span></code> 方法将自身的 <span class="math notranslate nohighlight">\([\text{current},\text{end})\)</span>
 初始化为可用物理页号区间：</p>
@@ -261,16 +261,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <ul>
 <li><p>在分配 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 的时候，首先会检查栈 <code class="docutils literal notranslate"><span class="pre">recycled</span></code> 内有没有之前回收的物理页号，如果有的话直接弹出栈顶并返回；
-否则的话我们只能从之前从未分配过的物理页号区间 <span class="math notranslate nohighlight">\([\text{current},\text{end})\)</span> 上进行分配，我们分配它的
-左端点 <code class="docutils literal notranslate"><span class="pre">current</span></code> ，同时将管理器内部维护的 <code class="docutils literal notranslate"><span class="pre">current</span></code> 加一代表 <code class="docutils literal notranslate"><span class="pre">current</span></code> 此前已经被分配过了。在即将返回
+否则的话我们只能从之前从未分配过的物理页号区间 [ <code class="docutils literal notranslate"><span class="pre">current</span></code> , <code class="docutils literal notranslate"><span class="pre">end</span></code> ) 上进行分配，我们分配它的
+左端点 <code class="docutils literal notranslate"><span class="pre">current</span></code> ，同时将管理器内部维护的 <code class="docutils literal notranslate"><span class="pre">current</span></code> 加 <code class="docutils literal notranslate"><span class="pre">1</span></code> 代表 <code class="docutils literal notranslate"><span class="pre">current</span></code> 已被分配了。在即将返回
 的时候，我们使用 <code class="docutils literal notranslate"><span class="pre">into</span></code> 方法将 usize 转换成了物理页号 <code class="docutils literal notranslate"><span class="pre">PhysPageNum</span></code> 。</p>
-<p>注意极端情况下可能出现内存耗尽分配失败的情况：即 <code class="docutils literal notranslate"><span class="pre">recycled</span></code> 为空且 <span class="math notranslate nohighlight">\(\text{current}==\text{end}\)</span> 。
+<p>注意极端情况下可能出现内存耗尽分配失败的情况：即 <code class="docutils literal notranslate"><span class="pre">recycled</span></code> 为空且  <code class="docutils literal notranslate"><span class="pre">current</span></code> == <code class="docutils literal notranslate"><span class="pre">end</span></code> 。
 为了涵盖这种情况， <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 的返回值被 <code class="docutils literal notranslate"><span class="pre">Option</span></code> 包裹，我们返回 <code class="docutils literal notranslate"><span class="pre">None</span></code> 即可。</p>
 </li>
 <li><p>在回收 <code class="docutils literal notranslate"><span class="pre">dealloc</span></code> 的时候，我们需要检查回收页面的合法性，然后将其压入 <code class="docutils literal notranslate"><span class="pre">recycled</span></code> 栈中。回收页面合法有两个
 条件：</p>
 <ul class="simple">
-<li><p>该页面之前一定被分配出去过，因此它的物理页号一定 <span class="math notranslate nohighlight">\(&lt;\text{current}\)</span> ；</p></li>
+<li><p>该页面之前一定被分配出去过，因此它的物理页号一定 <span class="math notranslate nohighlight">\(&lt;\)</span> <code class="docutils literal notranslate"><span class="pre">current</span></code> ；</p></li>
 <li><p>该页面没有正处在回收状态，即它的物理页号不能在栈 <code class="docutils literal notranslate"><span class="pre">recycled</span></code> 中找到。</p></li>
 </ul>
 <p>我们通过 <code class="docutils literal notranslate"><span class="pre">recycled.iter()</span></code> 获取栈上内容的迭代器，然后通过迭代器的 <code class="docutils literal notranslate"><span class="pre">find</span></code> 方法试图
@@ -281,39 +281,24 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>下面我们来创建 <code class="docutils literal notranslate"><span class="pre">StackFrameAllocator</span></code> 的全局实例 <code class="docutils literal notranslate"><span class="pre">FRAME_ALLOCATOR</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
 
-<span class="k">use</span><span class="w"> </span><span class="n">spin</span>::<span class="n">Mutex</span><span class="p">;</span><span class="w"></span>
-
+<span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">sync</span>::<span class="n">UPSafeCell</span><span class="p">;</span><span class="w"></span>
 <span class="k">type</span> <span class="nc">FrameAllocatorImpl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">StackFrameAllocator</span><span class="p">;</span><span class="w"></span>
-
 <span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">FRAME_ALLOCATOR</span>: <span class="nc">Mutex</span><span class="o">&lt;</span><span class="n">FrameAllocatorImpl</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"></span>
-<span class="w">        </span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">FrameAllocatorImpl</span>::<span class="n">new</span><span class="p">());</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">FRAME_ALLOCATOR</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">FrameAllocatorImpl</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">FrameAllocatorImpl</span>::<span class="n">new</span><span class="p">())</span><span class="w"></span>
+<span class="w">    </span><span class="p">};</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>这里我们使用互斥锁 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 来包裹栈式物理页帧分配器。每次对该分配器进行操作之前，我们都需要先通过
-<code class="docutils literal notranslate"><span class="pre">FRAME_ALLOCATOR.lock()</span></code> 拿到分配器的可变借用。注意 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 中并没有提供 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> ，它
-来自于一个我们在 <code class="docutils literal notranslate"><span class="pre">no_std</span></code> 的裸机环境下经常使用的名为 <code class="docutils literal notranslate"><span class="pre">spin</span></code> 的 crate ，它仅依赖 Rust 核心库
-<code class="docutils literal notranslate"><span class="pre">core</span></code> 提供一些可跨平台使用的同步原语，如互斥锁 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 和读写锁 <code class="docutils literal notranslate"><span class="pre">RwLock&lt;T&gt;</span></code> 等。</p>
+<p>这里我们使用 <code class="docutils literal notranslate"><span class="pre">UPSafeCell&lt;T&gt;</span></code> 来包裹栈式物理页帧分配器。每次对该分配器进行操作之前，我们都需要先通过
+<code class="docutils literal notranslate"><span class="pre">FRAME_ALLOCATOR.exclusive_access()</span></code> 拿到分配器的可变借用。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p><strong>Rust 语法卡片：在单核环境下使用 Mutex&lt;T&gt; 的原因</strong></p>
-<p>在编写一个多线程的应用时，加锁的目的是为了避免数据竞争，使得里层的共享数据结构同一时间只有一个线程
+<p><strong>Rust 语法卡片：在单核环境下采用 UPSafeCell&lt;T&gt; 而没有采用 Mutex&lt;T&gt; 的原因</strong></p>
+<p>在编写一个多线程的Rust应用时，一般会通过 Mutex&lt;T&gt; 来包裹数据，并对数据访问进行加锁互斥保护，加锁的目的是为了避免数据竞争，使得里层的共享数据结构同一时间只有一个线程
 在对它进行访问。然而，目前我们的内核运行在单 CPU 上，且 Trap 进入内核之后并没有手动打开中断，这也就
-使得同一时间最多只有一条 Trap 控制流并发访问内核的各数据结构，此时应该是并没有任何数据竞争风险的。那么
-加锁的原因其实有两点：</p>
-<ol class="arabic">
-<li><p>在不触及 <code class="docutils literal notranslate"><span class="pre">unsafe</span></code> 的情况下实现 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 语义。如果读者还有印象，
-<a class="reference internal" href="../chapter2/3batch-system.html#term-interior-mutability"><span class="std std-ref">前面章节</span></a> 我们使用 <code class="docutils literal notranslate"><span class="pre">RefCell&lt;T&gt;</span></code> 提供了内部可变性去掉了
-声明中的 <code class="docutils literal notranslate"><span class="pre">mut</span></code> ，然而麻烦的在于 <code class="docutils literal notranslate"><span class="pre">static</span></code> ，在 Rust 中一个类型想被实例化为一个全局变量，则
-该类型必须先告知编译器自己某种意义上是线程安全的，这个过程本身是 <code class="docutils literal notranslate"><span class="pre">unsafe</span></code> 的。</p>
-<p>因此我们直接使用 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> ，它既通过 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 方法提供了内部可变性，又已经在模块内部告知了
-编译器它的线程安全性。这样 <code class="docutils literal notranslate"><span class="pre">unsafe</span></code> 就被隐藏在了 <code class="docutils literal notranslate"><span class="pre">spin</span></code> crate 之内，我们无需关心。这种风格
-是 Rust 所推荐的。</p>
-</li>
-<li><p>方便后续拓展到真正存在数据竞争风险的多核环境下运行。</p></li>
-</ol>
-<p>这里引入了一些新概念，比如什么是线程，又如何定义线程安全？读者可以先不必深究，暂时有一个初步的概念即可。</p>
+使得同一时间最多只有一条 Trap 控制流并发访问内核的各数据结构，此时应该是并没有任何数据竞争风险，所以我们基于更简单的 <code class="docutils literal notranslate"><span class="pre">RefCell&lt;T&gt;</span></code> 实现了 <code class="docutils literal notranslate"><span class="pre">UPSafeCell&lt;T&gt;</span></code> 来支持对全局变量的安全访问，支持在不触及 <code class="docutils literal notranslate"><span class="pre">unsafe</span></code> 的情况下实现 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 语义。</p>
+<p>注：这里引入了一些新概念，比如线程，互斥访问、数据竞争等。同学可以先不必深究，暂时有一个初步的概念即可，在后续章节会有进一步深入讲解。</p>
 </div>
 <p>我们需要添加该 crate 的依赖：</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/Cargo.toml</span>
@@ -339,7 +324,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </section>
 <section id="id4">
 <h3>分配/回收物理页帧的接口<a class="headerlink" href="#id4" title="永久链接至标题"></a></h3>
-<p>然后是真正公开给其他子模块调用的分配/回收物理页帧的接口：</p>
+<p>然后是公开给其他内核模块调用的分配/回收物理页帧的接口：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/frame_allocator.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">frame_alloc</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">FrameTracker</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -408,7 +393,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p><code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code> 的设计也是基于同样的思想，有了它之后我们就不必手动回收物理页帧了，这在编译期就解决了很多
 潜在的问题。</p>
 </div>
-<p>最后做一个小结：从其他模块的视角看来，物理页帧分配的接口是调用 <code class="docutils literal notranslate"><span class="pre">frame_alloc</span></code> 函数得到一个 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code>
+<p>最后做一个小结：从其他内核模块的视角看来，物理页帧分配的接口是调用 <code class="docutils literal notranslate"><span class="pre">frame_alloc</span></code> 函数得到一个 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code>
 （如果物理内存还有剩余），它就代表了一个物理页帧，当它的生命周期结束之后它所控制的物理页帧将被自动回收。下面是
 一段演示该接口使用方法的测试程序：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/mm/frame_allocator.rs</span>
@@ -480,28 +465,26 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <ul class="simple">
-<li><p>我们通过 <code class="docutils literal notranslate"><span class="pre">map</span></code> 方法来在多级页表中插入一个键值对，注意这里我们将物理页号 <code class="docutils literal notranslate"><span class="pre">ppn</span></code> 和页表项标志位 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 作为
-不同的参数传入而不是整合为一个页表项；</p></li>
-<li><p>相对的，我们通过 <code class="docutils literal notranslate"><span class="pre">unmap</span></code> 方法来删除一个键值对，在调用时仅需给出作为索引的虚拟页号即可。</p></li>
+<li><p>通过 <code class="docutils literal notranslate"><span class="pre">map</span></code> 方法来在多级页表中插入一个键值对，注意这里将物理页号 <code class="docutils literal notranslate"><span class="pre">ppn</span></code> 和页表项标志位 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 作为
+不同的参数传入；</p></li>
+<li><p>通过 <code class="docutils literal notranslate"><span class="pre">unmap</span></code> 方法来删除一个键值对，在调用时仅需给出作为索引的虚拟页号即可。</p></li>
 </ul>
-<p id="modify-page-table">在这些操作的过程中我们自然需要访问或修改多级页表节点的内容。每个节点都被保存在一个物理页帧中，在多级页表的架构中我们是以
-一个节点被存放在的物理页帧的物理页号作为指针指向该节点，这意味着，对于每个节点来说，一旦我们知道了指向它的物理页号，我们
-就需要能够修改这个节点的内容。前面我们在使用 <code class="docutils literal notranslate"><span class="pre">frame_alloc</span></code> 分配一个物理页帧之后便立即将它上面的数据清零其实也是一样
-的需求。总结一下也就是说，至少在操作某个多级页表或是管理物理页帧的时候，我们要能够自由的读写与一个给定的物理页号对应的
-物理页帧上的数据。</p>
-<p>在尚未启用分页模式之前，内核和应用的代码都可以通过物理地址直接访问内存。而在打开分页模式之后，分别运行在 S 特权级
-和 U 特权级的内核和应用的访存行为都会受到影响，它们的访存地址会被视为一个当前地址空间（ <code class="docutils literal notranslate"><span class="pre">satp</span></code> CSR 给出当前
+<p id="modify-page-table">在上述操作的过程中，内核需要能访问或修改多级页表节点的内容。
+即在操作某个多级页表或是管理物理页帧的时候，操作系统要能够读写与一个给定的物理页号对应的
+物理页帧上的数据。这是因为，在多级页表的架构中，每个节点都被保存在一个物理页帧中，
+一个节点所在物理页帧的物理页号其实就是指向该节点的“指针”。</p>
+<p>在尚未启用分页模式之前，内核和应用的代码都可以通过物理地址直接访问内存。而在打开分页模式之后，运行在 S 特权级
+的内核与运行在 U 特权级的应用在访存上都会受到影响，它们的访存地址会被视为一个当前地址空间（ <code class="docutils literal notranslate"><span class="pre">satp</span></code> CSR 给出当前
 多级页表根节点的物理页号）中的一个虚拟地址，需要 MMU
-查相应的多级页表完成地址转换变为物理地址，也就是地址空间中虚拟地址指向的数据真正被内核放在的物理内存中的位置，然后
-才能访问相应的数据。此时，如果想要访问一个特定的物理地址 <code class="docutils literal notranslate"><span class="pre">pa</span></code> 所指向的内存上的数据，就需要对应 <strong>构造</strong> 一个虚拟地址
+查相应的多级页表完成地址转换变为物理地址，即地址空间中虚拟地址指向的数据真正被内核放在的物理内存中的位置，然后
+才能访问相应的数据。此时，如果想要访问一个特定的物理地址 <code class="docutils literal notranslate"><span class="pre">pa</span></code> 所指向的内存上的数据，就需要 <strong>构造</strong> 对应的一个虚拟地址
 <code class="docutils literal notranslate"><span class="pre">va</span></code> ，使得当前地址空间的页表存在映射 <span class="math notranslate nohighlight">\(\text{va}\rightarrow\text{pa}\)</span> ，且页表项中的保护位允许这种
 访问方式。于是，在代码中我们只需访问地址 <code class="docutils literal notranslate"><span class="pre">va</span></code> ，它便会被 MMU 通过地址转换变成 <code class="docutils literal notranslate"><span class="pre">pa</span></code> ，这样我们就做到了在启用
-分页模式的情况下也能从某种意义上直接访问内存。</p>
-<p id="term-identical-mapping">这就需要我们提前扩充多级页表维护的映射，使得对于每一个对应于某一特定物理页帧的物理页号 <code class="docutils literal notranslate"><span class="pre">ppn</span></code> ，均存在一个虚拟页号
-<code class="docutils literal notranslate"><span class="pre">vpn</span></code> 能够映射到它，而且要能够较为简单的针对一个 <code class="docutils literal notranslate"><span class="pre">ppn</span></code> 找到某一个能映射到它的 <code class="docutils literal notranslate"><span class="pre">vpn</span></code> 。这里我们采用一种最
-简单的 <strong>恒等映射</strong> (Identical Mapping) ，也就是说对于物理内存上的每个物理页帧，我们都在多级页表中用一个与其
-物理页号相等的虚拟页号映射到它。当我们想针对物理页号构造一个能映射到它的虚拟页号的时候，也只需使用一个和该物理页号
-相等的虚拟页号即可。</p>
+分页模式的情况下也能正常访问内存。</p>
+<p id="term-identical-mapping">这就需要提前扩充多级页表维护的映射，让每个物理页帧的物理页号 <code class="docutils literal notranslate"><span class="pre">ppn</span></code> ，均存在一个对应的虚拟页号
+<code class="docutils literal notranslate"><span class="pre">vpn</span></code> ，这需要建立一种映射关系。这里我们采用一种最
+简单的 <strong>恒等映射</strong> (Identical Mapping) ，即对于物理内存上的每个物理页帧，我们都在多级页表中用一个与其
+物理页号相等的虚拟页号来映射。</p>
 <div class="admonition note" id="term-recursive-mapping">
 <p class="admonition-title">注解</p>
 <p><strong>其他的映射方式</strong></p>
@@ -539,7 +522,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>我们构造可变引用来直接访问一个物理页号 <code class="docutils literal notranslate"><span class="pre">PhysPageNum</span></code> 对应的物理页帧，不同的引用类型对应于物理页帧上的一种不同的
-内存布局，如 <code class="docutils literal notranslate"><span class="pre">get_pte_array</span></code> 返回的是一个页表项定长数组的可变引用，可以用来修改多级页表中的一个节点；而
+内存布局，如 <code class="docutils literal notranslate"><span class="pre">get_pte_array</span></code> 返回的是一个页表项定长数组的可变引用，代表多级页表中的一个节点；而
 <code class="docutils literal notranslate"><span class="pre">get_bytes_array</span></code> 返回的是一个字节数组的可变引用，可以以字节为粒度对物理页帧上的数据进行访问，前面进行数据清零
 就用到了这个方法； <code class="docutils literal notranslate"><span class="pre">get_mut</span></code> 是个泛型函数，可以获取一个恰好放在一个物理页帧开头的类型为 <code class="docutils literal notranslate"><span class="pre">T</span></code> 的数据的可变引用。</p>
 <p>在实现方面，都是先把物理页号转为物理地址 <code class="docutils literal notranslate"><span class="pre">PhysAddr</span></code> ，然后再转成 usize 形式的物理地址。接着，我们直接将它
@@ -551,7 +534,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>unsafe 真的就是“不安全”吗？</strong></p>
-<p>下面是笔者关于 <code class="docutils literal notranslate"><span class="pre">unsafe</span></code> 一点可能不太正确的理解，不感兴趣的读者可以跳过。</p>
+<p>下面是笔者关于 <code class="docutils literal notranslate"><span class="pre">unsafe</span></code> 一点可能不太正确的理解，不感兴趣的同学可以跳过。</p>
 <p>当我们在 Rust 中使用 unsafe 的时候，并不仅仅是为了绕过编译器检查，更是为了告知编译器和其他看到这段代码的程序员：
 “ <strong>我保证这样做是安全的</strong> ” 。尽管，严格的 Rust 编译器暂时还不能确信这一点。从规范 Rust 代码编写的角度，
 我们需要尽可能绕过 unsafe ，因为如果 Rust 编译器或者一些已有的接口就可以提供安全性，我们当然倾向于利用它们让我们
@@ -560,8 +543,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 解释，我们可以将 <code class="docutils literal notranslate"><span class="pre">PhysPageNum</span></code> 也看成一种 RAII 的风格，即它控制着一个物理页帧资源的访问。首先，这不会导致
 use-after-free 的问题，因为在内核运行全期整块物理内存都是可以访问的，它不存在被释放后无法访问的可能性；其次，
 也不会导致并发冲突。注意这不是在 <code class="docutils literal notranslate"><span class="pre">PhysPageNum</span></code> 这一层解决的，而是 <code class="docutils literal notranslate"><span class="pre">PhysPageNum</span></code> 的使用层要保证任意两个线程
-不会同时对一个 <code class="docutils literal notranslate"><span class="pre">PhysPageNum</span></code> 进行操作。读者也应该可以感觉出这并不能算是一种好的设计，因为这种约束从代码层面是很
-难直接保证的，而是需要系统内部的某种一致性。虽然如此，它对于我们这个极简的内核而言算是很合适了。</p>
+不会同时对一个 <code class="docutils literal notranslate"><span class="pre">PhysPageNum</span></code> 进行操作。同学也应该可以感觉出这并不能算是一种好的设计，因为这种约束从代码层面是很
+难直接保证的，而是需要系统内部的某种一致性。虽然如此，由于目前的简单内核设计保证了系统内部的 <strong>单线程执行</strong> 的一致性，所以它对于我们这个简单内核而言算是很合适了。</p>
 </div>
 </section>
 <section id="id8">
@@ -612,7 +595,7 @@ use-after-free 的问题，因为在内核运行全期整块物理内存都是�
 <li><p><code class="docutils literal notranslate"><span class="pre">VirtPageNum</span></code> 的 <code class="docutils literal notranslate"><span class="pre">indexes</span></code> 可以取出虚拟页号的三级页索引，并按照从高到低的顺序返回。注意它里面包裹的
 usize 可能有 <span class="math notranslate nohighlight">\(27\)</span> 位，也有可能有 <span class="math notranslate nohighlight">\(64-12=52\)</span> 位，但这里我们是用来在多级页表上进行遍历，因此
 只取出低 <span class="math notranslate nohighlight">\(27\)</span> 位。</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">PageTable::find_pte_create</span></code> 在多级页表找到一个虚拟页号对应的页表项的可变引用方便后续的读写。如果在
+<li><p><code class="docutils literal notranslate"><span class="pre">PageTable::find_pte_create</span></code> 在多级页表找到一个虚拟页号对应的页表项的可变引用。如果在
 遍历的过程中发现有节点尚未创建则会新建一个节点。</p>
 <p>变量 <code class="docutils literal notranslate"><span class="pre">ppn</span></code> 表示当前节点的物理页号，最开始指向多级页表的根节点。随后每次循环通过 <code class="docutils literal notranslate"><span class="pre">get_pte_array</span></code> 将
 取出当前节点的页表项数组，并根据当前级页索引找到对应的页表项。如果当前节点是一个叶节点，那么直接返回这个页表项
@@ -644,7 +627,7 @@ usize 可能有 <span class="math notranslate nohighlight">\(27\)</span> 位，�
 <p>目前的实现方式并不打算对物理页帧耗尽的情形做任何处理而是直接 <code class="docutils literal notranslate"><span class="pre">panic</span></code> 退出。因此在前面的代码中能够看到
 很多 <code class="docutils literal notranslate"><span class="pre">unwrap</span></code> ，这种使用方式并不为 Rust 所推荐，只是由于简单起见暂且这样做。</p>
 </div>
-<p>为了方便后面的实现，我们还需要 <code class="docutils literal notranslate"><span class="pre">PageTable</span></code> 提供一种不经过 MMU 而是手动查页表的方法：</p>
+<p>为了方便后面的实现，我们还需要 <code class="docutils literal notranslate"><span class="pre">PageTable</span></code> 提供一种类似 MMU 操作的手动查页表的方法：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/mm/page_table.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">PageTable</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -687,6 +670,7 @@ usize 可能有 <span class="math notranslate nohighlight">\(27\)</span> 位，�
 <li><p>第 28 行的 <code class="docutils literal notranslate"><span class="pre">translate</span></code> 调用 <code class="docutils literal notranslate"><span class="pre">find_pte</span></code> 来实现，如果能够找到页表项，那么它会将页表项拷贝一份并返回，否则就
 返回一个 <code class="docutils literal notranslate"><span class="pre">None</span></code> 。</p></li>
 </ul>
+<p>小结一下，上一节和本节讲解了如何基于RISC-V64的SV39分页机制建立多级页表，并实现基于虚存地址空间的内存使用环境。这样，一旦启用分页机制，操作系统和应用都只能在虚拟地址空间中访问数据了，只是操作系统可以通过页表机制来限制应用访问的实际物理内存范围。这就要在后续小节中，进一步看看操作系统内核和应用程序是如何在虚拟地址空间中进行代码和数据访问的。</p>
 </section>
 </section>
 </section>
