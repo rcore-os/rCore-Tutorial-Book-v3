@@ -19,7 +19,7 @@
 
    **库操作系统（Library OS，LibOS）**
 
-   LibOS以函数库的形式存在，为应用程序提供操作系统的基本功能。它最早来源于MIT的Exokernel（外核）架构设计 [#exokernel]_ 中，即把传统的单体内核分为两部分，一部分以库的形式（即LibOS）与应用程序紧耦合，另外一部分（即外核）仅仅听最基础的硬件保护和复用机制，来给LibOS提供基本的硬件访问服务。这样的设计思路可以针对应用程序的特征定制LibOS，达到高性能的目标。
+   LibOS以函数库的形式存在，为应用程序提供操作系统的基本功能。它最早来源于MIT的Exokernel（外核）架构设计 [#exokernel]_ 中，即把传统的单体内核分为两部分，一部分以库的形式（即LibOS）与应用程序紧耦合，另外一部分（即外核）仅仅包含最基础的硬件保护和复用机制，来给LibOS提供基本的硬件访问服务。这样的设计思路可以针对应用程序的特征定制LibOS，达到高性能的目标。
 
 
 移除 println! 宏
@@ -37,12 +37,22 @@ println! 宏所在的Rust标准库std需要通过系统调用获得操作系统�
 
 这会对于 cargo 工具在 os 目录下的行为进行调整：现在默认会使用 riscv64gc 作为目标平台而不是原先的默认 x86_64-unknown-linux-gnu。事实上，这是一种编译器运行的平台(x86_64)与可执行文件运行的目标平台(riscv-64)不同的情况。我们把这种情况称为 **交叉编译** (Cross Compile)。
 
-..
-  chyyuu：解释一下交叉编译？？？
 
-当然，这只是使得我们之后在 ``cargo build`` 的时候不必再加上 ``--target`` 参数的一个小 trick。如果我们现在执行 ``cargo build`` ，还是会和上一小节一样出现找不到标准库 std 的错误。于是我们开始着手移除标准库，当然，这会产生一些副作用。
+.. note::
 
-我们在 ``main.rs`` 的开头加上一行 ``#![no_std]`` 来告诉 Rust 编译器不使用 Rust 标准库 std 转而使用核心库 core。编译器报出如下错误：
+   **本地编译与交叉编译** 
+
+   下面指的 **平台** 主要由CPU硬件和操作系统这两个要素组成。
+
+   本地编译，即在当平台下编译出来的程序，也只是放到当前平台下运行。如在Linux x86-64平台上，编写代码并编译成可在Linux x86-64平台上执行的程序。
+   
+   交叉编译，是一个与本地编译相对应的概念，即在一种平台上编译出在另一种平台上运行的程序。程序编译的环境与程序运行的环境不一样。如我们后续会讲到，在Linux x86-64平台上，编写代码并编译成可在rCore （这是我们要编写的操作系统内核）riscv64gc（这是CPU硬件）平台上执行的程序。
+   
+
+
+当然，这只是使得我们之后在 ``cargo build`` 的时候不必再加上 ``--target`` 参数的一个小 trick。如果我们现在执行 ``cargo build`` ，还是会和上一小节一样出现找不到标准库 std 的错误。于是我们需要在着手移除标准库的过程中一步一步地解决这些错误。
+
+我们在 ``main.rs`` 的开头加上一行 ``#![no_std]`` 来告诉 Rust 编译器不使用 Rust 标准库 std 转而使用核心库 core（core库不需要操作系统的支持）。编译器报出如下错误：
 
 .. error::
 
@@ -56,7 +66,7 @@ println! 宏所在的Rust标准库std需要通过系统调用获得操作系统�
       4 |     println!("Hello, world!");
         |     ^^^^^^^
 
-我们之前提到过， println! 宏是由标准库 std 提供的，且会使用到一个名为 write 的系统调用。现在我们的代码功能还不足以自己实现一个 println! 宏。由于使用了系统调用也不能在核心库 core 中找到它，所以我们目前先通过将它注释掉来绕过它。
+我们之前提到过， println! 宏是由标准库 std 提供的，且会使用到一个名为 write 的系统调用。现在我们的代码功能还不足以自己实现一个 println! 宏。由于程序使用了系统调用，但不能在核心库 core 中找到它，所以我们目前先通过将把 println! 宏注释掉，来暂时绕过这个问题。
 
 .. note::
 
@@ -175,7 +185,7 @@ println! 宏所在的Rust标准库std需要通过系统调用获得操作系统�
 
 
 
-通过 ``file`` 工具对二进制程序 ``os`` 的分析可以看到它好像是一个合法的 RV64 执行程序，但通过 ``rust-readobj`` 工具进一步分析，发现它的入口地址 Entry 是 ``0`` ，这就比较奇怪了，地址从 0 执行，好像不对。再通过 ``rust-objdump`` 工具把它反汇编，可以看到没有生成汇编代码。所以，我们可以断定，这个二进制程序虽然合法，但它是一个空程序。这不是我们希望的，我们希望的是与源码对应的有具体内容的执行程序。为什么会这样呢？原因是我们缺少了编译器需要找到的入口函数 ``_start`` 。
+通过 ``file`` 工具对二进制程序 ``os`` 的分析可以看到它好像是一个合法的 RISC-V 64 执行程序，但通过 ``rust-readobj`` 工具进一步分析，发现它的入口地址 Entry 是 ``0`` ，这就比较奇怪了，地址从 0 执行，好像不对。再通过 ``rust-objdump`` 工具把它反汇编，可以看到没有生成汇编代码。所以，我们可以断定，这个二进制程序虽然合法，但它是一个空程序。这不是我们希望的，我们希望的是与源码对应的有具体内容的执行程序。为什么会这样呢？原因是我们缺少了编译器需要找到的入口函数 ``_start`` 。
 
 
 在下面几节，我们将建立有支持显示字符串的最小执行环境。
@@ -185,7 +195,7 @@ println! 宏所在的Rust标准库std需要通过系统调用获得操作系统�
    **在 x86_64 平台上移除标准库依赖**
 
    有兴趣的同学可以将目标平台换回之前默认的 ``x86_64-unknown-linux-gnu`` 并重复本小节所做的事情，比较两个平台从 ISA 到操作系统
-   的差异。可以参考 `BlogOS 的相关内容 <https://os.phil-opp.com/freestanding-rust-binary/>`_ 。
+   的差异。可以参考 `BlogOS 的相关内容 <https://os.phil-opp.com/freestanding-rust-binary/>`_ [#blogos]_ 。
 
 .. note:: 
 
@@ -193,3 +203,4 @@ println! 宏所在的Rust标准库std需要通过系统调用获得操作系统�
 
 
 .. [#exokernel] D. R. Engler, M. F. Kaashoek, and J. O'Toole. 1995. Exokernel: an operating system architecture for application-level resource management. In Proceedings of the fifteenth ACM symposium on Operating systems principles (SOSP '95). Association for Computing Machinery, New York, NY, USA, 251–266. 
+.. [#blogos] https://os.phil-opp.com/freestanding-rust-binary/
