@@ -254,11 +254,15 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <div class="section" id="id8">
 <h3>项目结构<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h3>
+<div class="admonition attention">
+<p class="admonition-title">注意</p>
+<p>用户库看起来很复杂，它预留了直到 ch7 内核才能实现的系统调用接口，console 模块还实现了输出缓存区。它们不是为本章准备的，你只需关注本节提到的部分即可。</p>
+</div>
 <p>我们看到 <code class="docutils literal notranslate"><span class="pre">user/src</span></code> 目录下面多出了一个 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录。<code class="docutils literal notranslate"><span class="pre">bin</span></code> 里面有多个文件，目前里面至少有三个程序（一个文件是一个应用程序），分别是：</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">00hello_world</span></code>：在屏幕上打印一行 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">01store_fault</span></code>：访问一个非法的物理地址，测试批处理系统是否会被该错误影响</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">02power</span></code>：不断在计算操作和打印字符串操作之间进行特权级切换</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hello_world</span></code>：在屏幕上打印一行 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world</span> <span class="pre">from</span> <span class="pre">user</span> <span class="pre">mode</span> <span class="pre">program!</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">store_fault</span></code>：访问一个非法的物理地址，测试批处理系统是否会被该错误影响</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">power</span></code>：不断在计算操作和打印字符串操作之间进行特权级切换</p></li>
 </ul>
 <p>批处理系统会按照文件名开头的数字编号从小到大的顺序加载并运行它们。</p>
 <p>每个应用程序的实现都在对应的单个文件中。打开其中一个文件，会看到里面只有一个 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数和若干相关的函数所形成的整个应用程序逻辑。</p>
@@ -271,16 +275,24 @@ commentsRunWhenDOMLoaded(addUtterances);
 所在的目录的名字 <code class="docutils literal notranslate"><span class="pre">user</span></code> ，是因为在 <code class="docutils literal notranslate"><span class="pre">user/Cargo.toml</span></code> 中我们对于库的名字进行了设置： <code class="docutils literal notranslate"><span class="pre">name</span> <span class="pre">=</span>&#160; <span class="pre">&quot;user_lib&quot;</span></code> 。它作为
 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录下的源程序所依赖的用户库，等价于其他编程语言提供的标准库。</p>
 <p>在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 中我们定义了用户库的入口点 <code class="docutils literal notranslate"><span class="pre">_start</span></code> ：</p>
-<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
-2
-3
-4
-5
-6
-7</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="cp">#[link_section = </span><span class="s">&quot;.text.entry&quot;</span><span class="cp">]</span><span class="w"></span>
 <span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="n">clear_bss</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">HEAP</span><span class="p">.</span><span class="n">lock</span><span class="p">()</span><span class="w"></span>
+<span class="w">            </span><span class="p">.</span><span class="n">init</span><span class="p">(</span><span class="n">HEAP_SPACE</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">USER_HEAP_SIZE</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">());</span><span class="w"></span>
 <span class="w">    </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;unreachable after sys_exit!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
@@ -288,9 +300,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 </td></tr></table></div>
 <p>第 2 行使用 Rust 的宏将 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 这段代码编译后的汇编代码中放在一个名为 <code class="docutils literal notranslate"><span class="pre">.text.entry</span></code> 的代码段中，方便我们在后续链接的时候
 调整它的位置使得它能够作为用户库的入口。</p>
-<p>而从第 4 行开始我们能够看到进入用户库入口之后，首先和第一章一样手动清空需要被零初始化 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段（很遗憾到目前为止底层的批处理系统还
-没有这个能力，所以我们只能在用户库中完成），然后是调用 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数得到一个类型为 <code class="docutils literal notranslate"><span class="pre">i32</span></code> 的返回值。</p>
-<p>第 5 行我们调用后面会提到的用户库提供的 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 接口退出应用程序，并将这个返回值告知批处理系统。</p>
+<p>从第 4 行开始，进入用户库入口之后，首先和第一章一样，手动清空需要零初始化的 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段（很遗憾到目前为止底层的批处理系统还
+没有这个能力，所以我们只能在用户库中完成）；然后初始化堆空间，具体细节将在第四章详述；再调用 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数得到一个类型为 <code class="docutils literal notranslate"><span class="pre">i32</span></code> 的返回值。</p>
+<p>最后，调用用户库提供的 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 接口退出应用程序，并将 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数的返回值告知批处理系统。</p>
 <p>我们还在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 中看到了另一个 <code class="docutils literal notranslate"><span class="pre">main</span></code> ：</p>
 <div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
 2

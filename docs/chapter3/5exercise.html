@@ -135,12 +135,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l4"><a class="reference internal" href="#stride">stride 调度算法</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id2">实验要求</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id3">实验约定</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id4">实验检查</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">简答作业</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id7">报告要求</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id8">参考信息</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">简答作业</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">报告要求</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">参考信息</a></li>
 </ul>
 </li>
 </ul>
@@ -234,14 +233,11 @@ commentsRunWhenDOMLoaded(addUtterances);
             
   <div class="section" id="chapter3">
 <h1>chapter3练习<a class="headerlink" href="#chapter3" title="永久链接至标题">¶</a></h1>
-<ul class="simple">
-<li><p>本节难度： <strong>并不那么简单了！早点动手</strong></p></li>
-</ul>
 <div class="section" id="id1">
 <h2>编程作业<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
 <div class="section" id="stride">
 <h3>stride 调度算法<a class="headerlink" href="#stride" title="永久链接至标题">¶</a></h3>
-<p>lab3中我们引入了任务调度的概念，可以在不同任务之间切换，目前我们实现的调度算法十分简单，存在一些问题且不存在优先级。现在我们要为我们的 os 实现一种带优先级的调度算法：stide 调度算法。</p>
+<p>ch3 中我们实现的调度算法十分简单。现在我们要为我们的 os 实现一种带优先级的调度算法：stride 调度算法。</p>
 <p>算法描述如下:</p>
 <ol class="arabic simple">
 <li><p>为每个进程设置一个当前 stride，表示该进程当前已经运行的“长度”。另外设置其对应的 pass 值（只与进程的优先权有关系），表示对应进程在调度后，stride 需要进行的累加值。</p></li>
@@ -255,111 +251,41 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>进程初始 stride 设置为 0 即可。</p></li>
 <li><p>进程初始优先级设置为 16。</p></li>
 </ul>
+<p>为了实现该调度算法，内核还要增加 set_prio 系统调用</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// syscall ID：140</span>
+<span class="c1">// 设置当前进程优先级为 prio</span>
+<span class="c1">// 参数：prio 进程优先级，要求 prio &gt;= 2</span>
+<span class="c1">// 返回值：如果输入合法则返回 prio，否则返回 -1</span>
+<span class="k">fn</span> <span class="nf">sys_set_priority</span><span class="p">(</span><span class="n">prio</span>: <span class="kt">isize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
 <p>tips: 可以使用优先级队列比较方便的实现 stride 算法，但是我们的实验不考察效率，所以手写一个简单粗暴的也完全没问题。</p>
 </div>
 <div class="section" id="id2">
 <h3>实验要求<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h3>
-<ul class="simple">
+<ul>
 <li><p>完成分支: ch3。</p></li>
-<li><p>完成实验指导书中的内容，实现 sys_yield，实现协作式和抢占式的调度。</p></li>
-<li><p>实现 stride 调度算法，实现 sys_gettime, sys_set_priority 两个系统调用并通过 <a class="reference external" href="https://github.com/DeathWish5/rCore_tutorial_tests">Rust测例</a> 中 chapter3 对应的所有测例，测例详情见对应仓库，系统调用具体要求参考 <a class="reference external" href="https://github.com/DeathWish5/rCore_tutorial_tests/blob/master/guide.md">guide.md</a> 。</p></li>
+<li><p>实验目录要求不变</p></li>
+<li><p>通过所有测例：</p>
+<p>lab3 有 3 类测例，在 os 目录下执行 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span> <span class="pre">TEST=1</span></code> 检查基本 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 安全检查的实现， <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span> <span class="pre">TEST=2</span></code> 检查 <code class="docutils literal notranslate"><span class="pre">set_priority</span></code> 语义的正确性， <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span> <span class="pre">TEST=3</span></code> 检查 stride 调度算法是否满足公平性要求，
+六个子程序运行的次数应该大致与其优先级呈正比，测试通过标准是 <span class="math notranslate nohighlight">\(\max{\frac{runtimes}{prio}}/ \min{\frac{runtimes}{prio}} &lt; 1.5\)</span>.</p>
+</li>
 </ul>
-<div class="admonition note" id="gettime-semantic-diff">
-<p class="admonition-title">注解</p>
-<p><strong>sys_gettime 在测例和教程正文中语义的不同</strong></p>
-<p>为了更加贴近 POSIX 标准系统调用接口，在测例中 <code class="docutils literal notranslate"><span class="pre">sys_gettime</span></code> 需要将当前时间保存在一个 <code class="docutils literal notranslate"><span class="pre">TimeVal</span></code> 中，但是在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">get_time</span></code> 函数仍然是以毫秒为单位，它的实现方式是将 <code class="docutils literal notranslate"><span class="pre">TimeVal</span></code> 中的秒数 <code class="docutils literal notranslate"><span class="pre">sec</span></code> 和微秒数 <code class="docutils literal notranslate"><span class="pre">usec</span></code> 转化为合计的毫秒数。因此，如果基于实验框架来做的话， <code class="docutils literal notranslate"><span class="pre">sys_gettime</span></code> 在内核中的实现需要发生变化。</p>
-<p>另外需要注意的是，在修改之后， <code class="docutils literal notranslate"><span class="pre">sys_gettime</span></code> 和 POSIX 标准接口也仅仅做到了格式相同。在 POSIX 标准接口中 <code class="docutils literal notranslate"><span class="pre">sys_gettime</span></code> 统计当前相对 1970-01-01 00:00:00 +0000 (UTC) 过去的时间，而我们并没有用到任何 RTC 外设，只能做到统计自开机之后过去的时间。</p>
-</div>
-<p>需要说明的是 lab3 有3类测例，<code class="docutils literal notranslate"><span class="pre">ch3_0_*</span></code> 用来检查基本 syscall 的实现，<code class="docutils literal notranslate"><span class="pre">ch3_1_*</span></code> 基于 yield 来检测基本的调度，<code class="docutils literal notranslate"><span class="pre">ch3_2_*</span></code> 基于时钟中断来测试 stride 调度算法实现的正确性。测试时可以分别测试 3 组测例，使得输出更加可控、更加清晰。</p>
 <p>challenge: 实现多核，可以并行调度。</p>
 </div>
 <div class="section" id="id3">
 <h3>实验约定<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
 <p>在第三章的测试中，我们对于内核有如下仅仅为了测试方便的要求，请调整你的内核代码来符合这些要求：</p>
 <ul class="simple">
-<li><p>人为限制一个程序执行的最大时间（如 5s），超过就杀死。这一规定可以在实验4开始删除，仅仅为通过 lab3 测例设置。</p></li>
 <li><p>用户栈大小必须为 4096，且按照 4096 字节对齐。这一规定可以在实验4开始删除，仅仅为通过 lab2 测例设置。</p></li>
 </ul>
 </div>
+</div>
 <div class="section" id="id4">
-<h3>实验检查<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
-<ul>
-<li><p>实验目录要求</p>
+<h2>简答作业<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<p>stride 算法深入</p>
 <blockquote>
-<div><p>目录要求不变（参考 lab1 目录或者示例代码目录结构）。同样在 os 目录下 <cite>make run</cite> 之后可以正确加载用户程序并执行。</p>
-<p>目标用户目录 <code class="docutils literal notranslate"><span class="pre">../user/build/bin</span></code>。</p>
-</div></blockquote>
-</li>
-<li><p>检查</p>
-<blockquote>
-<div><p>可以正确 <cite>make run</cite> 执行，可以正确执行目标用户测例，并得到预期输出（详见测例注释）。</p>
-</div></blockquote>
-</li>
-</ul>
-</div>
-</div>
-<div class="section" id="id5">
-<h2>简答作业<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<ol class="arabic">
-<li><p>简要描述这一章的进程调度策略。何时进行进程切换？如何选择下一个运行的进程？如何处理新加入的进程？</p></li>
-<li><p>在 C 版代码中，同样实现了类似 RR 的调度算法，但是由于没有 VecDeque 这样直接可用的数据结构（Rust 很棒对不对），C 版代码的实现严格来讲存在一定问题。大致情况如下：C 版代码使用一个进程池（也就是一个 struct proc 的数组）管理进程调度，当一个时间片用尽后，选择下一个进程逻辑在 <a class="reference external" href="https://github.com/DeathWish5/ucore-Tutorial/blob/ch3/kernel/proc.c#L60-L74">chapter3相关代码</a> ，也就是当第 i 号进程结束后，会以 i -&gt; max_num -&gt; 0 -&gt; i 的顺序遍历进程池，直到找到下一个就绪进程。C 版代码新进程在调度池中的位置选择见 <a class="reference external" href="https://github.com/DeathWish5/ucore-Tutorial/blob/ch5/kernel/proc.c#L90-L98">chapter5相关代码</a> ，也就是从头到尾遍历进程池，找到第一个空位。</p>
-<p>(2-1) 在目前这一章（chapter3）两种调度策略有实质不同吗？考虑在一个完整的 os 中，随时可能有新进程产生，这两种策略是否实质相同？</p>
-<p>(2-2) 其实 C 版调度策略在公平性上存在比较大的问题，请找到一个进程产生和结束的时间序列，使得在该调度算法下发生：先创建的进程后执行的现象。你需要给出类似下面例子的信息（有更详细的分析描述更好，但尽量精简）。同时指出该序列在你实现的 stride 调度算法下顺序是怎样的？</p>
-<blockquote>
-<div><table class="docutils align-center" id="id11">
-<caption><span class="caption-text">调度顺序举例</span><a class="headerlink" href="#id11" title="永久链接至表格">¶</a></caption>
-<colgroup>
-<col style="width: 11%" />
-<col style="width: 11%" />
-<col style="width: 11%" />
-<col style="width: 11%" />
-<col style="width: 11%" />
-<col style="width: 11%" />
-<col style="width: 11%" />
-<col style="width: 11%" />
-<col style="width: 11%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>时间点</p></th>
-<th class="head"><p>0</p></th>
-<th class="head"><p>1</p></th>
-<th class="head"><p>2</p></th>
-<th class="head"><p>3</p></th>
-<th class="head"><p>4</p></th>
-<th class="head"><p>5</p></th>
-<th class="head"><p>6</p></th>
-<th class="head"><p>7</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>运行进程</p></td>
-<td></td>
-<td><p>p1</p></td>
-<td><p>p2</p></td>
-<td><p>p3</p></td>
-<td><p>p1</p></td>
-<td><p>p4</p></td>
-<td><p>p3</p></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p>事件</p></td>
-<td><p>p1、p2、p3产生</p></td>
-<td></td>
-<td><p>p2 结束</p></td>
-<td><p>p4 产生</p></td>
-<td><p>p1 结束</p></td>
-<td><p>p4 结束</p></td>
-<td><p>p3 结束</p></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<p>产生顺序：p1、p2、p3、p4。第一次执行顺序: p1、p2、p3、p4。没有违反公平性。</p>
-<p>其他细节：允许进程在其他进程执行时产生（也就是被当前进程创建）/结束（也就是被当前进程杀死）。</p>
-</div></blockquote>
-</li>
-<li><p>stride 算法深入</p>
-<p>stride 算法原理非常简单，但是有一个比较大的问题。例如两个 pass = 10 的进程，使用 8bit 无符号整形储存 stride， p1.stride = 255, p2.stride = 250，在 p2 执行一个时间片后，理论上下一次应该 p1 执行。</p>
+<div><p>stride 算法原理非常简单，但是有一个比较大的问题。例如两个 pass = 10 的进程，使用 8bit 无符号整形储存 stride， p1.stride = 255, p2.stride = 250，在 p2 执行一个时间片后，理论上下一次应该 p1 执行。</p>
 <ul class="simple">
 <li><p>实际情况是轮到 p1 执行吗？为什么？</p></li>
 </ul>
@@ -393,19 +319,18 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>(125 &lt; 255) == false</p></li>
 <li><p>(129 &lt; 255) == true</p></li>
 </ul>
-</li>
-</ol>
+</div></blockquote>
 </div>
-<div class="section" id="id7">
-<h2>报告要求<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id5">
+<h2>报告要求<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
 <ul class="simple">
 <li><p>简单总结与上次实验相比本次实验你增加的东西（控制在5行以内，不要贴代码）。</p></li>
 <li><p>完成问答问题。</p></li>
 <li><p>(optional) 你对本次实验设计及难度/工作量的看法，以及有哪些需要改进的地方，欢迎畅所欲言。</p></li>
 </ul>
 </div>
-<div class="section" id="id8">
-<h2>参考信息<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id6">
+<h2>参考信息<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
 <p>如果有兴趣进一步了解 stride 调度相关内容，可以尝试看看：</p>
 <ul class="simple">
 <li><p><a class="reference external" href="https://people.cs.umass.edu/~mcorner/courses/691J/papers/PS/waldspurger_stride/waldspurger95stride.pdf">作者 Carl A. Waldspurger 写这个调度算法的原论文</a></p></li>

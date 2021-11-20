@@ -137,13 +137,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2 current"><a class="current reference internal" href="#">chapter7练习</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id1">编程作业</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id2">硬链接</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id4">实验要求</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id5">实验检查</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#tips">Tips</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3">实验要求</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#id6">问答作业</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id7">报告要求</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">问答作业</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">报告要求</a></li>
 </ul>
 </li>
 </ul>
@@ -240,51 +238,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>编程作业<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
 <div class="section" id="id2">
 <h3>硬链接<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h3>
-<p>你的电脑桌面是咋样的？是放满了图标吗？反正我的 windows 是这样的。显然很少人会真的把可执行文件放到桌面上，桌面图标其实都是一些快捷方式。或者用 unix 的术语来说：软链接。为了减少工作量，我们今天来实现软链接的兄弟： <a class="reference external" href="https://en.wikipedia.org/wiki/Hard_link">硬链接</a> 。</p>
-<p>硬链接要求两个不同的目录项指向同一个文件，在我们的文件系统中也就是两个不同名称目录项指向同一个磁盘块。本节要求实现三个系统调用 <code class="docutils literal notranslate"><span class="pre">sys_linkat、sys_unlinkat、sys_stat</span></code> 。注意在测例中 <code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 的接口定义也发生了变化。</p>
-<p><strong>open</strong></p>
-<blockquote>
-<div><ul>
-<li><p>syscall ID: 56</p></li>
-<li><p>功能：打开一个文件，并返回可以访问它的文件描述符。</p></li>
-<li><p>C 接口： <code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">open(int</span> <span class="pre">dirfd,</span> <span class="pre">char*</span> <span class="pre">path,</span> <span class="pre">unsigned</span> <span class="pre">int</span> <span class="pre">flags,</span> <span class="pre">unsigned</span> <span class="pre">int</span> <span class="pre">mode);</span></code></p></li>
-<li><p>Rust 接口： <code class="docutils literal notranslate"><span class="pre">fn</span> <span class="pre">open(dirfd:</span> <span class="pre">usize,</span> <span class="pre">path:</span> <span class="pre">*const</span> <span class="pre">u8,</span> <span class="pre">flags:</span> <span class="pre">u32,</span> <span class="pre">mode:</span> <span class="pre">u32);</span></code></p></li>
-<li><dl>
-<dt>参数：</dt><dd><ul>
-<li><p><strong>dirfd</strong> : 仅为了兼容性考虑，本次实验中始终为 AT_FDCWD (-100)。可以忽略。</p></li>
-<li><p><strong>path</strong> 描述要打开的文件的文件名（简单起见，文件系统不需要支持目录，所有的文件都放在根目录 <code class="docutils literal notranslate"><span class="pre">/</span></code> 下）</p></li>
-<li><p><strong>flags</strong> 描述打开文件的标志，具体含义（其他参数不考虑）：</p>
-<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#define O_RDONLY  0x000</span>
-<span class="cp">#define O_WRONLY  0x001</span>
-<span class="cp">#define O_RDWR    0x002         </span><span class="c1">// 可读可写</span>
-<span class="cp">#define O_CREATE  0x200</span>
-</pre></div>
-</div>
-</li>
-<li><p><strong>mode</strong> 仅在创建文件时有用，表示创建文件的访问权限，为了简单，本次实验中中统一为 <em>O_RDWR</em> 。</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>说明：</dt><dd><ul class="simple">
-<li><p>有 create 标志但文件存在时，忽略 create 标志，直接打开文件。</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-<li><p>返回值：如果出现了错误则返回 -1，否则返回可以访问给定文件的文件描述符。</p></li>
-<li><dl class="simple">
-<dt>可能的错误：</dt><dd><ul class="simple">
-<li><p>文件不存在且无 create 标志。</p></li>
-<li><p>标志非法（低两位为 0x3）</p></li>
-<li><p>打开文件数量达到上限。</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-</ul>
-</div></blockquote>
+<p>硬链接要求两个不同的目录项指向同一个文件，在我们的文件系统中也就是两个不同名称目录项指向同一个磁盘块。</p>
+<p>本节要求实现三个系统调用 <code class="docutils literal notranslate"><span class="pre">sys_linkat、sys_unlinkat、sys_stat</span></code> 。</p>
 <p><strong>linkat</strong>：</p>
 <blockquote>
 <div><ul class="simple">
@@ -367,7 +322,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[repr(C)]</span><span class="w"></span>
 <span class="cp">#[derive(Debug)]</span><span class="w"></span>
 <span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">Stat</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="sd">/// 文件所在磁盘驱动器号</span>
+<span class="w">    </span><span class="sd">/// 文件所在磁盘驱动器号，该实验中写死为 0 即可</span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">dev</span>: <span class="kt">u64</span><span class="p">,</span><span class="w"></span>
 <span class="w">    </span><span class="sd">/// inode 文件所在 inode 编号</span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">ino</span>: <span class="kt">u64</span><span class="p">,</span><span class="w"></span>
@@ -397,14 +352,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 </div></blockquote>
 </div>
-<div class="section" id="id4">
-<h3>实验要求<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
-<ul class="simple">
+<div class="section" id="id3">
+<h3>实验要求<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
+<ul>
 <li><p>实现分支：ch7。</p></li>
-<li><p>完成实验指导书中的内容，实现基本的文件操作。</p></li>
-<li><p>实现硬链接及相关系统调用，并通过 <a class="reference external" href="https://github.com/DeathWish5/rCore_tutorial_tests">Rust测例</a> 中 chapter7 对应的所有测例。</p></li>
+<li><p>实验目录要求不变。</p></li>
+<li><p>通过所有测例。</p>
+<p>在 os 目录下 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span> <span class="pre">TEST=1</span></code> 加载所有测例， <code class="docutils literal notranslate"><span class="pre">test_usertest</span></code> 打包了所有你需要通过的测例，你也可以通过修改这个文件调整本地测试的内容。</p>
+<p>你的内核必须前向兼容，能通过前一章的所有测例。</p>
+</li>
 </ul>
-<p>challenge: 支持多核。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>如何调试 easy-fs</strong></p>
@@ -412,38 +369,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>你也可以完全在用户态进行调试。仿照 <code class="docutils literal notranslate"><span class="pre">easy-fs-fuse</span></code> 建立一个在当前操作系统中运行的应用程序，将测试逻辑写在 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数中。这个时候就可以将它引用的 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 的 <code class="docutils literal notranslate"><span class="pre">no_std</span></code> 去掉并使用 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 进行调试。</p>
 </div>
 </div>
-<div class="section" id="id5">
-<h3>实验检查<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
-<ul>
-<li><p>实验目录要求</p>
-<blockquote>
-<div><p>目录要求不变（参考 lab1 目录或者示例代码目录结构）。同样在 os 目录下 <cite>make run</cite> 之后可以正确加载用户程序并执行。</p>
-<p>加载的用户测例位置： <cite>../user/build/bin</cite>。</p>
-</div></blockquote>
-</li>
-<li><p>检查</p>
-<blockquote>
-<div><p>可以正确 <cite>make run</cite> 执行，可以正确执行目标用户测例，并得到预期输出（详见测例注释）。</p>
-</div></blockquote>
-</li>
-</ul>
 </div>
-<div class="section" id="tips">
-<h3>Tips<a class="headerlink" href="#tips" title="永久链接至标题">¶</a></h3>
-<ul class="simple">
-<li><p>注意 <code class="docutils literal notranslate"><span class="pre">sys_linkat</span></code> 有 5 个参数，而原有的系统调用分发函数 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> （位于 <code class="docutils literal notranslate"><span class="pre">os/src/syscall/mod.rs</span></code> 中）最多仅支持 3 个参数，因此我们需要进行拓展。这需要将 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 的函数签名中的 <code class="docutils literal notranslate"><span class="pre">args</span></code> 拓展为 <code class="docutils literal notranslate"><span class="pre">[usize;</span> <span class="pre">5]</span></code> ，还需要对应调整 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 中对 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 的调用，从 Trap 上下文中获取更多通用寄存器放入参数 <code class="docutils literal notranslate"><span class="pre">args</span></code> 中。</p></li>
-</ul>
-</div>
-</div>
-<div class="section" id="id6">
-<h2>问答作业<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id4">
+<h2>问答作业<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
 <ol class="arabic simple">
 <li><p>目前的文件系统只有单级目录，假设想要支持多级文件目录，请描述你设想的实现方式，描述合理即可。</p></li>
 <li><p>在有了多级目录之后，我们就也可以为一个目录增加硬链接了。在这种情况下，文件树中是否可能出现环路(软硬链接都可以，鼓励多尝试)？你认为应该如何解决？请在你喜欢的系统上实现一个环路，描述你的实现方式以及系统提示、实际测试结果。</p></li>
 </ol>
 </div>
-<div class="section" id="id7">
-<h2>报告要求<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id5">
+<h2>报告要求<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
 <ul class="simple">
 <li><p>简单总结本次实验与上个实验相比你增加的东西。（控制在5行以内，不要贴代码）</p></li>
 <li><p>完成问答问题</p></li>

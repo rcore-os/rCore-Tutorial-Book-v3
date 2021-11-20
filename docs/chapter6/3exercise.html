@@ -133,13 +133,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="2pipe.html">管道</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">chapter6练习</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id1">编程作业</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id2">进程通信：邮件</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2">进程通信：邮箱</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id3">实验要求</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id4">实验检查</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">问答作业</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id6">报告要求</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">问答作业</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">报告要求</a></li>
 </ul>
 </li>
 </ul>
@@ -236,16 +235,15 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="id1">
 <h2>编程作业<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
 <div class="section" id="id2">
-<h3>进程通信：邮件<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h3>
+<h3>进程通信：邮箱<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h3>
 <p>这一章我们实现了基于 pipe 的进程间通信，但是看测例就知道了，管道不太自由，我们来实现一套乍一看更靠谱的通信 syscall吧！本节要求实现邮箱机制，以及对应的 syscall。</p>
 <ul class="simple">
-<li><p>邮箱说明：每个进程拥有唯一一个邮箱，基于“数据报”收发字节信息，利用环形buffer存储，读写顺序为 FIFO，不记录来源进程。每次读写单位必须为一个报文，如果用于接收的缓冲区长度不够，舍弃超出的部分（截断报文）。为了简单，邮箱中最多拥有16条报文，每条报文最大长度256字节。当邮箱满时，发送邮件（也就是写邮箱会失败）。不考虑读写邮箱的权限，也就是所有进程都能够随意给其他进程的邮箱发报。</p></li>
+<li><p>邮箱说明：每个进程拥有唯一一个邮箱，基于“数据报”收发字节信息，利用环形buffer存储，读写顺序为 FIFO，不记录来源进程。每次读写单位必须为一个报文，如果用于接收的缓冲区长度不够，舍弃超出的部分（截断报文）。为了简单，邮箱中最多拥有16条报文，每条报文最大长度256字节。当邮箱满时，发送邮件（也就是写邮箱）会失败。不考虑读写邮箱的权限，也就是所有进程都能够随意给其他进程的邮箱发报。</p></li>
 </ul>
 <p><strong>mailread</strong>:</p>
 <blockquote>
 <div><ul class="simple">
 <li><p>syscall ID：401</p></li>
-<li><p>C接口： <code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">mailread(void*</span> <span class="pre">buf,</span> <span class="pre">int</span> <span class="pre">len)</span></code></p></li>
 <li><p>Rust接口: <code class="docutils literal notranslate"><span class="pre">fn</span> <span class="pre">mailread(buf:</span> <span class="pre">*mut</span> <span class="pre">u8,</span> <span class="pre">len:</span> <span class="pre">usize)</span></code></p></li>
 <li><p>功能：读取一个报文，如果成功返回报文长度.</p></li>
 <li><dl class="simple">
@@ -278,7 +276,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 <blockquote>
 <div><ul class="simple">
 <li><p>syscall ID：402</p></li>
-<li><p>C接口： <code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">mailwrite(int</span> <span class="pre">pid,</span> <span class="pre">void*</span> <span class="pre">buf,</span> <span class="pre">int</span> <span class="pre">len)</span></code></p></li>
 <li><p>Rust接口: <code class="docutils literal notranslate"><span class="pre">fn</span> <span class="pre">mailwrite(pid:</span> <span class="pre">usize,</span> <span class="pre">buf:</span> <span class="pre">*mut</span> <span class="pre">u8,</span> <span class="pre">len:</span> <span class="pre">usize)</span></code></p></li>
 <li><p>功能：向对应进程邮箱插入一条报文.</p></li>
 <li><dl class="simple">
@@ -312,46 +309,44 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id3">
 <h3>实验要求<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<ul class="simple">
+<ul>
 <li><p>实现分支：ch6。</p></li>
-<li><p>完成实验指导书中的内容，实现进程控制，可以基于 pipe 进行进程通信。</p></li>
-<li><p>实现邮箱机制及系统调用，并通过 <a class="reference external" href="https://github.com/DeathWish5/rCore_tutorial_tests">Rust测例</a> 中 chapter6 对应的所有测例。</p></li>
+<li><p>实验目录要求不变。</p></li>
+<li><p>通过所有测例。</p>
+<p>在 os 目录下 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span> <span class="pre">TEST=1</span></code> 加载所有测例， <code class="docutils literal notranslate"><span class="pre">test_usertest</span></code> 打包了所有你需要通过的测例，你也可以通过修改这个文件调整本地测试的内容。</p>
+<p>你的内核必须前向兼容，能通过前一章的所有测例。</p>
+</li>
 </ul>
 <p>challenge: 支持多核。</p>
 </div>
-<div class="section" id="id4">
-<h3>实验检查<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
-<ul>
-<li><p>实验目录要求</p>
-<blockquote>
-<div><p>目录要求不变（参考 lab1 目录或者示例代码目录结构）。同样在 os 目录下 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 之后可以正确加载用户程序并执行。</p>
-<p>加载的用户测例位置： <code class="docutils literal notranslate"><span class="pre">../user/build/bin</span></code>。</p>
-</div></blockquote>
-</li>
-<li><p>检查</p>
-<blockquote>
-<div><p>可以正确 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 执行，可以正确执行目标用户测例，并得到预期输出（详见测例注释）。</p>
-</div></blockquote>
-</li>
-</ul>
 </div>
+<div class="section" id="id4">
+<h2>问答作业<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<ol class="arabic">
+<li><p>举出使用 pipe 的一个实际应用的例子。</p></li>
+<li><p>共享内存的测例中有如下片段(伪代码)：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">uint64</span> <span class="o">*</span><span class="n">A</span> <span class="o">=</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="mh">0x10000000</span><span class="p">;</span>
+    <span class="n">uint64</span> <span class="o">*</span><span class="n">B</span> <span class="o">=</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)(</span><span class="mh">0x10000000</span> <span class="o">+</span> <span class="mh">0x1000</span><span class="p">);</span>
+    <span class="n">uint64</span> <span class="n">len</span> <span class="o">=</span> <span class="mh">0x1000</span><span class="p">;</span>
+    <span class="n">make_shmem</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">len</span><span class="p">);</span> <span class="c1">// 将 [A, A + len) [B, B + len) 这两段虚存映射到同一段物理内存</span>
+    <span class="o">*</span><span class="n">A</span> <span class="o">=</span> <span class="mh">0xabab</span><span class="p">;</span>
+    <span class="n">__sync_synchronize</span><span class="p">();</span>  <span class="c1">// 这是什么？</span>
+    <span class="k">if</span><span class="p">(</span><span class="o">*</span><span class="n">B</span> <span class="o">!=</span> <span class="mh">0xabab</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="n">ERROR</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">&quot;OK!&quot;</span><span class="p">);</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>请查阅相关资料，回答 <code class="docutils literal notranslate"><span class="pre">__sync_synchronize</span></code> 这行代码的作用，如果去掉它可能会导致什么错误？为什么？</p>
+</li>
+</ol>
 </div>
 <div class="section" id="id5">
-<h2>问答作业<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<ol class="arabic simple">
-<li><p>举出使用 pipe 的一个实际应用的例子。</p></li>
-<li><p>假设我们的邮箱现在有了更加强大的功能，容量大幅增加而且记录邮件来源，可以实现“回信”。考虑一个多核场景，有 m 个核为消费者，n 个为生产者，消费者通过邮箱向生产者提出订单，生产者通过邮箱回信给出产品。</p></li>
-</ol>
-<blockquote>
-<div><ul class="simple">
-<li><p>假设你的邮箱实现没有使用锁等机制进行保护，在多核情景下可能会发生哪些问题？单核一定不会发生问题吗？为什么？</p></li>
-<li><p>请结合你在课堂上学到的内容，描述同学写者问题的经典解决方案，必要时提供伪代码。</p></li>
-<li><p>由于读写是基于报文的，不是随机读写，你有什么点子来优化邮箱的实现吗？</p></li>
-</ul>
-</div></blockquote>
-</div>
-<div class="section" id="id6">
-<h2>报告要求<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
+<h2>报告要求<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
 <ul class="simple">
 <li><p>简单总结本次实验与上个实验相比你增加的东西。（控制在5行以内，不要贴代码）</p></li>
 <li><p>完成问答问题</p></li>

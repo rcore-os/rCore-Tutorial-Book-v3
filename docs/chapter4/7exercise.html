@@ -135,13 +135,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="6multitasking-based-on-as.html">基于地址空间的分时多任务</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">chapter4练习</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id1">编程作业</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id2">申请内存</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id3">实验要求</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id4">实验检查</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sys-get-time">重写 sys_get_time</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mmap-munmap">mmap 和 munmap 匿名映射</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2">实验要求</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">问答作业</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id6">报告要求</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">问答作业</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">报告要求</a></li>
 </ul>
 </li>
 </ul>
@@ -234,57 +234,59 @@ commentsRunWhenDOMLoaded(addUtterances);
             
   <div class="section" id="chapter4">
 <h1>chapter4练习<a class="headerlink" href="#chapter4" title="永久链接至标题">¶</a></h1>
-<ul class="simple">
-<li><p>本节难度： <strong>看懂代码就和lab1一样</strong></p></li>
-</ul>
 <div class="section" id="id1">
 <h2>编程作业<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
-<div class="section" id="id2">
-<h3>申请内存<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h3>
-<p>你有没有想过，当你在 C 语言中写下的 <code class="docutils literal notranslate"><span class="pre">new</span> <span class="pre">int[100];</span></code> 执行时可能会发生哪些事情？你可能已经发现，目前我们给用户程序的内存都是固定的并没有增长的能力，这些程序是不能执行 <code class="docutils literal notranslate"><span class="pre">new</span></code> 这类导致内存使用增加的操作。libc 中通过 <a class="reference external" href="https://linux.die.net/man/2/sbrk">sbrk</a> 系统调用增加进程可使用的堆空间，这也是本来的题目设计，但是一位热心的往年助教J学长表示：这一点也不酷！他推荐了另一个申请内存的系统调用。</p>
-<p><a class="reference external" href="https://man7.org/linux/man-pages/man2/mmap.2.html">mmap</a> 本身主要使用来在内存中映射文件的，这里我们简化它的功能，仅仅用来提供申请内存的功能。</p>
-<p>mmap 系统调用新定义：</p>
+<div class="section" id="sys-get-time">
+<h3>重写 sys_get_time<a class="headerlink" href="#sys-get-time" title="永久链接至标题">¶</a></h3>
+<p>引入虚存机制后，原来内核的 sys_get_time 函数实现就无效了。请你重写这个函数，恢复其正常功能。</p>
+</div>
+<div class="section" id="mmap-munmap">
+<h3>mmap 和 munmap 匿名映射<a class="headerlink" href="#mmap-munmap" title="永久链接至标题">¶</a></h3>
+<p><a class="reference external" href="https://man7.org/linux/man-pages/man2/mmap.2.html">mmap</a> 在 Linux 中主要用于在内存中映射文件，本次实验简化它的功能，仅用于申请内存。</p>
+<p>请实现 mmap 和 munmap 系统调用，mmap 定义如下：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">sys_mmap</span><span class="p">(</span><span class="n">start</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">port</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span>
+</pre></div>
+</div>
 <ul class="simple">
 <li><p>syscall ID：222</p></li>
-<li><p>C接口： <code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">mmap(void*</span> <span class="pre">start,</span> <span class="pre">unsigned</span> <span class="pre">long</span> <span class="pre">long</span> <span class="pre">len,</span> <span class="pre">int</span> <span class="pre">port)</span></code></p></li>
-<li><p>Rust接口： <code class="docutils literal notranslate"><span class="pre">fn</span> <span class="pre">mmap(start:</span> <span class="pre">usize,</span> <span class="pre">len:</span> <span class="pre">usize,</span> <span class="pre">port:</span> <span class="pre">usize)</span> <span class="pre">-&gt;</span> <span class="pre">i32</span></code></p></li>
-<li><p>功能：申请长度为 len 字节的物理内存（不要求实际物理内存位置，可以随便找一块），并映射到 addr 开始的虚存，内存页属性为 port。</p></li>
+<li><p>申请长度为 len 字节的物理内存（不要求实际物理内存位置，可以随便找一块），将其映射到 start 开始的虚存，内存页属性为 port</p></li>
 <li><dl class="simple">
 <dt>参数：</dt><dd><ul>
-<li><p>start：需要映射的虚存起始地址。</p></li>
-<li><p>len：映射字节长度，可以为 0 （如果是则直接返回），不可过大(上限 1GiB )。</p></li>
-<li><p>port：第 0 位表示是否可读，第 1 位表示是否可写，第 2 位表示是否可执行。其他位无效（必须为 0 ）。</p></li>
+<li><p>start 需要映射的虚存起始地址，要求按页对齐</p></li>
+<li><p>len 映射字节长度，可以为 0</p></li>
+<li><p>port：第 0 位表示是否可读，第 1 位表示是否可写，第 2 位表示是否可执行。其他位无效且必须为 0</p></li>
 </ul>
 </dd>
 </dl>
 </li>
+<li><p>返回值：执行成功则返回 0，错误返回 -1</p></li>
 <li><dl class="simple">
 <dt>说明：</dt><dd><ul>
-<li><p>正确时返回实际 map size（为 4096 的倍数），错误返回 -1 。</p></li>
-<li><p>为了简单，addr 要求按页对齐(否则报错)，len 可直接按页上取整。</p></li>
-<li><p>为了简单，不考虑分配失败时的页回收（也就是内存泄漏）。</p></li>
+<li><p>为了简单，目标虚存区间要求按页对齐，len 可直接按页向上取整，不考虑分配失败时的页回收。</p></li>
 </ul>
 </dd>
 </dl>
 </li>
 <li><dl class="simple">
-<dt>错误：</dt><dd><ul>
-<li><p>[addr, addr + len) 存在已经被映射的页。</p></li>
-<li><p>物理内存不足。</p></li>
-<li><p>port &amp; !0x7 != 0 (port 其余位必须为0)。</p></li>
-<li><p>port &amp; 0x7 = 0 (这样的内存无意义)。</p></li>
+<dt>可能的错误：</dt><dd><ul>
+<li><p>start 没有按页大小对齐</p></li>
+<li><p>port &amp; !0x7 != 0 (port 其余位必须为0)</p></li>
+<li><p>port &amp; 0x7 = 0 (这样的内存无意义)</p></li>
+<li><p>[start, start + len) 中存在已经被映射的页</p></li>
+<li><p>物理内存不足</p></li>
 </ul>
 </dd>
 </dl>
 </li>
 </ul>
-<p>munmap 系统调用新定义：</p>
+<p>munmap 定义如下：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">sys_munmap</span><span class="p">(</span><span class="n">start</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span>
+</pre></div>
+</div>
 <ul class="simple">
 <li><p>syscall ID：215</p></li>
-<li><p>C接口： <code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">munmap(void*</span> <span class="pre">start,</span> <span class="pre">unsigned</span> <span class="pre">long</span> <span class="pre">long</span> <span class="pre">len)</span></code></p></li>
-<li><p>Rust接口： <code class="docutils literal notranslate"><span class="pre">fn</span> <span class="pre">munmap(start:</span> <span class="pre">usize,</span> <span class="pre">len:</span> <span class="pre">usize)</span> <span class="pre">-&gt;</span> <span class="pre">i32</span></code></p></li>
-<li><p>功能：取消一块虚存的映射。</p></li>
-<li><p>参数：同 mmap</p></li>
+<li><p>取消到 [start, start + len) 虚存的映射</p></li>
+<li><p>参数和返回值请参考 mmap</p></li>
 <li><dl class="simple">
 <dt>说明：</dt><dd><ul>
 <li><p>为了简单，参数错误时不考虑内存的恢复和回收。</p></li>
@@ -293,44 +295,29 @@ commentsRunWhenDOMLoaded(addUtterances);
 </dl>
 </li>
 <li><dl class="simple">
-<dt>错误：</dt><dd><ul>
+<dt>可能的错误：</dt><dd><ul>
 <li><p>[start, start + len) 中存在未被映射的虚存。</p></li>
 </ul>
 </dd>
 </dl>
 </li>
 </ul>
+<p>TIPS：注意 port 参数的语义，它与内核定义的 MapPermission 有明显不同！</p>
 </div>
-<div class="section" id="id3">
-<h3>实验要求<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<ul class="simple">
+<div class="section" id="id2">
+<h3>实验要求<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h3>
+<ul>
 <li><p>实现分支：ch4。</p></li>
-<li><p>完成实验指导书中的内容，实现虚拟内存，可以运行过去几个lab的程序。</p></li>
-<li><p>更新 sys_write 的范围检查，改为基于页表的检查方法。</p></li>
-<li><p>实现 mmap 和 munmap 两个自定义系统调用，并通过 <a class="reference external" href="https://github.com/DeathWish5/rCore_tutorial_tests">Rust测例</a> 中 chapter4 对应的所有测例，测例详情见对应仓库，系统调用具体要求参考 <a class="reference external" href="https://github.com/DeathWish5/rCore_tutorial_tests/blob/master/guide.md">guide.md</a> 中chapter4对应的所有测例。</p></li>
+<li><p>实验目录要求不变</p></li>
+<li><p>通过所有测例。</p>
+<p>在 os 目录下 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span> <span class="pre">TEST=1</span></code> 测试 sys_get_time， <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span> <span class="pre">TEST=2</span></code> 测试 map 和 unmap。</p>
+</li>
 </ul>
-<p>注意：记得删除 lab3 关于程序时间片上界的规定。</p>
 <p>challenge: 支持多核。</p>
 </div>
-<div class="section" id="id4">
-<h3>实验检查<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
-<ul>
-<li><p>实验目录要求</p>
-<blockquote>
-<div><p>目录要求不变（参考 lab1 目录或者示例代码目录结构）。同样在 os 目录下 <cite>make run</cite> 之后可以正确加载用户程序并执行。</p>
-<p>加载的用户测例位置： <code class="docutils literal notranslate"><span class="pre">../user/build/bin</span></code> 。</p>
-</div></blockquote>
-</li>
-<li><p>检查</p>
-<blockquote>
-<div><p>可以正确 <cite>make run</cite> 执行，可以正确执行目标用户测例，并得到预期输出（详见测例注释）。</p>
-</div></blockquote>
-</li>
-</ul>
 </div>
-</div>
-<div class="section" id="id5">
-<h2>问答作业<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id3">
+<h2>问答作业<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
 <ol class="arabic">
 <li><p>请列举 SV39 页表页表项的组成，结合课堂内容，描述其中的标志位有何作用／潜在作用？</p></li>
 <li><p>缺页</p>
@@ -367,8 +354,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </li>
 </ol>
 </div>
-<div class="section" id="id6">
-<h2>报告要求<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id4">
+<h2>报告要求<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
 <ul class="simple">
 <li><p>简单总结本次实验与上个实验相比你增加的东西。（控制在5行以内，不要贴代码）</p></li>
 <li><p>完成问答问题。</p></li>

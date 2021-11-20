@@ -1,74 +1,69 @@
 chapter4练习
 ============================================
 
-- 本节难度： **看懂代码就和lab1一样** 
-
 编程作业
 ---------------------------------------------
 
-申请内存
+重写 sys_get_time
 ++++++++++++++++++++++++++++++++++++++++++++
 
-你有没有想过，当你在 C 语言中写下的 ``new int[100];`` 执行时可能会发生哪些事情？你可能已经发现，目前我们给用户程序的内存都是固定的并没有增长的能力，这些程序是不能执行 ``new`` 这类导致内存使用增加的操作。libc 中通过 `sbrk <https://linux.die.net/man/2/sbrk>`_ 系统调用增加进程可使用的堆空间，这也是本来的题目设计，但是一位热心的往年助教J学长表示：这一点也不酷！他推荐了另一个申请内存的系统调用。
+引入虚存机制后，原来内核的 sys_get_time 函数实现就无效了。请你重写这个函数，恢复其正常功能。
 
-`mmap <https://man7.org/linux/man-pages/man2/mmap.2.html>`_ 本身主要使用来在内存中映射文件的，这里我们简化它的功能，仅仅用来提供申请内存的功能。
+mmap 和 munmap 匿名映射
+++++++++++++++++++++++++++++++++++++++++++++
 
-mmap 系统调用新定义：
+`mmap <https://man7.org/linux/man-pages/man2/mmap.2.html>`_ 在 Linux 中主要用于在内存中映射文件，本次实验简化它的功能，仅用于申请内存。
+
+请实现 mmap 和 munmap 系统调用，mmap 定义如下：
+
+
+.. code-block:: rust
+
+    fn sys_mmap(start: usize, len: usize, port: usize) -> isize
 
 - syscall ID：222
-- C接口： ``int mmap(void* start, unsigned long long len, int port)``
-- Rust接口： ``fn mmap(start: usize, len: usize, port: usize) -> i32``
-- 功能：申请长度为 len 字节的物理内存（不要求实际物理内存位置，可以随便找一块），并映射到 addr 开始的虚存，内存页属性为 port。
+- 申请长度为 len 字节的物理内存（不要求实际物理内存位置，可以随便找一块），将其映射到 start 开始的虚存，内存页属性为 port
 - 参数：
-    - start：需要映射的虚存起始地址。
-    - len：映射字节长度，可以为 0 （如果是则直接返回），不可过大(上限 1GiB )。
-    - port：第 0 位表示是否可读，第 1 位表示是否可写，第 2 位表示是否可执行。其他位无效（必须为 0 ）。
+    - start 需要映射的虚存起始地址，要求按页对齐
+    - len 映射字节长度，可以为 0
+    - port：第 0 位表示是否可读，第 1 位表示是否可写，第 2 位表示是否可执行。其他位无效且必须为 0
+- 返回值：执行成功则返回 0，错误返回 -1
 - 说明：
-    - 正确时返回实际 map size（为 4096 的倍数），错误返回 -1 。
-    - 为了简单，addr 要求按页对齐(否则报错)，len 可直接按页上取整。
-    - 为了简单，不考虑分配失败时的页回收（也就是内存泄漏）。
-- 错误：
-    - [addr, addr + len) 存在已经被映射的页。
-    - 物理内存不足。
-    - port & !0x7 != 0 (port 其余位必须为0)。
-    - port & 0x7 = 0 (这样的内存无意义)。
+    - 为了简单，目标虚存区间要求按页对齐，len 可直接按页向上取整，不考虑分配失败时的页回收。
+- 可能的错误：
+    - start 没有按页大小对齐
+    - port & !0x7 != 0 (port 其余位必须为0)
+    - port & 0x7 = 0 (这样的内存无意义)
+    - [start, start + len) 中存在已经被映射的页
+    - 物理内存不足
 
-munmap 系统调用新定义：
+munmap 定义如下：
+
+.. code-block:: rust
+
+    fn sys_munmap(start: usize, len: usize) -> isize
 
 - syscall ID：215
-- C接口： ``int munmap(void* start, unsigned long long len)``
-- Rust接口： ``fn munmap(start: usize, len: usize) -> i32``
-- 功能：取消一块虚存的映射。
-- 参数：同 mmap
+- 取消到 [start, start + len) 虚存的映射
+- 参数和返回值请参考 mmap
 - 说明：
     - 为了简单，参数错误时不考虑内存的恢复和回收。
-- 错误：
+- 可能的错误：
     - [start, start + len) 中存在未被映射的虚存。
-    
+
+
+TIPS：注意 port 参数的语义，它与内核定义的 MapPermission 有明显不同！
+
 实验要求
 ++++++++++++++++++++++++++++++++++++++++++
 
 - 实现分支：ch4。
-- 完成实验指导书中的内容，实现虚拟内存，可以运行过去几个lab的程序。
-- 更新 sys_write 的范围检查，改为基于页表的检查方法。
-- 实现 mmap 和 munmap 两个自定义系统调用，并通过 `Rust测例 <https://github.com/DeathWish5/rCore_tutorial_tests>`_ 中 chapter4 对应的所有测例，测例详情见对应仓库，系统调用具体要求参考 `guide.md <https://github.com/DeathWish5/rCore_tutorial_tests/blob/master/guide.md>`_ 中chapter4对应的所有测例。
+- 实验目录要求不变
+- 通过所有测例。
 
-注意：记得删除 lab3 关于程序时间片上界的规定。
+  在 os 目录下 ``make run TEST=1`` 测试 sys_get_time， ``make run TEST=2`` 测试 map 和 unmap。
 
 challenge: 支持多核。
-
-实验检查
-+++++++++++++++++++++++++++++++++++++++++++++
-
-- 实验目录要求
-
-    目录要求不变（参考 lab1 目录或者示例代码目录结构）。同样在 os 目录下 `make run` 之后可以正确加载用户程序并执行。
-
-    加载的用户测例位置： ``../user/build/bin`` 。
-
-- 检查
-
-    可以正确 `make run` 执行，可以正确执行目标用户测例，并得到预期输出（详见测例注释）。
 
 问答作业
 -------------------------------------------------

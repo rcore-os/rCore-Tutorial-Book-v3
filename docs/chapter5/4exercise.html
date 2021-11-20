@@ -135,11 +135,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l3"><a class="reference internal" href="#id1">编程作业</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id2">进程创建</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id3">实验要求</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id4">实验检查</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">问答作业</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id7">报告要求</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">问答作业</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">报告要求</a></li>
 </ul>
 </li>
 </ul>
@@ -231,20 +230,18 @@ commentsRunWhenDOMLoaded(addUtterances);
             
   <div class="section" id="chapter5">
 <h1>chapter5练习<a class="headerlink" href="#chapter5" title="永久链接至标题">¶</a></h1>
-<ul class="simple">
-<li><p>本节难度： <strong>一定比lab4简单</strong></p></li>
-</ul>
 <div class="section" id="id1">
 <h2>编程作业<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
 <div class="section" id="id2">
 <h3>进程创建<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h3>
 <p>大家一定好奇过为啥进程创建要用 fork + execve 这么一个奇怪的系统调用，就不能直接搞一个新进程吗？思而不学则殆，我们就来试一试！这章的编程练习请大家实现一个完全 DIY 的系统调用 spawn，用以创建一个新进程。</p>
 <p>spawn 系统调用定义( <a class="reference external" href="https://man7.org/linux/man-pages/man3/posix_spawn.3.html">标准spawn看这里</a> )：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">sys_spawn</span><span class="p">(</span><span class="n">path</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span>
+</pre></div>
+</div>
 <ul class="simple">
 <li><p>syscall ID: 400</p></li>
-<li><p>C 接口： <code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">spawn(char</span> <span class="pre">*filename)</span></code></p></li>
-<li><p>Rust 接口： <code class="docutils literal notranslate"><span class="pre">fn</span> <span class="pre">spawn(file:</span> <span class="pre">*const</span> <span class="pre">u8)</span> <span class="pre">-&gt;</span> <span class="pre">isize</span></code></p></li>
-<li><p>功能：相当于 fork + exec，新建子进程并执行目标程序。</p></li>
+<li><p>功能：新建子进程，使其执行目标程序。</p></li>
 <li><p>说明：成功返回子进程id，否则返回 -1。</p></li>
 <li><dl class="simple">
 <dt>可能的错误：</dt><dd><ul>
@@ -255,59 +252,61 @@ commentsRunWhenDOMLoaded(addUtterances);
 </dl>
 </li>
 </ul>
+<p>TIPS：虽然测例很简单，但提醒读者 spawn <strong>不必</strong> 像 fork 一样复制父进程的地址空间。</p>
 </div>
 <div class="section" id="id3">
 <h3>实验要求<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<ul class="simple">
+<ul>
 <li><p>实现分支：ch5。</p></li>
-<li><p>完成实验指导书中的内容，实现进程控制，可以运行 usershell。</p></li>
-<li><p>实现自定义系统调用 spawn，并通过 <a class="reference external" href="https://github.com/DeathWish5/rCore_tutorial_tests">Rust测例</a> 中chapter5对应的所有测例。</p></li>
+<li><p>实验目录要求不变。</p></li>
+<li><p>通过所有测例。</p>
+<p>在 os 目录下 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span> <span class="pre">TEST=1</span></code> 加载所有测例， <code class="docutils literal notranslate"><span class="pre">test_usertest</span></code> 打包了所有你需要通过的测例，你也可以通过修改这个文件调整本地测试的内容。</p>
+</li>
 </ul>
 <p>challenge: 支持多核。</p>
 </div>
+</div>
 <div class="section" id="id4">
-<h3>实验检查<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
-<ul>
-<li><p>实验目录要求</p>
-<blockquote>
-<div><p>目录要求不变（参考 lab1 目录或者示例代码目录结构）。同样在 os 目录下 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 之后可以正确加载用户程序并执行。
-加载的用户测例位置： <code class="docutils literal notranslate"><span class="pre">../user/build/bin</span></code>。</p>
-</div></blockquote>
-</li>
-<li><p>检查</p>
-<blockquote>
-<div><p>可以正确 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 执行，可以正确执行目标用户测例，并得到预期输出（详见测例注释）。</p>
-</div></blockquote>
-</li>
-</ul>
-</div>
-</div>
-<div class="section" id="id5">
-<h2>问答作业<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+<h2>问答作业<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
 <ol class="arabic">
 <li><p>fork + exec 的一个比较大的问题是 fork 之后的内存页/文件等资源完全没有使用就废弃了，针对这一点，有什么改进策略？</p></li>
-<li><p>其实使用了题(1)的策略之后，fork + exec 所带来的无效资源的问题已经基本被解决了，但是今年来 fork 还是在被不断的批判，那么到底是什么正在”杀死”fork？可以参考 <a class="reference external" href="https://www.microsoft.com/en-us/research/uploads/prod/2019/04/fork-hotos19.pdf">论文</a> ，<strong>注意</strong>：回答无明显错误就给满分，出这题只是想引发大家的思考，完全不要求看论文，球球了，别卷了。</p></li>
-<li><p>fork 当年被设计并称道肯定是有其好处的。请使用 <strong>带初始参数</strong> 的 spawn 重写如下 fork 程序，然后描述 fork 有那些好处。注意:使用”伪代码”传达意思即可，spawn 接口可以自定义。可以写多个文件。</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_a</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">fork</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_b</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;a + b = {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;a = {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="mi">0</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<li><p>[选做，不占分]其实使用了题(1)的策略之后，fork + exec 所带来的无效资源的问题已经基本被解决了，但是今年来 fork 还是在被不断的批判，那么到底是什么正在”杀死”fork？可以参考 <a class="reference external" href="https://www.microsoft.com/en-us/research/uploads/prod/2019/04/fork-hotos19.pdf">论文</a> 。</p></li>
+<li><p>请阅读下列代码，并分析程序的输出，假定不发生运行错误，不考虑行缓冲：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">main</span><span class="p">(){</span>
+    <span class="kt">int</span> <span class="n">val</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span>
+
+    <span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="kt">int</span> <span class="n">pid</span> <span class="o">=</span> <span class="n">fork</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">pid</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">val</span><span class="o">++</span><span class="p">;</span>
+        <span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d&quot;</span><span class="p">,</span> <span class="n">val</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">val</span><span class="o">--</span><span class="p">;</span>
+        <span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d&quot;</span><span class="p">,</span> <span class="n">val</span><span class="p">);</span>
+        <span class="n">wait</span><span class="p">(</span><span class="nb">NULL</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="n">val</span><span class="o">++</span><span class="p">;</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d&quot;</span><span class="p">,</span> <span class="n">val</span><span class="p">);</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
 </pre></div>
 </div>
+<p>如果 fork() 之后主程序先运行，则结果如何？如果 fork() 之后 child 先运行，则结果如何？</p>
+</li>
+<li><p>请阅读下列代码，分析程序的输出 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的数量：( 已知 <code class="docutils literal notranslate"><span class="pre">&amp;&amp;</span></code> 的优先级比 <code class="docutils literal notranslate"><span class="pre">||</span></code> 高)</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">fork</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="n">fork</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="n">fork</span><span class="p">()</span> <span class="o">||</span> <span class="n">fork</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="n">fork</span><span class="p">()</span> <span class="o">||</span> <span class="n">fork</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="n">fork</span><span class="p">();</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">&quot;A&quot;</span><span class="p">);</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>[选做，不占分] 更进一步，如果给出一个 <code class="docutils literal notranslate"><span class="pre">&amp;&amp;</span></code> <code class="docutils literal notranslate"><span class="pre">||</span></code> 的序列，如何设计一个程序来得到答案？</p>
 </li>
 </ol>
-<ol class="arabic simple" start="4">
-<li><p>描述进程执行的几种状态，以及 fork/exec/wait/exit 对于状态的影响。</p></li>
-</ol>
 </div>
-<div class="section" id="id7">
-<h2>报告要求<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id6">
+<h2>报告要求<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
 <ul class="simple">
 <li><p>简单总结本次实验与上个实验相比你增加的东西。（控制在5行以内，不要贴代码）</p></li>
 <li><p>完成问答问题</p></li>

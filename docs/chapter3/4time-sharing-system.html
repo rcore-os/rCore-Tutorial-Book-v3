@@ -398,25 +398,31 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>后面可能还有一些计时的操作，比如统计一个应用的运行时长，我们再设计一个函数：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/timer.rs</span>
 
-<span class="k">const</span><span class="w"> </span><span class="n">MSEC_PER_SEC</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w"></span>
+<span class="k">const</span><span class="w"> </span><span class="n">MICRO_PER_SEC</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">1_000_000</span><span class="p">;</span><span class="w"></span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_time_ms</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">time</span>::<span class="n">read</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">CLOCK_FREQ</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">MSEC_PER_SEC</span><span class="p">)</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_time_us</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">time</span>::<span class="n">read</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">CLOCK_FREQ</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">MICRO_PER_SEC</span><span class="p">)</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">timer</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">get_time_ms</span></code> 可以以毫秒为单位返回当前计数器的值，这让我们终于能对时间有一个具体概念了。实现原理就不再赘述。</p>
-<p>我们也新增一个系统调用方便应用获取当前的时间，以毫秒为单位：</p>
+<p><code class="docutils literal notranslate"><span class="pre">timer</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">get_time_us</span></code> 以微秒为单位返回当前计数器的值，这让我们终于能对时间有一个具体概念了。实现原理就不再赘述。</p>
+<p>新增一个系统调用，方便应用获取当前的时间：</p>
 <div class="literal-block-wrapper docutils container" id="id9">
 <div class="code-block-caption"><span class="caption-text">第三章新增系统调用（二）</span><a class="headerlink" href="#id9" title="永久链接至代码">¶</a></div>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：获取当前的时间，以毫秒为单位。</span>
-<span class="sd">/// 返回值：返回当前的时间，以毫秒为单位。</span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：获取当前的时间，保存在 TimeVal 结构体 ts 中，_tz 在我们的实现中忽略</span>
+<span class="sd">/// 返回值：返回是否执行成功，成功则返回 0</span>
 <span class="sd">/// syscall ID：169</span>
-<span class="k">fn</span> <span class="nf">sys_get_time</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+<span class="k">fn</span> <span class="nf">sys_get_time</span><span class="p">(</span><span class="n">ts</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TimeVal</span><span class="p">,</span><span class="w"> </span><span class="n">_tz</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#[repr(C)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TimeVal</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">sec</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">usec</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 </div>
-<p>它在内核中的实现只需调用 <code class="docutils literal notranslate"><span class="pre">get_time_ms</span></code> 函数即可。</p>
+<p>它在内核中的实现只需调用 <code class="docutils literal notranslate"><span class="pre">get_time_us</span></code> 函数即可。</p>
 </div>
 <div class="section" id="id7">
 <h2>抢占式调度<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
