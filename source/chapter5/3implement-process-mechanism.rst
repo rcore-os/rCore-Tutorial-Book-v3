@@ -4,13 +4,13 @@
 本节导读
 --------------------------------------------
 
-本节将从如下四个方面介绍如何基于上一节设计的内核数据结构来实现进程管理：
+有了上节的数据结构和相关基本方法的介绍后，我们还需完成进程管理关键功能的实现，从而构造出一个完整的白垩纪“伤齿龙”操作系统。本节将从如下四个方面介绍如何基于上一节设计的内核数据结构来实现进程管理：
 
-- 初始进程 ``initproc`` 的创建；
-- 进程调度机制：当进程主动调用 ``sys_yield`` 交出 CPU 使用权或者内核本轮分配的时间片用尽之后如何切换到下一个进程；
+- 创建初始进程：创建第一个用户态进程 ``initproc``；
+- 进程调度机制：当进程主动调用 ``sys_yield`` 交出 CPU 使用权或者内核把本轮分配的时间片用尽的进程换出且换入下一个进程；
 - 进程生成机制：介绍进程相关的两个重要系统调用 ``sys_fork/sys_exec`` 的实现；
+- 进程资源回收机制：当进程调用 ``sys_exit`` 正常退出或者出错被内核终止之后如何保存其退出码，其父进程通过 ``sys_waitpid`` 系统调用收集该进程的信息并回收其资源。
 - 字符输入机制：为了支对shell程序-user_shell获得字符输入，介绍 ``sys_read`` 系统调用的实现；
-- 进程资源回收机制：当进程调用 ``sys_exit`` 正常退出或者出错被内核终止之后如何保存其退出码，其父进程又是如何通过 ``sys_waitpid`` 系统调用收集该进程的信息并回收其资源。
 
 初始进程的创建
 --------------------------------------------
@@ -34,7 +34,7 @@
         add_task(INITPROC.clone());
     }
 
-我们调用 ``TaskControlBlock::new`` 来创建一个进程控制块，它需要传入 ELF 可执行文件的数据切片作为参数，这可以通过加载器 ``loader`` 子模块提供的 ``get_app_data_by_name`` 接口查找 ``initproc`` 的 ELF 数据来获得。在初始化 ``INITPROC`` 之后，则在 ``add_initproc`` 中可以调用 ``task`` 的任务管理器 ``manager`` 子模块提供的 ``add_task`` 接口将其加入到任务管理器。
+我们调用 ``TaskControlBlock::new`` 来创建一个进程控制块，它需要传入 ELF 可执行文件的数据切片作为参数，这可以通过加载器 ``loader`` 子模块提供的 ``get_app_data_by_name`` 接口查找 ``initproc`` 的 ELF 执行文件数据来获得。在初始化 ``INITPROC`` 之后，就可以在 ``add_initproc`` 中调用 ``task`` 的任务管理器 ``manager`` 子模块提供的 ``add_task`` 接口，将其加入到任务管理器。
 
 接下来介绍 ``TaskControlBlock::new`` 是如何实现的：
 
@@ -61,40 +61,39 @@
         let kernel_stack = KernelStack::new(&pid_handle);
         let kernel_stack_top = kernel_stack.get_top();
         // push a task context which goes to trap_return to the top of kernel stack
-        let task_cx_ptr = kernel_stack.push_on_top(TaskContext::goto_trap_return());
         let task_control_block = Self {
             pid: pid_handle,
             kernel_stack,
-            inner: Mutex::new(TaskControlBlockInner {
+            inner: unsafe { UPSafeCell::new(TaskControlBlockInner {
                 trap_cx_ppn,
                 base_size: user_sp,
-                task_cx_ptr: task_cx_ptr as usize,
+                task_cx: TaskContext::goto_trap_return(kernel_stack_top),
                 task_status: TaskStatus::Ready,
                 memory_set,
                 parent: None,
                 children: Vec::new(),
                 exit_code: 0,
-            }),
+            })},
         };
         // prepare TrapContext in user space
-        let trap_cx = task_control_block.acquire_inner_lock().get_trap_cx();
+        let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
         *trap_cx = TrapContext::app_init_context(
             entry_point,
             user_sp,
-            KERNEL_SPACE.lock().token(),
+            KERNEL_SPACE.exclusive_access().token(),
             kernel_stack_top,
             trap_handler as usize,
         );
         task_control_block
     }
 
-- 第 10 行我们解析 ELF 得到应用地址空间 ``memory_set`` ，用户栈在应用地址空间中的位置 ``user_sp`` 以及应用的入口点 ``entry_point`` 。
-- 第 11 行我们手动查页表找到应用地址空间中的 Trap 上下文被实际放在哪个物理页帧上，用来做后续的初始化。
+- 第 11 行我们解析应用的 ELF 执行文件得到应用地址空间 ``memory_set`` ，用户栈在应用地址空间中的位置 ``user_sp`` 以及应用的入口点 ``entry_point`` 。
+- 第 12 行我们手动查页表找到应用地址空间中的 Trap 上下文被实际放在哪个物理页帧上，用来做后续的初始化。
 - 第 16~18 行我们为该进程分配 PID 以及内核栈，并记录下内核栈在内核地址空间的位置 ``kernel_stack_top`` 。
 - 第 20 行我们在该进程的内核栈上压入初始化的任务上下文，使得第一次任务切换到它的时候可以跳转到 ``trap_return`` 并进入用户态开始执行。
 - 第 21 行我们整合之前的部分信息创建进程控制块 ``task_control_block`` 。
-- 第 39 行我们初始化位于该进程应用地址空间中的 Trap 上下文，使得第一次进入用户态的时候时候能正确跳转到应用入口点并设置好用户栈，同时也保证在 Trap 的时候用户态能正确进入内核态。
-- 第 46 行将 ``task_control_block`` 返回。
+- 第 37 行我们初始化位于该进程应用地址空间中的 Trap 上下文，使得第一次进入用户态的时候时候能正确跳转到应用入口点并设置好用户栈，同时也保证在 Trap 的时候用户态能正确进入内核态。
+- 第 44 行将 ``task_control_block`` 返回。
 
 进程调度机制
 --------------------------------------------
@@ -142,18 +141,18 @@
         // There must be an application running.
         let task = take_current_task().unwrap();
 
-        // ---- hold current PCB lock
-        let mut task_inner = task.acquire_inner_lock();
-        let task_cx_ptr2 = task_inner.get_task_cx_ptr2();
+        // ---- access current TCB exclusively
+        let mut task_inner = task.inner_exclusive_access();
+        let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
         // Change status to Ready
         task_inner.task_status = TaskStatus::Ready;
         drop(task_inner);
-        // ---- release current PCB lock
+        // ---- release current PCB
 
         // push back to ready queue.
         add_task(task);
         // jump to scheduling cycle
-        schedule(task_cx_ptr2);
+        schedule(task_cx_ptr);
     }
 
 首先通过 ``take_current_task`` 来取出当前正在执行的任务，修改其进程控制块内的状态，随后将这个任务放入任务管理器的队尾。接着调用 ``schedule`` 函数来触发调度并切换任务。注意，当仅有一个任务的时候， ``suspend_current_and_run_next`` 的效果是会继续执行这个任务。
@@ -223,8 +222,8 @@ fork 系统调用的实现
 
     impl TaskControlBlock {
         pub fn fork(self: &Arc<TaskControlBlock>) -> Arc<TaskControlBlock> {
-            // ---- hold parent PCB lock
-            let mut parent_inner = self.acquire_inner_lock();
+            // ---- access parent PCB exclusively
+            let mut parent_inner = self.inner_exclusive_access();
             // copy user space(include trap context)
             let memory_set = MemorySet::from_existed_user(
                 &parent_inner.memory_set
@@ -237,47 +236,46 @@ fork 系统调用的实现
             let pid_handle = pid_alloc();
             let kernel_stack = KernelStack::new(&pid_handle);
             let kernel_stack_top = kernel_stack.get_top();
-            // push a goto_trap_return task_cx on the top of kernel stack
-            let task_cx_ptr = kernel_stack.push_on_top(TaskContext::goto_trap_return());
             let task_control_block = Arc::new(TaskControlBlock {
                 pid: pid_handle,
                 kernel_stack,
-                inner: Mutex::new(TaskControlBlockInner {
+                inner: unsafe { UPSafeCell::new(TaskControlBlockInner {
                     trap_cx_ppn,
                     base_size: parent_inner.base_size,
-                    task_cx_ptr: task_cx_ptr as usize,
+                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
                     task_status: TaskStatus::Ready,
                     memory_set,
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
-                }),
+                })},
             });
             // add child
             parent_inner.children.push(task_control_block.clone());
             // modify kernel_sp in trap_cx
-            // **** acquire child PCB lock
-            let trap_cx = task_control_block.acquire_inner_lock().get_trap_cx();
-            // **** release child PCB lock
+            // **** access children PCB exclusively
+            let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
             trap_cx.kernel_sp = kernel_stack_top;
             // return
             task_control_block
-            // ---- release parent PCB lock
+            // ---- release parent PCB automatically
+            // **** release children PCB automatically
         }
     }
 
 它基本上和新建进程控制块的 ``TaskControlBlock::new`` 是相同的，但要注意以下几点：
 
-- 子进程的地址空间不是通过解析 ELF 而是通过在第 8 行调用 ``MemorySet::from_existed_user`` 复制父进程地址空间得到的；
+- 子进程的地址空间不是通过解析 ELF 文件，而是通过在第 8 行调用 ``MemorySet::from_existed_user`` 复制父进程地址空间得到的；
 - 第 26 行，我们让子进程和父进程的 ``base_size`` ，也即应用数据的大小保持一致；
-- 在 fork 的时候需要注意父子进程关系的维护。第 30 行我们将父进程的弱引用计数放到子进程的进程控制块中，而在第 36 行我们将子进程插入到父进程的孩子向量 ``children`` 中。
+- 在 fork 的时候需要注意父子进程关系的维护。第 28 行我们将父进程的弱引用计数放到子进程的进程控制块中，而在第 33 行我们将子进程插入到父进程的孩子向量 ``children`` 中。
 
-我们在子进程内核栈上压入一个初始化的任务上下文，使得内核一旦通过任务切换到该进程，就会跳转到 ``trap_return`` 来进入用户态。而在复制地址空间的时候，子进程的 Trap 上下文也是完全从父进程复制过来的，这可以保证子进程进入用户态和其父进程回到用户态的那一瞬间 CPU 的状态是完全相同的（后面我们会让它们有一点不同从而区分两个进程）。而两个进程的应用数据由于地址空间复制的原因也是完全相同的，这是 fork 语义要求做到的。
+我们在子进程内核栈上压入一个初始化的任务上下文，使得内核一旦通过任务切换到该进程，就会跳转到 ``trap_return`` 来进入用户态。而在复制地址空间的时候，子进程的 Trap 上下文也是完全从父进程复制过来的，这可以保证子进程进入用户态和其父进程回到用户态的那一瞬间 CPU 的状态是完全相同的（后面我们会让它们的返回值不同从而区分两个进程）。而两个进程的应用数据由于地址空间复制的原因也是完全相同的，这是 fork 语义要求做到的。
 
 在具体实现 ``sys_fork`` 的时候，我们需要特别注意如何体现父子进程的差异：
 
 .. code-block:: rust
-    :linenos:
+    :linenos: 
+    :emphasize-lines: 11,28,33
 
     // os/src/syscall/process.rs
 
@@ -286,25 +284,46 @@ fork 系统调用的实现
         let new_task = current_task.fork();
         let new_pid = new_task.pid.0;
         // modify trap context of new_task, because it returns immediately after switching
-        let trap_cx = new_task.acquire_inner_lock().get_trap_cx();
+        let trap_cx = new_task.inner_exclusive_access().get_trap_cx();
         // we do not have to move to next instruction since we have done it before
         // for child process, fork returns 0
-        trap_cx.x[10] = 0;
+        trap_cx.x[10] = 0;  //x[10] is a0 reg
         // add new task to scheduler
         add_task(new_task);
         new_pid as isize
     }
 
-在调用 ``syscall`` 进行系统调用分发并具体调用 ``sys_fork`` 之前，我们已经将当前进程 Trap 上下文中的 sepc 向后移动了 4 字节使得它回到用户态之后会从 ecall 的下一条指令开始执行。之后当我们复制地址空间的时候，子进程地址空间 Trap 上下文的 sepc 也是移动之后的值，我们无需再进行修改。
+    // os/src/trap/mod.rs
 
-父子进程回到用户态的瞬间都处于刚刚从一次系统调用返回的状态，但二者的返回值不同。第 8~11 行我们将子进程的 Trap 上下文用来存放系统调用返回值的 a0 寄存器修改为 0 ，而父进程系统调用的返回值会在 ``trap_handler`` 中 ``syscall`` 返回之后再设置为 ``sys_fork`` 的返回值，这里我们返回子进程的 PID 。这就做到了父进程 ``fork`` 的返回值为子进程的 PID ，而子进程的返回值则为 0 。通过返回值是否为 0 可以区分父子进程。
+    #[no_mangle]
+    pub fn trap_handler() -> ! {
+        set_kernel_trap_entry();
+        let scause = scause::read();
+        let stval = stval::read();
+        match scause.cause() {
+            Trap::Exception(Exception::UserEnvCall) => {
+                // jump to next instruction anyway
+                let mut cx = current_trap_cx();
+                cx.sepc += 4;
+                // get system call return value
+                let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
+                // cx is changed during sys_exec, so we have to call it again
+                cx = current_trap_cx();
+                cx.x[10] = result as usize;
+            }
+        ...
+    }    
+
+在调用 ``syscall`` 进行系统调用分发并具体调用 ``sys_fork`` 之前， 第28行，``trap_handler`` 已经将当前进程 Trap 上下文中的 ``sepc`` 向后移动了 4 字节，使得它回到用户态之后，会从发出系统调用的 ``ecall`` 指令的下一条指令开始执行。之后当我们复制地址空间的时候，子进程地址空间 Trap 上下文的 ``sepc``  也是移动之后的值，我们无需再进行修改。
+
+父子进程回到用户态的瞬间都处于刚刚从一次系统调用返回的状态，但二者的返回值不同。第 8~11 行我们将子进程的 Trap 上下文中用来存放系统调用返回值的 a0 寄存器修改为 0 ；第33行，而父进程系统调用的返回值会在 ``trap_handler`` 中 ``syscall`` 返回之后再设置为 ``sys_fork`` 的返回值，这里我们返回子进程的 PID 。这就做到了父进程 ``fork`` 的返回值为子进程的 PID ，而子进程的返回值则为 0 。通过返回值是否为 0 可以区分父子进程。
 
 另外，不要忘记在第 13 行，我们将生成的子进程通过 ``add_task`` 加入到任务管理器中。
 
 exec 系统调用的实现
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``exec`` 系统调用使得一个进程能够加载一个新的 ELF 可执行文件替换原有的应用地址空间并开始执行。我们先从进程控制块的层面进行修改：
+``exec`` 系统调用使得一个进程能够加载一个新应用的 ELF 可执行文件中的代码和数据替换原有的应用地址空间中的内容，并开始执行。我们先从进程控制块的层面进行修改：
 
 .. code-block:: rust
     :linenos:
@@ -341,12 +360,12 @@ exec 系统调用的实现
 
 它在解析传入的 ELF 格式数据之后只做了两件事情：
 
-- 首先是从 ELF 生成一个全新的地址空间并直接替换进来（第 15 行），这将导致原有的地址空间生命周期结束，里面包含的全部物理页帧都会被回收；
+- 首先是从 ELF 文件生成一个全新的地址空间并直接替换进来（第 15 行），这将导致原有的地址空间生命周期结束，里面包含的全部物理页帧都会被回收；
 - 然后是修改新的地址空间中的 Trap 上下文，将解析得到的应用入口点、用户栈位置以及一些内核的信息进行初始化，这样才能正常实现 Trap 机制。
 
 这里无需对任务上下文进行处理，因为这个进程本身已经在执行了，而只有被暂停的应用才需要在内核栈上保留一个任务上下文。
 
-借助它 ``sys_exec`` 就很容易实现了：
+有了 ``exec`` 函数后， ``sys_exec`` 就很容易实现了：
 
 .. code-block:: rust
     :linenos:
@@ -383,14 +402,16 @@ exec 系统调用的实现
         }
     }
 
-应用在 ``sys_exec`` 系统调用中传递给内核的只有一个要执行的应用名字符串在当前应用地址空间中的起始地址，如果想在内核中具体获得字符串的话就需要手动查页表。第 3 行的 ``translated_str`` 便可以从内核地址空间之外的某个地址空间中拿到一个字符串，其原理就是逐字节查页表直到发现一个 ``\0`` 为止。
+应用在 ``sys_exec`` 系统调用中传递给内核的只有一个要执行的应用名字符串在当前应用地址空间中的起始地址，如果想在内核中具体获得字符串的话就需要手动查页表。第 3 行的 ``translated_str`` 便可以从内核地址空间之外的某个应用的用户态地址空间中拿到一个字符串，其原理就是针对应用的字符串中字符的用户态虚拟地址，查页表，找到对应的内核虚拟地址，逐字节地构造字符串，直到发现一个 ``\0`` 为止（第7~15行）。
 
-回到 ``sys_exec`` 的实现，它调用 ``translated_str`` 找到要执行的应用名并试图在应用加载器提供的 ``get_app_data_by_name`` 接口中找到对应的 ELF 数据。如果找到的话就调用 ``TaskControlBlock::exec`` 替换掉地址空间并返回 0。这个返回值其实并没有意义，因为我们在替换地址空间的时候本来就对 Trap 上下文重新进行了初始化。如果没有找到的话就不做任何事情并返回 -1，在shell程序-user_shell中我们也正是通过这个返回值来判断要执行的应用是否存在。
+..  chyyuu 这样找字符串，是否有安全隐患？？？
+
+回到 ``sys_exec`` 的实现，它调用 ``translated_str`` 找到要执行的应用名并试图在应用加载器提供的 ``get_app_data_by_name`` 接口中找到对应的 ELF 格式的数据。如果找到，就调用 ``TaskControlBlock::exec`` 替换掉地址空间并返回 0。这个返回值其实并没有意义，因为我们在替换地址空间的时候本来就对 Trap 上下文重新进行了初始化。如果没有找到，就不做任何事情并返回 -1。在shell程序-user_shell中我们也正是通过这个返回值来判断要执行的应用是否存在。
 
 系统调用后重新获取 Trap 上下文
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-原来在 ``trap_handler`` 中我们是这样处理系统调用的：
+过去的 ``trap_handler`` 实现是这样处理系统调用的：
 
 .. code-block:: rust
 
@@ -478,7 +499,9 @@ shell程序-user_shell的输入机制
         }
     }
 
-目前我们仅支持从标准输入 ``FD_STDIN`` 即文件描述符 0 读入，且单次读入的长度限制为 1，即每次只能读入一个字符。我们调用 ``sbi`` 子模块提供的从键盘获取输入的接口 ``console_getchar`` ，如果返回 0 的话说明还没有输入，我们调用 ``suspend_current_and_run_next`` 暂时切换到其他进程，等下次切换回来的时候再看看是否有输入了。获取到输入之后，我们退出循环并手动查页表将输入的字符正确的写入到应用地址空间。
+目前我们仅支持从标准输入 ``FD_STDIN`` 即文件描述符 0 读入，且单次读入的长度限制为 1，即每次只能读入一个字符。我们调用 ``sbi`` 子模块提供的从键盘获取输入的接口 ``console_getchar`` ，如果返回 0 则说明还没有输入，我们调用 ``suspend_current_and_run_next`` 暂时切换到其他进程，等下次切换回来的时候再看看是否有输入了。获取到输入之后，我们退出循环并手动查页表将输入的字符正确的写入到应用地址空间。
+
+注：我们这里还没有涉及 **文件** 的概念，在后续章节中有具体的介绍。
 
 进程资源回收机制
 --------------------------------------------
@@ -486,7 +509,7 @@ shell程序-user_shell的输入机制
 进程的退出
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-当应用调用 ``sys_exit`` 系统调用主动退出或者出错由内核终止之后，会在内核中调用 ``exit_current_and_run_next`` 函数退出当前任务并切换到下一个。使用方法如下：
+当应用调用 ``sys_exit`` 系统调用主动退出或者出错由内核终止之后，会在内核中调用 ``exit_current_and_run_next`` 函数退出当前进程并切换到下一个进程。使用方法如下：
 
 .. code-block:: rust
     :linenos:
@@ -550,41 +573,41 @@ shell程序-user_shell的输入机制
     pub fn exit_current_and_run_next(exit_code: i32) {
         // take from Processor
         let task = take_current_task().unwrap();
-        // **** hold current PCB lock
-        let mut inner = task.acquire_inner_lock();
+        // **** access current TCB exclusively
+        let mut inner = task.inner_exclusive_access();
         // Change status to Zombie
         inner.task_status = TaskStatus::Zombie;
         // Record exit code
         inner.exit_code = exit_code;
         // do not move to its parent but under initproc
 
-        // ++++++ hold initproc PCB lock here
+        // ++++++ access initproc TCB exclusively
         {
-            let mut initproc_inner = INITPROC.acquire_inner_lock();
+            let mut initproc_inner = INITPROC.inner_exclusive_access();
             for child in inner.children.iter() {
-                child.acquire_inner_lock().parent = Some(Arc::downgrade(&INITPROC));
+                child.inner_exclusive_access().parent = Some(Arc::downgrade(&INITPROC));
                 initproc_inner.children.push(child.clone());
             }
         }
-        // ++++++ release parent PCB lock here
+        // ++++++ release parent PCB
 
         inner.children.clear();
         // deallocate user space
         inner.memory_set.recycle_data_pages();
         drop(inner);
-        // **** release current PCB lock
+        // **** release current PCB
         // drop task manually to maintain rc correctly
         drop(task);
         // we do not have to save task context
-        let _unused: usize = 0;
-        schedule(&_unused as *const _);
+        let mut _unused = TaskContext::zero_init();
+        schedule(&mut _unused as *mut _);
     }
 
 - 第 13 行我们调用 ``take_current_task`` 来将当前进程控制块从处理器监控 ``PROCESSOR`` 中取出而不是得到一份拷贝，这是为了正确维护进程控制块的引用计数；
 - 第 17 行我们将进程控制块中的状态修改为 ``TaskStatus::Zombie`` 即僵尸进程，这样它后续才能被父进程在 ``waitpid`` 系统调用的时候回收；
 - 第 19 行我们将传入的退出码 ``exit_code`` 写入进程控制块中，后续父进程在 ``waitpid`` 的时候可以收集；
 - 第 24~26 行所做的事情是将当前进程的所有子进程挂在初始进程 ``initproc`` 下面，其做法是遍历每个子进程，修改其父进程为初始进程，并加入初始进程的孩子向量中。第 32 行将当前进程的孩子向量清空。
-- 第 34 行对于当前进程占用的资源进行早期回收。在第 4 行可以看出， ``MemorySet::recycle_data_pages`` 只是将地址空间中的逻辑段列表 ``areas`` 清空，这将导致应用地址空间的所有数据被存放在的物理页帧被回收，而用来存放页表的那些物理页帧此时则不会被回收。
+- 第 34 行对于当前进程占用的资源进行早期回收。在第 4 行可以看出， ``MemorySet::recycle_data_pages`` 只是将地址空间中的逻辑段列表 ``areas`` 清空（即执行 ``Vec``  向量清空），这将导致应用地址空间被回收（即进程的数据和代码对应的物理页帧都被回收），但用来存放页表的那些物理页帧此时还不会被回收（会由父进程最后回收子进程剩余的占用资源）。
 - 最后在第 41 行我们调用 ``schedule`` 触发调度及任务切换，由于我们再也不会回到该进程的执行过程中，因此无需关心任务上下文的保存。
 
 父进程回收子进程资源
@@ -594,6 +617,7 @@ shell程序-user_shell的输入机制
 
 .. code-block:: rust
     :linenos:
+    :emphasize-lines: 15,35,37,46,47
 
     // os/src/syscall/process.rs
 
@@ -603,32 +627,31 @@ shell程序-user_shell的输入机制
         let task = current_task().unwrap();
         // find a child process
 
-        // ---- hold current PCB lock
-        let mut inner = task.acquire_inner_lock();
+        // ---- access current TCB exclusively
+        let mut inner = task.inner_exclusive_access();
         if inner.children
             .iter()
             .find(|p| {pid == -1 || pid as usize == p.getpid()})
             .is_none() {
             return -1;
-            // ---- release current PCB lock
+            // ---- release current PCB
         }
         let pair = inner.children
             .iter()
             .enumerate()
             .find(|(_, p)| {
-                // ++++ temporarily hold child PCB lock
-                p.acquire_inner_lock().is_zombie() &&
-                (pid == -1 || pid as usize == p.getpid())
-                // ++++ release child PCB lock
+                // ++++ temporarily access child PCB lock exclusively
+                p.inner_exclusive_access().is_zombie() && (pid == -1 || pid as usize == p.getpid())
+                // ++++ release child PCB
             });
         if let Some((idx, _)) = pair {
             let child = inner.children.remove(idx);
             // confirm that child will be deallocated after removing from children list
             assert_eq!(Arc::strong_count(&child), 1);
             let found_pid = child.getpid();
-            // ++++ temporarily hold child lock
-            let exit_code = child.acquire_inner_lock().exit_code;
-            // ++++ release child PCB lock
+            // ++++ temporarily access child TCB exclusively
+            let exit_code = child.inner_exclusive_access().exit_code;
+            // ++++ release child PCB
             *translated_refmut(inner.memory_set.token(), exit_code_ptr) = exit_code;
             found_pid as isize
         } else {
@@ -637,11 +660,36 @@ shell程序-user_shell的输入机制
         // ---- release current PCB lock automatically
     }
 
-``sys_waitpid`` 是一个立即返回的系统调用，它的返回值语义是：如果当前的进程不存在一个符合要求的子进程，则返回 -1；如果至少存在一个，但是其中没有僵尸进程（也即仍未退出）则返回 -2；如果都不是的话则可以正常回收并返回回收子进程的 pid 。但在编写应用的开发者看来， ``wait/waitpid`` 两个辅助函数都必定能够返回一个有意义的结果，要么是 -1，要么是一个正数 PID ，是不存在 -2 这种通过等待即可消除的中间结果的。这等待的过程正是在用户库 ``user_lib`` 中完成。
+    // user/src/lib.rs
+
+    pub fn wait(exit_code: &mut i32) -> isize {
+        loop {
+            match sys_waitpid(-1, exit_code as *mut _) {
+                -2 => { yield_(); }
+                // -1 or a real pid
+                exit_pid => return exit_pid,
+            }
+        }
+    }
+
+``sys_waitpid`` 是一个立即返回的系统调用，它的返回值语义是：如果当前的进程不存在一个进程ID为pid（pid==-1或pid >0）的子进程，则返回 -1；如果存在一个进程ID为pid的僵尸子进程，则正常回收并返回子进程的id，并更新系统调用的退出码参数为 ``exit_code``  。这里还有一个 -2 的返回值，它的含义是子进程还没退出，通知用户库 ``user_lib`` （是实际发出系统调用的地方），这样用户库看到是 -2 后，就进一步调用 ``sys_yield`` 系统调用（第46行），让当前父进程进入等待状态。
+
+注：在编写应用的开发者看来， 位于用户库 ``user_lib`` 中的 ``wait/waitpid`` 两个辅助函数都必定能够返回一个有意义的结果，要么是 -1，要么是一个正数 PID ，是不存在 -2 这种通过等待即可消除的中间结果的。让调用 ``wait/waitpid`` 两个辅助函数的进程等待正是在用户库 ``user_lib`` 中完成。
 
 第 11~17 行判断 ``sys_waitpid`` 是否会返回 -1 ，这取决于当前进程是否有一个符合要求的子进程。当传入的 ``pid`` 为 -1 的时候，任何一个子进程都算是符合要求；但 ``pid`` 不为 -1 的时候，则只有 PID 恰好与 ``pid`` 相同的子进程才算符合条件。我们简单通过迭代器即可完成判断。
 
-第 18~26 行判断符合要求的子进程中是否有僵尸进程，如果有的话还需要同时找出它在当前进程控制块子进程向量中的下标。如果找不到的话直接返回 ``-2`` ，否则进入第 28~36 行的处理：
+第 18~26 行判断符合要求的子进程中是否有僵尸进程，如果有的话还需要同时找出它在当前进程控制块子进程向量中的下标。如果找不到的话直接返回 ``-2`` ，否则进入第 27~35 行的处理：
 
-- 第 28 行我们将子进程从向量中移除并置于当前上下文中，此时可以确认这是对于该子进程控制块的唯一一次强引用，即它不会出现在某个进程的子进程向量中，更不会出现在处理器监控器或者任务管理器中。当它所在的代码块结束，这次引用变量的生命周期结束，将导致该子进程进程控制块的引用计数变为 0 ，彻底回收掉它占用的所有资源，包括：内核栈和它的 PID 还有它的应用地址空间存放页表的那些物理页帧等等。
-- 剩下主要是将收集的子进程信息返回回去。第 31 行得到了子进程的 PID 并会在最终返回；第 33 行得到了子进程的退出码并于第 35 行写入到当前进程的应用地址空间中。由于应用传递给内核的仅仅是一个指向应用地址空间中保存子进程返回值的内存区域的指针，我们还需要在 ``translated_refmut`` 中手动查页表找到应该写入到物理内存中的哪个位置。其实现可以在 ``os/src/mm/page_table.rs`` 中找到，比较简单，在这里不再赘述。
+- 第 27 行我们将子进程从向量中移除并置于当前上下文中；
+- 第 29 行确认这是对于该子进程控制块的唯一一次强引用，即它不会出现在某个进程的子进程向量中，更不会出现在处理器监控器或者任务管理器中。当它所在的代码块结束，这次引用变量的生命周期结束，将导致该子进程进程控制块的引用计数变为 0 ，彻底回收掉它占用的所有资源，包括：内核栈和它的 PID 还有它的应用地址空间存放页表的那些物理页帧等等。
+
+剩下主要是将收集的子进程信息返回。
+
+- 第 30 行得到子进程的 PID 并会在最终返回；
+- 第 32 行得到了子进程的退出码；
+- 第 34 行写入到当前进程的应用地址空间中。由于应用传递给内核的仅仅是一个指向应用地址空间中保存子进程返回值的内存区域的指针，我们还需要在 ``translated_refmut`` 中手动查页表找到应该写入到物理内存中的哪个位置，这样才能把子进程的退出码 ``exit_code`` 返回给父进程。其实现可以在 ``os/src/mm/page_table.rs`` 中找到，比较简单，在这里不再赘述。
+
+
+到这里，“伤齿龙”操作系统就算完成了。它在启动后，会加载执行用户态的shell程序，并可以通过shell程序提供的命令行交互界面，让使用者敲入要执行的应用程序名字，就可以创建一个子进程来执行这个应用程序，实现了灵活的人机交互和进程管理的动态灵活性。
+
+.. chyyuu 可以加入一节，描述os的执行过程？？？

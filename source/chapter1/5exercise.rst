@@ -21,7 +21,7 @@ lab1 的工作使得我们从硬件世界跳入了软件世界，当看到自己
 
    $ echo -e "\x1b[31mhello world\x1b[0m"
 
-如果你明白了我们是如何利用串口实现输出，那么要实现彩色输出就十分容易了，只需要用需要输出的字符串替换上一条命令中的 ``hello world``，用期望颜色替换 ``31(代表红色)``　即可。
+如果你明白了我们是如何利用串口实现输出，那么要实现彩色输出就十分容易了，只需要用需要输出的字符串替换上一条命令中的 ``hello world``，用期望颜色替换 ``31(代表红色)`` 即可。
 
 .. warning::
 
@@ -52,7 +52,7 @@ lab1 的工作使得我们从硬件世界跳入了软件世界，当看到自己
      - 灰色(90)
      - 最详细的输出，跟踪了每一步关键路径的执行
 
-我们可以输出比设定输出等级以及更高输出等级的信息，如设置 ``LOG = INFO``，则输出　``ERROR``、``WARN``、``INFO`` 等级的信息。简单 demo 如下，输出等级为 INFO:
+我们可以输出比设定输出等级以及更高输出等级的信息，如设置 ``LOG = INFO``，则输出 ``ERROR``、``WARN``、``INFO`` 等级的信息。简单 demo 如下，输出等级为 INFO:
 
 .. image:: color-demo.png
 
@@ -61,7 +61,7 @@ lab1 的工作使得我们从硬件世界跳入了软件世界，当看到自己
 .. code-block:: rust
 
     // 这段代码输出了 os 内存空间布局，这到这些信息对于编写 os 十分重要
-    　
+    
     info!(".text [{:#x}, {:#x})", s_text as usize, e_text as usize);
     debug!(".rodata [{:#x}, {:#x})", s_rodata as usize, e_rodata as usize);
     error!(".data [{:#x}, {:#x})", s_data as usize, e_data as usize);
@@ -131,7 +131,7 @@ tips
 
 3. tips: 
 
-  - 事实上进入 rustsbi 之后就不需要使用 gdb 调试了。可以直接阅读代码。`rustsbi起始代码 <https://github.com/luojia65/rustsbi/blob/master/platform/qemu/src/main.rs#L93>`_ 。
+  - 事实上进入 rustsbi 之后就不需要使用 gdb 调试了。可以直接阅读代码。`rustsbi起始代码 <https://github.com/rustsbi/rustsbi-qemu/blob/main/rustsbi-qemu/src/main.rs#L146>`_ 。
   - 可以使用示例代码 Makefile 中的 ``make debug`` 指令。
   - 一些可能用到的 gdb 指令：
       - ``x/10i 0x80000000`` : 显示 0x80000000 处的10条汇编指令。

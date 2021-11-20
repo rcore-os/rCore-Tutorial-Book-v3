@@ -20,8 +20,7 @@ rCore-Tutorial-Book 第三版
    chapter6/index
    chapter7/index
    chapter8/index
-   chapter9/index
- 
+
    
 .. toctree::
    :maxdepth: 2
@@ -33,6 +32,7 @@ rCore-Tutorial-Book 第三版
    :caption: 附录
    :hidden:
 
+   final-lab
    appendix-a/index
    appendix-b/index
    appendix-c/index
@@ -54,9 +54,9 @@ rCore-Tutorial-Book 第三版
 
    :doc:`/log` 
 
-   项目/文档于 2021-03-15 最后一次更新，情况如下：
+   项目/文档于 2021-10-15 最后一次更新，情况如下：
 
-   - 增加了在做实验的时候打补丁继承上一章节修改的 :ref:`教程 <inherit-last-ch-changes>` 。
+    - 旧版的 3.5.0 文档及代码（全七章）已经发布在 `这里 <https://github.com/rcore-os/rCore-Tutorial-v3/releases/tag/v3.5.0>`_ 。目前开始在主分支上更新新版的文档和代码。
 
 
 项目简介
@@ -96,4 +96,8 @@ rCore-Tutorial-Book 第三版
 - 2021-02-16：第五章完成。
 - 2021-02-20：第六章完成。
 - 2021-03-06：第七章完成。到这里为止第一版初稿就已经完成了。
+<<<<<<< HEAD
 - 2021-05-01: 第八章完成。
+=======
+- 2021-10-20：第八章代码于前段时间完成。开始更新前面章节文档及完成第八章文档。
+>>>>>>> main
