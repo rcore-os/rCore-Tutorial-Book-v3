@@ -198,27 +198,33 @@ RISC-V 的中断可以分成三类：
 
 .. code-block:: rust
 
-    // os/src/timer.rs
+  // os/src/timer.rs
 
-    const MSEC_PER_SEC: usize = 1000;
+  const MICRO_PER_SEC: usize = 1_000_000;
 
-    pub fn get_time_ms() -> usize {
-        time::read() / (CLOCK_FREQ / MSEC_PER_SEC)
-    }
+  pub fn get_time_us() -> usize {
+      time::read() / (CLOCK_FREQ / MICRO_PER_SEC)
+  }
 
-``timer`` 子模块的 ``get_time_ms`` 可以以毫秒为单位返回当前计数器的值，这让我们终于能对时间有一个具体概念了。实现原理就不再赘述。
+``timer`` 子模块的 ``get_time_us`` 以微秒为单位返回当前计数器的值，这让我们终于能对时间有一个具体概念了。实现原理就不再赘述。
 
-我们也新增一个系统调用方便应用获取当前的时间，以毫秒为单位：
+新增一个系统调用，方便应用获取当前的时间：
 
 .. code-block:: rust
     :caption: 第三章新增系统调用（二）
 
-    /// 功能：获取当前的时间，以毫秒为单位。
-    /// 返回值：返回当前的时间，以毫秒为单位。
+    /// 功能：获取当前的时间，保存在 TimeVal 结构体 ts 中，_tz 在我们的实现中忽略 
+    /// 返回值：返回是否执行成功，成功则返回 0
     /// syscall ID：169
-    fn sys_get_time() -> isize;
+    fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize;        
 
-它在内核中的实现只需调用 ``get_time_ms`` 函数即可。
+    #[repr(C)]
+    pub struct TimeVal {
+        pub sec: usize,
+        pub usec: usize,
+    }
+
+它在内核中的实现只需调用 ``get_time_us`` 函数即可。
 
 
 抢占式调度
