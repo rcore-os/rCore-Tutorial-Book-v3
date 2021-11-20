@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>chapter8练习 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>条件变量机制 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
   
 
   
@@ -73,8 +73,8 @@ commentsRunWhenDOMLoaded(addUtterances);
     
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
-    <link rel="next" title="综合练习" href="../final-lab.html" />
-    <link rel="prev" title="virtio设备驱动程序" href="2device-driver-2.html" /> 
+    <link rel="next" title="死锁" href="5deadlock.html" />
+    <link rel="prev" title="信号量机制" href="3semaphore.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -129,23 +129,21 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：进程间通信</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：文件系统与I/O重定向</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">第八章：I/O设备管理</a><ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第九章：并发</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
-<li class="toctree-l2"><a class="reference internal" href="1io-interface.html">I/O设备</a></li>
-<li class="toctree-l2"><a class="reference internal" href="2device-driver-1.html">外设平台与串口驱动程序</a></li>
-<li class="toctree-l2"><a class="reference internal" href="2device-driver-2.html">virtio设备驱动程序</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">chapter8练习</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id1">编程作业</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id2">支持图形显示的应用</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id3">实验要求</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1thread.html">线程并发</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2lock.html">锁机制</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3semaphore.html">信号量机制</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">条件变量机制</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#id4">问答作业</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">报告要求</a></li>
+<li class="toctree-l2"><a class="reference internal" href="5deadlock.html">死锁</a></li>
+<li class="toctree-l2"><a class="reference internal" href="6concurrency-problem.html">并发中的问题</a></li>
+<li class="toctree-l2"><a class="reference internal" href="7extended-reading.html">扩展阅读</a></li>
 </ul>
 </li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter9/index.html">第八章：I/O设备管理</a></li>
 </ul>
 <p class="caption"><span class="caption-text">附录</span></p>
 <ul>
@@ -207,15 +205,15 @@ commentsRunWhenDOMLoaded(addUtterances);
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-          <li><a href="index.html">第八章：I/O设备管理</a> &raquo;</li>
+          <li><a href="index.html">第九章：并发</a> &raquo;</li>
         
-      <li>chapter8练习</li>
+      <li>条件变量机制</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/chapter8/4exercise.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/chapter8/4condition-variable.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -228,44 +226,10 @@ commentsRunWhenDOMLoaded(addUtterances);
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="chapter8">
-<h1>chapter8练习<a class="headerlink" href="#chapter8" title="永久链接至标题">¶</a></h1>
-<div class="toctree-wrapper compound">
-</div>
-<ul class="simple">
-<li><p>本节难度： <strong>中</strong></p></li>
-</ul>
-<div class="section" id="id1">
-<h2>编程作业<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
+  <div class="section" id="id1">
+<h1>条件变量机制<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="section" id="id2">
-<h3>支持图形显示的应用<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h3>
-<p>本章虽然讲述了virtio-gpu设备驱动，且可以直接进行图形显示，但这个设备驱动并没有加入到操作系统中，使得应用程序无法进行图形显示。lab8 的练习要求操作系统支持有彩色图形显示的应用，使得我们可以从单调的字符交互界跳入到多彩的图形界面中。</p>
-</div>
-<div class="section" id="id3">
-<h3>实验要求<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<ul class="simple">
-<li><p>实现分支：ch8。</p></li>
-<li><p>实验目录要求不变。</p></li>
-<li><p>在裸机上让操作系统支持“贪吃蛇”游戏应用； 需要在操作系统中加入virtio-gpu设备驱动程序；需要实现设备文件 <code class="docutils literal notranslate"><span class="pre">/dev/fb0</span></code> 和相关操作，用于应用访问显存。</p></li>
-</ul>
-<p>可以正确执行“贪吃蛇”游戏应用。</p>
-</div>
-</div>
-<div class="section" id="id4">
-<h2>问答作业<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
-<ol class="arabic simple">
-<li><p>通过阅读和运行试验等分析，你认为在目前的操作系统中，如果运行在用户态，可以响应哪些中断？如果运行在内核态，可以响应哪些中断？请简要描述分析经过。</p></li>
-<li><p>对于串口驱动程序，在RustSBI中有具体的实现，请问它与本章讲的串口驱动有何异同之处？</p></li>
-<li><p>对于目前操作系统中的 <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 设备驱动程序，存在哪些可以改进的地方来提升性能？</p></li>
-</ol>
-</div>
-<div class="section" id="id5">
-<h2>报告要求<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<ul class="simple">
-<li><p>简单总结本次实验你编程的内容。（控制在5行以内，不要贴代码）</p></li>
-<li><p>完成问答问题。</p></li>
-<li><p>(optional) 你对本次实验设计及难度/工作量的看法，以及有哪些需要改进的地方，欢迎畅所欲言。</p></li>
-</ul>
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
 </div>
 </div>
 
@@ -277,10 +241,10 @@ commentsRunWhenDOMLoaded(addUtterances);
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../final-lab.html" class="btn btn-neutral float-right" title="综合练习" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="5deadlock.html" class="btn btn-neutral float-right" title="死锁" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="2device-driver-2.html" class="btn btn-neutral float-left" title="virtio设备驱动程序" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="3semaphore.html" class="btn btn-neutral float-left" title="信号量机制" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

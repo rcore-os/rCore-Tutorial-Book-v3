@@ -1,12 +1,15 @@
-第八章：I/O设备管理
+第九章：并发
 ==============================================
 
 .. toctree::
    :maxdepth: 4
 
    0intro
-   1io-interface
-   2device-driver-1
-   2device-driver-2
-   4exercise
-   
+   1thread
+   2lock
+   3semaphore
+   4condition-variable
+   5deadlock
+   6concurrency-problem
+   7extended-reading
+   8exercise
