@@ -20,7 +20,8 @@ rCore-Tutorial-Book 第三版
    chapter6/index
    chapter7/index
    chapter8/index
-   
+   chapter9/index
+
 .. toctree::
    :maxdepth: 2
    :caption: Part2 - Do it better!
@@ -53,7 +54,7 @@ rCore-Tutorial-Book 第三版
 
    :doc:`/log` 
 
-   项目/文档于 2021-10-15 最后一次更新，情况如下：
+   项目/文档于 2021-11-20 更新，情况如下：
 
     - 旧版的 3.5.0 文档及代码（全七章）已经发布在 `这里 <https://github.com/rcore-os/rCore-Tutorial-v3/releases/tag/v3.5.0>`_ 。目前开始在主分支上更新新版的文档和代码。
 
@@ -96,3 +97,4 @@ rCore-Tutorial-Book 第三版
 - 2021-02-20：第六章完成。
 - 2021-03-06：第七章完成。到这里为止第一版初稿就已经完成了。
 - 2021-10-20：第八章代码于前段时间完成。开始更新前面章节文档及完成第八章文档。
+- 2021-11-20：更新1~9章，添加第八章（同步互斥），原第八章（外设）改为第九章。
