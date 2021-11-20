@@ -20,7 +20,8 @@ rCore-Tutorial-Book 第三版
    chapter6/index
    chapter7/index
    chapter8/index
-   
+   chapter9/index
+
 .. toctree::
    :maxdepth: 2
    :caption: Part2 - Do it better!
