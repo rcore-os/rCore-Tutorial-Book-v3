@@ -48,7 +48,7 @@
 
 	线程的数据一致性的定义：在单处理器（即只有一个核的CPU）下，如果某线程更新了一个可被其他线程读到的共享数据，那么后续其他线程都能读到这个最新被更新的共享数据。
 
-为什么会出现线程的数据不一致问题呢？先看看如下的伪代码例子：
+为什么会出现线程的数据不一致问题呢？其根本原因是 **调度的不可控性** ：即读写共享变量的代码片段会随时可能被操作系统调度和切换。先看看如下的伪代码例子：
 
 .. code-block:: rust
     :linenos:
@@ -74,16 +74,287 @@
 
     # 假设NUM的地址为 0x1000
     # unsafe { NUM = NUM + 1; } 对应的汇编代码如下
-    addi x6, x0, 0x1000        # 计算NUM的地址
+    addi x6, x0, 0x1000        # addr 100: 计算NUM的地址
                                # 由于时钟中断可能会发生线程切换
-    ld 	 x5, 0(x6)             # 把NUM的值加载到x5寄存器中
+    ld 	 x5, 0(x6)             # addr 104: 把NUM的值加载到x5寄存器中
                                # 由于时钟中断可能会发生线程切换
-    addi x5, x5, 1             # x5 <- x5 + 1
+    addi x5, x5, 1             # addr 108: x5 <- x5 + 1
                                # 由于时钟中断可能会发生线程切换
-    sd   x5, 0(x6)             # 把NUM+1的值写回到NUM地址中
+    sd   x5, 0(x6)             # addr 112: 把NUM+1的值写回到NUM地址中
     
 
 在这个例子中，一行Rust源代码其实被Rust编译器生成了四行RISC-V汇编代码。如果多个线程在操作系统的管理和调度下都执行这段代码，那么在上述四行汇编代码之间（即第4，6，8行的地方）的时刻可能产生时钟中断，并导致线程调度和切换。
 
+设有两个线程，线程A先进入上述汇编代码区，将要把 ``NUM`` 增加一，为此线程A将 ``NUM`` 的值（假设它这时是 ``0`` ）加载到 ``x5`` 寄存器中，然后执行加一操作，此时 ``x5 = 1`` 。这时时钟中断发生，操作系统将当前正在运行的线程A的上下文（（它的程序计数器、寄存器，包括 ``x5`` 等））保存到线程控制块（在内存中）中。
 
-.. chyyuu 例子？？？
+再接下来，线程B被选中运行，并进入同一段代码。它也执行了前两条条指令，获取NUM的值（此时仍为 ``0`` ）并将其放入 ``x5`` 中，线程B继续执行接下来指令，将 ``x5`` 加一，然后将 ``x5`` 的内容保存到 ``NUM``（地址0x1000）中。因此，全局变量 ``NUM`` 现在的值是 ``1`` 。
+
+最后又发生一次线程上下文切换，线程A恢复运行，此时的 ``x5=1``，现在线程A准备执行最后一条 ``sd`` 指令，将 ``x5`` 的内容保存到 ``NUM`` （地址0x1000）中，``NUM`` 再次被设置为 ``1`` 。
+
+简单总结，这两个线程执行的结果是：增加 ``NUM`` 的代码被执行两次，初始值为 ``0`` ，但是结果为 ``1`` 。而我们一般理解这两个线程执行的“正确”结果应该是全局变量 ``NUM`` 等于  ``2`` 。
+
+
+.. note::
+
+	**并发相关术语** 　
+
+
+	- 共享资源（shared resource）：不同的线程/进程都能访问的变量或数据结构。
+	
+	- 临界区（critical section）：访问共享资源的一段代码。
+
+	- 竞态条件（race condition）：多个线程/进程都进入临界区时，都试图更新共享的数据结构，导致产生了不期望的结果。
+
+	- 不确定性（indeterminate）： 多个线程/进程在执行过程中出现了竞态条件，导致执行结果取决于哪些线程在何时运行，即执行结果不确定，而开发者期望得到的是确定的结果。
+
+	- 互斥（mutual exclusion）：一种操作原语，能保证只有一个线程进入临界区，从而避免出现竞态，并产生确定的执行结果。
+
+	- 原子性（atomic）：一系列操作要么全部完成，要么一个都没执行，不会看到中间状态。在数据库领域，具有原子性的一系列操作称为事务（transaction）。
+
+	- 同步（synchronization）：多个并发执行的进程/线程在一些关键点上需要互相等待，这种相互制约的等待称为进程/线程同步。
+
+	- 死锁（dead lock）：一个线程/进程集合里面的每个线程/进程都在等待只能由这个集合中的其他一个线程/进程（包括他自身）才能引发的事件，这种情况就是死锁。
+
+	- 饥饿（hungry）：指一个可运行的线程/进程尽管能继续执行，但由于操作系统的调度而被无限期地忽视，导致不能执行的情况。
+
+在后续的章节中，会大量使用上述术语，如果现在还不够理解，没关系，随着后续的一步一步的分析和实验，相信大家能够掌握上述术语的实际含义。	
+
+
+
+实践体验
+-----------------------------------------
+
+获取本章代码：
+
+.. code-block:: console
+
+   $ git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
+   $ cd rCore-Tutorial-v3
+   $ git checkout ch8
+
+在 qemu 模拟器上运行本章代码：
+
+.. code-block:: console
+
+   $ cd os
+   $ make run  # 编译后，最终执行如下命令模拟rv64 virt计算机运行：
+   ......
+   $ qemu-system-riscv64 \
+   -machine virt \
+   -nographic \
+   -bios ../bootloader/rustsbi-qemu.bin \
+   -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80200000 \
+   -drive file=../user/target/riscv64gc-unknown-none-elf/release/fs.img,if=none,format=raw,id=x0 \
+        -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+
+在执行 ``qemu-system-riscv64`` 的参数中，``../user/target/riscv64gc-unknown-none-elf/release/fs.img`` 是包含应用程序集合的文件系统镜像，这个镜像是放在虚拟硬盘块设备 ``virtio-blk-device`` （在下一章会进一步介绍这种存储设备）中的。
+
+若要在 k210 平台上运行，首先需要将 microSD 通过读卡器插入 PC ，然后将打包应用 ELF 的文件系统镜像烧写到 microSD 中：
+
+.. code-block:: console
+
+   $ cd os
+   $ make sdcard
+   Are you sure write to /dev/sdb ? [y/N]
+   y
+   16+0 records in
+   16+0 records out
+   16777216 bytes (17 MB, 16 MiB) copied, 1.76044 s, 9.5 MB/s
+   8192+0 records in
+   8192+0 records out
+   4194304 bytes (4.2 MB, 4.0 MiB) copied, 3.44472 s, 1.2 MB/s
+
+途中需要输入 ``y`` 确认将文件系统烧写到默认的 microSD 所在位置 ``/dev/sdb`` 中（注：这个位置在不同的Linux开发环境下可能是不同的）。这个位置可以在 ``os/Makefile`` 中的 ``SDCARD`` 处进行修改，在烧写之前请确认它被正确配置为 microSD 的实际目录的位置，否则可能会造成数据损失。
+
+烧写之后，将 microSD 插入到 Maix 系列开发板并连接到 PC，然后在开发板上运行本章代码：
+
+.. code-block:: console
+
+   $ cd os
+   $ make run BOARD=k210
+
+内核初始化完成之后就会进入shell程序，我们可以体会一下线程的创建和执行过程。在这里我们运行一下本章的测例 ``threads`` ：
+
+.. code-block::
+
+    >> threads
+    aaa....bbb...ccc...
+    thread#1 exited with code 1
+	thread#2 exited with code 2
+	thread#3 exited with code 3
+	main thread exited.
+	Shell: Process 2 exited with code 0
+
+    >> 
+
+它会有4个线程在执行，等前3个线程执行完毕后，主线程退出，导致整个进程退出。
+
+此外，在本章的操作系统支持通过互斥来执行“哲学家就餐问题”这个应用程序：
+
+.. code-block::
+
+   >> phil_din_mutex
+	 time cost = 7260
+	'-' -> THINKING; 'x' -> EATING; ' ' -> WAITING 
+	#0: -------                 xxxxxxxx----------       xxxx-----  xxxxxx--xxx
+	#1: ---xxxxxx--      xxxxxxx----------    x---xxxxxx                       
+	#2: -----          xx---------xx----xxxxxx------------        xxxx         
+	#3: -----xxxxxxxxxx------xxxxx--------    xxxxxx--   xxxxxxxxx             
+	#4: ------         x------          xxxxxx--    xxxxx------   xx           
+	#0: -------                 xxxxxxxx----------       xxxx-----  xxxxxx--xxx
+	Shell: Process 2 exited with code 0
+   >> 
+
+我们可以看到5个代表“哲学家”的线程通过操作系统的**信号量**互斥机制在进行“THINKING”、“EATING”、“WAITING”的日常生活。没有哲学家由于拿不到筷子而饥饿，也没有两个哲学家同时拿到一个筷子。
+
+
+.. note::
+
+	**哲学家就餐问题** 　
+
+	计算机科学家Dijkstra提出并解决的哲学家就餐问题是经典的进程同步互斥问题。哲学家就餐问题描述如下：
+
+	有5个哲学家共用一张圆桌，分别坐在周围的5张椅子上，在圆桌上有5个碗和5只筷子，他们的生活方式是交替地进行思考和进餐。平时，每个哲学家进行思考，饥饿时便试图拿起其左右最靠近他的筷子，只有在他拿到两只筷子时才能进餐。进餐完毕，放下筷子继续思考。
+
+
+本章代码树
+-----------------------------------------
+
+.. code-block::
+   :linenos:
+
+	.
+	├── bootloader
+	│   ├── rustsbi-k210.bin
+	│   └── rustsbi-qemu.bin
+	├── dev-env-info.md
+	├── Dockerfile
+	├── easy-fs
+	│   ├── Cargo.lock
+	│   ├── Cargo.toml
+	│   └── src
+	│       ├── bitmap.rs
+	│       ├── block_cache.rs
+	│       ├── block_dev.rs
+	│       ├── efs.rs
+	│       ├── layout.rs
+	│       ├── lib.rs
+	│       └── vfs.rs
+	├── easy-fs-fuse
+	│   ├── Cargo.lock
+	│   ├── Cargo.toml
+	│   └── src
+	│       └── main.rs
+	├── LICENSE
+	├── Makefile
+	├── os
+	│   ├── build.rs
+	│   ├── Cargo.lock
+	│   ├── Cargo.toml
+	│   ├── last-qemu
+	│   ├── Makefile
+	│   └── src
+	│       ├── config.rs
+	│       ├── console.rs
+	│       ├── drivers
+	│       │   ├── block
+	│       │   │   ├── mod.rs
+	│       │   │   ├── sdcard.rs
+	│       │   │   └── virtio_blk.rs
+	│       │   └── mod.rs
+	│       ├── entry.asm
+	│       ├── fs
+	│       │   ├── inode.rs
+	│       │   ├── mod.rs
+	│       │   ├── pipe.rs
+	│       │   └── stdio.rs
+	│       ├── lang_items.rs
+	│       ├── link_app.S
+	│       ├── linker-k210.ld
+	│       ├── linker-qemu.ld
+	│       ├── loader.rs
+	│       ├── main.rs
+	│       ├── mm
+	│       │   ├── address.rs
+	│       │   ├── frame_allocator.rs
+	│       │   ├── heap_allocator.rs
+	│       │   ├── memory_set.rs
+	│       │   ├── mod.rs
+	│       │   └── page_table.rs
+	│       ├── sbi.rs
+	│       ├── sync
+	│       │   ├── mod.rs
+	│       │   ├── mutex.rs
+	│       │   ├── semaphore.rs
+	│       │   └── up.rs
+	│       ├── syscall
+	│       │   ├── fs.rs
+	│       │   ├── mod.rs
+	│       │   ├── process.rs
+	│       │   ├── sync.rs
+	│       │   └── thread.rs
+	│       ├── task
+	│       │   ├── context.rs
+	│       │   ├── id.rs
+	│       │   ├── manager.rs
+	│       │   ├── mod.rs
+	│       │   ├── processor.rs
+	│       │   ├── process.rs
+	│       │   ├── switch.rs
+	│       │   ├── switch.S
+	│       │   └── task.rs
+	│       ├── timer.rs
+	│       └── trap
+	│           ├── context.rs
+	│           ├── mod.rs
+	│           └── trap.S
+	├── pushall.sh
+	├── README.md
+	├── rust-toolchain
+	└── user
+	    ├── Cargo.lock
+	    ├── Cargo.toml
+	    ├── Makefile
+	    └── src
+	        ├── bin
+	        │   ├── cat.rs
+	        │   ├── cmdline_args.rs
+	        │   ├── exit.rs
+	        │   ├── fantastic_text.rs
+	        │   ├── filetest_simple.rs
+	        │   ├── forktest2.rs
+	        │   ├── forktest.rs
+	        │   ├── forktest_simple.rs
+	        │   ├── forktree.rs
+	        │   ├── hello_world.rs
+	        │   ├── huge_write.rs
+	        │   ├── initproc.rs
+	        │   ├── matrix.rs
+	        │   ├── mpsc_sem.rs
+	        │   ├── phil_din_mutex.rs
+	        │   ├── pipe_large_test.rs
+	        │   ├── pipetest.rs
+	        │   ├── race_adder_atomic.rs
+	        │   ├── race_adder_loop.rs
+	        │   ├── race_adder_mutex_blocking.rs
+	        │   ├── race_adder_mutex_spin.rs
+	        │   ├── race_adder.rs
+	        │   ├── run_pipe_test.rs
+	        │   ├── sleep.rs
+	        │   ├── sleep_simple.rs
+	        │   ├── stack_overflow.rs
+	        │   ├── threads_arg.rs
+	        │   ├── threads.rs
+	        │   ├── user_shell.rs
+	        │   ├── usertests.rs
+	        │   └── yield.rs
+	        ├── console.rs
+	        ├── lang_items.rs
+	        ├── lib.rs
+	        ├── linker.ld
+	        └── syscall.rs
+
+
+本章代码导读
+-----------------------------------------------------
