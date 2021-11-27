@@ -6,6 +6,7 @@
 
    0intro
    1thread
+   1thread-kernel
    2lock
    3semaphore
    4condition-variable
