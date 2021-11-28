@@ -31,6 +31,7 @@
 由于把进程的结构进行了细化，通过线程来表示对处理器的虚拟化，使得进程成为了管理线程的容器。在进程中的线程没有父子关系，大家都是兄弟，但还是有个老大。这个代表老大的线程其实就是创建进程（比如通过 ``fork`` 系统调用创建进程）时，建立的第一个线程，它的线程标识符（TID）为 ``0`` 。
 
 
+.. chyyuu 需要有一个thread的结构图
 
 
 通用操作系统多线程应用程序示例
@@ -92,7 +93,10 @@
    /// 参数：arg：表示线程的一个参数
    pub fn sys_thread_create(entry: usize, arg: usize) -> isize 
 
-当进程调用 ``thread_create`` 系统调用后，内核会在这个进程内部创建一个新的线程，这个线程能够访问到进程所拥有的代码段，堆和其他数据段。但内核会给这个新线程分配一个它专有的用户态栈，这样每个线程才能相对独立地被调度和执行。相比于创建进程的 ``fork`` 系统调用，创建线程不需要要建立新的地址空间，这是二者之间最大的不同。另外属于同一进程中的线程之间没有父子关系，这一点也与进程不一样。
+当进程调用 ``thread_create`` 系统调用后，内核会在这个进程内部创建一个新的线程，这个线程能够访问到进程所拥有的代码段，堆和其他数据段。但内核会给这个新线程分配一个它专有的用户态栈，这样每个线程才能相对独立地被调度和执行。另外，由于用户态进程与内核之间有各自独立的页表，所以二者需要有一个跳板页 ``TRAMPOLINE`` 来处理用户态切换到内核态的地址空间平滑转换的事务。所以当出现线程后，在进程中的每个线程也需要有一个独立的跳板页 ``TRAMPOLINE`` 来完成同样的事务。
+
+
+相比于创建进程的 ``fork`` 系统调用，创建线程不需要要建立新的地址空间，这是二者之间最大的不同。另外属于同一进程中的线程之间没有父子关系，这一点也与进程不一样。
 
 等待子线程系统调用
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -254,7 +258,7 @@
 
 与之前进程中的定义相同/类似的部分：
 
-- ``trap_cx_ppn`` 指出了应用地址空间中的 Trap 上下文（详见第四章）被放在的物理页帧的物理页号。
+- ``trap_cx_ppn`` 指出了应用地址空间中线程的 Trap 上下文被放在的物理页帧的物理页号。
 - ``task_cx`` 保存暂停线程的线程上下文，用于线程切换。
 - ``task_status`` 维护当前线程的执行状态。
 - ``exit_code`` 线程退出码。
@@ -263,33 +267,263 @@
 包含线程的进程控制块
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+把线程相关数据单独组织成数据结构后，进程的结构也需要进行一定的调整：
 
-线程管理器
+.. code-block:: rust
+   :linenos:
+
+   pub struct ProcessControlBlock {
+       // immutable
+       pub pid: PidHandle,
+       // mutable
+       inner: UPSafeCell<ProcessControlBlockInner>,
+   }
+
+   pub struct ProcessControlBlockInner {
+       ...
+       pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
+       pub task_res_allocator: RecycleAllocator,
+   }
+
+从中可以看出，进程把与处理器执行相关的部分都移到了 ``TaskControlBlock`` 中，并组织为一个线程控制块向量中，这就自然对应到多个线程的管理上了。而 ``RecycleAllocator`` 是对之前的 ``PidAllocator`` 的一个升级版，即一个相对通用的资源分配器，可用于分配进程标识符（PID）和线程的内核栈（KernelStack）。
+
+.. chyyuu 加一个PidAllocator的链接???
+
+线程与处理器管理结构
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+线程管理的结构是线程管理器，即任务管理器，位于 ``os/src/task/manager.rs`` 中，其数据结构和方法与之前章节中进程的任务管理器完全一样，仅负责管理所有线程。而处理器管理结构 ``Processor`` 负责维护 CPU 状态、调度和特权级切换等事务。其数据结构与之前章节中进程的处理器管理结构完全一样。但在相关方法上面，由于多个线程有各自的用户栈和跳板页，所以有些不同，下面会进一步分析。
 
+.. chyyuu 加一个taskmanager,processor的链接???
 
 线程管理机制的设计与实现
 -----------------------------------------------
 
+在上述线程模型和内核数据结构的基础上，我们还需完成线程管理的基本实现，从而构造出一个完整的“达科塔盗龙”操作系统。本节将分析如何实现线程管理：
+
+- 线程创建、线程退出与等待线程结束
+- 线程执行中的特权级切换
+- 进程管理中与线程相关的处理
+
+
+线程创建、线程退出与等待线程结束
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 线程创建
+
+.. code-block:: rust
+   :linenos:
+
+   // os/src/syscall/thread.rs
+
+   pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
+       let task = current_task().unwrap();
+       let process = task.process.upgrade().unwrap();
+       // create a new thread
+       let new_task = Arc::new(TaskControlBlock::new(
+           Arc::clone(&process),
+           task.inner_exclusive_access().res.as_ref().unwrap().ustack_base,
+           true,
+       ));
+       // add new task to scheduler
+       add_task(Arc::clone(&new_task));
+       let new_task_inner = new_task.inner_exclusive_access();
+       let new_task_res = new_task_inner.res.as_ref().unwrap();
+       let new_task_tid = new_task_res.tid;
+       let mut process_inner = process.inner_exclusive_access();
+       // add new thread to current process
+       let tasks = &mut process_inner.tasks;
+       while tasks.len() < new_task_tid + 1 {
+           tasks.push(None);
+       }
+       tasks[new_task_tid] = Some(Arc::clone(&new_task));
+       let new_task_trap_cx = new_task_inner.get_trap_cx();
+       *new_task_trap_cx = TrapContext::app_init_context(
+           entry,
+           new_task_res.ustack_top(),
+           kernel_token(),
+           new_task.kstack.get_top(),
+           trap_handler as usize,
+       );
+       (*new_task_trap_cx).x[10] = arg;
+       new_task_tid as isize
+   }
+
+
+线程退出
+
+.. code-block:: rust
+   :linenos:
+
+   // os/src/syscall/process.rs
+
+   pub fn sys_exit(exit_code: i32) -> ! {
+       exit_current_and_run_next(exit_code);
+       panic!("Unreachable in sys_exit!");
+   }
+
+   // os/src/task/mod.rs
+
+   pub fn exit_current_and_run_next(exit_code: i32) {
+       let task = take_current_task().unwrap();
+       let mut task_inner = task.inner_exclusive_access();
+       let process = task.process.upgrade().unwrap();
+       let tid = task_inner.res.as_ref().unwrap().tid;
+       // record exit code
+       task_inner.exit_code = Some(exit_code);
+       task_inner.res = None;
+       // here we do not remove the thread since we are still using the kstack
+       // it will be deallocated when sys_waittid is called
+       drop(task_inner);
+       drop(task);
+       // however, if this is the main thread of current process
+       // the process should terminate at once
+       if tid == 0 {
+           let mut process_inner = process.inner_exclusive_access();
+           // mark this process as a zombie process
+           process_inner.is_zombie = true;
+           // record exit code of main process
+           process_inner.exit_code = exit_code;
+
+           {
+               // move all child processes under init process
+               let mut initproc_inner = INITPROC.inner_exclusive_access();
+               for child in process_inner.children.iter() {
+                   child.inner_exclusive_access().parent = Some(Arc::downgrade(&INITPROC)); 
+                   initproc_inner.children.push(child.clone());
+               }
+           }
+
+           // deallocate user res (including tid/trap_cx/ustack) of all threads
+           // it has to be done before we dealloc the whole memory_set
+           // otherwise they will be deallocated twice
+           for task in process_inner.tasks.iter().filter(|t| t.is_some()) {
+               let task = task.as_ref().unwrap();
+               let mut task_inner = task.inner_exclusive_access();
+               task_inner.res = None;
+           }
+
+           process_inner.children.clear();
+           // deallocate other data in user space i.e. program code/data section
+           process_inner.memory_set.recycle_data_pages();
+       }
+       drop(process);
+       // we do not have to save task context
+       let mut _unused = TaskContext::zero_init();
+       schedule(&mut _unused as *mut _);
+   }
+
+   lazy_static! {
+       pub static ref INITPROC: Arc<ProcessControlBlock> = {
+           let inode = open_file("initproc", OpenFlags::RDONLY).unwrap();
+           let v = inode.read_all();
+           ProcessControlBlock::new(v.as_slice())
+       };
+   }
+
+
+等待线程结束
+
+.. code-block:: rust
+   :linenos:
+
+   // os/src/syscall/thread.rs
+
+   pub fn sys_waittid(tid: usize) -> i32 {
+       let task = current_task().unwrap();
+       let process = task.process.upgrade().unwrap();
+       let task_inner = task.inner_exclusive_access();
+       let mut process_inner = process.inner_exclusive_access();
+       // a thread cannot wait for itself
+       if task_inner.res.as_ref().unwrap().tid == tid {
+           return -1;
+       }
+       let mut exit_code: Option<i32> = None;
+       let waited_task = process_inner.tasks[tid].as_ref();
+       if let Some(waited_task) = waited_task {
+           if let Some(waited_exit_code) = waited_task.inner_exclusive_access().exit_code {
+               exit_code = Some(waited_exit_code);
+           }
+       } else {
+           // waited thread does not exist
+           return -1;
+       }
+       if let Some(exit_code) = exit_code {
+           // dealloc the exited thread
+           process_inner.tasks[tid] = None;
+           exit_code
+       } else {
+           // waited thread has not exited
+           -2
+       }
+   }
+
+
+线程执行中的特权级切换
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
+.. code-block:: rust
+   :linenos:
 
-线程调度与分派
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   // os/src/task/id.rs
+
+   fn trap_cx_bottom_from_tid(tid: usize) -> usize {
+       TRAP_CONTEXT_BASE - tid * PAGE_SIZE
+   }
+
+    pub fn trap_cx_user_va(&self) -> usize {
+        trap_cx_bottom_from_tid(self.tid)
+    }
+
+   // os/src/task/processor.rs
+
+   pub fn current_trap_cx_user_va() -> usize {
+       current_task()
+           .unwrap()
+           .inner_exclusive_access()
+           .res
+           .as_ref()
+           .unwrap()
+           .trap_cx_user_va()
+   }
+
+
+   pub fn current_kstack_top() -> usize {
+       current_task()
+           .unwrap()
+           .kstack
+           .get_top()
+   }
 
 
 
-线程资源回收
+
+进程管理中与线程相关的处理
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
+.. code-block:: rust
+   :linenos:
+
+   // os/src/syscall/process.rs
+   
+   pub fn sys_fork() -> isize {
+       let current_process = current_process();
+       let new_process = current_process.fork();
+       let new_pid = new_process.getpid();
+       // modify trap context of new_task, because it returns immediately after switching
+       let new_process_inner = new_process.inner_exclusive_access();
+       let task = new_process_inner.tasks[0].as_ref().unwrap();
+       let trap_cx = task.inner_exclusive_access().get_trap_cx();
+       // we do not have to move to next instruction since we have done it before
+       // for child process, fork returns 0
+       trap_cx.x[10] = 0;
+       new_pid as isize
+   }
 
 
 
 
-
-.. [#dak] 一种生存于距今6700万-6500万年前白垩纪晚期的兽脚类驰龙科恐龙，它主打的并不是霸王龙的力量路线，而是利用自己修长的后肢来提高敏捷度和奔跑速度。它全身几乎都长满了羽毛，可能会滑翔或者其他接近飞行行为的行动模式。
+.. [#dak] 达科塔盗龙是一种生存于距今6700万-6500万年前白垩纪晚期的兽脚类驰龙科恐龙，它主打的并不是霸王龙的力量路线，而是利用自己修长的后肢来提高敏捷度和奔跑速度。它全身几乎都长满了羽毛，可能会滑翔或者其他接近飞行行为的行动模式。
