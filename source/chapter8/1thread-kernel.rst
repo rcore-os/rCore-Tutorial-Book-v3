@@ -109,18 +109,49 @@
    pub fn sys_waittid(tid: usize) -> i32   
 
 
-一般情况下进程/主线程要负责通过 ``waittid`` 来等待它创建出来的线程结束并回收它们的资源。但如果进程/主线程先调用了 ``exit`` 系统调用来退出，那么整个进程（包括所属的所有线程）都会立刻退出。
+一般情况下进程/主线程要负责通过 ``waittid`` 来等待它创建出来的线程（不是主线程）结束并回收它们在内核中的资源（如线程的内核栈、线程控制块等）。如果进程/主线程先调用了 ``exit`` 系统调用来退出，那么整个进程（包括所属的所有线程）都会退出，而对应父进程会通过 ``waitpid`` 回收子进程剩余还没被回收的资源。
 
 
 进程相关的系统调用
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+在引入了线程机制后，进程相关的重要系统调用：``fork`` 、 ``exec`` 、 ``waitpid`` 虽然在接口上没有变化，但在它要完成的功能上需要有一定的扩展。首先，需要注意到把以前进程中与处理器执行相关的部分拆分到线程中。这样，在通过 ``fork`` 创建进程其实也意味着要单独建立一个主线程来使用处理器，并为以后创建新的线程建立相应的线程控制块向量。相对而言， ``exec`` 和 ``waitpid`` 这两个系统调用要做的改动比较小，还是按照与之前进程的处理方式来进行。总体上看，进程相关的这三个系统调用还是保持了已有的进程操作的语义，并没有由于引入了线程，而带来大的变化。
 
 
 应用程序示例
 ----------------------------------------------
 
+我们刚刚介绍了 thread_create/waittid 两个重要系统调用，我们可以借助它们和之前实现的系统调用开发出功能更为灵活的应用程序。下面我们通过描述一个多线程应用程序 ``threads`` 的开发过程，来展示这些系统调用的使用方法。
+
+
+系统调用封装
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+同学可以在 user/src/syscall.rs 中看到以 sys_* 开头的系统调用的函数原型，它们后续还会在 user/src/lib.rs 中被封装成方便应用程序使用的形式。如 sys_thread_create 被封装成 thread_create ，而 sys_waittid 被封装成 waittid  ：   
+
+
+
+.. code-block:: rust
+   :linenos:
+
+   pub fn thread_create(entry: usize, arg: usize) -> isize { sys_thread_create(entry, arg) }
+
+   pub fn waittid(tid: usize) -> isize {
+       loop {
+           match sys_waittid(tid) {
+               -2 => { yield_(); }
+               exit_code => return exit_code,
+           }
+       }
+   }
+
+ waittid 等待一个线程标识符的值为tid 的线程结束。在具体实现方面，我们看到当 sys_waittid 返回值为 -2 ，即要等待的线程存在但它却尚未退出的时候，主线程调用 yield_ 主动交出 CPU 使用权，待下次 CPU 使用权被内核交还给它的时候再次调用 sys_waittid 查看要等待的线程是否退出。这样做是为了减小 CPU 资源的浪费。这种方法是为了尽可能简化内核的实现。
+
+
+多线程应用程序 -- threads
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+多线程应用程序 -- threads 开始执行后，先调用 ``thread_create`` 创建了三个线程，加上进程自带的主线程，其实一共有四个线程。每个线程在打印了1000个字符后，会执行 ``exit`` 退出。进程通过 ``waittid`` 等待这三个线程结束后，最终结束进程的执行。下面是多线程应用程序 -- threads 的源代码：
 
 .. code-block:: rust
    :linenos:
@@ -169,10 +200,64 @@
 线程管理的核心数据结构
 -----------------------------------------------
 
+为了在现有进程管理的基础上实现线程管理，我们需要改进一些数据结构包含的内容及接口。基本思路就是把进程中与处理器相关的部分分拆出来，形成线程相关的部分。
+本节将按照如下顺序来进行介绍：
+
+- 任务控制块 TaskControlBlock ：表示线程的核心数据结构。
+- 任务管理器 TaskManager ：管理线程集合的核心数据结构。
+- 处理器管理结构 Processor ：用于线程调度，维护线程的处理器状态。
 
 线程控制块
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+在内核中，每个线程的执行状态和线程上下文等均保存在一个被称为线程控制块 (PCB, Process Control Block) 的结构中，它是内核对线程进行管理的核心数据结构。在内核看来，它就等价于一个线程。
+
+
+.. code-block:: rust
+   :linenos:
+
+   pub struct TaskControlBlock {
+    // immutable
+    pub process: Weak<ProcessControlBlock>,
+    pub kstack: KernelStack,
+    // mutable
+    inner: UPSafeCell<TaskControlBlockInner>,
+   }
+
+   pub struct TaskControlBlockInner {
+    pub res: Option<TaskUserRes>,
+    pub trap_cx_ppn: PhysPageNum,
+    pub task_cx: TaskContext,
+    pub task_status: TaskStatus,
+    pub exit_code: Option<i32>,
+   }
+
+
+线程控制块就是任务控制块（TaskControlBlock），主要包括在线程初始化之后就不再变化的元数据：线程所属的进程和线程的内核栈，以及在运行过程中可能发生变化的元数据： UPSafeCell<TaskControlBlockInner> 。大部分的细节放在 ``TaskControlBlockInner`` 中：
+
+之前进程中的定义不存在的：
+
+- ``res : TaskUserRes`` 指出了用户态的线程代码执行需要的信息，这些在线程初始化之后就不再变化：
+
+.. code-block:: rust
+   :linenos:
+
+   pub struct TaskUserRes {
+       pub tid: usize,
+       pub ustack_base: usize,
+       pub process: Weak<ProcessControlBlock>,
+   }
+
+  - tid：线程标识符
+  - ustack_base：线程的栈顶地址
+  - process：线程所属的进程
+
+与之前进程中的定义相同/类似的部分：
+
+- ``trap_cx_ppn`` 指出了应用地址空间中的 Trap 上下文（详见第四章）被放在的物理页帧的物理页号。
+- ``task_cx`` 保存暂停线程的线程上下文，用于线程切换。
+- ``task_status`` 维护当前线程的执行状态。
+- ``exit_code`` 线程退出码。
 
 
 包含线程的进程控制块
