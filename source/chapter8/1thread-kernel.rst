@@ -311,6 +311,17 @@
 
 
 线程创建
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+但一个进程执行中发出了创建线程的系统调用 ``sys_thread_create`` 后，操作系统就需要在当前进程的基础上创建一个线程了，这里重点是需要了解创建线程控制块，在线程控制块中初始化各个成员变量，建立好进程和线程的关系等。只有建立好这些成员变量，才能给线程建立一个灵活方便的执行环境。这里列出支持线程正确运行所需的重要的执行环境要素：
+
+- 线程的用户态栈：确保在用户态的线程能正常执行函数调用；
+- 线程的内核态栈：确保线程陷入内核后能正常执行函数调用；
+- 线程的跳板页：确保线程能正确的进行用户态<-->内核态切换；
+- 线程上下文：即线程用到的寄存器信息，用于线程切换。
+
+
+线程创建的具体实现如下：
 
 .. code-block:: rust
    :linenos:
@@ -350,8 +361,18 @@
        new_task_tid as isize
    }
 
+上述代码主要完成了如下事务：
+
+- 第4-5行，找到当前正在执行的线程 ``task`` 和此线程所属的进程 ``process`` 。
+- 第7-11行，调用 ``TaskControlBlock::new`` 方法，创建一个新的线程 ``new_task`` ，在创建过程中，建立与进程 ``process`` 的所属关系，分配了线程用户态栈、内核态栈、用于异常/中断的跳板页。
+- 第13行，把线程挂到调度队列中。
+- 第19-22行，把线程接入到所需进程的线程列表 ``tasks`` 中。
+- 第25~32行，始化位于该线程在用户态地址空间中的 Trap 上下文：设置线程的函数入口点和用户栈，使得第一次进入用户态时时能从线程起始位置开始正确执行；设置好内核栈和陷入函数指针 ``trap_handler`` ，保证在 Trap 的时候用户态的线程能正确进入内核态。
 
 线程退出
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+`
+当一个非主线程的其他线程发出 ``sys_exit`` 系统调用时，内核会调用 ``exit_current_and_run_next`` 函数退出当前线程并切换到下一个线程，但不会导致其所属进程的退出。当 ``主线程`` 即进程发出这个系统调用，但内核收到这个系统调用后，会回收整个进程（这包括了其管理的所有线程）资源，并退出。具体实现如下：
 
 .. code-block:: rust
    :linenos:
@@ -414,16 +435,21 @@
        schedule(&mut _unused as *mut _);
    }
 
-   lazy_static! {
-       pub static ref INITPROC: Arc<ProcessControlBlock> = {
-           let inode = open_file("initproc", OpenFlags::RDONLY).unwrap();
-           let v = inode.read_all();
-           ProcessControlBlock::new(v.as_slice())
-       };
-   }
 
+上述代码主要完成了如下事务：
+
+- 第11-21行，回收线程的各种资源。
+- 第24-53行，如果是主线程发出的退去请求，则回收整个进程的部分资源，并退出进程。第 33~37 行所做的事情是将当前进程的所有子进程挂在初始进程 INITPROC 下面，其做法是遍历每个子进程，修改其父进程为初始进程，并加入初始进程的孩子向量中。第 49 行将当前进程的孩子向量清空。
+- 第55-56行，进行线程调度切换。
+
+上述实现中很大一部分与第五章讲解的 进程的退出 的功能实现大致相同。
+
+.. chyyuu 加上链接???
 
 等待线程结束
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+主线程通过系统调用 ``sys_waittid`` 来等待其他线程的结束。具体实现如下：
 
 .. code-block:: rust
    :linenos:
@@ -460,70 +486,18 @@
    }
 
 
-线程执行中的特权级切换
+上述代码主要完成了如下事务：
+
+- 第9-10行，如果是线程等自己，返回错误.
+- 第12-21行，如果找到 ``tid`` 对应的退出线程，则收集该退出线程的退出码 ``exit_tid`` ，否则返回错误（退出线程不存在）。
+- 第22-29行，如果退出码存在，则清空进程中对应此退出线程的线程控制块（至此，线程所占资源算是全部清空了），否则返回错误（线程还没退出）。
+
+
+线程执行中的特权级切换和调度切换
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-.. code-block:: rust
-   :linenos:
-
-   // os/src/task/id.rs
-
-   fn trap_cx_bottom_from_tid(tid: usize) -> usize {
-       TRAP_CONTEXT_BASE - tid * PAGE_SIZE
-   }
-
-    pub fn trap_cx_user_va(&self) -> usize {
-        trap_cx_bottom_from_tid(self.tid)
-    }
-
-   // os/src/task/processor.rs
-
-   pub fn current_trap_cx_user_va() -> usize {
-       current_task()
-           .unwrap()
-           .inner_exclusive_access()
-           .res
-           .as_ref()
-           .unwrap()
-           .trap_cx_user_va()
-   }
-
-
-   pub fn current_kstack_top() -> usize {
-       current_task()
-           .unwrap()
-           .kstack
-           .get_top()
-   }
-
-
-
-
-进程管理中与线程相关的处理
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-.. code-block:: rust
-   :linenos:
-
-   // os/src/syscall/process.rs
-   
-   pub fn sys_fork() -> isize {
-       let current_process = current_process();
-       let new_process = current_process.fork();
-       let new_pid = new_process.getpid();
-       // modify trap context of new_task, because it returns immediately after switching
-       let new_process_inner = new_process.inner_exclusive_access();
-       let task = new_process_inner.tasks[0].as_ref().unwrap();
-       let trap_cx = task.inner_exclusive_access().get_trap_cx();
-       // we do not have to move to next instruction since we have done it before
-       // for child process, fork returns 0
-       trap_cx.x[10] = 0;
-       new_pid as isize
-   }
-
-
+线程执行中的特权级切换与第三章中 **任务切换的设计与实现** 小节中讲解的过程是一致的。而线程执行中的调度切换过程与第五章的 **进程调度机制** 小节中讲解的过程是一致的。
+这里就不用再赘述一遍了。
 
 
 .. [#dak] 达科塔盗龙是一种生存于距今6700万-6500万年前白垩纪晚期的兽脚类驰龙科恐龙，它主打的并不是霸王龙的力量路线，而是利用自己修长的后肢来提高敏捷度和奔跑速度。它全身几乎都长满了羽毛，可能会滑翔或者其他接近飞行行为的行动模式。
