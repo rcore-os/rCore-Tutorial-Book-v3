@@ -291,7 +291,6 @@ TAS原子指令完成返回old_ptr指向的旧值，同时更新为new的新值�
 
     fn lock(mutex: &mut i32) {
     	while (TestAndSet(mutex, 1) == 1);
-    	*mutex = 1;
     }
     
     fn unlock(mutex: &mut i32){
@@ -366,9 +365,193 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
 .. chyyuu https://github.com/riscv/riscv-isa-manual/blob/master/src/a.tex
 
 
+基于硬件实现的锁简洁有效，但在某些场景下会效率低下。比如两个线程运行在单处理器上，当一个线程持有锁时，被中断并切换到第二个线程。第二个线程想去获取锁，发现锁已经被前一个线程持有，导致它不得不自旋忙等，直到其时间片耗尽后，被中断并切换回第一个线程。如果有多个线程去竞争一个锁，那么浪费的时间片会更多。要想提高效率，减少不必要的处理器空转的资源浪费，就需要操作系统的帮忙了。
 
 内核态操作系统级方法实现锁
 -----------------------------------------
 
-实现锁：Mutex系统调用
+
+实现锁：yield系统调用
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+解决忙等的简单方法就是线程主动放弃处理器，而这可以通过操作系统提供的 ``yield`` 系统调用就可以达到目的。
+
+
+.. code-block:: Rust
+    :linenos:
+
+    static mut mutex :i32 = 0;
+
+    fn lock(mutex: &mut i32) {
+    	while (TestAndSet(mutex, 1) == 1){
+    	   yield_();
+    	}
+    }
+    
+    fn unlock(mutex: &mut i32){
+    	*mutex = 0;
+    }
+
+
+当线程可以调用 ``yield`` 系统调用后，它就会主动放弃CPU，从运行（running）态变为就绪（ready）态，让其他线程运行。
+
+在有许多线程反复竞争一把锁的情况下，一个线程持有锁，但在释放锁之前被抢占，这时其他多个线程分别调用lock()，发现锁被抢占，然后执行线程切换让出CPU。这种方法引入了多次不必要的线程切换，仍然开销比较大。这时让拿不到锁的线程睡眠，就成为了一个更有效的手段了。
+
+考虑到目前的操作系统中有一个可以让线程睡眠的 ``sleep`` 系统调用，但这种系统调用只能让线程直接休眠（处于阻塞状态）一个固定的睡眠时间。但线程实际可以再次能测试锁的时间其实是不确定的。这两个时间很难彼此接近，导致引入不必要的切换或等待。所以，简单的采用 ``sleep`` 系统调用也是不合适的。
+
+
+实现锁：mutex系统调用
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+使用mutex系统调用
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+既然上面的方法存在这样那样的开销，我们需要进一步思考一下，如何能够减少开销。一个自然的想法就是，让等待锁的线程睡眠，让释放说的线程显式地唤醒等待锁的线程。如果有多个等待锁的线程，可以全部释放，让大家再次竞争锁；也可以只释放最早等待的那个线程。这就需要更多的操作系统支持，特别是需要一个等待队列来保存等待锁的线程。
+
+我们先看看多线程应用程序如何使用mutex系统调用的：
+
+
+.. code-block:: Rust
+    :linenos:
+    :emphasize-lines: 8,13,21
+
+    //user/src/bin/race_adder_mutex_blocking.rs
+
+	static mut A: usize = 0;
+	...
+	unsafe fn f() -> ! {
+	    let mut t = 2usize;
+	    for _ in 0..PER_THREAD {
+	        mutex_lock(0);
+	        let a = &mut A as *mut usize;
+	        let cur = a.read_volatile();
+	        for _ in 0..500 { t = t * t % 10007; }
+	        a.write_volatile(cur + 1);
+	        mutex_unlock(0);
+	    }
+	    exit(t as i32)
+	}
+
+	#[no_mangle]
+	pub fn main() -> i32 {
+	    let start = get_time();
+	    assert_eq!(mutex_blocking_create(), 0);
+	    let mut v = Vec::new();    
+	    for _ in 0..THREAD_COUNT {
+	        v.push(thread_create(f as usize, 0) as usize);
+	    }
+	    ...
+	}
+
+- 第21行，创建了一个ID为 ``0`` 的互斥锁；
+- 第8行，尝试获取锁，如果取得锁，将继续向下执行临界区代码；如果没有取得锁，将阻塞；
+- 第13行，释放锁，如果有等待在该锁上的线程，则唤醒这些等待线程。
+
+
+mutex系统调用接口与实现
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: Rust
+    :linenos:
+
+	pub fn sys_mutex_create(blocking: bool) -> isize {
+	    syscall(SYSCALL_MUTEX_CREATE, [blocking as usize, 0, 0])
+	}
+
+	pub fn sys_mutex_lock(id: usize) -> isize {
+	    syscall(SYSCALL_MUTEX_LOCK, [id, 0, 0])
+	}
+
+	pub fn sys_mutex_unlock(id: usize) -> isize {
+	    syscall(SYSCALL_MUTEX_UNLOCK, [id, 0, 0])
+	}    
+
+
+
+
+.. code-block:: Rust
+    :linenos:
+
+	pub struct ProcessControlBlock {
+	    // immutable
+	    pub pid: PidHandle,
+	    // mutable
+	    inner: UPSafeCell<ProcessControlBlockInner>,
+	}
+
+	pub struct ProcessControlBlockInner {
+	    ...
+	    pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
+	}
+
+	pub trait Mutex: Sync + Send {
+	    fn lock(&self);
+	    fn unlock(&self);
+	}
+
+	pub struct MutexBlocking {
+	    inner: UPSafeCell<MutexBlockingInner>,
+	}
+
+	pub struct MutexBlockingInner {
+	    locked: bool,
+	    wait_queue: VecDeque<Arc<TaskControlBlock>>,
+	}
+
+
+	
+.. code-block:: Rust
+    :linenos:
+
+	pub fn sys_mutex_create(blocking: bool) -> isize {
+	    let process = current_process();
+	    let mut process_inner = process.inner_exclusive_access();
+	    if let Some(id) = process_inner
+	        .mutex_list
+	        .iter()
+	        .enumerate()
+	        .find(|(_, item)| item.is_none())
+	        .map(|(id, _)| id) {
+	        process_inner.mutex_list[id] = if !blocking {
+	            Some(Arc::new(MutexSpin::new()))
+	        } else {
+	            Some(Arc::new(MutexBlocking::new()))
+	        };
+	        id as isize
+	    } else {
+	        process_inner.mutex_list.push(Some(Arc::new(MutexSpin::new())));
+	        process_inner.mutex_list.len() as isize - 1
+	    }
+	}
+
+
+
+.. code-block:: Rust
+    :linenos:		
+
+	pub fn sys_mutex_lock(mutex_id: usize) -> isize {
+	    let process = current_process();
+	    let process_inner = process.inner_exclusive_access();
+	    let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
+	    drop(process_inner);
+	    drop(process);
+	    mutex.lock();
+	    0
+	}    
+
+
+
+.. code-block:: Rust
+    :linenos:	
+
+	pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
+	    let process = current_process();
+	    let process_inner = process.inner_exclusive_access();
+	    let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
+	    drop(process_inner);
+	    drop(process);
+	    mutex.unlock();
+	    0
+	}    
