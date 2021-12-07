@@ -194,18 +194,176 @@
 
 这意味着线程T0 和 T1 不可能同时成功地执行它们的 while 语句，因为 turn 的值只可能为 0 或 1，而不可能同时为两个值。因此，如果turn的值为j, 那么只有一个线程 Tj 能成功跳出 while 语句，而另外一个线程 Ti 不得不再次陷入判断（“turn == j”）的循环而无法跳出。最终结果是，只要在临界区内，flag[j]==true 和 turn==j 就同时成立。这就保证了只有一个线程能进入临界区的互斥性。
 
+.. chyyuu   性能上有不足，需要说明???  也可介绍一下peterson 算法
 
 机器指令硬件级方法实现锁
 -----------------------------------------
 
+导致多线程结果不确定的一个重要因素是操作系统随时有可能切换线程。如果操作系统在临界区执行时，无法进行线程调度和切换，就可以解决结果不确定的问题了。
+而操作系统能抢占式调度的一个前提是硬件中断机制，如时钟中断能确保操作系统按时获得对处理器的控制权。如果应用程序能够控制中断的打开/使能与关闭/屏蔽，那就能提供互斥解决方案了。代码如下：
 
+
+.. code-block:: Rust
+    :linenos:
+  
+    fn lock() {
+    	disableInterrupt(); //屏蔽中断的机器指令
+    }
+    
+    fn unlock() {
+    	enableInterrupt(); ////使能中断的机器指令
+    }
+    
+这个方法的特点是简单。没有中断，线程可以确信它的代码会继续执行下去，不会被其他线程干扰。注：目前实现的操作系统内核就是在屏蔽中断的情况下执行的。
+
+但这种方法也有不足之处，它给了用户态程序执行特权操作的能力。如果用户态线程在执行过程中刻意关闭中断，它就可以独占处理器，让操作系统无法获得对处理器的控制权。
+
+另外，这种方法不支持多处理器。如果多个线程运行在不同的处理器上，每个线程都试图进入同一个临界区，它关闭的中断只对其正在运行的处理器有效，其他线程可以运行在其他处理器上，还是能够进入临界区，无法保证互斥性。所以，采用控制中断的方式仅对一些非常简单，且信任应用的单处理器场景有效，而对于更广泛的其他场景是不够的。
+　
 
 实现锁：原子指令
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+再次关注一下之前不成功的朴素的锁实现，我们可以看到其主要的问题是第2行读 ``mutex`` 和第3行写 ``mutex`` 之间，可以被操作系统切换出去，导致其产生不确定的结果。
 
-实现锁：链接的加载和条件式存储指令
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. code-block:: Rust
+    :linenos:
+    :emphasize-lines: 2-3
+
+    fn lock(mutex: i32) {
+    	while (mutex);
+    	mutex = 1;
+    }
+    
+
+CAS原子指令和TAS原子指令
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+如果能完成读写一个变量的两个操作是一条不会被操作系统打断的机器指令来执行，那我们就可以很容易实现锁机制了，这种机器指令我们称为原子指令。
+
+假定处理器体系结构提供了一条原子指令：比较并交换(Compare-And-Swap，简称CAS)指令，即
+比较一个寄存器中的值和另一个寄存器中的内存地址指向的值,如果它们相等,将第三个寄
+存器中的值和内存中的值进行交换。这是一条通用的同步指令，在SPARC系统中是 ``compare-and-swap``  指令，在x86系统是 ``compare-and-exchange`` 指令。
+其伪代码如下：
+
+.. code-block:: Rust
+    :linenos:
+
+    fn CompareAndSwap(ptr: *i32, expected: i32, new: i32) -> i32 {
+        let actual :i32 = *ptr;
+        if actual == expected {
+            *ptr = new;
+        }
+        actual
+    }
+
+    fn lock(lock : *i32) {
+        while (CompareAndSwap(lock, 0, 1) == 1);
+    }
+
+比较并交换原子指令的基本思路是检测ptr指向的实际值是否和expected相等；如果相等，更新ptr所指的值为new值；最后返回该内存地址之前指向的实际值。有了比较并交换指令，就可以实现对锁读写的原子操作了。在lock函数中，检查锁标志是否为0，如果是，原子地交换为1，从而获得锁。锁被持有时，竞争锁的线程会忙等在while循环中。
+
+
+尽管上面例子的想法很好，但没有硬件的支持是无法实现的。幸运的是，一些系统提供了这一指令，支持基于这种概念创建简单的锁。这个更强大的指令有不同的名字：在SPARC上，这个指令叫ldstub（load/store unsigned byte，加载/保存无符号字节）；在x86上，是xchg（atomic exchange，原子交换）指令。但它们基本上在不同的平台上做同样的事，
+
+
+假定处理器体系结构提供了另外一条原子指令：测试并设置（Test-And-Set，简称 TAS）。因为既可以测试旧值，又可以设置新值，所以我们把这条指令叫作“测试并设置”。其伪代码如下所示：
+
+
+.. code-block:: Rust
+    :linenos:
+
+    fn TestAndSet(old_ptr: &mut i32, new:i32) -> i32 {
+        let old ：i32 = *old_ptr; // 取得 old_ptr 指向内存单元的旧值 old
+        *old_ptr = new;           // 把新值 new 存入到 old_ptr 指向的内存单元中
+        old                       // 返回旧值 old
+    }
+
+TAS原子指令完成返回old_ptr指向的旧值，同时更新为new的新值这一整个原子操作。基于这一条指令就可以实现一个简单的自旋锁（spin lock）。
+
+我们来确保理解为什么这个锁能工作。首先假设一个线程在运行，调用lock()，没有其他线程持有锁，所以flag是0。当调用TestAndSet(flag, 1)方法，返回0，线程会跳出while循环，获取锁。同时也会原子的设置flag为1，标志锁已经被持有。当线程离开临界区，调用unlock()将flag清理为0。
+
+
+.. code-block:: Rust
+    :linenos:
+
+    static mut mutex :i32 = 0;
+
+    fn lock(mutex: &mut i32) {
+    	while (TestAndSet(mutex, 1) == 1);
+    	*mutex = 1;
+    }
+    
+    fn unlock(mutex: &mut i32){
+    	*mutex = 0;
+    }
+
+
+在一开始时，假设一个线程在运行，调用lock()，没有其他线程持有锁，所以mutex为0。当调用TestAndSet(&mutex, 1)函数后，返回0，线程会跳出while循环，获取锁。同时也会原子的设置mutex为1，标志锁已经被持有。当线程离开临界区，调用unlock(mutex)将mutex设置为0，表示没有线程在临界区，其他线程可以尝试获取锁。
+
+
+如果当某线程已经持有锁（即mutex为1），而另外的线程调用lock(mutex)函数，然后调用TestAndSet(&mutex, 1)函数，这一次将返回1，导致该线程会一直执行while循环。只要某线程一直持有锁，TestAndSet()会重复返回1，导致另外的其他线程会一直自旋忙等。当某线程离开临界区时，会调用unlock(mutex) 函数把mutex改为0，这之后另外的其他一个线程会调用TestAndSet()，返回0并且原子地设置为1，从而获得锁，进入临界区。这样进行了对临界区的互斥保证。
+
+这里的关键是将测试（读旧的锁值）和设置（写新的锁值）合并为一个原子操作，从而保证只有一个线程能获取锁，达到互斥的要求。
+
+注：如果是单处理器环境，要求操作系统支持抢占式调度，否则自旋锁无法使用，因为一个自旋的线程永远不会放弃处理器。
+
+
+RISC-V的AMO指令与LR/SC指令
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+RISC-V 指令集虽然没有TAS指令和CAS指令，但它提供了一个可选的原子指令集合，主要有两类：
+
+-  内存原子操作(AMO)
+- 加载保留/条件存储(Load Reserved / Store Conditional，检查LR/SC)
+
+
+AMO 类的指令对内存中的操作数执行一个原子的读写操作，并将目标寄存器设置为操作前的内存值。 **原子** 在这里表示指令在执行内存读写之间的过程不会被打断，内存值也不会被其它处理器修改。
+LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读取一个内存字，存入目标寄存器中，并留下这个字的保留记录。而如果SR指令的目标地址上存在保留
+记录，它就把字存入这个地址。如果存入成功，它向目标寄存器中写入 0，否则写入一个非 0 值，表示错误码。
+
+这里我们可以用LR/SC来实现TAS原子指令和CAS原子指令：
+
+.. code-block:: Asm
+    :linenos:
+
+    # RISC-V sequence for implementing a TAS  at (s1)
+	li t2, 1  
+	Try: lr  t1, s1 
+	     bne t1, x0, Try 
+	     sc  t0, s1, t2 
+	     bne t0, x0, Try 
+	Locked: 
+	     # critical section 
+	Unlock: 
+	     sw x0,0(s1)
+
+.. chyyuu https://inst.eecs.berkeley.edu/~cs61c/sp19/pdfs/lectures/lec20.pdf
+
+
+
+.. code-block:: Asm
+    :linenos:
+
+    	# Sample code for compare-and-swap function using LR/SC
+
+        # a0 holds address of memory location
+        # a1 holds expected value
+        # a2 holds desired value
+        # a0 holds return value, 0 if successful, !0 otherwise
+    cas:
+        lr.w t0, (a0)        # Load original value.
+        bne t0, a1, fail     # Doesn't match, so fail.
+        sc.w t0, a2, (a0)    # Try to update.
+        bnez t0, cas         # Retry if store-conditional failed.
+        li a0, 0             # Set return to success.
+        jr ra                # Return.
+    fail:
+        li a0, 1             # Set return to failure.
+        jr ra                # Return.
+
+
+.. chyyuu https://github.com/riscv/riscv-isa-manual/blob/master/src/a.tex
 
 
 
