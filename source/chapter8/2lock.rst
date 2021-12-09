@@ -415,9 +415,9 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
 
 .. code-block:: Rust
     :linenos:
-    :emphasize-lines: 8,13,21
+    :emphasize-lines: 8,13,21,32,35,38
 
-    //user/src/bin/race_adder_mutex_blocking.rs
+    // user/src/bin/race_adder_mutex_blocking.rs
 
 	static mut A: usize = 0;
 	...
@@ -445,34 +445,36 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
 	    ...
 	}
 
-- 第21行，创建了一个ID为 ``0`` 的互斥锁；
-- 第8行，尝试获取锁，如果取得锁，将继续向下执行临界区代码；如果没有取得锁，将阻塞；
-- 第13行，释放锁，如果有等待在该锁上的线程，则唤醒这些等待线程。
-
-
-mutex系统调用接口与实现
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: Rust
-    :linenos:
+    // usr/src/syscall.rs
 
 	pub fn sys_mutex_create(blocking: bool) -> isize {
 	    syscall(SYSCALL_MUTEX_CREATE, [blocking as usize, 0, 0])
 	}
-
 	pub fn sys_mutex_lock(id: usize) -> isize {
 	    syscall(SYSCALL_MUTEX_LOCK, [id, 0, 0])
 	}
-
 	pub fn sys_mutex_unlock(id: usize) -> isize {
 	    syscall(SYSCALL_MUTEX_UNLOCK, [id, 0, 0])
 	}    
 
 
+- 第21行，创建了一个ID为 ``0`` 的互斥锁，对应的是第32行 ``SYSCALL_MUTEX_CREATE`` 系统调用；
+- 第8行，尝试获取锁（对应的是第35行 ``SYSCALL_MUTEX_LOCK`` 系统调用），如果取得锁，将继续向下执行临界区代码；如果没有取得锁，将阻塞；
+- 第13行，释放锁（对应的是第38行 ``SYSCALL_MUTEX_UNLOCK`` 系统调用），如果有等待在该锁上的线程，则唤醒这些等待线程。
+
+
+
+mutex系统调用的实现
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+操作系统如何实现这些系统调用呢？首先考虑一下与此相关的核心数据结构，然后考虑与数据结构相关的相关函数/方法的实现。
+
+在线程的眼里，**互斥** 是一种每个线程能看到的资源，且在一个进程中，可以存在多个不同互斥资源，所以我们可以把所有的互斥资源放在一起让进程来管理，如下面代码第9行所示。这里需要注意的是： ``mutex_list: Vec<Option<Arc<dyn Mutex>>>`` 表示的等待队列是实现了 ``Mutex`` trait 的一个“互斥资源”的向量。而 ``MutexBlocking`` 是会实现 ``Mutex`` trait 的内核数据结构，它就是我们提到的 ``互斥资源`` 即 **互斥锁** 。操作系统需要显式地施加某种控制，来确定当一个线程释放锁时，等待的线程谁将能抢到锁。为了做到这一点，操作系统需要有一个等待队列来保存等待锁的线程，如下面代码的第20行所示。
 
 
 .. code-block:: Rust
     :linenos:
+    :emphasize-lines: 9,20
 
 	pub struct ProcessControlBlock {
 	    // immutable
@@ -480,31 +482,33 @@ mutex系统调用接口与实现
 	    // mutable
 	    inner: UPSafeCell<ProcessControlBlockInner>,
 	}
-
 	pub struct ProcessControlBlockInner {
 	    ...
 	    pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
 	}
-
 	pub trait Mutex: Sync + Send {
 	    fn lock(&self);
 	    fn unlock(&self);
 	}
-
 	pub struct MutexBlocking {
 	    inner: UPSafeCell<MutexBlockingInner>,
 	}
-
 	pub struct MutexBlockingInner {
 	    locked: bool,
 	    wait_queue: VecDeque<Arc<TaskControlBlock>>,
 	}
 
 
+这样，在操作系统中，需要设计实现三个核心成员变量。互斥锁的成员变量有两个：表示是否锁上的 ``locked`` 和管理等待线程的等待队列 ``wait_queue``；进程的成员变量：锁向量 ``mutex_list`` 。
+
 	
+首先需要创建一个互斥锁，下面是应对``SYSCALL_MUTEX_CREATE`` 系统调用的创建互斥锁的函数：	
+
 .. code-block:: Rust
     :linenos:
+    :emphasize-lines: 14,30
 
+	// os/src/syscall/sync.rs
 	pub fn sys_mutex_create(blocking: bool) -> isize {
 	    let process = current_process();
 	    let mut process_inner = process.inner_exclusive_access();
@@ -526,11 +530,17 @@ mutex系统调用接口与实现
 	    }
 	}
 
+- 第14行，如果向量中有空的元素，就在这个空元素的位置创建一个可睡眠的互斥锁；
+- 第30行，如果向量满了，就在向量中添加新的可睡眠的互斥锁；
 
+
+有了互斥锁，接下来就是实现 ``Mutex`` trait的内核函数：对应 ``SYSCALL_MUTEX_LOCK`` 系统调用的 ``sys_mutex_lock`` 。操作系统主要工作是，在锁已被其他线程获取的情况下，把当前线程放到等待队列中，并调度一个新线程执行。主要代码如下：
 
 .. code-block:: Rust
     :linenos:		
+    :emphasize-lines: 8,15,16,18,20
 
+    // os/src/syscall/sync.rs
 	pub fn sys_mutex_lock(mutex_id: usize) -> isize {
 	    let process = current_process();
 	    let process_inner = process.inner_exclusive_access();
@@ -540,12 +550,34 @@ mutex系统调用接口与实现
 	    mutex.lock();
 	    0
 	}    
+	// os/src/sync/mutex.rs
+	impl Mutex for MutexBlocking {
+	    fn lock(&self) {
+	        let mut mutex_inner = self.inner.exclusive_access();
+	        if mutex_inner.locked {
+	            mutex_inner.wait_queue.push_back(current_task().unwrap());
+	            drop(mutex_inner);
+	            block_current_and_run_next();
+	        } else {
+	            mutex_inner.locked = true;
+	        }
+	    }
+	}
 
 
+.. chyyuu drop的作用？？？
+
+- 第 8 行，调用ID为mutex_id的互斥锁mutex的lock方法，具体工作由lock方法来完成的。
+- 第15行，如果互斥锁mutex已经被其他线程获取了，	那么在第16行，将把当前线程放入等待队列中，在第18行，并让当前线程处于等待状态，并调度其他线程执行。
+- 第20行，如果互斥锁mutex还没被获取，那么当前线程会获取给互斥锁，并返回系统调用。
+
+
+最后是实现 ``Mutex`` trait的内核函数：对应 ``SYSCALL_MUTEX_UNLOCK`` 系统调用的 ``sys_mutex_unlock`` 。操作系统的主要工作是，如果有等待在这个互斥锁上的线程，需要唤醒最早等待的线程。主要代码如下：
 
 .. code-block:: Rust
     :linenos:	
 
+    // os/src/syscall/sync.rs
 	pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
 	    let process = current_process();
 	    let process_inner = process.inner_exclusive_access();
@@ -554,4 +586,21 @@ mutex系统调用接口与实现
 	    drop(process);
 	    mutex.unlock();
 	    0
-	}    
+	}
+	// os/src/sync/mutex.rs
+	impl Mutex for MutexBlocking {	
+	    fn unlock(&self) {
+	        let mut mutex_inner = self.inner.exclusive_access(); 
+	        assert_eq!(mutex_inner.locked, true);
+	        mutex_inner.locked = false;
+	        if let Some(waking_task) = mutex_inner.wait_queue.pop_front() {
+	            add_task(waking_task);
+	        }
+	    }
+	}	    
+
+- 第8行，调用ID为mutex_id的互斥锁mutex的unlock方法，具体工作由unlock方法来完成的。
+- 第16行，释放锁。
+- 第17-18行，如果有等待的线程，唤醒等待最久的那个线程。
+
+
