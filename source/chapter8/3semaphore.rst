@@ -122,63 +122,93 @@ V操作会对信号量的值加1，然后检查是否有一个或多个线程在
 使用semaphore系统调用
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+下面是面向应用程序对信号量系统调用接口的简单使用：
+
+.. code-block:: rust
+    :linenos:
+
+    const SEM_SYNC: usize = 0;
 
 
-pub fn sys_semaphore_create(res_count: usize) -> isize {
-    syscall(SYSCALL_SEMAPHORE_CREATE, [res_count, 0, 0])
-}
+    unsafe fn first() -> ! {
+        sleep(10);
+        println!("First work and wakeup Second");
+        semaphore_up(SEM_SYNC);
+        exit(0)
+    }
 
-pub fn sys_semaphore_up(sem_id: usize) -> isize {
-    syscall(SYSCALL_SEMAPHORE_UP, [sem_id, 0, 0])
-}
+    unsafe fn second() -> ! {
+        println!("Second want to continue,but need to wait first");
+        semaphore_down(SEM_SYNC);
+        println!("Second can work now");
+        exit(0)
+    }
 
-pub fn sys_semaphore_down(sem_id: usize) -> isize {
-    syscall(SYSCALL_SEMAPHORE_DOWN, [sem_id, 0, 0])
-}
+    #[no_mangle]
+    pub fn main() -> i32 {
+        // create semaphores
+        assert_eq!(semaphore_create(0) as usize, SEM_SYNC);
+        // create first, second threads
+        ...
+    }
+
+    pub fn sys_semaphore_create(res_count: usize) -> isize {
+        syscall(SYSCALL_SEMAPHORE_CREATE, [res_count, 0, 0])
+    }
+
+    pub fn sys_semaphore_up(sem_id: usize) -> isize {
+        syscall(SYSCALL_SEMAPHORE_UP, [sem_id, 0, 0])
+    }
+
+    pub fn sys_semaphore_down(sem_id: usize) -> isize {
+        syscall(SYSCALL_SEMAPHORE_DOWN, [sem_id, 0, 0])
+    }
 
 
 
 实现semaphore系统调用
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. code-block:: rust
+    :linenos:
 
-pub struct SemaphoreInner {
-    pub count: isize,
-    pub wait_queue: VecDeque<Arc<TaskControlBlock>>,
-}
-
-impl Semaphore {
-    pub fn new(res_count: usize) -> Self {
-        Self {
-            inner: unsafe { UPSafeCell::new(
-                SemaphoreInner {
-                    count: res_count as isize,
-                    wait_queue: VecDeque::new(),
-                }
-            )},
-        }
+    pub struct SemaphoreInner {
+        pub count: isize,
+        pub wait_queue: VecDeque<Arc<TaskControlBlock>>,
     }
 
-    pub fn up(&self) {
-        let mut inner = self.inner.exclusive_access();
-        inner.count += 1;
-        if inner.count <= 0 {
-            if let Some(task) = inner.wait_queue.pop_front() {
-                add_task(task);
+    impl Semaphore {
+        pub fn new(res_count: usize) -> Self {
+            Self {
+                inner: unsafe { UPSafeCell::new(
+                    SemaphoreInner {
+                        count: res_count as isize,
+                        wait_queue: VecDeque::new(),
+                    }
+                )},
+            }
+        }
+
+        pub fn up(&self) {
+            let mut inner = self.inner.exclusive_access();
+            inner.count += 1;
+            if inner.count <= 0 {
+                if let Some(task) = inner.wait_queue.pop_front() {
+                    add_task(task);
+                }
+            }
+        }
+
+        pub fn down(&self) {
+            let mut inner = self.inner.exclusive_access();
+            inner.count -= 1;
+            if inner.count < 0 {
+                inner.wait_queue.push_back(current_task().unwrap());
+                drop(inner);
+                block_current_and_run_next();
             }
         }
     }
-
-    pub fn down(&self) {
-        let mut inner = self.inner.exclusive_access();
-        inner.count -= 1;
-        if inner.count < 0 {
-            inner.wait_queue.push_back(current_task().unwrap());
-            drop(inner);
-            block_current_and_run_next();
-        }
-    }
-}
 
 
 
