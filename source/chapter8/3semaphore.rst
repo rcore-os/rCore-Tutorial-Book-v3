@@ -122,32 +122,30 @@ V操作会对信号量的值加1，然后检查是否有一个或多个线程在
 使用semaphore系统调用
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-下面是面向应用程序对信号量系统调用接口的简单使用：
+我们通过例子来看看如何实际使用信号量。下面是面向应用程序对信号量系统调用的简单使用，可以看到对它的使用与上一节介绍的互斥锁系统调用类似。
+在这个例子中，主线程先创建了信号量初值为0的信号量SEM_SYNC，然后再创建两个线程 First和Second。线程First和会先睡眠10ms，而当线程Second执行时，会由于执行信号量的P操作而等待睡眠；但线程First醒来后，会执行V操作，
+从而能够唤醒线程Second。这样线程First和线程Second就形成了一种稳定的同步关系。
 
 .. code-block:: rust
     :linenos:
+    :emphasize-lines: 5,10,16,22,25,28
 
-    const SEM_SYNC: usize = 0;
-
-
+    const SEM_SYNC: usize = 0; //信号量ID
     unsafe fn first() -> ! {
         sleep(10);
         println!("First work and wakeup Second");
-        semaphore_up(SEM_SYNC);
+        semaphore_up(SEM_SYNC); //信号量V操作
         exit(0)
     }
-
     unsafe fn second() -> ! {
         println!("Second want to continue,but need to wait first");
-        semaphore_down(SEM_SYNC);
+        semaphore_down(SEM_SYNC); //信号量P操作
         println!("Second can work now");
         exit(0)
     }
-
-    #[no_mangle]
     pub fn main() -> i32 {
         // create semaphores
-        assert_eq!(semaphore_create(0) as usize, SEM_SYNC);
+        assert_eq!(semaphore_create(0) as usize, SEM_SYNC); // 信号量初值为0
         // create first, second threads
         ...
     }
@@ -155,28 +153,49 @@ V操作会对信号量的值加1，然后检查是否有一个或多个线程在
     pub fn sys_semaphore_create(res_count: usize) -> isize {
         syscall(SYSCALL_SEMAPHORE_CREATE, [res_count, 0, 0])
     }
-
     pub fn sys_semaphore_up(sem_id: usize) -> isize {
         syscall(SYSCALL_SEMAPHORE_UP, [sem_id, 0, 0])
     }
-
     pub fn sys_semaphore_down(sem_id: usize) -> isize {
         syscall(SYSCALL_SEMAPHORE_DOWN, [sem_id, 0, 0])
     }
 
 
+- 第16行，创建了一个初值为0，ID为 SEM_SYNC 的信号量，对应的是第22行 SYSCALL_SEMAPHORE_CREATE 系统调用；
+- 第10行，线程Second执行信号量P操作（对应的是第28行 SYSCALL_SEMAPHORE_DOWN 系统调用），由于信号量初值为0，该线程将阻塞；
+- 第5行，线程First执行信号量V操作（对应的是第25行 SYSCALL_SEMAPHORE_UP 系统调用），会唤醒等待该信号量的线程Second。
 
 实现semaphore系统调用
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+操作系统如何实现信号量系统调用呢？我们还是采用通常的分析做法：数据结构+方法，即首先考虑一下与此相关的核心数据结构，然后考虑与数据结构相关的相关函数/方法的实现。
+
+在线程的眼里，信号量 是一种每个线程能看到的共享资源，且在一个进程中，可以存在多个不同信号量资源，所以我们可以把所有的信号量资源放在一起让进程来管理，如下面代码第9行所示。这里需要注意的是： emaphore_list: Vec<Option<Arc<Semaphore>>> 表示的是信号量资源的列表。而 Semaphore 是信号量的内核数据结构，有信号量值和等待队列组成。操作系统需要显式地施加某种控制，来确定当一个线程执行P操作和V操作时，如何让线程睡眠或唤醒线程。在这里，P操作是由Semaphore的down方法实现，而V操作是由Semaphore的up方法实现。
+
+
 .. code-block:: rust
     :linenos:
+    :emphasize-lines: 9,16,17
 
+    pub struct ProcessControlBlock {
+        // immutable
+        pub pid: PidHandle,
+        // mutable
+        inner: UPSafeCell<ProcessControlBlockInner>,
+    }
+    pub struct ProcessControlBlockInner {
+        ...
+        pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
+    }
+
+    pub struct Semaphore {
+        pub inner: UPSafeCell<SemaphoreInner>,
+    }
     pub struct SemaphoreInner {
         pub count: isize,
         pub wait_queue: VecDeque<Arc<TaskControlBlock>>,
     }
-
     impl Semaphore {
         pub fn new(res_count: usize) -> Self {
             Self {
@@ -210,6 +229,17 @@ V操作会对信号量的值加1，然后检查是否有一个或多个线程在
         }
     }
 
+
+首先是核心数据结构：
+
+- 第9行，进程控制块中管理的信号量列表。
+- 第16-17行，信号量的核心数据成员：信号量值和等待队列。
+
+然后是重要的三个成员函数：
+
+- 第20行，创建信号量，信号量初值为参数 res_count。
+- 第31行，实现V操作的up函数，第34行，当信号量值小于等于0时，将从信号量的等待队列中弹出一个线程放入线程就绪队列。
+- 第41行，实现P操作的down函数，第44行，当信号量值小于0时，将把当前线程放入信号量的等待队列，设置当前线程为挂起状态并选择新线程执行。
 
 
 Dijkstra, Edsger W. Cooperating sequential processes (EWD-123) (PDF). E.W. Dijkstra Archive. Center for American History, University of Texas at Austin. (transcription) (September 1965)  https://www.cs.utexas.edu/users/EWD/transcriptions/EWD01xx/EWD123.html
