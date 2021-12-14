@@ -37,6 +37,7 @@ rCore-Tutorial-Book 第三版
    appendix-b/index
    appendix-c/index
    appendix-d/index
+   appendix-e/index
    terminology
 
 .. toctree::
