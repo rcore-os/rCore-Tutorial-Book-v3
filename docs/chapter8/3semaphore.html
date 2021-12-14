@@ -131,16 +131,21 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：文件系统与I/O重定向</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第八章：并发</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
-<li class="toctree-l2"><a class="reference internal" href="1thread.html">线程并发</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1thread.html">用户态的线程管理</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1thread-kernel.html">内核态的线程管理</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2lock.html">锁机制</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">信号量机制</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">信号量的起源和基本思路</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">实现信号量</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#semaphore">使用semaphore系统调用</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5">实现semaphore系统调用</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="4condition-variable.html">条件变量机制</a></li>
-<li class="toctree-l2"><a class="reference internal" href="5deadlock.html">死锁</a></li>
-<li class="toctree-l2"><a class="reference internal" href="6concurrency-problem.html">并发中的问题</a></li>
-<li class="toctree-l2"><a class="reference internal" href="7extended-reading.html">扩展阅读</a></li>
+<li class="toctree-l2"><a class="reference internal" href="5concurrency-problem.html">并发中的问题</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter9/index.html">第九章：I/O设备管理</a></li>
@@ -230,6 +235,315 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h1>信号量机制<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
 <div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>在上一节中，我们介绍了互斥锁（mutex 或  lock）的起因、使用和实现过程。通过互斥锁，可以让线程在临界区执行时，独占临界资源。当我们需要更灵活的互斥访问或同步操作方式，如提供了最多只允许N个线程访问临界资源的情况，让某个线程等待另外一个线程执行完毕后再继续执行的同步过程等，互斥锁这种方式就有点力不从心了。</p>
+<p>在本节中，将介绍功能更加强大和灵活的同步互斥机制 – Semaphore（信号量），设计它的设计思路，使用和在操作系统中的具体实现。可以看到，信号量的实现需要互斥锁和处理器原子指令的支持，它是一种更高级的同步互斥机制。</p>
+</div>
+<div class="section" id="id3">
+<h2>信号量的起源和基本思路<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<p>1963年前后，当时的数学家（其实是计算机科学家）Edsger Dijkstra和他的团队正在为Electrologica X8计算机开发一个操作系统（称为 THE multiprogramming system，THE多道程序系统）的过程中，提出了信号（Semphore）是一种变量或抽象数据类型，用于控制多个线程对共同资源的访问。在1965年，Edsger Dijkstra发表了论文手稿 “Cooperating sequential processes” ，详细论述了在多个顺序代码执行流（论文用语：sequential processes）的并发执行过程中，如果没有约束机制，会有不确定的执行结果，为此他提出了信号量的设计思路，能够让这些松耦合的顺序代码执行流能进行同步操作并能对共享资源进行互斥访问。对于由于不当互斥同步操作引入的死锁（论文用语：Deadly Embrace），可通过其设计的银行家算法（The Banker’s Algorithm）来解决。</p>
+<p>注：银行家算法将在下一节讲解。</p>
+<p>Edsger Dijkstra和他的团队提出的信号量是对互斥锁的一种巧妙的扩展。上一节中的互斥锁的初始值一般设置为 1 的整型变量， 表示临界区还没有被某个线程占用。互斥锁用 0 表示临界区已经被占用了，用 1 表示临界区为空。再通过 lock/unlock 操作来协调多个线程轮流独占临界区执行。而信号量的初始值可设置为 N 的整数变量, 如果 N 大于 0， 表示最多可以有N个线程进入临界区执行，如果 N 小于等于 0 ， 表示不能有线程进入临界区了，必须在后续操作中让信号量的值加 1 ，才能唤醒某个等待的线程。</p>
+<p>Dijkstra对信号量设立两种操作：P（Proberen（荷兰语），尝试）操作和V（Verhogen（荷兰语），增加）操作。P操作是检查信号量的值是否大于0，若该值大于0，则将其值减1并继续（表示可以进入临界区了）；若该值为0，则线程将睡眠。注意，此时P操作还未结束。而且由于信号量本身是一种临界资源（可回想一下上一节的锁，其实也是一种临界资源），所以在P操作中，检查/修改信号量值以及可能发生的睡眠这一系列操作是一个不可分割的原子操作过程。通过原子操作才能保证一旦P操作开始，则在该操作完成或阻塞睡眠之前，其他线程均不允许访问该信号量。</p>
+<p>V操作会对信号量的值加1，然后检查是否有一个或多个线程在该信号量上睡眠等待。如有，则选择其中的一个线程唤醒并允许该线程继续完成它的P操作；如没有，则直接返回。注意，信号量的值加1，并可能唤醒一个线程的一系列操作同样也是不可分割的原子操作过程。不会有某个进程因执行v操作而阻塞。</p>
+<p>如果信号量是一个任意的整数，通常被称为计数信号量（Counting Semaphore），或一般信号量（General Semaphore）；如果信号量只有0或1的取值，则称为二值信号量（Binary Semaphore）。可以看出，互斥锁只是信号量的一种特例 – 二值信号量，信号量很好地解决了最多只允许N个线程访问临界资源的情况。</p>
+<p>关于一种信号量实现的伪代码如下所示：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">P</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"></span>
+<span class="w">         </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">else</span><span class="w"></span>
+<span class="w">         </span><span class="o">&lt;</span><span class="n">block</span><span class="w"> </span><span class="n">and</span><span class="w"> </span><span class="n">enqueue</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+<span class="k">fn</span> <span class="nf">V</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="o">&lt;</span><span class="n">some</span><span class="w"> </span><span class="n">threads</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">blocked</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">queue</span><span class="o">&gt;</span><span class="w"></span>
+<span class="w">         </span><span class="o">&lt;</span><span class="n">unblock</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">else</span><span class="w"></span>
+<span class="w">         </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>在上述实现中，S的取值范围为大于等于0 的整数。 S的初值一般设置为一个大于0的正整数，表示可以进入临界区的线程数。当S取值为1，表示是二值信号量，也就是互斥锁了。使用信号量实现线程互斥访问临界区的伪代码如下：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kd">let</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">S</span>: <span class="nc">semaphore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">// Thread i</span>
+<span class="k">fn</span>  <span class="nf">foo</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="p">...</span><span class="w"></span>
+<span class="w">    </span><span class="n">P</span><span class="p">(</span><span class="n">S</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">execute</span><span class="w"> </span><span class="n">Cricital</span><span class="w"> </span><span class="n">Section</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="n">V</span><span class="p">(</span><span class="n">S</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">...</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>下面是另外一种信号量实现的伪代码：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">P</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">      </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="n">then</span><span class="w"></span>
+<span class="w">         </span><span class="o">&lt;</span><span class="n">block</span><span class="w"> </span><span class="n">and</span><span class="w"> </span><span class="n">enqueue</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+<span class="k">fn</span> <span class="nf">V</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">      </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="o">&lt;</span><span class="n">some</span><span class="w"> </span><span class="n">threads</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">blocked</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">queue</span><span class="o">&gt;</span><span class="w"></span>
+<span class="w">         </span><span class="o">&lt;</span><span class="n">unblock</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>在这种实现中，S的初值一般设置为一个大于0的正整数，表示可以进入临界区的线程数。但S的取值范围可以是小于 0 的整数，表示等待进入临界区的睡眠线程数。</p>
+<p>信号量的另一种用途是用于实现同步（synchronization）。比如，把信号量的初始值设置为 0 ，当一个线程A对此信号量执行一个P操作，那么该线程立即会被阻塞睡眠。之后有另外一个线程B对此信号量执行一个V操作，就会将线程A唤醒。这样线程B中执行V操作之前的代码序列B-stmts和线程A中执行P操作之后的代码A-stmts序列之间就形成了一种确定的同步执行关系，即线程B的B-stmts会先执行，然后才是线程A的A-stmts开始执行。相关伪代码如下所示：</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kd">let</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">S</span>: <span class="nc">semaphore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">//Thread A</span>
+<span class="p">...</span><span class="w"></span>
+<span class="n">P</span><span class="p">(</span><span class="n">S</span><span class="p">);</span><span class="w"></span>
+<span class="n">Label_2</span>:
+<span class="nc">A</span><span class="o">-</span><span class="n">stmts</span><span class="w"> </span><span class="n">after</span><span class="w"> </span><span class="n">Thread</span><span class="w"> </span><span class="n">B</span>::<span class="n">Label_1</span><span class="p">;</span><span class="w"></span>
+<span class="p">...</span><span class="w"></span>
+
+<span class="c1">//Thread B</span>
+<span class="p">...</span><span class="w"></span>
+<span class="n">B</span><span class="o">-</span><span class="n">stmts</span><span class="w"> </span><span class="n">before</span><span class="w"> </span><span class="n">Thread</span><span class="w"> </span><span class="n">A</span>::<span class="n">Label_2</span><span class="p">;</span><span class="w"></span>
+<span class="n">Label_1</span>:
+<span class="nc">V</span><span class="p">(</span><span class="n">S</span><span class="p">);</span><span class="w"></span>
+
+<span class="p">...</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="id4">
+<h2>实现信号量<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<div class="section" id="semaphore">
+<h3>使用semaphore系统调用<a class="headerlink" href="#semaphore" title="永久链接至标题">¶</a></h3>
+<p>我们通过例子来看看如何实际使用信号量。下面是面向应用程序对信号量系统调用的简单使用，可以看到对它的使用与上一节介绍的互斥锁系统调用类似。
+在这个例子中，主线程先创建了信号量初值为0的信号量SEM_SYNC，然后再创建两个线程 First和Second。线程First会先睡眠10ms，而当线程Second执行时，会由于执行信号量的P操作而等待睡眠；当线程First醒来后，会执行V操作，
+从而能够唤醒线程Second。这样线程First和线程Second就形成了一种稳定的同步关系。</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">const</span><span class="w"> </span><span class="n">SEM_SYNC</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">//信号量ID</span>
+<span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">first</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;First work and wakeup Second&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="hll"><span class="w">    </span><span class="n">semaphore_up</span><span class="p">(</span><span class="n">SEM_SYNC</span><span class="p">);</span><span class="w"> </span><span class="c1">//信号量V操作</span>
+</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+<span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">second</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Second want to continue,but need to wait first&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="hll"><span class="w">    </span><span class="n">semaphore_down</span><span class="p">(</span><span class="n">SEM_SYNC</span><span class="p">);</span><span class="w"> </span><span class="c1">//信号量P操作</span>
+</span><span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Second can work now&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// create semaphores</span>
+<span class="hll"><span class="w">    </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">semaphore_create</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">SEM_SYNC</span><span class="p">);</span><span class="w"> </span><span class="c1">// 信号量初值为0</span>
+</span><span class="w">    </span><span class="c1">// create first, second threads</span>
+<span class="w">    </span><span class="p">...</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_semaphore_create</span><span class="p">(</span><span class="n">res_count</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_SEMAPHORE_CREATE</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">res_count</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
+</span><span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_semaphore_up</span><span class="p">(</span><span class="n">sem_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_SEMAPHORE_UP</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">sem_id</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
+</span><span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_semaphore_down</span><span class="p">(</span><span class="n">sem_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_SEMAPHORE_DOWN</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">sem_id</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
+</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<ul class="simple">
+<li><p>第16行，创建了一个初值为0，ID为 SEM_SYNC 的信号量，对应的是第22行 SYSCALL_SEMAPHORE_CREATE 系统调用；</p></li>
+<li><p>第10行，线程Second执行信号量P操作（对应的是第28行 SYSCALL_SEMAPHORE_DOWN 系统调用），由于信号量初值为0，该线程将阻塞；</p></li>
+<li><p>第5行，线程First执行信号量V操作（对应的是第25行 SYSCALL_SEMAPHORE_UP 系统调用），会唤醒等待该信号量的线程Second。</p></li>
+</ul>
+</div>
+<div class="section" id="id5">
+<h3>实现semaphore系统调用<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
+<p>操作系统如何实现信号量系统调用呢？我们还是采用通常的分析做法：数据结构+方法，即首先考虑一下与此相关的核心数据结构，然后考虑与数据结构相关的相关函数/方法的实现。</p>
+<p>在线程的眼里，信号量 是一种每个线程能看到的共享资源，且在一个进程中，可以存在多个不同信号量资源，所以我们可以把所有的信号量资源放在一起让进程来管理，如下面代码第9行所示。这里需要注意的是： emaphore_list: Vec&lt;Option&lt;Arc&lt;Semaphore&gt;&gt;&gt; 表示的是信号量资源的列表。而 Semaphore 是信号量的内核数据结构，由信号量值和等待队列组成。操作系统需要显式地施加某种控制，来确定当一个线程执行P操作和V操作时，如何让线程睡眠或唤醒线程。在这里，P操作是由Semaphore的down方法实现，而V操作是由Semaphore的up方法实现。</p>
+<div class="highlight-rust notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// immutable</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">pid</span>: <span class="nc">PidHandle</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// mutable</span>
+<span class="w">    </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">ProcessControlBlockInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="p">...</span><span class="w"></span>
+<span class="hll"><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">semaphore_list</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">Semaphore</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+</span><span class="p">}</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">Semaphore</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">SemaphoreInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SemaphoreInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">count</span>: <span class="kt">isize</span><span class="p">,</span><span class="w"></span>
+</span><span class="hll"><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">wait_queue</span>: <span class="nc">VecDeque</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+</span><span class="p">}</span><span class="w"></span>
+<span class="k">impl</span><span class="w"> </span><span class="n">Semaphore</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">res_count</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">inner</span>: <span class="nc">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
+<span class="w">                </span><span class="n">SemaphoreInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                    </span><span class="n">count</span>: <span class="nc">res_count</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="p">,</span><span class="w"></span>
+<span class="w">                    </span><span class="n">wait_queue</span>: <span class="nc">VecDeque</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
+<span class="w">                </span><span class="p">}</span><span class="w"></span>
+<span class="w">            </span><span class="p">)},</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">up</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">pop_front</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="n">add_task</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">down</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
+<span class="w">            </span><span class="n">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="n">block_current_and_run_next</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</td></tr></table></div>
+<p>首先是核心数据结构：</p>
+<ul class="simple">
+<li><p>第9行，进程控制块中管理的信号量列表。</p></li>
+<li><p>第16-17行，信号量的核心数据成员：信号量值和等待队列。</p></li>
+</ul>
+<p>然后是重要的三个成员函数：</p>
+<ul class="simple">
+<li><p>第20行，创建信号量，信号量初值为参数 res_count。</p></li>
+<li><p>第31行，实现V操作的up函数，第34行，当信号量值小于等于0时，将从信号量的等待队列中弹出一个线程放入线程就绪队列。</p></li>
+<li><p>第41行，实现P操作的down函数，第44行，当信号量值小于0时，将把当前线程放入信号量的等待队列，设置当前线程为挂起状态并选择新线程执行。</p></li>
+</ul>
+<p>Dijkstra, Edsger W. Cooperating sequential processes (EWD-123) (PDF). E.W. Dijkstra Archive. Center for American History, University of Texas at Austin. (transcription) (September 1965)  <a class="reference external" href="https://www.cs.utexas.edu/users/EWD/transcriptions/EWD01xx/EWD123.html">https://www.cs.utexas.edu/users/EWD/transcriptions/EWD01xx/EWD123.html</a></p>
+<p>Downey, Allen B. (2016) [2005]. “The Little Book of Semaphores” (2nd ed.). Green Tea Press.</p>
+<p>Leppäjärvi, Jouni (May 11, 2008). “A pragmatic, historically oriented survey on the universality of synchronization primitives” (pdf). University of Oulu, Finland.</p>
+</div>
 </div>
 </div>
 
