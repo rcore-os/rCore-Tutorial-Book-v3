@@ -36,6 +36,11 @@
    :align: center
    :name: fish-os
 
+
+.. chyyuu 特权级 User Mode Versus Privileged Mode 
+   https://en.wikipedia.org/wiki/CPU_modes
+   https://en.wikipedia.org/wiki/Privilege_(computing)
+
 实践体验
 ---------------------------
 

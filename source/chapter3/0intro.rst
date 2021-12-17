@@ -53,6 +53,12 @@
 
    同学可以带着这个问题继续看下去。后面我们会介绍这样做到底能够解决什么问题。
 
+
+.. chyyuu 中断的历史  https://people.cs.clemson.edu/~mark/interrupts.html  
+   http://www.cap-lore.com/Hardware/int.html
+   https://en.wikipedia.org/wiki/Interrupt
+
+
 实践体验
 -------------------------------------
 
