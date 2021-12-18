@@ -48,9 +48,19 @@
 
 如果能解决上述问题，我们就能设计实现具有超强防护能力的侏罗纪“头甲龙”操作系统。并可更好地理解地址空间，虚拟地址等操作系统的抽象概念与操作系统的虚存具体实现之间的联系。
 
-..
-  chyyuu：在哪里讲解虚存的设计与实现？？？
+.. chyyuu：在哪里讲解虚存的设计与实现？？？
 
+.. chyyuu : virtual mem, paging history
+   https://en.wikipedia.org/wiki/Atlas_Supervisor  
+
+   The Atlas Supervisor was the program which managed the allocation of processing resources of Manchester University's Atlas Computer so that the machine was able to act on many tasks and user programs concurrently.
+
+   Its various functions included running the Atlas computer's virtual memory (Atlas Supervisor paper, section 3, Store Organisation) and is ‘considered by many to be the first recognisable modern operating system’.[1] Brinch Hansen described it as "the most significant breakthrough in the history of operating systems."[2]
+
+   Lavington, Simon (1980), Early British Computers, Manchester University Press, ISBN 0-7190-0803-4
+   Brinch Hansen, Per (2000), Classic Operating Systems: From Batch Processing to Distributed Systems, Springer-Verlag
+   https://ethw.org/A_Brief_History_of_Early_British_Computers
+   https://blog.csdn.net/mightySheldor/article/details/44732029 中文 The Atlas Supervisor
 
 实践体验
 -----------------------
