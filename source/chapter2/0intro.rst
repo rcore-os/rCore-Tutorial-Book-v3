@@ -62,11 +62,12 @@
    https://multicians.org/thvv/7094.html The IBM 7094 and CTSS 是一种分时系统
    http://larch-www.lcs.mit.edu:8001/~corbato/sjcc62/
    
-   https://multicians.org/multics.html
+   https://multicians.org/MULTICS.html
    https://multicians.org/fjcc2.html  System Design of a Computer for Time Sharing Applications GE 635/645 提到特权模式 In the 645 three distinct modes of execution are defined. These are absolute, master and slave. 也提到 虚存，中断等硬件支持...
-   http://www.bitsavers.org/pdf/honeywell/multics/AL39-01C_MULTICS_Processor_Manual_Nov85.pdf
+   http://www.bitsavers.org/pdf/honeywell/MULTICS/AL39-01C_MULTICS_Processor_Manual_Nov85.pdf
    https://multicians.org/mgr.html#ring 对环的描述
-   https://www.acsac.org/2002/papers/classic-multics-orig.pdf  对multics的rings的安全评价论文
+   https://www.acsac.org/2002/papers/classic-MULTICS-orig.pdf  对MULTICS的rings的安全评价论文
+   https://www.usenix.org/system/files/login/articles/1070-MULTICS.pdf 指出MULTICS用力过猛
 
 .. notes::
 
@@ -74,9 +75,9 @@
 
    在1961-1963年，MIT的Fernando Corbató教授带领的研究小组在IBM 7090上演示和进一步实现了CTSS（Compatible Time-Sharing System）操作系统后，被认为是一个提供给广泛和不同用户群的大规模分时系统，受到广泛好评。于是他们在1965年提出了更加野心勃勃的MULTICS操作系统计划，其总体设计目标是创建一个能够全面满足大型计算机服务设施的几乎所有当前和未来要求的计算系统。在DARPA的资助下，MIT联合了强大的GE公司（负责提供GE 645大型机）和贝尔实验室（负责提供高水平的软件工程师），开始设计实现MULTICS操作系统。在MULTICS操作系统与GE 645 硬件在同一时间段进行软硬件协同设计，MULTICS操作系统的前期设计是在GE 645 模拟器（运行在GE 635 计算机上）上进行的。
 
-   MULTICS操作系统是一开始就是为安全系统而设计的通用操作系统，多重保护环（Multiple rings of protection，也称分级保护域）是Multics操作系统引入的最具革命性的概念之一。GE 645计算机有8级硬件支持的保护环，但不足满足MULTICS的安全需求，所以Multics的通过软件方式扩展了64级的保护环，这样在不同安全级别的保护环，可以运行不同的管理程序或应用程序。
+   MULTICS操作系统是一开始就是为安全系统而设计的通用操作系统，多重保护环（Multiple rings of protection，也称分级保护域）是MULTICS操作系统引入的最具革命性的概念之一。GE 645计算机有8级硬件支持的保护环，但不足满足MULTICS的安全需求，所以MULTICS的通过软件方式扩展了64级的保护环，这样在不同安全级别的保护环，可以运行不同的管理程序或应用程序。
 
-   这种设计思想具有典型的第二系统效应问题，即在一个简单的第一个系统（这里指CTSS）成功之后,又有一个更复杂的第二个系统（这里指MULTICS）的诱惑，但其实在当时情况下难以顺利完成。8级硬件多重保护环设计仅存在于GE 645中，这使得 Multics 操作系统不可移植，无法向更便宜、更开放的硬件系统移植。,而后续成功的计算机系统表明。多级保护环不是必须的，一个简单两级保护环（用户态和内核态）再加上分页机制，就足以实现绝大多数的安全隔离需求了。
+   这种设计思想具有典型的第二系统效应问题，即在一个简单的第一个系统（这里指CTSS）成功之后,又有一个更复杂的第二个系统（这里指MULTICS）的诱惑，但其实在当时情况下难以顺利完成。8级硬件多重保护环设计仅存在于GE 645中，这使得 MULTICS 操作系统不可移植，无法向更便宜、更开放的硬件系统移植。,而后续成功的计算机系统表明。多级保护环不是必须的，一个简单两级保护环（用户态和内核态）再加上分页机制，就足以实现绝大多数的安全隔离需求了。
 
 
 本章主要是设计和实现建立支持批处理系统的泥盆纪“邓式鱼” [#dunk]_ 操作系统，从而对可支持运行一批应用程序的执行环境有一个全面和深入的理解。
