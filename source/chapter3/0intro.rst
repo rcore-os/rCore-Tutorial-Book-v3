@@ -57,7 +57,8 @@
 .. chyyuu 中断的历史  https://people.cs.clemson.edu/~mark/interrupts.html  
    http://www.cap-lore.com/Hardware/int.html
    https://en.wikipedia.org/wiki/Interrupt
-
+   https://multicians.org/thvv/7094.html  IBM 7094 和 CTSS 提到 约翰.麦卡锡写的 "A Time Sharing Operator Program for Our Projected IBM 709" dated January 1, 1959 that proposed interactive time-shared debugging.
+   http://www-formal.stanford.edu/jmc/history/timesharing/timesharing.html   约翰.麦卡锡写的对分时的历史的回忆
 
 实践体验
 -------------------------------------

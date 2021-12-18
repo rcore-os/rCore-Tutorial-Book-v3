@@ -21,16 +21,30 @@
 
 .. chyyuu note
    
-   在练习一节前面，是否有一个历史故事???
-   在操作系统发展历史上，在1956年就诞生了有文字历史记录的操作系统GM-NAA I/O，并且被实际投入使用，它的一个主要任务就是"自动加载运行一个接一个的程序"，并能以库函数的形式给应用程序提供基本的硬件访问服务。
+    在练习一节前面，是否有一个历史故事???
+    目前发现，英国的OS（也可称之为雏形）出现的可能更早
+    Timeline of operating systems https://en.wikipedia.org/wiki/Timeline_of_operating_systems#cite_note-1
+    1950 https://h2g2.com/edited_entry/A1000729  LEO I 'Lyons Electronic Office'[1] was the commercial development of EDSAC computing platform, supported by British firm J. Lyons and Co.    
+    https://en.wikipedia.org/wiki/EDSAC  
+    https://en.wikipedia.org/wiki/LEO_(computer)  
+    https://www.theregister.com/2021/11/30/leo_70/  
+    https://www.sciencemuseum.org.uk/objects-and-stories/meet-leo-worlds-first-business-computer 
+    https://warwick.ac.uk/services/library/mrc/archives_online/digital/leo/story  
+    https://en.wikipedia.org/wiki/Wheeler_Jump 
+    https://en.wikipedia.org/wiki/EDSAC
+    https://people.cs.clemson.edu/~mark/edsac.html 模拟器， 提到了操作系统
+    The EDSAC (electronic delay storage automatic calculator) performed its first calculation at Cambridge University, England, in May 1949. EDSAC contained 3,000 vacuum tubes and used mercury delay lines for memory. Programs were input using paper tape and output results were passed to a teleprinter. Additionally, EDSAC is credited as using one of the first assemblers called "Initial Orders," which allowed it to be programmed symbolically instead of using machine code. [http://www.maxmon.com/1946ad.htm]
 
+    The operating system or "initial orders" consisted of 31 instructions which were hard-wired on uniselectors, a mechanical read-only memory. These instructions assembled programs in symbolic form from paper tape into the main memory and set them running. The second release of the initial orders was installed in August 1949. This occupied the full 41 words of read-only memory and included facilities for relocation or "coordination" to facilitate the use of subroutines (an important invention by D.J. Wheeler). [http://www.cl.cam.ac.uk/UoCCL/misc/EDSAC99/statistics.html]
 
+    The EDSAC programming system was based on a set of "initial orders" and a subroutine library. The initial orders combined in a rudimentary fashion the functions performed by a bootstrap loader and an assembler in later computer systems. The initial orders existed in three versions. The first version, Initial Orders 1, was devised by David Wheeler, then a research student, in 1949. The initial orders resided in locations 0 to 30, and loaded a program tape into locations 31 upwards. The program was punched directly onto tape in a symbolic form using mnemonic operation codes and decimal addresses, foreshadowing in a remarkable way much later assembly systems. ... In September 1949 the first form of the initial orders was replaced by a new version. Again written by Wheeler, Initial Orders 2 was a tour de force of programming that combined a surprisingly sophisticated assembler and relocating loader in just 41 instructions. The initial orders read in a master routine (main program) in symbolic form, converted it to binary and placed it in the main memory; this could be followed by any number of subroutines, which would be relocated and packed end-to-end so that there were none of the memory allocation problems associated with less sophisticated early attempts to organise a subroutine library. [http://www.inf.fu-berlin.de/~widiger/ICHC/papers/campbell.html]   
 
-.. chyyuu https://en.wikipedia.org/wiki/Timeline_of_operating_systems https://en.wikipedia.org/wiki/Wheeler_Jump https://en.wikipedia.org/wiki/EDSAC
 .. note::
    
 
    **最早的操作系统雏形就是程序库**
+
+   操作系统需要给程序员提供支持：高效便捷地开发应用和执行应用。远古时期的计算机硬件昂贵笨重，能力弱，单靠硬件还不能高效地执行应用，能够减少程序员的开发成本就已经很不错了。
 
    程序库一般由一些子程序（函数）组成。通过调用程序库中的子程序，应用程序可以更加方便的实现其应用功能。但在早期的软件开发中，还缺少便捷有效的子程序调用机制。
 
@@ -38,7 +52,7 @@
 
    参与EDSAC项目的David Wheeler发明了子程序的概念 --  **Wheeler Jump** 。Wheeler的方法是在子程序的最后一行添加 **“jump to this address”** 指令，并在指令后跟一个内存空间，这个内存空间通常被设置为 0，在子程序被调用后，这个内存空间的值会被修改为返回地址。当调用子程序是，调用者(Caller)的地址将被放置在累加寄存器中，然后代码将跳转到子程序的入口。子程序的第一条指令将根据累加寄存器中的值计算返回地址，通常是调用者地址的下一个内存位置，然后将计算出的返回地址写入先前预留的内存空间中。当子程序继续执行，自然会到达子程序的末尾，即 **“jump to this address”** 指令处，这条指令读取位于它之后的内存单元，获得返回地址，就可以正常返回了。
 
-   在有了便捷有效的子程序概念和子程序调用机制后，软件开发人员在EDSAC计算机开发了大量的子程序库，其中就包括了检查计算机系统，加载应用软件，写数据到持久性存储设备中，打印数据等硬件系统相关功能的子程序库。这也是为何维基百科的的操作系统时间线 [#OSTIMELINE]_ 一文中，把LEO I 'Lyons Electronic Office' 软件系统（其实就是硬件系统相关的子程序库）定位为最早的操作系统的起因。
+   在有了便捷有效的子程序概念和子程序调用机制后，软件开发人员在EDSAC计算机开发了大量的子程序库，其中就包括了检查计算机系统，加载应用软件，写数据到持久性存储设备中，打印数据等硬件系统相关功能的子程序库。这也是为何维基百科的的操作系统时间线 [#OSTIMELINE]_ 一文中，把LEO I 'Lyons Electronic Office' 软件系统（其实就是硬件系统相关的子程序库）定位为最早的操作系统的起因。这样的计算机系统只支持一个应用的运行，可以称为专用计算机系统。即使到了现在，以子程序库形式存在的简单嵌入式操作系统大量存在，运行在很多基于微控制单元(Microcontroller Unit，简称MCU)的单片机中，并支持简单应用甚至是单一应用，在智能仪表、玩具、游戏机、小家电等领域广泛存在。
 
 
 
