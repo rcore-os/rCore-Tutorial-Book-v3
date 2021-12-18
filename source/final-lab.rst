@@ -133,17 +133,24 @@
     
     * 可找老师要物理硬件开发板和相关开发资料
 
-14. 对fork/exec/spawn等进行扩展，并改进shell程序，实现“|”这种经典的管道机制。(难度：4)
+14. 支持其他处理器(如ARM、x64等)。(难度：7)
+    
+    * 可基于QEMU来开发
+    * 可找老师要基于其他处理器的物理硬件开发板（如树莓派等）和相关开发资料
+
+
+15. 对fork/exec/spawn等进行扩展，并改进shell程序，实现“|”这种经典的管道机制。(难度：4)
     
     * 参考 rcore tutorial 文档中 chapter7 中内容
 
-15. 向实验用操作系统发起 fuzzing 攻击(难度：6)
+16. 向实验用操作系统发起 fuzzing 攻击(难度：6)
     
     * 其实助教或老师写出的OS kernel也是漏洞百出，不堪一击。我们缺少的仅仅是一个可以方便发现bug的工具。也许同学们能写出或改造出一个os kernel fuzzing工具来发现并crash它/它们。下面的仅仅是参考，应该还不能直接用，也许能给你一些启发。
     * `gustave fuzzer for os kernel tutorial <https://github.com/airbus-seclab/gustave/blob/master/doc/tutorial.md?fileGuid=gXqmevn42YSgQpqo>`_ 
     * `gustave fuzzer project <https://github.com/airbus-seclab/gustave?fileGuid=gXqmevn42YSgQpqo>`_ 
     * `paper:  GUSTAVE: Fuzzing OS kernels like simple applications <https://airbus-seclab.github.io/GUSTAVE_thcon/GUSTAVE_thcon.pdf?fileGuid=gXqmevn42YSgQpqo>`_ 
-16. **学生自己的想法，但需要告知老师或助教，并得到同意。**
+
+17. **学生自己的想法，但需要告知老师或助教，并得到同意。**
 
 .. note::
 
