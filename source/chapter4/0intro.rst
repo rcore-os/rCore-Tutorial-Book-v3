@@ -51,7 +51,6 @@
 .. chyyuu：在哪里讲解虚存的设计与实现？？？
 
 .. chyyuu : virtual mem, paging history
-   https://en.wikipedia.org/wiki/Atlas_Supervisor  
 
    The Atlas Supervisor was the program which managed the allocation of processing resources of Manchester University's Atlas Computer so that the machine was able to act on many tasks and user programs concurrently.
 
@@ -59,8 +58,32 @@
 
    Lavington, Simon (1980), Early British Computers, Manchester University Press, ISBN 0-7190-0803-4
    Brinch Hansen, Per (2000), Classic Operating Systems: From Batch Processing to Distributed Systems, Springer-Verlag
+
+   https://en.wikipedia.org/wiki/Virtual_memory
+   https://en.wikipedia.org/wiki/Atlas_Supervisor
+   https://history-computer.com/the-history-of-atlas-computer/
    https://ethw.org/A_Brief_History_of_Early_British_Computers
+   http://www.chilton-computing.org.uk/acl/technology/atlas/p019.htm The Atlas Supervisor paper (T Kilburn, R B Payne, D J Howarth, 1962)
+   http://curation.cs.manchester.ac.uk/Atlas50/atlas50.cs.manchester.ac.uk/ Memories of the Ferranti Atlas computer
+   https://www.essex.ac.uk/people/lavin12900/simon-lavington 参与atlas ，目前关注 cs history
+   http://www.computinghistory.org.uk/det/3638/Simon-Lavington/
    https://blog.csdn.net/mightySheldor/article/details/44732029 中文 The Atlas Supervisor
+   http://www.whereis.xyz/2019/tech/199/ 虚拟内存技术的前世今生
+   
+.. notes::
+   
+   提供巨大虚拟内存空间的Atlas Supervisor操作系统
+
+   从 1940 年代后期开始，就具有两级存储系统。在 1950-1960年代，计算机的主存（今天称为 RAM）通常是容量小的磁芯，而辅助存储器通常是容量大的磁鼓。处理器只能对主存寻址来读写数据或执行代码。1960年前后，位于计算机内存中的应用程序数量和单个程序的体积都在迅速增加，物理内存的容量跟不上应用对内存的需求。应用程序员的一个主要工作是在程序中编写在主存和辅助存储之间移动数据的代码，来扩大应用程序访问的数据量。计算机专家开始考虑能否让计算机自动地移动数据来减轻程序员的编程负担？
+
+   虚拟内存（Virtual memory）技术概念首次由德国的柏林工业大学（Technische Universität Berlin）博士生Fritz-Rudolf Güntsch提出。在他的博士论文中设想了一台计算机，其内存地址空间大小为10^5个字，可精确映射到作为二级存储的磁鼓（大小也为10^5个字）上，应用程序读写的数据的实际位置由硬件和监控器（即操作系统）来管理和控制，并在物理主存（RAM）和辅存（二级存储）之间按需搬移数据。即主存中只放置应用程序最近访问的数据，而应用程序最近不访问的数据会搬移到辅存中，在应用程序需要时再搬回内存中。这个搬移过程对应用程序是透明的。
+
+   虚拟内存的设想在1959年变成了现实。英国曼彻斯特大学的Tom Kilburn 教授领导的团队于 1959 年展示了他们设计的Atlas计算机和Atlas Supervisor 操作系统，开创了在今天仍然普遍使用的操作系统技术：分页（paging）技术和虚拟内存（virtual memory，当时称为 one-level storage system）。他们的核心思想中的根本性创新是区分了“地址（address）”和“内存位置（memory location）”，并因此创造了三项发明：
+   1. 地址转换：硬件自动将处理器生成的每个地址转换为其当前内存位置。
+   2. 按需分页（demand paging）：由硬件地址转换触发缺页中断后，由操作系统将缺失的数据页移动到主存储器中，并形成正确的地址转换映射。
+   3. 页面置换算法：检查最无用（least useful）的页，并将其移回二级存储中，这样可以让经常访问的数据驻留在主存中。
+
+   计算机科学家给与了Atlas Supervisor操作系统高度的评价。Brinch Hansen认为它是操作系统史上最重大的突破。Simon Lavington认为它是第一个可识别的现代操作系统。
 
 实践体验
 -----------------------

@@ -25,6 +25,10 @@
    “shell”的名字和概念是从UNIX的前身MULTICS发展和继承过来的，应用程序可以通过shell程序来进行调用并被操作系统执行。Thompson shell是历史上第一个UNIX shell，在1971年由肯·汤普逊（Ken Thompson）写出了第一版并加入UNIX之中。Thompson shell按照极简主义设计，语法非常简单，是一个简单的命令行解释器。它的许多特征影响了以后的操作系统命令行界面的发展。至Version 7 Unix之后，被Bourne shell取代。
 
 
+.. chyyuu 可以讲multics和UNIX
+
+
+
 .. _term-terminal:
 .. _term-command-line:
 

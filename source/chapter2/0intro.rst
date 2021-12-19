@@ -17,15 +17,73 @@
 
 上一章，我们在 RISC-V 64 裸机平台上成功运行起来了 ``Hello, world!`` 。看起来这个过程非常顺利，只需要一条命令就能全部完成。但实际上，在那个计算机刚刚诞生的年代，很多事情并不像我们想象的那么简单。 当时，程序被记录在打孔的卡片上，使用汇编语言甚至机器语言来编写。而稀缺且昂贵的计算机由专业的管理员负责操作，就和我们在上一章所做的事情一样，他们手动将卡片输入计算机，等待程序运行结束或者终止程序的运行。最后，他们从计算机的输出端——也就是打印机中取出程序的输出并交给正在休息室等待的程序提交者。
 
-实际上，这样做是一种对于珍贵的计算资源的浪费。因为当时的计算机和今天的个人计算机不同，它的体积极其庞大，能够占满一整个空调房间，像巨大的史前生物。管理员在房间的各个地方跑来跑去、或是等待打印机的输出的这些时间段，计算机都并没有在工作。于是，人们希望计算机能够不间断的工作且专注于计算任务本身。
+实际上，这样做是一种对于珍贵的计算资源的浪费。因为当时（二十世纪60年代）的大型计算机和今天的个人计算机不同，它的体积极其庞大，能够占满一整个空调房间，像巨大的史前生物。当时用户（程序员）将程序输入到穿孔卡片上。用户将一批这些编程的卡片交给系统操作员，然后系统操作员将它们输入计算机。系统管理员在房间的各个地方跑来跑去、或是等待打印机的输出的这些时间段，计算机都并没有在工作。于是，人们希望计算机能够不间断的工作且专注于计算任务本身。
+
+.. chyyuu https://www.bmc.com/blogs/batch-jobs/
 
 .. _term-batch-system:
 
-**批处理系统** (Batch System) 应运而生。它的核心思想是：将多个程序打包到一起输入计算机。而当一个程序运行结束后，计算机会 *自动* 加载下一个程序到内存并开始执行。这便是最早的真正意义上的操作系统。
+**批处理系统** (Batch System) 应运而生。无需最终用户交互即可运行或可在资源允许的情况下安排运行的作业称为批处理作业。“批处理作业”一词起源于二十世纪60年代的大型机时代，批处理适用于那些可以通过最少的人工交互来执行的常用程序。
+
+批处理系统的核心思想是：将多个程序打包到一起输入计算机。而当一个程序运行结束后，计算机会 *自动* 加载下一个程序到内存并开始执行。当软件有了代替操作员的管理和操作能力后，便开始形成真正意义上的操作系统了。
+
+
+
+
+.. chyyuu 特权级 User Mode Versus Privileged Mode 
+   https://en.wikipedia.org/wiki/CPU_modes
+   https://en.wikipedia.org/wiki/Privilege_(computing)
+
+   在操作系统发展历史上，在1956年就诞生了有文字历史记录的操作系统GM-NAA I/O，并且被实际投入使用，它的一个主要任务就是"自动加载运行一个接一个的程序"，并能以库函数的形式给应用程序提供基本的硬件访问服务。
+   https://en.wikipedia.org/wiki/GM-NAA_I/O
+   http://ethw.org/First-Hand:Operating_System_Roots
+   http://www.softwarepreservation.org/projects/os/gm.html
+   https://millosh.wordpress.com/2007/09/07/the-worlds-first-computer-operating-system-implemented-at-general-motors-research-labs-in-warren-michigan-in-1955/
+   
+   https://en.wikipedia.org/wiki/Henry_Gantt
+
+   https://en.wikipedia.org/wiki/Timeline_of_operating_systems 
+
+.. notes::
+   
+   来自汽车生产线灵感而产生的 GM-NAA I/O System 批处理操作系统
+   
+   操作系统历史上最伟大的想象力飞跃之一是计算机可能通过软件来安排自己的工作负荷的想法，这体现在早期的批处理操作系统的设计与实现中。
+
+   在2006年计算机历史博物馆对Robert L. Patrick的一次采访中，Patrick回顾了在1954-1956年前后他在通用汽车（ General Motors，简称GM）公司设计实现的GM-NAA I/O操作系统的有趣开发历史。当时（1954年）的一个严重经济问题是通用汽车公司购置的IBM 701大型计算机使用效率极低，大约2/3的时间处于浪费的闲置状态，而浪费的计算机时间的成本是每月近15万美元。计算机的用途是程序开发和执行，而开发程序、编译程序、测试程序、运行程序、操作计算机运行等事务大多都由程序员来完成，编写好的程序源码会被程序员手工按顺序放到磁带（磁带只能串行顺序读写代码和数据）上，再串行加载到计算机上被编译器编译成可执行程序，再加载可执行程序运行，最后打印输出执行结果。当时的程序多是机器码程序或汇编程序等，也有处于试验阶段的早期FORTRAN语言编写的程序，很容易出错。如果当前正在执行的程序测试运行崩溃或提前终止,其他程序只能等待，整个机器就会闲置。程序员的大量时间是等待机器能运行到他提交的程序。
+
+   Patrick采用了提高并行处理流程的汽车生产线设计中的一些分析技术来设计面向下一代704计算机的操作系统（当时的名字还是 Monitor，监控器），而这些想法起源于Henry Laurence Gantt，他在1910年发明了甘特图，一种条状图，可显示项目、进度以及其他与时间相关的系统进展的内在关系随着时间进展的情况。然后Patrick和来自北美航空公司的Owen 
+   Mock合作，带领开发团队一起设计了GM-NAA I/O System（General Motors - North America Aviation Input-Output System）操作系统。
+
+   GM-NAA I/O System 操作系统完成对计算机的管理与控制，形成了标准化的输入和输出程序,标准化的作业控制语言。以前由程序员承担的计算机操作工作，如把程序导入磁带，加载程序，转储程序出错信息并继续执行下一程序等各种任务，现在都由操作系统来按相互依赖关系分阶段进行编排，并自动完成。在原有硬件和程序员工资的情况下，计算机的使用效率提高了5倍以上，程序员没有那么多空闲的时间用来聊天了。
+
+
 
 .. _term-privilege:
 
 应用程序总是难免会出现错误，如果一个程序的执行错误导致其它程序或者整个计算机系统都无法运行就太糟糕了。人们希望一个应用程序的错误不要影响到其它应用程序、操作系统和整个计算机系统。这就需要操作系统能够终止出错的应用程序，转而运行下一个应用程序。这种 *保护* 计算机系统不受有意或无意出错的程序破坏的机制被称为 **特权级** (Privilege) 机制，它让应用程序运行在用户态，而操作系统运行在内核态，且实现用户态和内核态的隔离，这需要计算机软件和硬件的共同努力。
+
+.. chyyuu    
+   https://en.wikipedia.org/wiki/Compatible_Time-Sharing_System
+   https://multicians.org/thvv/7094.html The IBM 7094 and CTSS 是一种分时系统
+   http://larch-www.lcs.mit.edu:8001/~corbato/sjcc62/
+   
+   https://multicians.org/MULTICS.html
+   https://multicians.org/fjcc2.html  System Design of a Computer for Time Sharing Applications GE 635/645 提到特权模式 In the 645 three distinct modes of execution are defined. These are absolute, master and slave. 也提到 虚存，中断等硬件支持...
+   http://www.bitsavers.org/pdf/honeywell/MULTICS/AL39-01C_MULTICS_Processor_Manual_Nov85.pdf
+   https://multicians.org/mgr.html#ring 对环的描述
+   https://www.acsac.org/2002/papers/classic-MULTICS-orig.pdf  对MULTICS的rings的安全评价论文
+   https://www.usenix.org/system/files/login/articles/1070-MULTICS.pdf 指出MULTICS用力过猛
+
+.. notes::
+
+   想法超前且安全保护用力过猛的MUTICS操作系统
+
+   在1961-1963年，MIT的Fernando Corbató教授带领的研究小组在IBM 7090上演示和进一步实现了CTSS（Compatible Time-Sharing System）操作系统后，被认为是一个提供给广泛和不同用户群的大规模分时系统，受到广泛好评。于是他们在1965年提出了更加野心勃勃的MULTICS操作系统计划，其总体设计目标是创建一个能够全面满足大型计算机服务设施的几乎所有当前和未来要求的计算系统。在DARPA的资助下，MIT联合了强大的GE公司（负责提供GE 645大型机）和贝尔实验室（负责提供高水平的软件工程师），开始设计实现MULTICS操作系统。在MULTICS操作系统与GE 645 硬件在同一时间段进行软硬件协同设计，MULTICS操作系统的前期设计是在GE 645 模拟器（运行在GE 635 计算机上）上进行的。
+
+   MULTICS操作系统是一开始就是为安全系统而设计的通用操作系统，多重保护环（Multiple rings of protection，也称分级保护域）是MULTICS操作系统引入的最具革命性的概念之一。GE 645计算机有8级硬件支持的保护环，但不足满足MULTICS的安全需求，所以MULTICS的通过软件方式扩展了64级的保护环，这样在不同安全级别的保护环，可以运行不同的管理程序或应用程序。
+
+   这种设计思想具有典型的第二系统效应问题，即在一个简单的第一个系统（这里指CTSS）成功之后,又有一个更复杂的第二个系统（这里指MULTICS）的诱惑，但其实在当时情况下难以顺利完成。8级硬件多重保护环设计仅存在于GE 645中，这使得 MULTICS 操作系统不可移植，无法向更便宜、更开放的硬件系统移植。而且后续成功的计算机系统表明，多级保护环不是必须的，一个简单两级保护环（用户态和内核态）再加上分页机制，就足以实现绝大多数的安全隔离需求了。
 
 
 本章主要是设计和实现建立支持批处理系统的泥盆纪“邓式鱼” [#dunk]_ 操作系统，从而对可支持运行一批应用程序的执行环境有一个全面和深入的理解。
@@ -37,9 +95,8 @@
    :name: fish-os
 
 
-.. chyyuu 特权级 User Mode Versus Privileged Mode 
-   https://en.wikipedia.org/wiki/CPU_modes
-   https://en.wikipedia.org/wiki/Privilege_(computing)
+
+
 
 实践体验
 ---------------------------
@@ -72,40 +129,44 @@
 
 .. code-block:: 
 
-   [rustsbi] RustSBI version 0.1.1
+   [rustsbi] RustSBI version 0.2.0-alpha.6
    <rustsbi-logo>
-   [rustsbi] Platform: QEMU (Version 0.1.0)
-   [rustsbi] misa: RV64ACDFIMSU
-   [rustsbi] mideleg: 0x222
-   [rustsbi] medeleg: 0xb1ab
+   [rustsbi] Implementation: RustSBI-QEMU Version 0.0.2
    [rustsbi-dtb] Hart count: cluster0 with 1 cores
-   [rustsbi] Kernel entry: 0x80200000
+   [rustsbi] misa: RV64ACDFIMSU
+   [rustsbi] mideleg: ssoft, stimer, sext (0x222)
+   [rustsbi] medeleg: ima, ia, bkpt, la, sa, uecall, ipage, lpage, spage (0xb1ab)
+   [rustsbi] pmp0: 0x10000000 ..= 0x10001fff (rwx)
+   [rustsbi] pmp1: 0x80000000 ..= 0x8fffffff (rwx)
+   [rustsbi] pmp2: 0x0 ..= 0xffffffffffffff (---)
+   qemu-system-riscv64: clint: invalid write: 00000004
+   [rustsbi] enter supervisor 0x80200000
    [kernel] Hello, world!
    [kernel] num_app = 3
-   [kernel] app_0 [0x8020b028, 0x8020c048)
-   [kernel] app_1 [0x8020c048, 0x8020d100)
-   [kernel] app_2 [0x8020d100, 0x8020e4b8)
+   [kernel] app_0 [0x8020b028, 0x8020c000)
+   [kernel] app_1 [0x8020c000, 0x8020d070)
+   [kernel] app_2 [0x8020d070, 0x8020e218)
    [kernel] Loading app_0
    Hello, world!
-   [kernel] Application exited with code 0
+   [kernel] IllegalInstruction in application, core dumped.
    [kernel] Loading app_1
    Into Test store_fault, we will insert an invalid store operation...
    Kernel should kill this application!
    [kernel] PageFault in application, core dumped.
    [kernel] Loading app_2
-   3^10000=5079
-   3^20000=8202
-   3^30000=8824
-   3^40000=5750
-   3^50000=3824
-   3^60000=8516
-   3^70000=2510
-   3^80000=9379
-   3^90000=2621
-   3^100000=2749
+   3^10000=5079(MOD 10007)
+   3^20000=8202(MOD 10007)
+   3^30000=8824(MOD 10007)
+   3^40000=5750(MOD 10007)
+   3^50000=3824(MOD 10007)
+   3^60000=8516(MOD 10007)
+   3^70000=2510(MOD 10007)
+   3^80000=9379(MOD 10007)
+   3^90000=2621(MOD 10007)
+   3^100000=2749(MOD 10007)
    Test power OK!
    [kernel] Application exited with code 0
-   [kernel] Panicked at src/batch.rs:61 All applications completed!
+   [kernel] Panicked at src/batch.rs:57 All applications completed!
 
 本章代码树
 -------------------------------------------------
@@ -175,11 +236,11 @@
 
 在应用程序的运行过程中，操作系统要支持应用程序的输出功能，并还能支持应用程序退出。这需要实现跨特权级的系统调用接口，以及 ``sys_write`` 和 ``sys_exit`` 等具体的系统调用功能。 在具体设计实现上，涉及到内联汇编的编写，以及应用与操作系统内核之间系统调用的参数传递的约定。为了让应用程序在还没实现 ``邓氏鱼`` 操作系统之前就能在Linux for RISC-V 64 上进行运行测试，我们采用了Linux on RISC-V64 的系统调用参数约定。具体实现可参看 :ref:`系统调用 <term-call-syscall>` 小节中的内容。 这样写完应用小例子后，就可以通过  ``qemu-riscv64`` 模拟器进行测试了。  
 
-写完应用程序后，还需实现支持多个应用程序轮流启动运行的操作系统。这里首先能把本来相对松散的应用程序执行代码和操作系统执行代码连接在一起，便于   ``qemu-system-riscv64`` 模拟器一次性地加载二者到内存中，并让操作系统能够找到应用程序的位置。为把二者连在一起，需要对生成的应用程序进行改造，首先是把应用程序执行文件从ELF执行文件格式变成Binary格式（通过 ``rust-objcopy`` 可以轻松完成）；然后这些Binary格式的文件通过编译器辅助脚本 ``os/build.rs`` 转变变成 ``os/src/link_app.S`` 这个汇编文件的一部分，并生成各个Binary应用的辅助信息，便于操作系统能够找到应用的位置。编译器会把把操作系统的源码和 ``os/src/link_app.S`` 合在一起，编译出操作系统+Binary应用的ELF执行文件，并进一步转变成Binary格式。
+写完应用程序后，还需实现支持多个应用程序轮流启动运行的操作系统。这里首先能把本来相对松散的应用程序执行代码和操作系统执行代码连接在一起，便于   ``qemu-system-riscv64`` 模拟器一次性地加载二者到内存中，并让操作系统能够找到应用程序的位置。为把二者连在一起，需要对生成的应用程序进行改造，首先是把应用程序执行文件从ELF执行文件格式变成Binary格式（通过 ``rust-objcopy`` 可以轻松完成）；然后这些Binary格式的文件通过编译器辅助脚本 ``os/build.rs`` 转变变成 ``os/src/link_app.S`` 这个汇编文件的一部分，并生成各个Binary应用的辅助信息，便于操作系统能够找到应用的位置。编译器会把操作系统的源码和 ``os/src/link_app.S`` 合在一起，编译出操作系统+Binary应用的ELF执行文件，并进一步转变成Binary格式。
 
-为了定位Binary应用在被加载后的内存位置，操作系统本身需要完成对Binary应用的位置查找，找到后（通过 ``os/src/link_app.S`` 中的变量和标号信息完成），会把Binary应用从加载位置拷贝到 ``user/src/linker.ld`` 指定的物理内存位置（OS的加载应用功能）。在一个应执行完毕后，操作系统还能加载另外一个应用，这主要是通过 ``AppManagerInner`` 数据结构和对应的函数 ``load_app`` 和 ``run_next_app`` 等来完成对应用的一系列管理功能。这主要在 :ref:`实现批处理操作系统  <term-batchos>` 小节中讲解。
+为了定位 Binary 应用在被加载后的内存位置，操作系统本身需要完成对 Binary 应用的位置查找，找到后（通过 ``os/src/link_app.S`` 中的变量和标号信息完成），会把 Binary 应用从加载位置拷贝到 ``user/src/linker.ld`` 指定的物理内存位置（OS的加载应用功能）。在一个应用执行完毕后，操作系统还能加载另外一个应用，这主要是通过 ``AppManagerInner`` 数据结构和对应的函数 ``load_app`` 和 ``run_next_app`` 等来完成对应用的一系列管理功能。这主要在 :ref:`实现批处理操作系统  <term-batchos>` 小节中讲解。
 
-为了让Binary应用能够启动和运行，操作系统还需给Binary应用分配好对应执行环境所需一系列的资源。这主要包括设置好用户栈和内核栈（在用户态的应用程序与在内核态的操作系统内核需要有各自的栈，避免应用程序破坏内核的执行），实现Trap 上下文的保存与恢复（让应用能够在发出系统调用到内核态后，还能回到用户态继续执行），完成Trap 分发与处理等工作。由于系统调用和中断处理等内核代码实现涉及用户态与内核态之间的特权级切换细节的汇编代码，与硬件细节联系紧密，所以 :ref:`这部分内容 <term-trap-handle>` 是本章中理解比较困难的地方。如果要了解清楚，需要对涉及到的RISC-V CSR寄存器的功能有明确认识。这就需要查看 `RISC-V手册 <http://crva.ict.ac.cn/documents/RISC-V-Reader-Chinese-v2p1.pdf>`_ 的第十章或更加详细的RISC-V的特权级规范文档了。有了上面的实现后，就剩下最后一步，实现 **执行应用程序** 的操作系统功能，其主要实现在 ``run_next_app`` 内核函数中 。完成所有这些功能的实现，“邓式鱼” [#dunk]_ 操作系统就可以正常运行，并能管理多个应用按批处理方式在用户态一个接一个地执行了。
+为了让 Binary 应用能够启动和运行，操作系统还需给 Binary 应用分配好对应执行环境所需一系列的资源。这主要包括设置好用户栈和内核栈（在用户态的应用程序与在内核态的操作系统内核需要有各自的栈，避免应用程序破坏内核的执行），实现 Trap 上下文的保存与恢复（让应用能够在发出系统调用到内核态后，还能回到用户态继续执行），完成Trap 分发与处理等工作。由于系统调用和中断处理等内核代码实现涉及用户态与内核态之间的特权级切换细节的汇编代码，与硬件细节联系紧密，所以 :ref:`这部分内容 <term-trap-handle>` 是本章中理解比较困难的地方。如果要了解清楚，需要对涉及到的 RISC-V CSR 寄存器的功能有明确认识。这就需要查看 `RISC-V手册 <http://crva.ict.ac.cn/documents/RISC-V-Reader-Chinese-v2p1.pdf>`_ 的第十章或更加详细的 RISC-V 的特权级规范文档了。有了上面的实现后，就剩下最后一步，实现 **执行应用程序** 的操作系统功能，其主要实现在 ``run_next_app`` 内核函数中 。完成所有这些功能的实现，“邓式鱼” [#dunk]_ 操作系统就可以正常运行，并能管理多个应用按批处理方式在用户态一个接一个地执行了。
 
 
 .. [#dunk] 邓氏鱼是一种晚泥盆纪（距今约3.82亿至3.59亿年前）的盾皮鱼，其中最大种类体长可达8.79米，重量可达4吨，是当时最大的海洋掠食者，但巨大而沉重的身躯极大地影响了它的运动速度和灵敏度。
