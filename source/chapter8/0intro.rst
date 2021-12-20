@@ -7,8 +7,13 @@
 到本章开始之前，我们好像已经完成了组成应用程序执行环境的操作系统的三个重要抽象：进程、地址空间和文件，让应用程序开发、运行和存储数据越来越方便和灵活。特别是操作系统支持分时多任务和抢占式调度，通过硬件中断机制，能强制打断进程的执行，及时处理I/O交互操作，从而提高整个系统的执行效率。有了进程以后，可以让操作系统从宏观层面实现多个应用的并发执行，而并发是通过操作系统基于处理器的时间片不断地切换进程来达到的。对于单核处理器而言，在任意一个时刻只会有一个进程被操作系统调度，在被处理器上执行。到目前为止的并发，仅仅是进程间的并发，而对于一个进程内部，还没有并发性的体现。而这就是线程（Thread）出现的起因：提高一个进程内的并发性。
 
 
-.. chyyuu 关于操作系统并发  Binch Hansen 和 Hoare https://en.wikipedia.org/wiki/Per_Brinch_Hansen ???
+.. chyyuu 
+   https://en.wikipedia.org/wiki/Per_Brinch_Hansen 关于操作系统并发  Binch Hansen 和 Hoare ??？
+	https://en.wikipedia.org/wiki/Thread_(computing) 关于线程
 
+	线程早在 1967 年就以“任务”的名义出现在OS/360 Multiprogramming with a Variable Number of Tasks (MVT) 中。 Saltzer (1966)将术语“线程”归功于Victor A. Vyssotsky。[2]
+
+线程的流行在 2003 年左右有所增加，因为 CPU 频率的增长被内核数量的增长所取代，反过来又需要并发来利用多个内核。[3]
 
 .. note::
 

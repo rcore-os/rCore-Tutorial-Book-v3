@@ -26,7 +26,48 @@
 
 
 .. chyyuu 可以讲multics和UNIX
+   https://en.wikipedia.org/wiki/Process_(computing)
+   https://en.wikipedia.org/wiki/Multiprocessing
+   https://www.multicians.org/
+   https://www.multicians.org/history.html
+   https://www.multicians.org/fjcc1.html Introduction and Overview of the Multics System
+   https://www.multicians.org/fjcc3.html Structure of the Multics Supervisor 提到 process
+   http://larch-www.lcs.mit.edu:8001/~corbato/turing91/ corby的图灵演讲
+   https://en.wikipedia.org/wiki/Unix_philosophy
+   https://en.wikipedia.org/wiki/Unix
+   https://en.wikipedia.org/wiki/Research_Unix Research Unix refers to early versions of the Unix operating system
+   https://www.bell-labs.com/usr/dmr/www/cacm.pdf   Ritchie, D. M.; Thompson, K. (1974). "The UNIX Time-Sharing System"
+   Raymond, Eric Steven (2003). "The Elements of Operating-System Style". The Art of Unix Programming. Retrieved August 16, 2020.
+   Ritchie, Dennis M. "The Evolution of the Unix Time-sharing System" (PDF). Archived (PDF) from the original on 3 April 2017. Retrieved 9 January 2017.
+   book UNIX: A History and a Memoir ，  Brian Kernighan， 2019
+   
+   https://en.wikipedia.org/wiki/OS/360_and_successors
 
+   https://en.wikipedia.org/wiki/Task_(computing)#History
+   https://en.wikipedia.org/wiki/Child_process
+   https://en.wikipedia.org/wiki/Fork_(system_call)
+   https://en.wikipedia.org/wiki/Wait_(system_call)
+   https://percona.community/blog/2021/01/04/fork-exec-wait-and-exit/
+   https://github.com/dspinellis/unix-history-repo Unix源码
+
+.. note::
+
+   描述未来的MULTICS操作系统
+
+   在取得了CTSS操作系统的成功后，MIT与ARPA在1963年MAC项目，其目标之一是设计和实现 CTSS 的后继操作系统。经过前期准备，在1965年，MIT的Fernando J. Corbató 教授联合贝尔实验室和通用电气公司联合启动了雄心勃勃的MUTICS操作系统项目。Multics 的目标是：改变人们使用计算机和计算机编程的方式，让人们能像使用电力或电话一样来方便地使用计算机的计算能力。类比于电力基础设施（electric utility），MIT的科学家想通过Multics构建未来的计算基础设施（computer utility）。
+
+   为此开发小组对GE645计算机系统和Multics操作系统提出了一系列的非常先进的设计思路。同学们如果阅读了“Introduction and Overview of the Multics System” [#CORB65]_ 和“Structure of the Multics Supervisor” [#VYSSOTSKY65]_ 这两篇论文，可以发现Multics操作系统的设计思路即使放到二十一世纪的今天也不算过时。但相对较弱和进展缓慢的硬件，用于编写操作系统的PL/I高级语言的编译器严重滞后，操作系统各种功能带了的大型软件复杂性导致了Multics操作系统的开发困难重重。不过最终在1969年，Multics操作系统开始提供服务，并一直持续到2000年，算得上是很长寿了。
+
+   这里我们只讲述Multics操作系统中与进程（Process）相关的一些设计思路。Multics操作系统中的进程是指一个程序/作业的执行过程，如编译一个程序、产生一个文件等。每个进程在执行过程中所占的内存空间范围由 GE645 计算机中处理器指定的段（硬件机制）来描述和限制。操作系统通过处理器调度调度算法和调度分派机制来让不同的进程分时使用处理器，这样进程会有正在运行的运行态、准备运行的就绪态和等待条件满足的阻塞态这样不同的执行状态。在进程管理方面，有动态创建进程、阻塞进程和终止进程等不同的操作。每个子进程都是从某个进程（父进程）通过系统调用产生出来的。子进程可以共享父进程拥有的内存空间。用户进程通过系统调用获得操作系统的服务，不能直接访问操作系统的数据和代码，确保了操作系统的安全。
+
+   成为未来基石的UNIX操作系统
+   
+   Ken Thompson和Dennis Ritchie这一对贝尔实验室的黄金搭档，在1969年退出 Multics 操作系统开发工作后，并没有放弃操作系统的研发，而是决定重新开始。Ken Thompson从小处着手，从一台老旧的DEC PDP-7计算机开始，将Multics 操作系统的设计想法进行简化，并一个一个地实现，完成了第一版UNIX操作系统内核，并带有汇编器、编辑器和shell应用程序。这时的操作系统只是一个简单的单任务操作系统。它的UNIX取名是对MULTICS的一种玩笑回应。UNIX后续版本用Dennis Ritchie创建的C语言进行了重写，然后C语言和UNIX操作系统联手，影响了后续几乎所有的计算机和操作系统（Linux、MacOS、Windows...），成为了未来的基石。
+
+   这里我们只讲述UNIX操作系统中与进程（Process）相关的一些设计实现思路。简单地说，UNIX操作系统中的进程实现充分吸取了MULTICS中关于进程的设计思想，实现了 ``fork exec wait exit`` 四个精巧的系统调用来支持对进程的灵活管理。
+   父进程进程通过 ``fork`` 系统调用创建自身的副本（子进程）；称为“子进程”的副本可调用 ``exec`` 系统调用用另一个程序覆盖其内存空间，这样就可以执行新程序了；子进程执行完毕后，可通过调用 ``exit`` 系统调用来退出并通知父进程；父进程通过调用 ``wait`` 系统调用来等待子进程的退出。
+
+   一句话小结：MULTICS操作系统的思想造就了UNIX操作系统，而UNIX操作系统引导了操作系统的发展历程，Linux操作系统统治了当今世界。
 
 
 .. _term-terminal:
@@ -271,3 +312,5 @@
 
 
 .. [#troodon] 伤齿龙是一种灵活的小型恐龙，生存于7500万年前的晚白垩纪，伤齿龙的脑袋与身体的比例是恐龙中最大之一，因此伤齿龙被认为是最有智能的恐龙之一。
+.. [#CORB65] Fernando J. Corbató. "Introductmn and overvmw of the MULTICS system " In Proc AFIPS I965 Fall Joznt Computer Conf, Part I, Spartan Books, New York, 185-196. 
+.. [#VYSSOTSKY65] V. A. Vyssotsky. "Structure of the Multics supervisor" In AFIPS Conf Proc 27 1965, Spartan Books Washington D C 1965 pp 203--212
