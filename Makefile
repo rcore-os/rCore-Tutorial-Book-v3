@@ -25,6 +25,7 @@ view:
 deploy:
 	@make clean
 	@make html
+	@python3 scripts/fix-comments.py
 	@rm -rf docs
 	@cp -r build/html docs
 	@touch docs/.nojekyll
