@@ -16,6 +16,20 @@
 
 .. chyyuu 可以介绍文件系统 ???
 
+   https://en.wikipedia.org/wiki/Data_storage
+   https://en.wikipedia.org/wiki/Computer_data_storage
+   https://en.wikipedia.org/wiki/Williams_tube
+   https://en.wikipedia.org/wiki/Delay-line_memory
+   https://en.wikipedia.org/wiki/Drum_memory
+   https://en.wikipedia.org/wiki/Magnetic-core_memory
+   https://en.wikipedia.org/wiki/File_system
+
+   文件系统与存储介质有很大的关系，在上古时期的磁鼓...
+   磁带是一种顺序存储介质，其随机数据访问时间比磁盘长得多，这对通用文件系统的创建和高效管理提出了挑战。磁带需要线性运动来缠绕和展开可能很长的介质卷轴。这种磁带运动可能需要几秒钟到几分钟才能将读/写磁头从磁带的一端移动到另一端。一个磁带文件系统是设计用于存储在磁带上的文件目录和文件。磁带文件系统通常允许将文件目录与文件数据分布在一起，因此不需要耗时且重复的磁带往返线性运动来写入新数据。
+
+   UNIX系统中，你几乎可以想到的所有内容都可以通过文件系统中的文件来命名。除了文件、设备、管道，设备甚至进程都可以用文件来表示和访问。这种命名的一致性简化了操作系统的概念模型，使操作系统对外的接口组织更简单、更模块化。
+
+
 
 本章我们将实现一个简单的文件系统 -- easyfs，能够对 **持久存储设备** (Persistent Storage) 这种 I/O 资源进行管理。对于应用访问持久存储设备的需求，内核需要新增两种文件：常规文件和目录文件，它们均以文件系统所维护的 **磁盘文件** 形式被组织并保存在持久存储设备上。
 
