@@ -10,10 +10,36 @@
 .. chyyuu 
    https://en.wikipedia.org/wiki/Per_Brinch_Hansen 关于操作系统并发  Binch Hansen 和 Hoare ??？
 	https://en.wikipedia.org/wiki/Thread_(computing) 关于线程
+	http://www.serpentine.com/blog/threads-faq/the-history-of-threads/ The history of threads
+	https://en.wikipedia.org/wiki/Core_War 我喜欢的一种早期游戏
+	[Dijkstra, 65] Dijkstra, E. W., Cooperating sequential processes, in Programming Languages, Genuys, F. (ed.), Academic Press, 1965.
+	[Saltzer, 66] Saltzer, J. H., Traffic control in a multiplexed computer system, MAC-TR-30 (Sc.D. Thesis), July, 1966.
+	https://en.wikipedia.org/wiki/THE_multiprogramming_system
+	http://www.cs.utexas.edu/users/EWD/ewd01xx/EWD196.PDF
+	https://en.wikipedia.org/wiki/Edsger_W._Dijkstra
+	https://en.wikipedia.org/wiki/Per_Brinch_Hansen
+	https://en.wikipedia.org/wiki/Tony_Hoare
+	https://en.wikipedia.org/wiki/Mutual_exclusion
+	https://en.wikipedia.org/wiki/Semaphore_(programming)
+	https://en.wikipedia.org/wiki/Monitor_(synchronization)
+	Dijkstra, Edsger W. The structure of the 'THE'-multiprogramming system (EWD-196) (PDF). E.W. Dijkstra Archive. Center for American History, University of Texas at Austin. (transcription) (Jun 14, 1965)
 
-	线程早在 1967 年就以“任务”的名义出现在OS/360 Multiprogramming with a Variable Number of Tasks (MVT) 中。 Saltzer (1966)将术语“线程”归功于Victor A. Vyssotsky。[2]
+.. note::
 
-线程的流行在 2003 年左右有所增加，因为 CPU 频率的增长被内核数量的增长所取代，反过来又需要并发来利用多个内核。[3]
+	解决并发问题的THE操作系统
+
+	早期的计算机硬件没有内存隔离保护机制，多个程序以任务（task）的形式进行执行，但各个任务之间是依次执行（批处理方式）或相互独立执行，基本没有数据共享的情况，所以还没有形成线程的概念。当多个任务需要共享数据和同步行为时，就需要扩展任务的这些新的执行特征，并建立相应的同步互斥机制。在1962年，荷兰的E.W.Dijkstra 教授和他的团队正在为 Electrologica X8 计算机开发 THE 操作系统。他们观察到如果多个程序在执行中访问共享变量，在E.W.Dijkstra 教授在信号量机制的研究中，提出了多个“sequential processes”可以通过信号量机制合作访问共享变量，避免冲突导致结果不确定。这里的“sequential processes”的含义就是线程。
+
+	1964年开始设计的Multics操作系统已经有进程的概念，也有多处理器并行处理的GE 645硬件设计，甚至提出了线程的概念。1966年，参与Multics开发的MIT博士生 Jerome Howard Saltzer在其博士毕业论文的一个注脚提到贝尔实验室的Victor A. Vyssotsky用“thead”这个名称来表示处理器（processor）执行程序（program）代码序列这个过程的抽象概念，Saltzer进一步把"进程（process）"描述为处理器执行程序代码的当前状态（即线程）和可访问的地址空间。但他们并没有建立类似信号量这样的有效机制来避免并发带来的同步互斥问题。
+
+	Dijkstra 教授带领他的小团队在设计开发THE操作系统的过程中，异步中断触发的难以重现的并发错误，让他们在调试操作系统中碰到了困难。这种困难激发了Dijkstra的灵感，他们除了设计了操作系统的分层结构之外，还设计了信号量机制和对应的P和V操作，来确保线程对共享变量的灵活互斥访问，并支持线程之间的同步操作。P和V是来自荷兰语单词“测试”和“增加”的首字母，是很罕见的非英语来源的操作系统术语。
+
+	丹麦的Brinch Hansen，英国的Tony Hoare和Dijkstra并不满足于信号量来解决操作系统和应用中的并发问题。因为对于复杂一些的同步互斥问题（如哲学家问题），如果使用信号量机制不小心，容易引起死锁等错误。在 1971年 的研讨会上，他们三人开始讨论管程（Monitor）的想法，希望设计一种更高级的并发管理语言结构，便于程序员开发并发程序。在1972年春天，Brinch Hansen 在他写的“操作系统原理”教科书中，提出了管程的概念，并把这一概念嵌入到了Concurrent Pascal 编程语言中，然后他和他的学生再接再厉，在PDP 11/45计算机上编写了Concurrent Pascal 编译器，并用Concurrent Pascal 编写了Solo操作系统。Brinch Hansen在操作系统和语言级并发处理方面的开创性工作影响了后续的操作系统并发处理机制（如条件变量等）和不少的编程语言并发方案。
+
+	Brinch Hansen的两句名言：
+
+	  - 写作是对简单性的严格测试：不可能令人信服地写出无法理解的想法。
+	  - 编程是用清晰的散文写文章并使它们可执行的艺术
 
 .. note::
 
