@@ -22,13 +22,30 @@
    https://en.wikipedia.org/wiki/Delay-line_memory
    https://en.wikipedia.org/wiki/Drum_memory
    https://en.wikipedia.org/wiki/Magnetic-core_memory
+   https://www.ironmountain.com/resources/general-articles/t/the-history-of-magnetic-tape-and-computing-a-65-year-old-marriage-continues-to-evolve
    https://en.wikipedia.org/wiki/File_system
+   https://en.wikipedia.org/wiki/Multics
+   https://www.multicians.org/fjcc4.html  R. C. Daley, P. G. Neumann, A General Purpose File System for Secondary Storage (AFIPS, 1965) describes the file system, including the access control and backup mechanisms
+   https://www.multicians.org/fjcc3.html V. A. Vyssotsky, F. J. Corbató, R. M. Graham, Structure of the Multics Supervisor (AFIPS 1965) describes the basic internal structure of the Multics kernel.
+   http://www.multicians.org/fjcc1.html F. J. Corbató, V. A. Vyssotsky, Introduction and Overview of the Multics System (AFIPS 1965) is a good introduction to the system. 
+   http://cs-exhibitions.uni-klu.ac.at/index.php?id=216 Multics、UNIX 和 FS
+   https://en.wikipedia.org/wiki/Unix_filesystem
+   book UNIX: A History and a Memoir ，  Brian Kernighan， 2019
 
-   文件系统与存储介质有很大的关系，在上古时期的磁鼓...
-   磁带是一种顺序存储介质，其随机数据访问时间比磁盘长得多，这对通用文件系统的创建和高效管理提出了挑战。磁带需要线性运动来缠绕和展开可能很长的介质卷轴。这种磁带运动可能需要几秒钟到几分钟才能将读/写磁头从磁带的一端移动到另一端。一个磁带文件系统是设计用于存储在磁带上的文件目录和文件。磁带文件系统通常允许将文件目录与文件数据分布在一起，因此不需要耗时且重复的磁带往返线性运动来写入新数据。
+.. note::
 
-   UNIX系统中，你几乎可以想到的所有内容都可以通过文件系统中的文件来命名。除了文件、设备、管道，设备甚至进程都可以用文件来表示和访问。这种命名的一致性简化了操作系统的概念模型，使操作系统对外的接口组织更简单、更模块化。
+   指明方向的Multics文件系统
 
+   计算机的第一种存储方式是图灵设计的图灵机中的纸带。在计算机最早出现的年代，纸质的穿孔卡成为了第一代的数据物理存储介质。
+   随着各种应用对持久存储大容量数据的需求，纸带和穿孔卡很快就被放弃，在计算机发展历史依次出现了磁带、磁盘、光盘、闪存等各种各样的外部存储器（也称外存、辅助存储器、辅存等）。与处理器可直接寻址访问的主存（也称内存）相比，处理器不能直接访问，速度慢1~2个数量级，容量多两个数量级以上，且便宜。应用软件访问这些存储设备上的数据很繁琐，效率也低，于是文件系统就登场了。这里介绍一下顺序存储介质（以磁带为代表）的文件系统和随机存储介质（以磁盘为代表）的文件系统。
+
+   磁带是一种顺序存储介质，磁带的历史早于计算机，它始于 1928 年，当时它被开发用于音频存储（就是的录音带）。在1951 年，磁带首次用于在UNIVAC I计算机上存储数据。磁带的串行顺序访问特征对通用文件系统的创建和高效管理提出了挑战，磁带需要线性运动来缠绕和展开可能很长的介质卷轴。磁带的这种顺序运动可能需要几秒钟到几分钟才能将读/写磁头从磁带的一端移动到另一端。一个磁带文件系统是设计用于存储在磁带上的文件目录和文件。磁带文件系统通常允许将文件目录与文件数据分布在一起，因此不需要耗时且重复的磁带往返线性运动来写入新数据。由于磁带容量很大，保存方便，还有就是很便宜（磁带的成本比磁盘低一个数量级），所以到现在为止，磁带文件系统还在被需要存储大量数据的单位（如数据中心）使用。
+
+   1956 年，IBM发布了第一款硬盘驱动器，硬盘的高速随机访问数据的能力使得它成为替代磁带的合理选择。文件系统是操作系统的重要组成部分。在 Multics 之前,大多数操作系统最多提供复杂和不规则的文件系统来存储信息。与当时的其他文件系统相比，Multics 文件系统更加通用、规则和强大,但它也相应地复杂。在Multics操作系统的设计中，主要面向磁盘这种辅助存储器，文件只是一个字节序列。Multics操作系统第一次引入了层次文件系统的概念，即文件系统中的目录可以包含其他子目录，从而在理论和概念上描述了无限大的文件系统。用户通过文件名来寻址文件并访问文件内容，这使得文件系统的基本结构独立于物理存储介质。文件系统可以动态加载和卸载，以便于数据存储备份等操作。可以说，Multics的这些设计理念为Unix和后续操作系统对文件的管理指明了方向。
+
+   一切皆文件的UNIX文件系统
+
+   而Ken Thompson 在UNIX文件系统的设计和实现方面，采纳了Multics文件系统中的很多设计理念。Unix 文件只是一个字节序列。文件内容的任何结构或组织仅由处理它的程序决定。Unix文件系统本身并不关心文件的具体内容，这意味着任何程序都可以读写任何文件。这样就避免了操作系统对各种文件内容的没有必要的解析，极大地简化了操作系统的设计与实现。同时UNIX提出了“一切皆文件”的设计理念。你几乎可以想到的所有内容都可以通过文件系统中的文件来命名。除了文件自身外，设备、管道、甚至网络、进程、内存空间都可以用文件来表示和访问。这种命名的一致性简化了操作系统的概念模型，使操作系统对外的接口组织更简单、更模块化。基本的文件访问操作包括 ``open read write close`` ，表示了访问一个文件最核心的操作：打开文件、读文件内容、写文件内容和关闭文件。直到今天，原始 UNIX 文件系统中文件访问操作的语义几乎没有变化。
 
 
 本章我们将实现一个简单的文件系统 -- easyfs，能够对 **持久存储设备** (Persistent Storage) 这种 I/O 资源进行管理。对于应用访问持久存储设备的需求，内核需要新增两种文件：常规文件和目录文件，它们均以文件系统所维护的 **磁盘文件** 形式被组织并保存在持久存储设备上。
