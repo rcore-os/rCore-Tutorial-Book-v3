@@ -154,7 +154,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>库操作系统（Library OS，LibOS）</strong></p>
-<p>LibOS以函数库的形式存在，为应用程序提供操作系统的基本功能。它最早来源于MIT的Exokernel（外核）架构设计 <a class="footnote-reference brackets" href="#exokernel" id="id3">1</a> 中，即把传统的单体内核分为两部分，一部分以库的形式（即 LibOS）与应用程序紧耦合，另外一部分（即外核）仅仅包含最基础的硬件保护和复用机制，来给 LibOS 提供基本的硬件访问服务。这样的设计思路可以针对应用程序的特征定制 LibOS ，达到高性能的目标。</p>
+<p>LibOS 以函数库的形式存在，为应用程序提供操作系统的基本功能。它最早来源于 MIT 的 Exokernel（外核）架构设计 <a class="footnote-reference brackets" href="#exokernel" id="id3">1</a> 中，即把传统的单体内核分为两部分，一部分以库的形式（即 LibOS）与应用程序紧耦合，另外一部分（即外核）仅仅包含最基础的硬件保护和复用机制，来给 LibOS 提供基本的硬件访问服务。这样的设计思路可以针对应用程序的特征定制 LibOS ，达到高性能的目标。</p>
 </div>
 </section>
 <section id="println">
@@ -187,7 +187,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 </div>
-<p>我们之前提到过， println! 宏是由标准库 std 提供的，且会使用到一个名为 write 的系统调用。现在我们的代码功能还不足以自己实现一个 println! 宏。由于程序使用了系统调用，但不能在核心库 core 中找到它，所以我们目前先通过将把 println! 宏注释掉，来暂时绕过这个问题。</p>
+<p>我们之前提到过， println! 宏是由标准库 std 提供的，且会使用到一个名为 write 的系统调用。现在我们的代码功能还不足以自己实现一个 println! 宏。由于程序使用了系统调用，但不能在核心库 core 中找到它，所以我们目前先通过将 println! 宏注释掉，来暂时绕过这个问题。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>Rust std库和core库</strong></p>
@@ -261,6 +261,15 @@ error: requires `start` lang_item
 </pre></div>
 </div>
 <p>本小节我们固然脱离了标准库，通过了编译器的检验，但也是伤筋动骨，将原有的很多功能弱化甚至直接删除，看起来距离在 RV64GC 平台上打印 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 相去甚远了（我们甚至连 println! 和 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数都删除了）。不要着急，接下来我们会以自己的方式来重塑这些基本功能，并最终完成我们的目标。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>Rust 语法卡片：Rust 模块化编程</strong></p>
+<p>将一个软件工程项目划分为多个子模块分别进行实现是一种被广泛应用的编程技巧，它有助于促进复用代码，并显著提升代码的可读性和可维护性。因此，众多编程语言均对模块化编程提供了支持，Rust 语言也不例外。</p>
+<p>每个通过 Cargo 工具创建的 Rust 项目均是一个模块，取决于 Rust 项目类型的不同，模块的根所在的位置也不同。当使用 <code class="docutils literal notranslate"><span class="pre">--bin</span></code> 创建一个可执行的 Rust 项目时，模块的根是 <code class="docutils literal notranslate"><span class="pre">src/main.rs</span></code> 文件；而当使用 <code class="docutils literal notranslate"><span class="pre">--lib</span></code> 创建一个 Rust 库项目时，模块的根是 <code class="docutils literal notranslate"><span class="pre">src/lib.rs</span></code> 文件。在模块的根文件中，我们需要声明所有可能会用到的子模块。如果不声明的话，即使子模块对应的文件存在，Rust 编译器也不会用到它们。如上面的代码片段中，我们就在根文件 <code class="docutils literal notranslate"><span class="pre">src/main.rs</span></code> 中通过 <code class="docutils literal notranslate"><span class="pre">mod</span> <span class="pre">lang_items;</span></code> 声明了子模块 <code class="docutils literal notranslate"><span class="pre">lang_items</span></code> ，该子模块实现在文件 <code class="docutils literal notranslate"><span class="pre">src/lang_item.rs</span></code> 中，我们将项目中所有的语义项放在该模块中。</p>
+<p>当一个子模块比较复杂的时候，它往往不会被放在一个独立的文件中，而是放在一个 <code class="docutils literal notranslate"><span class="pre">src</span></code> 目录下与子模块同名的子目录之下，在后面的章节中我们常会用到这种方法。例如第二章代码（参见代码仓库的 <code class="docutils literal notranslate"><span class="pre">ch2</span></code> 分支）中的 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 子模块就放在 <code class="docutils literal notranslate"><span class="pre">src/syscall</span></code> 目录下。对于这样的子模块，其所在目录下的 <code class="docutils literal notranslate"><span class="pre">mod.rs</span></code> 为该模块的根，其中可以进而声明它的子模块。同样，这些子模块既可以放在一个文件中，也可以放在一个目录下。</p>
+<p>每个模块可能会对其他模块公开一些变量、类型或函数，而该模块的其他内容则是对其他模块不可见的，也即其他模块不允许引用或访问这些内容。在模块内，仅有被显式声明为 <code class="docutils literal notranslate"><span class="pre">pub</span></code> 的内容才会对其他模块公开。Rust 类内部声明的属性域和方法也可以对其他类公开或是不对其他类公开，这取决于它们是否被声明为 <code class="docutils literal notranslate"><span class="pre">pub</span></code> 。我们在 C++/Java 语言中能够找到相同功能的关键字：即 <code class="docutils literal notranslate"><span class="pre">public/private</span></code> 。提供上述可见性机制的原因在于让其他类/模块能够访问当前类/模块公开提供的内容而无需关心它们是如何实现的，它们实际上也无法看到这些具体实现，因为这些具体实现并未向它们公开。编译器会对可见性进行检查，例如，当一个类/模块试图访问其他类/模块未公开的方法时，将无法通过编译。</p>
+<p>我们可以使用绝对路径或相对路径来引用其他模块或当前模块的内容。参考上面的 <code class="docutils literal notranslate"><span class="pre">use</span> <span class="pre">core::panic::PanicInfo;</span></code> ，类似 C++ ，我们将模块的名字按照层级由浅到深排列，并在相邻层级之间使用分隔符 <code class="docutils literal notranslate"><span class="pre">::</span></code> 进行分隔。路径的最后一级（如 <code class="docutils literal notranslate"><span class="pre">PanicInfo</span></code>）则表示我们具体要引用或访问的内容，可能是变量、类型或者方法名。当通过绝对路径进行引用时，路径最开头可能是项目依赖的一个外部库的名字，或者是 <code class="docutils literal notranslate"><span class="pre">crate</span></code> 表示项目自身的根模块。在后面的章节中，我们会多次用到它们。</p>
+</div>
 </section>
 <section id="id4">
 <h2>分析被移除标准库的程序<a class="headerlink" href="#id4" title="永久链接至标题"></a></h2>
@@ -288,7 +297,7 @@ error: requires `start` lang_item
 <span class="go">   target/riscv64gc-unknown-none-elf/debug/os:       file format elf64-littleriscv</span>
 </pre></div>
 </div>
-<p>通过 <code class="docutils literal notranslate"><span class="pre">file</span></code> 工具对二进制程序 <code class="docutils literal notranslate"><span class="pre">os</span></code> 的分析可以看到它好像是一个合法的 RISC-V 64 执行程序，但通过 <code class="docutils literal notranslate"><span class="pre">rust-readobj</span></code> 工具进一步分析，发现它的入口地址 Entry 是 <code class="docutils literal notranslate"><span class="pre">0</span></code> ，这就比较奇怪了，地址从 0 执行，好像不对。再通过 <code class="docutils literal notranslate"><span class="pre">rust-objdump</span></code> 工具把它反汇编，可以看到没有生成汇编代码。所以，我们可以断定，这个二进制程序虽然合法，但它是一个空程序。这不是我们希望的，我们希望的是与源码对应的有具体内容的执行程序。为什么会这样呢？原因是我们缺少了编译器需要找到的入口函数 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 。</p>
+<p>通过 <code class="docutils literal notranslate"><span class="pre">file</span></code> 工具对二进制程序 <code class="docutils literal notranslate"><span class="pre">os</span></code> 的分析可以看到它好像是一个合法的 RISC-V 64 可执行程序，但通过 <code class="docutils literal notranslate"><span class="pre">rust-readobj</span></code> 工具进一步分析，发现它的入口地址 Entry 是 <code class="docutils literal notranslate"><span class="pre">0</span></code> ，从 C/C++ 等语言中得来的经验告诉我们， <code class="docutils literal notranslate"><span class="pre">0</span></code> 一般表示 NULL 或空指针，因此等于 <code class="docutils literal notranslate"><span class="pre">0</span></code> 的入口地址看上去无法对应到任何指令。再通过 <code class="docutils literal notranslate"><span class="pre">rust-objdump</span></code> 工具把它反汇编，可以看到没有生成汇编代码。所以，我们可以断定，这个二进制程序虽然合法，但它是一个空程序。产生该现象的原因是：目前我们的程序（参考上面的源代码）没有进行任何有意义的工作，由于我们移除了 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数并将项目设置为 <code class="docutils literal notranslate"><span class="pre">#![no_main]</span></code> ，它甚至没有一个传统意义上的入口点（即程序首条被执行的指令所在的位置），因此 Rust 编译器会生成一个空程序。</p>
 <p>在下面几节，我们将建立有支持显示字符串的最小执行环境。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>

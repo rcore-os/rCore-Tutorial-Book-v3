@@ -264,7 +264,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos">5</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>下面的线程管理初始化过程中，会创建一个线程控制块向量，这里面的线程控制块对应到一个以创建的线程（其状态为 <cite>Running</cite> 或 <cite>Ready</cite> ）或还没加入一个具体的线程，其状态为 <cite>Available</cite> 。当创建线程并分配一个空闲的线程控制块给这个线程时，管理此线程的线程控制块的状态将转为 <cite>Ready</cite> 状态。当线程管理运行时调度切换此线程占用处理器执行时，会把此线程的线程控制块的状态设置为 <cite>Running</cite> 状态。</p>
+<p>下面的线程管理初始化过程中，会创建一个线程控制块向量，这里面的线程控制块对应到一个已创建的线程（其状态为 <cite>Running</cite> 或 <cite>Ready</cite> ）或还没加入一个具体的线程，其状态为 <cite>Available</cite> 。当创建线程并分配一个空闲的线程控制块给这个线程时，管理此线程的线程控制块的状态将转为 <cite>Ready</cite> 状态。当线程管理运行时调度切换此线程占用处理器执行时，会把此线程的线程控制块的状态设置为 <cite>Running</cite> 状态。</p>
 </section>
 <section id="id6">
 <h3>线程管理运行时初始化<a class="headerlink" href="#id6" title="永久链接至标题"></a></h3>
@@ -336,7 +336,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="simple">
 <li><p>第4~12行，在线程向量中查找一个状态为 <cite>Available</cite> 的空闲线程控制块；</p></li>
 <li><p>第14~20行，把当前线程和找到的空闲线程的状态进行交换，设置 <cite>runtime`的 `current</cite> 设置为这个新线程控制块；</p></li>
-<li></li>
 </ul>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Runtime</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">        </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">spawn</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">f</span>: <span class="nc">fn</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -352,7 +351,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos">12</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">s_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">s_ptr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="o">!</span><span class="mi">7</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span><span class="w"></span>
 <span class="linenos">13</span>
 <span class="linenos">14</span><span class="w">                </span><span class="n">available</span><span class="p">.</span><span class="n">ctx</span><span class="p">.</span><span class="n">x1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">guard</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span><span class="w">  </span><span class="c1">//ctx.x1  is old return address</span>
-<span class="linenos">15</span><span class="w">                </span><span class="n">available</span><span class="p">.</span><span class="n">ctx</span><span class="p">.</span><span class="n">nx1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span><span class="w">     </span><span class="c1">//ctx.nx2 is new return address</span>
+<span class="linenos">15</span><span class="w">                </span><span class="n">available</span><span class="p">.</span><span class="n">ctx</span><span class="p">.</span><span class="n">nx1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span><span class="w">     </span><span class="c1">//ctx.nx1 is new return address</span>
 <span class="linenos">16</span><span class="w">                </span><span class="n">available</span><span class="p">.</span><span class="n">ctx</span><span class="p">.</span><span class="n">x2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s_ptr</span><span class="p">.</span><span class="n">offset</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span><span class="w"> </span><span class="c1">//cxt.x2 is sp</span>
 <span class="linenos">17</span>
 <span class="linenos">18</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
@@ -385,7 +384,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </section>
 <section id="id8">
 <h3>线程切换<a class="headerlink" href="#id8" title="永久链接至标题"></a></h3>
-<p>但应用要切换线程时，会调用 <cite>yield_task</cite> 函数，通过 <cite>runtime.t_yield</cite> 函数来完成具体的切换过程。<cite>runtime.t_yield</cite> 这个函数主要完成的功能是：</p>
+<p>当应用要切换线程时，会调用 <cite>yield_task</cite> 函数，通过 <cite>runtime.t_yield</cite> 函数来完成具体的切换过程。<cite>runtime.t_yield</cite> 这个函数主要完成的功能是：</p>
 <ul class="simple">
 <li><p>第4~12行，在线程向量中查找一个状态为 <cite>Ready</cite> 的线程控制块；</p></li>
 <li><p>第14~20行，把当前运行的线程和找到的就绪线程的状态进行交换，把 <cite>runtime</cite> 的 <cite>current</cite> 设置为这个新线程控制块的id；</p></li>
@@ -464,11 +463,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos">29</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>这里需要注意两个细节。第一个是寄存器集合的保存数量。在保存通用寄存器集合时，并没有保存所有的通用寄存器，其原因是根据RISC-V的函数调用约定，有一部分寄存器是有调用函数 <cite>Caller</cite> 来保存的，所以就不需要被调用函数 <cite>switch</cite> 来保存了。第二个是当前指令指针(PC)的切换。在具体切换过程中，是基于函数返回地址来进行切换的。即首先把 <cite>switch</cite> 的函数返回地址 <cite>ra</cite> (即 <cite>x1</cite> )寄存器保存在 <cite>TaskContext</cite> 中，在此函数的倒数第二步，恢复切换后要执行线程的函数返回地址，即 <cite>ra</cite> 寄存器到 <cite>t0</cite> 寄存器，然后调用 <a href="#id9"><span class="problematic" id="id10">`</span></a>jr t0 ` 即完成了函数的额返回。</p>
+<p>这里需要注意两个细节。第一个是寄存器集合的保存数量。在保存通用寄存器集合时，并没有保存所有的通用寄存器，其原因是根据RISC-V的函数调用约定，有一部分寄存器是有调用函数 <cite>Caller</cite> 来保存的，所以就不需要被调用函数 <cite>switch</cite> 来保存了。第二个是当前指令指针(PC)的切换。在具体切换过程中，是基于函数返回地址来进行切换的。即首先把 <cite>switch</cite> 的函数返回地址 <cite>ra</cite> (即 <cite>x1</cite> )寄存器保存在 <cite>TaskContext</cite> 中，在此函数的倒数第二步，恢复切换后要执行线程的函数返回地址，即 <cite>ra</cite> 寄存器到 <cite>t0</cite> 寄存器，然后调用 <a href="#id9"><span class="problematic" id="id10">`</span></a>jr t0 ` 即完成了函数的返回。</p>
 </section>
 <section id="id11">
 <h3>开始执行<a class="headerlink" href="#id11" title="永久链接至标题"></a></h3>
-<p>有了上述线程管理运行时的各种功能支持，就可以开始线程的正常执行了。假设完成了线程管理运行时初始化，并创建了几个线程。当执行 <cite>runtime.run()</cite>  函数，通过 <cite>函数时，将切换线程管理运行时所在的应用主线程到另外一个处于 `Ready</cite> 状态的线程，让那个线程开始执行。但所有的线程都执行完毕后，会回到  <cite>runtime.run()</cite>  函数，通过 <cite>std::process::exit(0)</cite> 来退出该应用进程，整个应用的运行就结束了。</p>
+<p>有了上述线程管理运行时的各种功能支持，就可以开始线程的正常执行了。假设完成了线程管理运行时初始化，并创建了几个线程。当执行 <cite>runtime.run()</cite>  函数，通过 <cite>函数时，将切换线程管理运行时所在的应用主线程到另外一个处于 `Ready</cite> 状态的线程，让那个线程开始执行。当所有的线程都执行完毕后，会回到  <cite>runtime.run()</cite>  函数，通过 <cite>std::process::exit(0)</cite> 来退出该应用进程，整个应用的运行就结束了。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Runtime</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">       </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">run</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 3</span><span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">t_yield</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>

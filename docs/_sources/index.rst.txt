@@ -83,6 +83,7 @@ rCore-Tutorial-Book 第三版
 - `项目的源代码仓库 <https://github.com/rcore-os/rCore-Tutorial-v3>`_ && `文档仓库 <https://github.com/rcore-os/rCore-Tutorial-Book-v3>`_
 - 时间仓促，本项目还有很多不完善之处，欢迎大家积极在每一个章节的评论区留言，或者提交 Issues 或 Pull Requests，让我们
   一起努力让这本书变得更好！
+- 欢迎大家加入项目交流 QQ 群，群号：735045051
 
 项目进度
 -----------------------

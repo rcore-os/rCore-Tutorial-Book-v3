@@ -83,9 +83,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第五章：进程及进程管理</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">引言</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">本章导读</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id6">实践体验</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id7">本章代码树</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id8">本章代码导读</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id8">实践体验</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id9">本章代码树</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id10">本章代码导读</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="1process.html">进程概念及重要系统调用</a></li>
@@ -160,6 +160,18 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p><strong>UNIX shell的起源</strong></p>
 <p>“shell”的名字和概念是从UNIX的前身MULTICS发展和继承过来的，应用程序可以通过shell程序来进行调用并被操作系统执行。Thompson shell是历史上第一个UNIX shell，在1971年由肯·汤普逊（Ken Thompson）写出了第一版并加入UNIX之中。Thompson shell按照极简主义设计，语法非常简单，是一个简单的命令行解释器。它的许多特征影响了以后的操作系统命令行界面的发展。至Version 7 Unix之后，被Bourne shell取代。</p>
 </div>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p>描述未来的MULTICS操作系统</p>
+<p>在取得了CTSS操作系统的成功后，MIT与ARPA在1963年MAC项目，其目标之一是设计和实现 CTSS 的后继操作系统。经过前期准备，在1965年，MIT的Fernando J. Corbató 教授联合贝尔实验室和通用电气公司联合启动了雄心勃勃的MUTICS操作系统项目。Multics 的目标是：改变人们使用计算机和计算机编程的方式，让人们能像使用电力或电话一样来方便地使用计算机的计算能力。类比于电力基础设施（electric utility），MIT的科学家想通过Multics构建未来的计算基础设施（computer utility）。</p>
+<p>为此开发小组对GE645计算机系统和Multics操作系统提出了一系列的非常先进的设计思路。同学们如果阅读了“Introduction and Overview of the Multics System” <a class="footnote-reference brackets" href="#corb65" id="id3">2</a> 和“Structure of the Multics Supervisor” <a class="footnote-reference brackets" href="#vyssotsky65" id="id4">3</a> 这两篇论文，可以发现Multics操作系统的设计思路即使放到二十一世纪的今天也不算过时。但相对较弱和进展缓慢的硬件，用于编写操作系统的PL/I高级语言的编译器严重滞后，操作系统各种功能带了的大型软件复杂性导致了Multics操作系统的开发困难重重。不过最终在1969年，Multics操作系统开始提供服务，并一直持续到2000年，算得上是很长寿了。</p>
+<p>这里我们只讲述Multics操作系统中与进程（Process）相关的一些设计思路。Multics操作系统中的进程是指一个程序/作业的执行过程，如编译一个程序、产生一个文件等。每个进程在执行过程中所占的内存空间范围由 GE645 计算机中处理器指定的段（硬件机制）来描述和限制。操作系统通过处理器调度调度算法和调度分派机制来让不同的进程分时使用处理器，这样进程会有正在运行的运行态、准备运行的就绪态和等待条件满足的阻塞态这样不同的执行状态。在进程管理方面，有动态创建进程、阻塞进程和终止进程等不同的操作。每个子进程都是从某个进程（父进程）通过系统调用产生出来的。子进程可以共享父进程拥有的内存空间。用户进程通过系统调用获得操作系统的服务，不能直接访问操作系统的数据和代码，确保了操作系统的安全。</p>
+<p>成为未来基石的UNIX操作系统</p>
+<p>Ken Thompson和Dennis Ritchie这一对贝尔实验室的黄金搭档，在1969年退出 Multics 操作系统开发工作后，并没有放弃操作系统的研发，而是决定重新开始。Ken Thompson从小处着手，从一台老旧的DEC PDP-7计算机开始，将Multics 操作系统的设计想法进行简化，并一个一个地实现，完成了第一版UNIX操作系统内核，并带有汇编器、编辑器和shell应用程序。这时的操作系统只是一个简单的单任务操作系统。它的UNIX取名是对MULTICS的一种玩笑回应。Dennis Ritchie具有Multics项目中的高级语言PL/I编译器方面的经验，他创建了小巧灵活的C语言和C编译器，UNIX后续版本用C语言进行了重写。然后C语言和UNIX操作系统联手，影响了后续几乎所有的计算机和操作系统（Linux、MacOS、Windows…），成为了未来的基石。</p>
+<p>这里我们只讲述UNIX操作系统中与进程（Process）相关的一些设计实现思路。简单地说，UNIX操作系统中的进程实现充分吸取了MULTICS中关于进程的设计思想，实现了 <code class="docutils literal notranslate"><span class="pre">fork</span> <span class="pre">exec</span> <span class="pre">wait</span> <span class="pre">exit</span></code> 四个精巧的系统调用来支持对进程的灵活管理。
+父进程进程通过 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 系统调用创建自身的副本（子进程）；称为“子进程”的副本可调用 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 系统调用用另一个程序覆盖其内存空间，这样就可以执行新程序了；子进程执行完毕后，可通过调用 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 系统调用来退出并通知父进程；父进程通过调用 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 系统调用来等待子进程的退出。</p>
+<p>一句话小结：MULTICS操作系统的思想造就了UNIX操作系统，而UNIX操作系统引导了操作系统的发展历程，Linux操作系统统治了当今世界。</p>
+</div>
 <p id="term-command-line"><span id="term-terminal"></span>于是，本章我们会开发一个用户 <strong>终端</strong> (Terminal) 程序或称 <strong>命令行</strong> 应用(Command Line Application, 俗称 <strong>shell</strong> ) ，形成用户与操作系统进行交互的命令行界面(Command Line Interface)，它就和我们今天常用的 OS 中的命令行应用（如 Linux中的bash，Windows中的CMD等）没有什么不同：只需在其中输入命令即可启动或杀死应用，或者监控系统的运行状况。这自然是现代 OS 中不可缺少的一部分，并大大增加了系统的 <strong>可交互性</strong> ，使得用户可以更加灵活地控制系统
 。
 为了在用户态就可以借助操作系统的服务动态灵活地管理和控制应用的执行，我们需要在已有的 <strong>任务</strong> 抽象的基础上进一步扩展，形成新的抽象： <strong>进程</strong> ，并实现若干基于 <strong>进程</strong> 的强大系统调用。</p>
@@ -168,9 +180,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p><strong>销毁</strong> （Destroy）：进程退出。进程会在运行完成后可自行退出，但还需要其他进程（如创建这些进程的父进程）来回收这些进程最后的资源，并销毁这些进程。</p></li>
 <li><p><strong>等待</strong> （Wait）：父进程等待子进程退出。父进程等待子进程停止是很有用的，比如上面提到的收集子进程的退出信息，回收退出的子进程占用的剩余资源等。</p></li>
 <li><p><strong>信息</strong> （Info）：获取进程的状态信息：操作系统也可提供有关进程的身份和状态等进程信息，例如进程的ID，进程的运行状态，进程的优先级等。</p></li>
-<li><p><a href="#id3"><span class="problematic" id="id4">**</span></a>其他**（Other）：其他的进程控制服务。例如，让一个进程能够杀死另外一个进程，暂停进程（停止运行一段时间），恢复进程（继续运行）等。</p></li>
+<li><p><a href="#id5"><span class="problematic" id="id6">**</span></a>其他**（Other）：其他的进程控制服务。例如，让一个进程能够杀死另外一个进程，暂停进程（停止运行一段时间），恢复进程（继续运行）等。</p></li>
 </ul>
-<p>有了上述灵活强大的进程管理功能，就可以进化出本章的白垩纪“伤齿龙” <a class="footnote-reference brackets" href="#troodon" id="id5">1</a> 操作系统了。</p>
+<p>有了上述灵活强大的进程管理功能，就可以进化出本章的白垩纪“伤齿龙” <a class="footnote-reference brackets" href="#troodon" id="id7">1</a> 操作系统了。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>任务和进程的关系与区别</strong></p>
@@ -181,8 +193,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>第三/四章提到的 <strong>任务</strong> 是这里提到的 <strong>进程</strong> 的初级阶段，任务还没进化到拥有更强大的动态变化功能：进程可以在运行的过程中，创建 <strong>子进程</strong> 、 用新的 <strong>程序</strong> 内容覆盖已有的 <strong>程序</strong> 内容。这种动态变化的功能可让程序在运行过程中动态使用更多的物理或虚拟的 <strong>资源</strong> 。</p>
 </div>
 </section>
-<section id="id6">
-<h2>实践体验<a class="headerlink" href="#id6" title="永久链接至标题"></a></h2>
+<section id="id8">
+<h2>实践体验<a class="headerlink" href="#id8" title="永久链接至标题"></a></h2>
 <p>获取本章代码：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
 <span class="gp">$ </span><span class="nb">cd</span> rCore-Tutorial-v3
@@ -262,8 +274,8 @@ Rust user shell
 </div>
 <p>当应用执行完毕后，将继续回到shell程序的命令输入模式。</p>
 </section>
-<section id="id7">
-<h2>本章代码树<a class="headerlink" href="#id7" title="永久链接至标题"></a></h2>
+<section id="id9">
+<h2>本章代码树<a class="headerlink" href="#id9" title="永久链接至标题"></a></h2>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>./os/src
 <span class="linenos"> 2</span>Rust        25 Files    1760 Lines
 <span class="linenos"> 3</span>Assembly     3 Files      88 Lines
@@ -348,8 +360,8 @@ Rust user shell
 </pre></div>
 </div>
 </section>
-<section id="id8">
-<h2>本章代码导读<a class="headerlink" href="#id8" title="永久链接至标题"></a></h2>
+<section id="id10">
+<h2>本章代码导读<a class="headerlink" href="#id10" title="永久链接至标题"></a></h2>
 <p>本章的第一小节 <a class="reference internal" href="1process.html"><span class="doc">进程概念及重要系统调用</span></a> 介绍了操作系统中经典的进程概念，并描述我们将要实现的参考自 UNIX 系内核并经过简化的精简版进程模型。在该模型下，若想对进程进行管理，实现创建、退出等操作，核心就在于 <code class="docutils literal notranslate"><span class="pre">fork/exec/waitpid</span></code> 三个系统调用。</p>
 <p>首先我们修改运行在应用态的应用软件，它们均放置在 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下。在新增系统调用的时候，需要在 <code class="docutils literal notranslate"><span class="pre">user/src/lib.rs</span></code> 中新增一个 <code class="docutils literal notranslate"><span class="pre">sys_*</span></code> 的函数，它的作用是将对应的系统调用按照与内核约定的 ABI 在 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 中转化为一条用于触发系统调用的 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 的指令；还需要在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 将 <code class="docutils literal notranslate"><span class="pre">sys_*</span></code> 进一步封装成一个应用可以直接调用的与系统调用同名的函数。通过这种方式我们新增三个进程模型中核心的系统调用 <code class="docutils literal notranslate"><span class="pre">fork/exec/waitpid</span></code> ，一个查看进程 PID 的系统调用 <code class="docutils literal notranslate"><span class="pre">getpid</span></code> ，还有一个允许应用程序获取用户键盘输入的 <code class="docutils literal notranslate"><span class="pre">read</span></code> 系统调用。</p>
 <p>基于进程模型，我们在 <code class="docutils literal notranslate"><span class="pre">user/src/bin</span></code> 目录下重新实现了一组应用程序。其中有两个特殊的应用程序：用户初始程序 <code class="docutils literal notranslate"><span class="pre">initproc.rs</span></code> 和 shell 程序 <code class="docutils literal notranslate"><span class="pre">user_shell.rs</span></code> ，可以认为它们位于内核和其他应用程序之间的中间层提供一些基础功能，但是它们仍处于用户态的应用层。前者会被内核唯一自动加载、也是最早加载并执行，后者则负责从键盘接收用户输入的应用名并执行对应的应用。剩下的应用从不同层面测试了我们内核实现的正确性，同学可以自行参考。值得一提的是， <code class="docutils literal notranslate"><span class="pre">usertests</span></code> 可以按照顺序执行绝大部分应用，会在测试操作系统功能和正确性上为我们提供很多方便。</p>
@@ -370,8 +382,19 @@ Rust user shell
 <li><p>进程的I/O输入机制：为了支持用户终端 <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> 读取用户键盘输入的功能，还需要实现 <code class="docutils literal notranslate"><span class="pre">read</span></code> 系统调用，它可以在 <code class="docutils literal notranslate"><span class="pre">os/src/syscall/fs.rs</span></code> 中找到。</p></li>
 </ul>
 <dl class="footnote brackets">
-<dt class="label" id="troodon"><span class="brackets"><a class="fn-backref" href="#id5">1</a></span></dt>
+<dt class="label" id="troodon"><span class="brackets"><a class="fn-backref" href="#id7">1</a></span></dt>
 <dd><p>伤齿龙是一种灵活的小型恐龙，生存于7500万年前的晚白垩纪，伤齿龙的脑袋与身体的比例是恐龙中最大之一，因此伤齿龙被认为是最有智能的恐龙之一。</p>
+</dd>
+<dt class="label" id="corb65"><span class="brackets"><a class="fn-backref" href="#id3">2</a></span></dt>
+<dd><p>Fernando J. Corbató. “Introductmn and overvmw of the MULTICS system ” In Proc AFIPS I965 Fall Joznt Computer Conf, Part I, Spartan Books, New York, 185-196.</p>
+</dd>
+<dt class="label" id="vyssotsky65"><span class="brackets"><a class="fn-backref" href="#id4">3</a></span></dt>
+<dd><ol class="upperalpha simple" start="22">
+<li><ol class="upperalpha simple">
+<li><p>Vyssotsky. “Structure of the Multics supervisor” In AFIPS Conf Proc 27 1965, Spartan Books Washington D C 1965 pp 203–212</p></li>
+</ol>
+</li>
+</ol>
 </dd>
 </dl>
 </section>

@@ -29,6 +29,25 @@
 
 
 .. chyyuu 可以介绍包括各种外设的 PC OS??? 
+   https://blog.ysndr.de/posts/essays/2021-12-12-rust-for-iot/
+   https://english.stackexchange.com/questions/56183/origin-of-the-term-driver-in-computer-science
+   https://en.wikipedia.org/wiki/MS-DOS
+   https://en.wikipedia.org/wiki/Microsoft_Windows
+   https://en.wikipedia.org/wiki/MacOS
+   https://en.wikipedia.org/wiki/IOS_version_history
+   https://en.wikipedia.org/wiki/Android_(operating_system)
+   https://en.wikipedia.org/wiki/History_of_the_graphical_user_interface
+
+.. note::
+
+   设备驱动程序是操作系统的一部分？
+
+   我们都知道计算机是由CPU、内存和I/O设备组成的。即使是图灵创造的图灵机这一理论模型，也有其必须存在的I/O设备：笔和纸。1946年出现的远古计算机ENIAC，都具有读卡器和打卡器来读入和输出穿孔卡片中的数据。当然，这些外设不需要额外编写软件，直接通过硬件电路就可以完成I/O操作了。但后续磁带和磁盘等外设的出现，使得需要通过软件来管理越来越复杂的外设功能了，这样设备驱动程序（Device Driver）就出现了，它甚至出现在操作系统之前，以子程序库的形式存在，以便于应用程序来访问硬件。
+
+   随着计算机外部设备越来越多，越来越复杂，设备驱动程序在操作系统中的代码比重也越来越大。甚至某些操作系统的名称直接加入了外设名，如微软在 1981 年至 1995 年间主导了个人计算机市场的DOS操作系统的全称是“Disk Operating System”。1973 年，施乐 PARC 开发了Alto个人电脑，它是第一台具有图形用户界面(GUI) 的计算机，直接影响了苹果公司和微软公司设计的带图形界面的操作系统。微软后续开发的操作系统名称“Windows”也直接体现了图形显示设备（显卡）能够展示的抽象概念，显卡驱动和基于显卡驱动的图形界面子系统在Windows操作系统中始终处于非常重要的位置。
+
+   目前评价操作系统被产业界接受的程度有一个公认的量化指标，该操作系统的设备驱动程序支持的外设种类和数量。量越大说明它在市场上的接受度就越高。正是由于操作系统能够访问和管理各种外设，才给了应用程序丰富多彩的功能。
+
 
 
 本章的目标是深入理解I/O设备管理，并将站在I/O设备管理的角度来分析I/O设备的特征，操作系统与I/O设备的交互方式。接着会进一步通过串口，磁盘，图形显示等各种外设的具体实现来展现操作系统是如何管理I/O设备的，并展现设备驱动与操作系统内核其它重要部分的交互, 通过扩展操作系统的I/O能力，形成具有灵活感知和捕猎能力的侏罗猎龙 [#juravenator]_ 操作系统。
