@@ -9,9 +9,9 @@
    0intro
    1app-ee-platform
    2remove-std
-   3-1-mini-rt-usrland
-   3-2-mini-rt-baremetal
-   4understand-prog
-   5exercise
+   3first-instruction-in-kernel
+   4support-func-call
+   5print-and-exit-based-on-sbi
+   6exercise
 
 
