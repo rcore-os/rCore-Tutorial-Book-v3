@@ -9,9 +9,10 @@
    0intro
    1app-ee-platform
    2remove-std
-   3first-instruction-in-kernel
-   4support-func-call
-   5print-and-exit-based-on-sbi
-   6exercise
+   3first-instruction-in-kernel1
+   4first-instruction-in-kernel2
+   5support-func-call
+   6print-and-exit-based-on-sbi
+   7exercise
 
 
