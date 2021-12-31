@@ -239,20 +239,20 @@ Need[i,j] = Max[i,j] - allocation[i, j]
 2. 从线程集合中找到一个能满足下述条件的线程
 
 .. code-block:: Rust
-    :linenos:
+   :linenos:
 
-    Finish[i] == false;
-    Need[i,j] ≤ Work[j];
+   Finish[i] == false;
+   Need[i,j] ≤ Work[j];
 
 若找到，执行步骤3，否则，执行步骤4。
 
 3. 当线程thr[i]获得资源后，可顺利执行，直至完成，并释放出分配给它的资源，故应执行:
 
 .. code-block:: Rust
-    :linenos:
+   :linenos:
 
- 　　Work[j] = Work[j] + Allocation[i,j];
-　 　Finish[i] = true;
+   Work[j] = Work[j] + Allocation[i,j];
+   Finish[i] = true;
 
 跳转回步骤2
 

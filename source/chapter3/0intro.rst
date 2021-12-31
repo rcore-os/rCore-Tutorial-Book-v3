@@ -62,7 +62,7 @@
    https://en.wikipedia.org/wiki/Compatible_Time-Sharing_System 介绍了CTSS
    http://www-formal.stanford.edu/jmc/history/timesharing/timesharing.html 约翰麦卡锡，斯坦福大学 对分时历史的回忆
 
-.. notes::
+.. note::
 
    **支持多道程序的各种操作系统**
    

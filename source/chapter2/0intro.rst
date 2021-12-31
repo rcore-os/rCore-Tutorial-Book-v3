@@ -44,7 +44,7 @@
 
    https://en.wikipedia.org/wiki/Timeline_of_operating_systems 
 
-.. notes::
+.. note::
    
    来自汽车生产线灵感而产生的 GM-NAA I/O System 批处理操作系统
    
@@ -75,7 +75,7 @@
    https://www.acsac.org/2002/papers/classic-MULTICS-orig.pdf  对MULTICS的rings的安全评价论文
    https://www.usenix.org/system/files/login/articles/1070-MULTICS.pdf 指出MULTICS用力过猛
 
-.. notes::
+.. note::
 
    想法超前且安全保护用力过猛的MUTICS操作系统
 
