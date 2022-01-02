@@ -12,7 +12,7 @@
    3first-instruction-in-kernel1
    4first-instruction-in-kernel2
    5support-func-call
-   6print-and-exit-based-on-sbi
+   6print-and-shutdown-based-on-sbi
    7exercise
 
 
