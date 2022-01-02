@@ -32,18 +32,18 @@
 
 .. code-block:: rust
     :linenos:
-    :emphasize-lines: 4,8
+    :emphasize-lines: 8
 
     // os/src/main.rs
     #![no_std]
     #![no_main]
-    #![feature(global_asm)]
 
     mod lang_item;
 
+    use core::arch::global_asm;
     global_asm!(include_str!("entry.asm"));
 
-第 4 行中，我们手动设置 ``global_asm`` 特性来支持在 Rust 代码中嵌入全局汇编代码。第 8 行，我们首先通过 ``include_str!`` 宏将同目录下的汇编代码 ``entry.asm`` 转化为字符串并通过 ``global_asm!`` 宏嵌入到代码中。
+第 8 行，我们通过 ``include_str!`` 宏将同目录下的汇编代码 ``entry.asm`` 转化为字符串并通过 ``global_asm!`` 宏嵌入到代码中。可以看到，在经历了长时间的迭代之后， ``global_asm!`` 宏已被加入到 Rust 核心库 core 中。
 
 调整内核的内存布局
 -------------------------------------
