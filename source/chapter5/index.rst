@@ -10,4 +10,4 @@
    3implement-process-mechanism
    4exercise
    
-.. chyyuu MULTICS操作系统是侏罗纪的“霸王龙”操作系统。UNIX操作系统是小巧聪明的“伤齿龙”操作系统。
+.. chyyuu 有一节来 回顾，归纳总结进程 抽象/虚拟???
