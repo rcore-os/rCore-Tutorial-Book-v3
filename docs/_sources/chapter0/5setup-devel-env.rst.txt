@@ -130,10 +130,10 @@ Rust 开发环境配置
    rustc 1.46.0-nightly (7750c3d46 2020-06-26)
 
 .. warning::
-   目前用于操作系统实验开发的rustc编译器的版本不局限在1.46.0这样的数字上，你可以选择更新的rustc编译器。但注意只能用rustc的nightly版本。
+   目前用于操作系统实验开发的 rustc 编译器的版本不局限在 1.46.0 这样的数字上，你可以选择更新版本的 rustc 编译器。但注意只能用 rustc 的 nightly 版本。
 
 
-可通过如下命令安装rustc的nightly版本，并把该版本设置为rustc的缺省版本。
+可通过如下命令安装 rustc 的 nightly 版本，并把该版本设置为 rustc 的缺省版本。
 
 .. code-block:: bash
    
@@ -167,7 +167,7 @@ Rust 开发环境配置
 .. code-block:: bash
 
    rustup target add riscv64gc-unknown-none-elf
-   cargo install cargo-binutils --vers ~0.2
+   cargo install cargo-binutils --vers =0.3.3
    rustup component add llvm-tools-preview
    rustup component add rust-src
 

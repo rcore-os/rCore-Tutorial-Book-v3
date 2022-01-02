@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>条件变量机制 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>条件变量机制 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/my_style.css" type="text/css" />
@@ -208,6 +208,24 @@ commentsRunWhenDOMLoaded(addUtterances);
 </section>
 <section id="id3">
 <h2>条件变量的基本思路<a class="headerlink" href="#id3" title="永久链接至标题"></a></h2>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p>Brinch Hansen（1973）和Hoare（1974）结合操作系统和Concurrent Pascal编程语言，提出了一种高级同步原语，称为管程（monitor）。一个管程是一个由过程（procedures，Pascal语言的术语，即函数）、共享变量及数据结构等组成的一个集合。线程可以调用管程中的过程，但线程不能在管程之外声明的过程中直接访问管程内的数据结构。</p>
+<div class="highlight-pascal notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="n">monitor</span> <span class="n">m1</span>
+<span class="linenos"> 2</span>    <span class="kt">integer</span> <span class="n">i</span><span class="o">;</span>   <span class="c1">//共享变量</span>
+<span class="linenos"> 3</span>    <span class="n">condition</span> <span class="n">c</span><span class="o">;</span> <span class="c1">//条件变量</span>
+<span class="linenos"> 4</span>
+<span class="linenos"> 5</span>    <span class="k">procedure</span> <span class="nf">f1</span><span class="p">()</span><span class="o">;</span>
+<span class="linenos"> 6</span>      <span class="o">...</span>       <span class="c1">//对共享变量的访问，以及通过条件变量进行线程间的通知</span>
+<span class="linenos"> 7</span>    <span class="k">end</span><span class="o">;</span>
+<span class="linenos"> 8</span>
+<span class="linenos"> 9</span>    <span class="k">procedure</span> <span class="nf">f2</span><span class="p">()</span><span class="o">;</span>
+<span class="linenos">10</span>      <span class="o">...</span>       <span class="c1">//对共享变量的访问，以及通过条件变量进行线程间的通知</span>
+<span class="linenos">11</span>    <span class="k">end</span><span class="o">;</span>
+<span class="linenos">12</span><span class="k">end</span> <span class="n">monitor</span>
+</pre></div>
+</div>
+</div>
 <p>管程有一个很重要的特性，即任一时刻只能有一个活跃线程调用管程中过程，这一特性使线程在调用执行管程中过程时能保证互斥，这样线程就可以放心地访问共享变量。管程是编程语言的组成部分，编译器知道其特殊性，因此可以采用与其他过程调用不同的方法来处理对管程的调用，比如编译器可以在管程中的每个过程的入口/出口处加上互斥锁的加锁/释放锁的操作。因为是由编译器而非程序员来生成互斥锁相关的代码，所以出错的可能性要小。</p>
 <p>管程虽然借助编译器提供了一种实现互斥的简便途径，但这还不够，还需要一种线程间的沟通机制。首先是等待机制：由于线程在调用管程中某个过程时，发现某个条件不满足，那就在无法继续运行而被阻塞。这里需要注意的是：在阻塞之前，操作系统需要把进入管程的过程入口出的互斥锁给释放掉，这样才能让其他线程有机会调用管程的过程。</p>
 <p>其次是唤醒机制：另外一个线程可以在调用管程的过程中，把某个条件设置为真，并且还需要有一种机制及时唤醒等待条件为真的阻塞线程。这里需要注意的是：唤醒线程（本身执行位置在管程的过程中）如果把阻塞线程(其执行位置还在管程的过程中)唤醒了，那么需要避免两个活跃的线程都在管程中导致互斥被破坏的情况。为了避免管程中同时有两个活跃线程，我们需要一定的规则来约定线程发出唤醒操作的行为。目前有三种典型的规则方案：</p>
@@ -379,7 +397,7 @@ commentsRunWhenDOMLoaded(addUtterances);
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; 版权所有 2020, Yifan Wu.</p>
+    <p>&#169; 版权所有 2020-2022, Yu Chen, Yifan Wu.</p>
   </div>
 
   利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 

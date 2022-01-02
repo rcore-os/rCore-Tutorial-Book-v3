@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>内核态的线程管理 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>内核态的线程管理 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/my_style.css" type="text/css" />
@@ -253,6 +253,19 @@ commentsRunWhenDOMLoaded(addUtterances);
 <section id="id12">
 <h3>系统调用封装<a class="headerlink" href="#id12" title="永久链接至标题"></a></h3>
 <p>同学可以在 user/src/syscall.rs 中看到以 sys_* 开头的系统调用的函数原型，它们后续还会在 user/src/lib.rs 中被封装成方便应用程序使用的形式。如 sys_thread_create 被封装成 thread_create ，而 sys_waittid 被封装成 waittid  ：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thread_create</span><span class="p">(</span><span class="n">entry</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">arg</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_thread_create</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span><span class="w"> </span><span class="n">arg</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">waittid</span><span class="p">(</span><span class="n">tid</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">sys_waittid</span><span class="p">(</span><span class="n">tid</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">            </span><span class="o">-</span><span class="mi">2</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">yield_</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">            </span><span class="n">exit_code</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">exit_code</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">10</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>waittid 等待一个线程标识符的值为tid 的线程结束。在具体实现方面，我们看到当 sys_waittid 返回值为 -2 ，即要等待的线程存在但它却尚未退出的时候，主线程调用 <a href="#id23"><span class="problematic" id="id24">yield_</span></a> 主动交出 CPU 使用权，待下次 CPU 使用权被内核交还给它的时候再次调用 sys_waittid 查看要等待的线程是否退出。这样做是为了减小 CPU 资源的浪费。这种方法是为了尽可能简化内核的实现。</p>
 </section>
 <section id="threads">
 <h3>多线程应用程序 – threads<a class="headerlink" href="#threads" title="永久链接至标题"></a></h3>
@@ -335,6 +348,18 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">res</span> <span class="pre">:</span> <span class="pre">TaskUserRes</span></code> 指出了用户态的线程代码执行需要的信息，这些在线程初始化之后就不再变化：</p></li>
 </ul>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskUserRes</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">2</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">tid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">3</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">ustack_base</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">process</span>: <span class="nc">Weak</span><span class="o">&lt;</span><span class="n">ProcessControlBlock</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">5</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>tid：线程标识符</p></li>
+<li><p>ustack_base：线程的栈顶地址</p></li>
+<li><p>process：线程所属的进程</p></li>
+</ul>
 <p>与之前进程中的定义相同/类似的部分：</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">trap_cx_ppn</span></code> 指出了应用地址空间中线程的 Trap 上下文被放在的物理页帧的物理页号。</p></li>
@@ -379,7 +404,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h3>线程创建、线程退出与等待线程结束<a class="headerlink" href="#id18" title="永久链接至标题"></a></h3>
 <section id="id19">
 <h4>线程创建<a class="headerlink" href="#id19" title="永久链接至标题"></a></h4>
-<p>但一个进程执行中发出了创建线程的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_thread_create</span></code> 后，操作系统就需要在当前进程的基础上创建一个线程了，这里重点是需要了解创建线程控制块，在线程控制块中初始化各个成员变量，建立好进程和线程的关系等。只有建立好这些成员变量，才能给线程建立一个灵活方便的执行环境。这里列出支持线程正确运行所需的重要的执行环境要素：</p>
+<p>当一个进程执行中发出了创建线程的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_thread_create</span></code> 后，操作系统就需要在当前进程的基础上创建一个线程了，这里重点是需要了解创建线程控制块，在线程控制块中初始化各个成员变量，建立好进程和线程的关系等。只有建立好这些成员变量，才能给线程建立一个灵活方便的执行环境。这里列出支持线程正确运行所需的重要的执行环境要素：</p>
 <ul class="simple">
 <li><p>线程的用户态栈：确保在用户态的线程能正常执行函数调用；</p></li>
 <li><p>线程的内核态栈：确保线程陷入内核后能正常执行函数调用；</p></li>
@@ -429,13 +454,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>第7-11行，调用 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::new</span></code> 方法，创建一个新的线程 <code class="docutils literal notranslate"><span class="pre">new_task</span></code> ，在创建过程中，建立与进程 <code class="docutils literal notranslate"><span class="pre">process</span></code> 的所属关系，分配了线程用户态栈、内核态栈、用于异常/中断的跳板页。</p></li>
 <li><p>第13行，把线程挂到调度队列中。</p></li>
 <li><p>第19-22行，把线程接入到所需进程的线程列表 <code class="docutils literal notranslate"><span class="pre">tasks</span></code> 中。</p></li>
-<li><p>第25~32行，始化位于该线程在用户态地址空间中的 Trap 上下文：设置线程的函数入口点和用户栈，使得第一次进入用户态时时能从线程起始位置开始正确执行；设置好内核栈和陷入函数指针 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> ，保证在 Trap 的时候用户态的线程能正确进入内核态。</p></li>
+<li><p>第25~32行，初始化位于该线程在用户态地址空间中的 Trap 上下文：设置线程的函数入口点和用户栈，使得第一次进入用户态时能从线程起始位置开始正确执行；设置好内核栈和陷入函数指针 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> ，保证在 Trap 的时候用户态的线程能正确进入内核态。</p></li>
 </ul>
 </section>
 <section id="id20">
 <h4>线程退出<a class="headerlink" href="#id20" title="永久链接至标题"></a></h4>
-<p>`
-当一个非主线程的其他线程发出 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 系统调用时，内核会调用 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 函数退出当前线程并切换到下一个线程，但不会导致其所属进程的退出。当 <code class="docutils literal notranslate"><span class="pre">主线程</span></code> 即进程发出这个系统调用，但内核收到这个系统调用后，会回收整个进程（这包括了其管理的所有线程）资源，并退出。具体实现如下：</p>
+<p>当一个非主线程的其他线程发出 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 系统调用时，内核会调用 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 函数退出当前线程并切换到下一个线程，但不会导致其所属进程的退出。当 <code class="docutils literal notranslate"><span class="pre">主线程</span></code> 即进程发出这个系统调用，当内核收到这个系统调用后，会回收整个进程（这包括了其管理的所有线程）资源，并退出。具体实现如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exit</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -570,7 +594,7 @@ commentsRunWhenDOMLoaded(addUtterances);
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; 版权所有 2020, Yifan Wu.</p>
+    <p>&#169; 版权所有 2020-2022, Yu Chen, Yifan Wu.</p>
   </div>
 
   利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 

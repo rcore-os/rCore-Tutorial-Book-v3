@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>移除标准库依赖 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>移除标准库依赖 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/my_style.css" type="text/css" />
@@ -54,7 +54,7 @@ commentsRunWhenDOMLoaded(addUtterances);
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="索引" href="../genindex.html" />
     <link rel="search" title="搜索" href="../search.html" />
-    <link rel="next" title="构建用户态执行环境" href="3-1-mini-rt-usrland.html" />
+    <link rel="next" title="内核第一条指令（原理篇）" href="3first-instruction-in-kernel1.html" />
     <link rel="prev" title="应用程序执行环境与平台支持" href="1app-ee-platform.html" /> 
 </head>
 
@@ -87,10 +87,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l3"><a class="reference internal" href="#id4">分析被移除标准库的程序</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="3-1-mini-rt-usrland.html">构建用户态执行环境</a></li>
-<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html">构建裸机执行环境</a></li>
-<li class="toctree-l2"><a class="reference internal" href="4understand-prog.html">理解应用程序和执行环境</a></li>
-<li class="toctree-l2"><a class="reference internal" href="5exercise.html">练习</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3first-instruction-in-kernel1.html">内核第一条指令（原理篇）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4first-instruction-in-kernel2.html">内核第一条指令（实践篇）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="5support-func-call.html">为内核支持函数调用</a></li>
+<li class="toctree-l2"><a class="reference internal" href="6print-and-shutdown-based-on-sbi.html">基于 SBI 服务完成输出和关机</a></li>
+<li class="toctree-l2"><a class="reference internal" href="7exercise.html">练习</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
@@ -150,11 +151,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <section id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
-<p>为了很好地理解一个简单应用所需的执行环境服务如何体现，本节将尝试开始构造一个小的执行环境。这个执行环境可以看成是一个函数库级的操作系统雏形，可建立在 Linux 之上，也可直接建立在裸机之上，我们称为“三叶虫”操作系统。作为第一步，本节将尝试移除之前的 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 程序对于 Rust std 标准库的依赖，使得它能够编译到裸机平台 RV64GC 或 Linux-RV64 上。</p>
+<p>本章的目标是构建一个内核最小执行环境使得它能在 RV64GC （即实现了IMAFDC规范的 RISC-V 64位CPU）裸机上运行，在功能上它则像上一节最简单的 Rust 应用程序一样能够打印 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> ，这将会为我们的后续章节提供很多调试上的方便，我们将其称为“三叶虫”操作系统。本节我们来进行第一个步骤：即对上一节最简单的 Rust 应用程序进行改造使得它能够被编译到 RV64GC 裸机平台上，为此我们需要移除它对于 Rust std标准库的依赖，因为 Rust std标准库自己就需要操作系统内核的支持。这样我们需要添加能够支持应用的裸机级别的库操作系统（LibOS）。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>库操作系统（Library OS，LibOS）</strong></p>
-<p>LibOS 以函数库的形式存在，为应用程序提供操作系统的基本功能。它最早来源于 MIT 的 Exokernel（外核）架构设计 <a class="footnote-reference brackets" href="#exokernel" id="id3">1</a> 中，即把传统的单体内核分为两部分，一部分以库的形式（即 LibOS）与应用程序紧耦合，另外一部分（即外核）仅仅包含最基础的硬件保护和复用机制，来给 LibOS 提供基本的硬件访问服务。这样的设计思路可以针对应用程序的特征定制 LibOS ，达到高性能的目标。</p>
+<p>LibOS 以函数库的形式存在，为应用程序提供操作系统的基本功能。它最早来源于 MIT PDOS研究小组在1996年左右的Exokernel（外核）操作系统结构研究。Frans Kaashoek 教授的博士生Dawson Engler 提出了一种与以往操作系统架构大相径庭的 Exokernel（外核）架构设计 <a class="footnote-reference brackets" href="#exokernel" id="id3">1</a> ，即把传统的单体内核分为两部分，一部分以库操作系统的形式（即 LibOS）与应用程序紧耦合以实现传统的操作系统抽象，并进行面向应用的裁剪与优化；另外一部分（即外核）仅专注在最基本的安全复用物理硬件的机制上，来给 LibOS 提供基本的硬件访问服务。这样的设计思路可以针对应用程序的特征定制 LibOS ，达到高性能的目标。</p>
+<p>这种操作系统架构的设计思路比较超前，对原型系统的测试显示了很好的性能提升。但最终没有被工业界采用，其中一个重要的原因是针对特定应用定制一个LibOS的工作量大，难以重复使用。人力成本因素导致了它不太被工业界认可。</p>
 </div>
 </section>
 <section id="println">
@@ -190,7 +192,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>我们之前提到过， println! 宏是由标准库 std 提供的，且会使用到一个名为 write 的系统调用。现在我们的代码功能还不足以自己实现一个 println! 宏。由于程序使用了系统调用，但不能在核心库 core 中找到它，所以我们目前先通过将 println! 宏注释掉，来暂时绕过这个问题。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p><strong>Rust std库和core库</strong></p>
+<p><strong>Rust Tips: Rust std 库和 core 库</strong></p>
 <ul class="simple">
 <li><p>Rust 的标准库–std，为绝大多数的 Rust 应用程序开发提供基础支持、跨硬件和操作系统平台支持，是应用范围最广、地位最重要的库，但需要有底层操作系统的支持。</p></li>
 <li><p>Rust 的核心库–core，可以理解为是经过大幅精简的标准库，它被应用在标准库不能覆盖到的某些特定领域，如裸机(bare metal) 环境下，用于操作系统和嵌入式系统的开发，它不需要底层操作系统的支持。</p></li>
@@ -211,7 +213,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>在标准库 std 中提供了 panic 的处理函数 <code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code>，其大致功能是打印出错位置和原因并杀死当前应用。但 panic 的处理在核心库 core 中并没有提供，因此我们需要自己先实现一个简陋的 panic 处理函数，这样才能支持“三叶虫”操作系统的编译通过。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p><strong>Rust 语法卡片：语义项 lang_items</strong></p>
+<p><strong>Rust Tips：语义项 lang_items</strong></p>
 <p>为了满足编译器和运行时库的灵活性，Rust 编译器内部的某些功能并不仅仅硬编码在语言内部来实现，而是以一种可插入的形式在库中提供，而且可以定制。标准库或第三方库只需要通过某种方式（在方法前面加上一个标记，如 <code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code> ，即可）告诉编译器它实现了编译器内部的哪些功能，编译器就会采用库提供的方法来替换它内部对应的功能。</p>
 </div>
 <p>我们创建一个新的子模块 <code class="docutils literal notranslate"><span class="pre">lang_items.rs</span></code> 保存这些语义项，在里面提供 panic 处理函数的实现并通过标记通知编译器采用我们的实现：</p>
@@ -263,7 +265,7 @@ error: requires `start` lang_item
 <p>本小节我们固然脱离了标准库，通过了编译器的检验，但也是伤筋动骨，将原有的很多功能弱化甚至直接删除，看起来距离在 RV64GC 平台上打印 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 相去甚远了（我们甚至连 println! 和 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数都删除了）。不要着急，接下来我们会以自己的方式来重塑这些基本功能，并最终完成我们的目标。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p><strong>Rust 语法卡片：Rust 模块化编程</strong></p>
+<p><strong>Rust Tips：Rust 模块化编程</strong></p>
 <p>将一个软件工程项目划分为多个子模块分别进行实现是一种被广泛应用的编程技巧，它有助于促进复用代码，并显著提升代码的可读性和可维护性。因此，众多编程语言均对模块化编程提供了支持，Rust 语言也不例外。</p>
 <p>每个通过 Cargo 工具创建的 Rust 项目均是一个模块，取决于 Rust 项目类型的不同，模块的根所在的位置也不同。当使用 <code class="docutils literal notranslate"><span class="pre">--bin</span></code> 创建一个可执行的 Rust 项目时，模块的根是 <code class="docutils literal notranslate"><span class="pre">src/main.rs</span></code> 文件；而当使用 <code class="docutils literal notranslate"><span class="pre">--lib</span></code> 创建一个 Rust 库项目时，模块的根是 <code class="docutils literal notranslate"><span class="pre">src/lib.rs</span></code> 文件。在模块的根文件中，我们需要声明所有可能会用到的子模块。如果不声明的话，即使子模块对应的文件存在，Rust 编译器也不会用到它们。如上面的代码片段中，我们就在根文件 <code class="docutils literal notranslate"><span class="pre">src/main.rs</span></code> 中通过 <code class="docutils literal notranslate"><span class="pre">mod</span> <span class="pre">lang_items;</span></code> 声明了子模块 <code class="docutils literal notranslate"><span class="pre">lang_items</span></code> ，该子模块实现在文件 <code class="docutils literal notranslate"><span class="pre">src/lang_item.rs</span></code> 中，我们将项目中所有的语义项放在该模块中。</p>
 <p>当一个子模块比较复杂的时候，它往往不会被放在一个独立的文件中，而是放在一个 <code class="docutils literal notranslate"><span class="pre">src</span></code> 目录下与子模块同名的子目录之下，在后面的章节中我们常会用到这种方法。例如第二章代码（参见代码仓库的 <code class="docutils literal notranslate"><span class="pre">ch2</span></code> 分支）中的 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 子模块就放在 <code class="docutils literal notranslate"><span class="pre">src/syscall</span></code> 目录下。对于这样的子模块，其所在目录下的 <code class="docutils literal notranslate"><span class="pre">mod.rs</span></code> 为该模块的根，其中可以进而声明它的子模块。同样，这些子模块既可以放在一个文件中，也可以放在一个目录下。</p>
@@ -330,13 +332,13 @@ error: requires `start` lang_item
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="1app-ee-platform.html" class="btn btn-neutral float-left" title="应用程序执行环境与平台支持" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
-        <a href="3-1-mini-rt-usrland.html" class="btn btn-neutral float-right" title="构建用户态执行环境" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="3first-instruction-in-kernel1.html" class="btn btn-neutral float-right" title="内核第一条指令（原理篇）" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; 版权所有 2020, Yifan Wu.</p>
+    <p>&#169; 版权所有 2020-2022, Yu Chen, Yifan Wu.</p>
   </div>
 
   利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 

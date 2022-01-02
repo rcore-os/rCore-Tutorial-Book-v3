@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>应用程序执行环境与平台支持 &mdash; rCore-Tutorial-Book-v3 0.1 文档</title>
+  <title>应用程序执行环境与平台支持 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/my_style.css" type="text/css" />
@@ -87,10 +87,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="2remove-std.html">移除标准库依赖</a></li>
-<li class="toctree-l2"><a class="reference internal" href="3-1-mini-rt-usrland.html">构建用户态执行环境</a></li>
-<li class="toctree-l2"><a class="reference internal" href="3-2-mini-rt-baremetal.html">构建裸机执行环境</a></li>
-<li class="toctree-l2"><a class="reference internal" href="4understand-prog.html">理解应用程序和执行环境</a></li>
-<li class="toctree-l2"><a class="reference internal" href="5exercise.html">练习</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3first-instruction-in-kernel1.html">内核第一条指令（原理篇）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4first-instruction-in-kernel2.html">内核第一条指令（实践篇）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="5support-func-call.html">为内核支持函数调用</a></li>
+<li class="toctree-l2"><a class="reference internal" href="6print-and-shutdown-based-on-sbi.html">基于 SBI 服务完成输出和关机</a></li>
+<li class="toctree-l2"><a class="reference internal" href="7exercise.html">练习</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
@@ -150,7 +151,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <section id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
-<p>本节介绍了如何设计实现一个提供显示字符服务的用户态执行环境和裸机执行环境，以支持一个应用程序显示字符串。显示字符服务的裸机执行环境和用户态执行环境向下直接或间接与硬件关联，向上可通过函数库给应用提供 <strong>显示字符</strong> 的服务。这也说明了不管执行环境是简单还是复杂，设计实现上是否容易，它都体现了不同操作系统的共性特征–给应用需求提供服务。在某种程度上看，执行环境的软件主体虽然是以函数库的形态存在，但可称为是一种操作系统。</p>
+<p>本节我们从一个最简单的 Rust 应用程序入手，不仅仅满足于停留在它的表面，而是深入地挖掘它下面的多层执行环境为它的开发和运行提供了怎样的方便。特别的，操作系统也是一层执行环境，因此它需要为上层的应用程序提供服务。我们会接触到计算机科学中最核心的思想——抽象，同时以现实中不同需求层级的应用为例分析如何进行合理的抽象。最后，我们还会介绍软硬件平台（包括 RISC-V 架构）的一些基础知识。</p>
 </section>
 <section id="id3">
 <h2>执行应用程序<a class="headerlink" href="#id3" title="永久链接至标题"></a></h2>
@@ -324,7 +325,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p id="term-bare-metal">在之前的开发环境配置中，我们已经在 rustup 工具链中安装了这个目标平台支持，因此并不是该目标平台未安装的问题。这个问题只是单纯的表示在这个目标平台上找不到 Rust 标准库 std。我们之前曾经提到过，编程语言的标准库或三方库的某些功能会直接或间接的用到操作系统提供的系统调用。但目前我们所选的目标平台不存在任何操作系统支持，于是 Rust 并没有为这个目标平台支持完整的标准库 std。类似这样的平台通常被我们称为 <strong>裸机平台</strong> (bare-metal)。这意味着在裸机平台上的软件没有传统操作系统支持，只能直接访问硬件。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p><strong>Rust语言标准库</strong></p>
+<p><strong>Rust Tips：Rust语言标准库</strong></p>
 <p>Rust 语言标准库–std 是让 Rust 语言开发的软件具备可移植性的基础，类似于 C 语言的 LibC 标准库。它是一组小巧的、经过实践检验的共享抽象，适用于更广泛的 Rust 生态系统开发。它提供了核心类型，如 Vec 和 Option、类库定义的语言原语操作、标准宏、I/O 和多线程等。默认情况下，我们可以使用 Rust 语言标准库来支持 Rust 应用程序的开发。但 Rust 语言标准库的一个限制是，它需要有操作系统的支持。所以，如果你要实现的软件是运行在裸机上的操作系统，就不能直接用 Rust 语言标准库了。</p>
 </div>
 <p>幸运的是，Rust 有一个对 Rust 语言标准库–std 裁剪过后的 Rust 语言核心库 core。core库是不需要任何操作系统支持的，它的功能也比较受限，但是也包含了 Rust 语言相当一部分的核心机制，可以满足我们的大部分功能需求。Rust 语言是一种面向系统（包括操作系统）开发的语言，所以在 Rust 语言生态中，有很多三方库也不依赖标准库 std 而仅仅依赖核心库 core。对它们的使用可以很大程度上减轻我们的编程负担。它们是我们能够在裸机平台挣扎求生的最主要倚仗，也是大部分运行在没有操作系统支持的 Rust 嵌入式软件的必备。</p>
@@ -343,7 +344,7 @@ commentsRunWhenDOMLoaded(addUtterances);
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; 版权所有 2020, Yifan Wu.</p>
+    <p>&#169; 版权所有 2020-2022, Yu Chen, Yifan Wu.</p>
   </div>
 
   利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
