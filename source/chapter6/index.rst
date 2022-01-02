@@ -1,14 +1,15 @@
-第六章：进程间通信
+第六章：文件系统
 ==============================================
 
 .. toctree::
    :maxdepth: 4
 
    0intro
-   1file-descriptor
-   2pipe
-   3exercise
+   1fs-interface
+   2fs-implementation
+   3using-easy-fs-in-kernel
+   4exercise
 
 .. chyyuu 
-   有团队协作能力的“迅猛龙”操作系统。
-   在扩展章节，添加其他类型的IPC介绍
+   最晚灭绝的“霸王龙”操作系统
+   在扩展章节，添加其他文件系统的介绍
