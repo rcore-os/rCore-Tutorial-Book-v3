@@ -70,7 +70,7 @@
    https://blog.csdn.net/mightySheldor/article/details/44732029 中文 The Atlas Supervisor
    http://www.whereis.xyz/2019/tech/199/ 虚拟内存技术的前世今生
    
-.. notes::
+.. note::
    
    提供巨大虚拟内存空间的Atlas Supervisor操作系统
 

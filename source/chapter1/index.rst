@@ -9,9 +9,11 @@
    0intro
    1app-ee-platform
    2remove-std
-   3-1-mini-rt-usrland
-   3-2-mini-rt-baremetal
-   4understand-prog
-   5exercise
+   3first-instruction-in-kernel1
+   4first-instruction-in-kernel2
+   5support-func-call
+   6print-and-shutdown-based-on-sbi
+   7exercise
 
 
+.. chyyuu 在后面介绍一些操作系统的大致架构，作为理论知识的扩展???
