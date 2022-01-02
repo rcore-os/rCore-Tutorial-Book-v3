@@ -18,13 +18,13 @@
 # -- Project information -----------------------------------------------------
 
 project = 'rCore-Tutorial-Book-v3'
-copyright = '2020, Yifan Wu'
-author = 'Yifan Wu'
+copyright = '2020-2022, Yu Chen, Yifan Wu'
+author = 'Yu Chen, Yifan Wu'
 language = 'zh_CN'
 html_search_language = 'zh'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1'
+release = '3.6.0-alpha.1'
 
 
 # -- General configuration ---------------------------------------------------
