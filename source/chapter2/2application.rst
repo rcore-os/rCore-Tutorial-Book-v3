@@ -20,9 +20,9 @@
 
 应用程序、用户库（包括入口函数、初始化函数、I/O 函数和系统调用接口等多个 rs 文件组成）放在项目根目录的 ``user`` 目录下，它和第一章的裸机应用不同之处主要在项目的目录文件结构和内存布局上：
 
-- user/src/bin/*.rs：各个应用程序
-- user/src/*.rs：用户库（包括入口函数、初始化函数、I/O 函数和系统调用接口等）
-- user/src/linker.ld：应用程序的内存布局说明。
+- ``user/src/bin/*.rs`` ：各个应用程序
+- ``user/src/*.rs`` ：用户库（包括入口函数、初始化函数、I/O 函数和系统调用接口等）
+- ``user/src/linker.ld`` ：应用程序的内存布局说明。
 
 项目结构
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -167,7 +167,7 @@
 
 作为程序员我们并不知道这些只有编译器才知道的信息，因此我们只能在编译器的帮助下完成变量到寄存器的绑定。现在来看 ``asm!`` 宏的格式：首先在第 6 行是我们要插入的汇编代码段本身，这里我们只插入一行 ``ecall`` 指令，不过它可以支持同时插入多条指令。从第 7 行开始我们在编译器的帮助下将输入/输出变量绑定到寄存器。比如第 8 行的 ``in("x11") args[1]`` 则表示将输入参数 ``args[1]`` 绑定到 ``ecall`` 的输入寄存器 ``x11`` 即 ``a1`` 中，编译器自动插入相关指令并保证在 ``ecall`` 指令被执行之前寄存器 ``a1`` 的值与 ``args[1]`` 相同。以同样的方式我们可以将输入参数 ``args[2]`` 和 ``id`` 分别绑定到输入寄存器 ``a2`` 和 ``a7`` 中。这里比较特殊的是 ``a0`` 寄存器，它同时作为输入和输出，因此我们将 ``in`` 改成 ``inlateout`` ，并在行末的变量部分使用 ``{in_var} => {out_var}`` 的格式，其中 ``{in_var}`` 和 ``{out_var}`` 分别表示上下文中的输入变量和输出变量。
 
-有些时候不必将变量绑定到固定的寄存器，此时 ``asm!`` 宏可以自动完成寄存器分配。某些汇编代码段还会带来一些编译器无法预知的副作用，这种情况下需要在 ``asm!`` 中通过 ``options`` 告知编译器这些可能的副作用，这样可以帮助编译器在避免出错更加高效分配寄存器。事实上， ``asm!`` 宏远比我们这里介绍的更加强大易用，详情参考 Rust 相关 RFC 文档 [#rust-asm-macro-rfc] 。
+有些时候不必将变量绑定到固定的寄存器，此时 ``asm!`` 宏可以自动完成寄存器分配。某些汇编代码段还会带来一些编译器无法预知的副作用，这种情况下需要在 ``asm!`` 中通过 ``options`` 告知编译器这些可能的副作用，这样可以帮助编译器在避免出错更加高效分配寄存器。事实上， ``asm!`` 宏远比我们这里介绍的更加强大易用，详情参考 Rust 相关 RFC 文档 [#rust-asm-macro-rfc]_ 。
 
 上面这一段汇编代码的含义和内容与 :ref:`第一章中的 RustSBI 输出到屏幕的 SBI 调用汇编代码 <term-llvm-sbicall>` 涉及的汇编指令一样，但传递参数的寄存器的含义是不同的。有兴趣的同学可以回顾第一章的 ``console.rs`` 和 ``sbi.rs`` 。
 
@@ -285,15 +285,15 @@
     $ cd user
     $ make build
     $ cd target/riscv64gc-unknown-none-elf/release/
-    [确认待执行的应用为 ELF 格式]
+    # 确认待执行的应用为 ELF 格式
     $ file 03priv_inst
     03priv_inst: ELF 64-bit LSB executable, UCB RISC-V, version 1 (SYSV), statically linked, not stripped
-    [执行特权指令出错]
+    # 执行特权指令出错
     $ qemu-riscv64 ./03priv_inst
     Try to execute privileged instruction in U Mode
     Kernel should kill this application!
     Illegal instruction (core dumped)
-    [执行访问特权级CSR的指令出错]
+    # 执行访问特权级 CSR 的指令出错
     $ qemu-riscv64 ./04priv_csr
     Try to access privileged CSR in U Mode
     Kernel should kill this application!
