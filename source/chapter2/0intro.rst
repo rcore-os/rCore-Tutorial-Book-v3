@@ -123,33 +123,43 @@
 
 .. code-block:: 
 
-   [RustSBI output]
-   [kernel] Hello, world!
-   [kernel] num_app = 3
-   [kernel] app_0 [0x8020b028, 0x8020c000)
-   [kernel] app_1 [0x8020c000, 0x8020d070)
-   [kernel] app_2 [0x8020d070, 0x8020e218)
-   [kernel] Loading app_0
-   Hello, world!
-   [kernel] IllegalInstruction in application, core dumped.
-   [kernel] Loading app_1
-   Into Test store_fault, we will insert an invalid store operation...
-   Kernel should kill this application!
-   [kernel] PageFault in application, core dumped.
-   [kernel] Loading app_2
-   3^10000=5079(MOD 10007)
-   3^20000=8202(MOD 10007)
-   3^30000=8824(MOD 10007)
-   3^40000=5750(MOD 10007)
-   3^50000=3824(MOD 10007)
-   3^60000=8516(MOD 10007)
-   3^70000=2510(MOD 10007)
-   3^80000=9379(MOD 10007)
-   3^90000=2621(MOD 10007)
-   3^100000=2749(MOD 10007)
-   Test power OK!
-   [kernel] Application exited with code 0
-   [kernel] Panicked at src/batch.rs:57 All applications completed!
+    [RustSBI output]
+    [kernel] Hello, world!
+    [kernel] num_app = 5
+    [kernel] app_0 [0x8020a038, 0x8020af90)
+    [kernel] app_1 [0x8020af90, 0x8020bf80)
+    [kernel] app_2 [0x8020bf80, 0x8020d108)
+    [kernel] app_3 [0x8020d108, 0x8020e0e0)
+    [kernel] app_4 [0x8020e0e0, 0x8020f0b8)
+    [kernel] Loading app_0
+    Hello, world!
+    [kernel] Application exited with code 0
+    [kernel] Loading app_1
+    Into Test store_fault, we will insert an invalid store operation...
+    Kernel should kill this application!
+    [kernel] PageFault in application, kernel killed it.
+    [kernel] Loading app_2
+    3^10000=5079(MOD 10007)
+    3^20000=8202(MOD 10007)
+    3^30000=8824(MOD 10007)
+    3^40000=5750(MOD 10007)
+    3^50000=3824(MOD 10007)
+    3^60000=8516(MOD 10007)
+    3^70000=2510(MOD 10007)
+    3^80000=9379(MOD 10007)
+    3^90000=2621(MOD 10007)
+    3^100000=2749(MOD 10007)
+    Test power OK!
+    [kernel] Application exited with code 0
+    [kernel] Loading app_3
+    Try to execute privileged instruction in U Mode
+    Kernel should kill this application!
+    [kernel] IllegalInstruction in application, kernel killed it.
+    [kernel] Loading app_4
+    Try to access privileged CSR in U Mode
+    Kernel should kill this application!
+    [kernel] IllegalInstruction in application, kernel killed it.
+    [kernel] Panicked at src/batch.rs:58 All applications completed!
 
 本章代码树
 -------------------------------------------------
@@ -204,7 +214,9 @@
          ├── bin(基于用户库 user_lib 开发的应用，每个应用放在一个源文件中)
          │   ├── 00hello_world.rs
          │   ├── 01store_fault.rs
-         │   └── 02power.rs
+         │   ├── 02power.rs
+         │   ├── 03priv_inst.rs
+         │   └── 04priv_csr.rs
          ├── console.rs
          ├── lang_items.rs
          ├── lib.rs(用户库 user_lib)
