@@ -12,6 +12,60 @@
 - 文件描述符层：常规文件对应的 ``OSInode`` 是文件的内核内部表示，因此需要为它实现 ``File`` Trait 从而能够可以将它放入到进程文件描述符表中并通过 ``sys_read/write`` 系统调用进行读写。
 - 系统调用层：由于引入了常规文件这种文件类型，导致一些系统调用以及相关的内核机制需要进行一定的修改。
 
+
+文件简介
+-------------------------------------------
+
+应用程序看到并被操作系统管理的 **文件** (File) 就是一系列的字节组合。操作系统不关心文件内容，只关心如何对文件按字节流进行读写的机制，这就意味着任何程序可以读写任何文件（即字节流），对文件具体内容的解析是应用程序的任务，操作系统对此不做任何干涉。例如，一个Rust编译器可以读取一个C语言源程序并进行编译，操作系统并并不会阻止这样的事情发生。
+
+有了文件这样的抽象后，操作系统内核就可把能读写并持久存储的数据按文件来进行管理，并把文件分配给进程，让进程以很简洁的统一抽象接口 ``File`` 来读写数据：
+
+.. code-block:: rust
+
+    // os/src/fs/mod.rs
+
+    pub trait File : Send + Sync {
+        fn read(&self, buf: UserBuffer) -> usize;
+        fn write(&self, buf: UserBuffer) -> usize;
+    }
+
+这个接口在内存和存储设备之间建立了数据交换的通道。其中 ``UserBuffer`` 是我们在 ``mm`` 子模块中定义的应用地址空间中的一段缓冲区（即内存）的抽象。它的具体实现在本质上其实只是一个 ``&[u8]`` ，位于应用地址空间中，内核无法直接通过用户地址空间的虚拟地址来访问，因此需要进行封装。然而，在理解抽象接口 ``File`` 的各方法时，我们仍可以将 ``UserBuffer`` 看成一个 ``&[u8]`` 切片，它是一个同时给出了缓冲区起始地址和长度的胖指针。
+
+``read`` 指的是从文件中读取数据放到缓冲区中，最多将缓冲区填满（即读取缓冲区的长度那么多字节），并返回实际读取的字节数；而 ``write`` 指的是将缓冲区中的数据写入文件，最多将缓冲区中的数据全部写入，并返回直接写入的字节数。至于 ``read`` 和 ``write`` 的实现则与文件具体是哪种类型有关，它决定了数据如何被读取和写入。
+
+回过头来再看一下用户缓冲区的抽象 ``UserBuffer`` ，它的声明如下：
+
+.. code-block:: rust
+
+    // os/src/mm/page_table.rs
+
+    pub fn translated_byte_buffer(
+        token: usize,
+        ptr: *const u8,
+        len: usize
+    ) -> Vec<&'static mut [u8]>;
+
+    pub struct UserBuffer {
+        pub buffers: Vec<&'static mut [u8]>,
+    }
+
+    impl UserBuffer {
+        pub fn new(buffers: Vec<&'static mut [u8]>) -> Self {
+            Self { buffers }
+        }
+        pub fn len(&self) -> usize {
+            let mut total: usize = 0;
+            for b in self.buffers.iter() {
+                total += b.len();
+            }
+            total
+        }
+    }
+
+它只是将我们调用 ``translated_byte_buffer`` 获得的包含多个切片的 ``Vec`` 进一步包装起来，通过 ``len`` 方法可以得到缓冲区的长度。此外，我们还让它作为一个迭代器可以逐字节进行读写。有兴趣的同学可以参考类型 ``UserBufferIterator`` 还有 ``IntoIterator`` 和 ``Iterator`` 两个 Trait 的使用方法。
+
+
+
 块设备驱动层
 -----------------------------------------------
 
@@ -276,6 +330,14 @@ K210 真实硬件平台
 文件描述符层
 -----------------------------------------------
 
+
+.. chyyuu 可以解释一下文件描述符的起因???
+
+一个进程可以访问的多个文件，所以在操作系统中需要有一个管理进程访问的多个文件的结构，这就是 **文件描述符表** (File Descriptor Table) ，其中的每个 **文件描述符** (File Descriptor) 代表了一个特定读写属性的I/O资源。
+
+为简化操作系统设计实现，可以让每个进程都带有一个线性的 **文件描述符表** ，记录该进程请求内核打开并读写的那些文件集合。而 **文件描述符** (File Descriptor) 则是一个非负整数，表示文件描述符表中一个打开的 **文件描述符** 所处的位置（可理解为数组下标）。进程通过文件描述符，可以在自身的文件描述符表中找到对应的文件记录信息，从而也就找到了对应的文件，并对文件进行读写。当打开（ ``open`` ）或创建（ ``create`` ） 一个文件的时候，如果顺利，内核会返回给应用刚刚打开或创建的文件对应的文件描述符；而当应用想关闭（ ``close`` ）一个文件的时候，也需要向内核提供对应的文件描述符，以完成对应文件相关资源的回收操作。
+
+
 因为 ``OSInode`` 也是要一种要放到进程文件描述符表中，并通过 ``sys_read/write`` 系统调用进行读写的文件，因此我们也需要为它实现 ``File`` Trait ：
 
 .. code-block:: rust
@@ -313,8 +375,56 @@ K210 真实硬件平台
 
 本章我们为 ``File`` Trait 新增了 ``readable/writable`` 两个抽象接口从而在 ``sys_read/sys_write`` 的时候进行简单的访问权限检查。 ``read/write`` 的实现也比较简单，只需遍历 ``UserBuffer`` 中的每个缓冲区片段，调用 ``Inode`` 写好的 ``read/write_at`` 接口就好了。注意 ``read/write_at`` 的起始位置是在 ``OSInode`` 中维护的 ``offset`` ，这个 ``offset`` 也随着遍历的进行被持续更新。在 ``read/write`` 的全程需要获取 ``OSInode`` 的互斥锁，保证两个进程无法同时访问同个文件。
 
-文件系统相关内核机制实现
+文件描述符表
 -----------------------------------------------
+
+为了支持进程对文件的管理，我们需要在进程控制块中加入文件描述符表的相应字段：
+
+.. code-block:: rust
+    :linenos:
+    :emphasize-lines: 12
+
+    // os/src/task/task.rs
+
+    pub struct TaskControlBlockInner {
+        pub trap_cx_ppn: PhysPageNum,
+        pub base_size: usize,
+        pub task_cx_ptr: usize,
+        pub task_status: TaskStatus,
+        pub memory_set: MemorySet,
+        pub parent: Option<Weak<TaskControlBlock>>,
+        pub children: Vec<Arc<TaskControlBlock>>,
+        pub exit_code: i32,
+        pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
+    }
+
+可以看到 ``fd_table`` 的类型包含多层嵌套，我们从外到里分别说明：
+
+- ``Vec`` 的动态长度特性使得我们无需设置一个固定的文件描述符数量上限，我们可以更加灵活的使用内存，而不必操心内存管理问题；
+- ``Option`` 使得我们可以区分一个文件描述符当前是否空闲，当它是 ``None`` 的时候是空闲的，而 ``Some`` 则代表它已被占用；
+- ``Arc`` 首先提供了共享引用能力。后面我们会提到，可能会有多个进程共享同一个文件对它进行读写。此外被它包裹的内容会被放到内核堆而不是栈上，于是它便不需要在编译期有着确定的大小；
+- ``dyn`` 关键字表明 ``Arc`` 里面的类型实现了 ``File/Send/Sync`` 三个 Trait ，但是编译期无法知道它具体是哪个类型（可能是任何实现了 ``File`` Trait 的类型如 ``Stdin/Stdout`` ，故而它所占的空间大小自然也无法确定），需要等到运行时才能知道它的具体类型，对于一些抽象方法的调用也是在那个时候才能找到该类型实现的方法并跳转过去。
+
+.. note::
+
+    **Rust 语法卡片：Rust 中的多态**
+
+    在编程语言中， **多态** (Polymorphism) 指的是在同一段代码中可以隐含多种不同类型的特征。在 Rust 中主要通过泛型和 Trait 来实现多态。
+    
+    泛型是一种 **编译期多态** (Static Polymorphism)，在编译一个泛型函数的时候，编译器会对于所有可能用到的类型进行实例化并对应生成一个版本的汇编代码，在编译期就能知道选取哪个版本并确定函数地址，这可能会导致生成的二进制文件体积较大；而 Trait 对象（也即上面提到的 ``dyn`` 语法）是一种 **运行时多态** (Dynamic Polymorphism)，需要在运行时查一种类似于 C++ 中的 **虚表** (Virtual Table) 才能找到实际类型对于抽象接口实现的函数地址并进行调用，这样会带来一定的运行时开销，但是更省空间且灵活。
+
+
+应用访问文件的内核机制实现
+-----------------------------------------------
+应用程序在访问文件之前，首先需要完成对文件系统的初始化和加载。这可以通过操作系统来完成，也可以让应用程序发出文件系统相关的系统调用（如 ``mount``等）来完成。我们这里的选择是让操作系统直接完成。
+
+应用程序如果要基于文件进行I/O访问，大致就会涉及如下一些系统调用：
+
+- 打开文件 -- sys_open：进程只有打开文件，操作系统才能返回一个可进行读写的文件描述符给进程，进程才能基于这个值来进行对应文件的读写。
+- 关闭文件 -- sys_close：进程基于文件描述符关闭文件后，就不能再对文件进行读写操作了，这样可以在一定程度上保证对文件的合法访问。
+- 读文件 -- sys_read：进程可以基于文件描述符来读文件内容到相应内存中。
+- 写文件 -- sys_write：进程可以基于文件描述符来把相应内存内容写到文件中。
+
 
 文件系统初始化
 +++++++++++++++++++++++++++++++++++++++++++++++
@@ -353,7 +463,7 @@ K210 真实硬件平台
     }
 
 
-通过 sys_open 打开文件
+打开与关闭文件
 +++++++++++++++++++++++++++++++++++++++++++++++
 
 我们需要在内核中也定义一份打开文件的标志 ``OpenFlags`` ：
@@ -456,7 +566,28 @@ K210 真实硬件平台
         }
     }
 
-通过 sys_exec 加载并执行应用
+
+关闭文件的系统调用 ``sys_close`` 实现非常简单，我们只需将进程控制块中的文件描述符表对应的一项改为 ``None`` 代表它已经空闲即可，同时这也会导致内层的引用计数类型 ``Arc`` 被销毁，会减少一个文件的引用计数，当引用计数减少到 0 之后文件所占用的资源就会被自动回收。
+
+.. code-block:: rust
+
+    // os/src/syscall/fs.rs
+
+    pub fn sys_close(fd: usize) -> isize {
+        let task = current_task().unwrap();
+        let mut inner = task.inner_exclusive_access();
+        if fd >= inner.fd_table.len() {
+            return -1;
+        }
+        if inner.fd_table[fd].is_none() {
+            return -1;
+        }
+        inner.fd_table[fd].take();
+        0
+    }
+
+
+基于文件来加载并执行应用
 +++++++++++++++++++++++++++++++++++++++++++++++
 
 在有了文件系统支持之后，我们在 ``sys_exec`` 所需的应用的 ELF 文件格式的数据就不再需要通过应用加载器从内核的数据段获取，而是从文件系统中获取，这样内核与应用的代码/数据就解耦了：
@@ -529,3 +660,53 @@ K210 真实硬件平台
             TaskControlBlock::new(v.as_slice())
         });
     }
+
+
+读写文件
++++++++++++++++++++++++++++++++++++++++++++++++
+
+基于文件抽象接口和文件描述符表，我们可以按照无结构的字节流在处理基本的文件读写，这样可以让文件读写系统调用 ``sys_read/write`` 变得更加具有普适性，为后续支持把管道等抽象为文件打下了基础：
+
+.. code-block:: rust
+
+    // os/src/syscall/fs.rs
+
+    pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+        let token = current_user_token();
+        let task = current_task().unwrap();
+        let inner = task.inner_exclusive_access();
+        if fd >= inner.fd_table.len() {
+            return -1;
+        }
+        if let Some(file) = &inner.fd_table[fd] {
+            let file = file.clone();
+            // release current task TCB manually to avoid multi-borrow
+            drop(inner);
+            file.write(
+                UserBuffer::new(translated_byte_buffer(token, buf, len))
+            ) as isize
+        } else {
+            -1
+        }
+    }
+
+    pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
+        let token = current_user_token();
+        let task = current_task().unwrap();
+        let inner = task.inner_exclusive_access();
+        if fd >= inner.fd_table.len() {
+            return -1;
+        }
+        if let Some(file) = &inner.fd_table[fd] {
+            let file = file.clone();
+            // release current task TCB manually to avoid multi-borrow
+            drop(inner);
+            file.read(
+                UserBuffer::new(translated_byte_buffer(token, buf, len))
+            ) as isize
+        } else {
+            -1
+        }
+    }
+
+操作系统都是通过文件描述符在当前进程的文件描述符表中找到某个文件，无需关心文件具体的类型，只要知道它一定实现了 ``File`` Trait 的 ``read/write`` 方法即可。Trait 对象提供的运行时多态能力会在运行的时候帮助我们定位到符合实际类型的 ``read/write`` 方法。
