@@ -175,11 +175,11 @@ println! 宏所在的 Rust 标准库 std 需要通过系统调用获得操作系
 
 .. code-block:: console
 
-   [文件格式]
+   # 文件格式
    $ file target/riscv64gc-unknown-none-elf/debug/os
    target/riscv64gc-unknown-none-elf/debug/os: ELF 64-bit LSB executable, UCB RISC-V, ......
 
-   [文件头信息]
+   # 文件头信息
    $ rust-readobj -h target/riscv64gc-unknown-none-elf/debug/os
       File: target/riscv64gc-unknown-none-elf/debug/os
       Format: elf64-littleriscv
@@ -193,7 +193,7 @@ println! 宏所在的 Rust 标准库 std 需要通过系统调用获得操作系
       ......
       }
 
-   [反汇编导出汇编程序]
+   # 反汇编导出汇编程序
    $ rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
       target/riscv64gc-unknown-none-elf/debug/os:	file format elf64-littleriscv
 
@@ -205,8 +205,7 @@ println! 宏所在的 Rust 标准库 std 需要通过系统调用获得操作系
 
    **在 x86_64 平台上移除标准库依赖**
 
-   有兴趣的同学可以将目标平台换回之前默认的 ``x86_64-unknown-linux-gnu`` 并重复本小节所做的事情，比较两个平台从 ISA 到操作系统
-   的差异。可以参考 `BlogOS 的相关内容 <https://os.phil-opp.com/freestanding-rust-binary/>`_ [#blogos]_ 。
+   有兴趣的同学可以将目标平台换回之前默认的 ``x86_64-unknown-linux-gnu`` 并重复本小节所做的事情，比较两个平台从 ISA 到操作系统的差异。可以参考 `BlogOS 的相关内容 <https://os.phil-opp.com/freestanding-rust-binary/>`_ [#blogos]_ 。
 
 .. note:: 
 

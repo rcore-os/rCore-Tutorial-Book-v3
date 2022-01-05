@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>锁机制 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -42,7 +41,7 @@ var addUtterances = () => {
     script.setAttribute("label", "comments");
     script.setAttribute("crossorigin", "anonymous");
 
-    sections = document.querySelectorAll("div > section");
+    sections = document.querySelectorAll("div.section");
     if (sections !== null) {
         section = sections[sections.length-1];
         section.appendChild(script);
@@ -73,7 +72,7 @@ commentsRunWhenDOMLoaded(addUtterances);
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
@@ -81,8 +80,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：进程间通信</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：文件系统与I/O重定向</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：进程间通信与I/O重定向</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第八章：并发</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1thread.html">用户态的线程管理</a></li>
@@ -110,7 +109,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter9/index.html">第九章：I/O设备管理</a></li>
 </ul>
-<p class="caption"><span class="caption-text">附录</span></p>
+<p class="caption" role="heading"><span class="caption-text">附录</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../final-lab.html">综合练习</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 系统编程入门</a></li>
@@ -120,7 +119,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../appendix-e/index.html">附录 E：操作系统进一步介绍</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
 </ul>
-<p class="caption"><span class="caption-text">开发注记</span></p>
+<p class="caption" role="heading"><span class="caption-text">开发注记</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
@@ -152,55 +151,55 @@ commentsRunWhenDOMLoaded(addUtterances);
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="id1">
+  <div class="section" id="id1">
 <h1>锁机制<a class="headerlink" href="#id1" title="永久链接至标题"></a></h1>
-<section id="id2">
+<div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
 <p>到目前为止，我们已经实现了进程和线程，也能够理解在一个时间段内，会有多个线程在执行，这就是并发。而且，由于线程的引入，多个线程可以共享进程中的全局数据。如果多个线程都想读和更新全局数据，那么谁先更新取决于操作系统内核的抢占式调度和分派策略。在一般情况下，每个线程都有可能先执行，且可能由于中断等因素，随时被操作系统打断其执行，而切换到另外一个线程运行，形成在一段时间内，多个线程交替执行的现象。如果没有一些保障机制（比如互斥、同步等），那么这些对共享数据进行读写的交替执行的线程，其期望的共享数据的正确结果可能无法达到。</p>
 <p>所以，我们需要研究一种保障机制 – 锁 ，确保无论操作系统如何抢占线程，调度和切换线程的执行，都可以保证对拥有锁的线程，可以独占地对共享数据进行读写，从而能够得到正确的共享数据结果。这种机制的能力来自于处理器的指令、操作系统系统调用的基本支持，从而能够保证线程间互斥地读写共享数据。下面各个小节将从为什么需要锁、锁的基本思路、锁的不同实现方式等逐步展开讲解。</p>
-</section>
-<section id="id3">
+</div>
+<div class="section" id="id3">
 <h2>为什么需要锁<a class="headerlink" href="#id3" title="永久链接至标题"></a></h2>
 <p>上一小节已经提到，没有保障机制的多个线程，在对共享数据进行读写的过程中，可能得不到预期的结果。这需要有一个简单的例子来看看：</p>
-<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="w">    </span><span class="c1">// 线程的入口函数</span>
-<span class="linenos">2</span><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">3</span><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">f</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">4</span><span class="w">      </span><span class="n">a</span><span class="o">=</span><span class="n">a</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-</span><span class="linenos">5</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span>    <span class="c1">// 线程的入口函数</span>
+<span class="lineno">2 </span>    <span class="kt">int</span> <span class="n">a</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span>
+<span class="lineno">3 </span>    <span class="kt">void</span> <span class="nf">f</span><span class="p">()</span> <span class="p">{</span>
+<span class="lineno">4 </span><span class="hll">      <span class="n">a</span><span class="o">=</span><span class="n">a</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span>
+</span><span class="lineno">5 </span>    <span class="p">}</span>
 </pre></div>
 </div>
 <p>对于上述函数中的第4行代码，一般人理解处理器会一次就执行完这条简单的语句，但实际情况并不是这样。我们可以用GCC编译出上述函数的汇编码：</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span>$ riscv64-unknown-elf-gcc -o f.s -S f.c
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span>$ riscv64-unknown-elf-gcc -o f.s -S f.c
 </pre></div>
 </div>
 <p>可以看到生成的汇编代码如下：</p>
-<div class="highlight-asm notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">//f.s</span>
-<span class="linenos"> 2</span>      <span class="na">.text</span>
-<span class="linenos"> 3</span>      <span class="na">.globl</span>        <span class="no">a</span>
-<span class="linenos"> 4</span>      <span class="na">.section</span>      <span class="no">.sbss</span><span class="p">,</span><span class="s">&quot;aw&quot;</span><span class="p">,</span><span class="na">@nobits</span>
-<span class="linenos"> 5</span>      <span class="na">.align</span>        <span class="mi">2</span>
-<span class="linenos"> 6</span>      <span class="na">.type</span> <span class="no">a</span><span class="p">,</span> <span class="na">@object</span>
-<span class="linenos"> 7</span>      <span class="na">.size</span> <span class="no">a</span><span class="p">,</span> <span class="mi">4</span>
-<span class="linenos"> 8</span>    <span class="nl">a:</span>
-<span class="linenos"> 9</span>      <span class="na">.zero</span> <span class="mi">4</span>
-<span class="linenos">10</span>      <span class="na">.text</span>
-<span class="linenos">11</span>      <span class="na">.align</span>        <span class="mi">1</span>
-<span class="linenos">12</span>      <span class="na">.globl</span>        <span class="no">f</span>
-<span class="linenos">13</span>      <span class="na">.type</span> <span class="no">f</span><span class="p">,</span> <span class="na">@function</span>
-<span class="linenos">14</span>    <span class="nl">f:</span>
-<span class="linenos">15</span>      <span class="nf">addi</span>  <span class="no">sp</span><span class="p">,</span><span class="no">sp</span><span class="p">,-</span><span class="mi">16</span>
-<span class="linenos">16</span>      <span class="nf">sd</span>    <span class="no">s0</span><span class="p">,</span><span class="mi">8</span><span class="p">(</span><span class="no">sp</span><span class="p">)</span>
-<span class="linenos">17</span>      <span class="nf">addi</span>  <span class="no">s0</span><span class="p">,</span><span class="no">sp</span><span class="p">,</span><span class="mi">16</span>
-<span class="hll"><span class="linenos">18</span>      <span class="nf">lui</span>   <span class="no">a5</span><span class="p">,</span><span class="nv">%hi</span><span class="p">(</span><span class="no">a</span><span class="p">)</span>
-</span><span class="hll"><span class="linenos">19</span>      <span class="nf">lw</span>    <span class="no">a5</span><span class="p">,</span><span class="nv">%lo</span><span class="p">(</span><span class="no">a</span><span class="p">)(</span><span class="no">a5</span><span class="p">)</span>
-</span><span class="hll"><span class="linenos">20</span>      <span class="nf">addiw</span> <span class="no">a5</span><span class="p">,</span><span class="no">a5</span><span class="p">,</span><span class="mi">1</span>
-</span><span class="hll"><span class="linenos">21</span>      <span class="nf">sext.w</span>        <span class="no">a4</span><span class="p">,</span><span class="no">a5</span>
-</span><span class="hll"><span class="linenos">22</span>      <span class="nf">lui</span>   <span class="no">a5</span><span class="p">,</span><span class="nv">%hi</span><span class="p">(</span><span class="no">a</span><span class="p">)</span>
-</span><span class="hll"><span class="linenos">23</span>      <span class="nf">sw</span>    <span class="no">a4</span><span class="p">,</span><span class="nv">%lo</span><span class="p">(</span><span class="no">a</span><span class="p">)(</span><span class="no">a5</span><span class="p">)</span>
-</span><span class="linenos">24</span>      <span class="nf">nop</span>
-<span class="linenos">25</span>      <span class="nf">ld</span>    <span class="no">s0</span><span class="p">,</span><span class="mi">8</span><span class="p">(</span><span class="no">sp</span><span class="p">)</span>
-<span class="linenos">26</span>      <span class="nf">addi</span>  <span class="no">sp</span><span class="p">,</span><span class="no">sp</span><span class="p">,</span><span class="mi">16</span>
-<span class="linenos">27</span>      <span class="nf">jr</span>    <span class="no">ra</span>
+<div class="highlight-asm notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span>//f.s
+<span class="lineno"> 2 </span>      .text
+<span class="lineno"> 3 </span>      .globl        a
+<span class="lineno"> 4 </span>      .section      .sbss,&quot;aw&quot;,@nobits
+<span class="lineno"> 5 </span>      .align        2
+<span class="lineno"> 6 </span>      .type a, @object
+<span class="lineno"> 7 </span>      .size a, 4
+<span class="lineno"> 8 </span>    a:
+<span class="lineno"> 9 </span>      .zero 4
+<span class="lineno">10 </span>      .text
+<span class="lineno">11 </span>      .align        1
+<span class="lineno">12 </span>      .globl        f
+<span class="lineno">13 </span>      .type f, @function
+<span class="lineno">14 </span>    f:
+<span class="lineno">15 </span>      addi  sp,sp,-16
+<span class="lineno">16 </span>      sd    s0,8(sp)
+<span class="lineno">17 </span>      addi  s0,sp,16
+<span class="lineno">18 </span><span class="hll">      lui   a5,%hi(a)
+</span><span class="lineno">19 </span><span class="hll">      lw    a5,%lo(a)(a5)
+</span><span class="lineno">20 </span><span class="hll">      addiw a5,a5,1
+</span><span class="lineno">21 </span><span class="hll">      sext.w        a4,a5
+</span><span class="lineno">22 </span><span class="hll">      lui   a5,%hi(a)
+</span><span class="lineno">23 </span><span class="hll">      sw    a4,%lo(a)(a5)
+</span><span class="lineno">24 </span>      nop
+<span class="lineno">25 </span>      ld    s0,8(sp)
+<span class="lineno">26 </span>      addi  sp,sp,16
+<span class="lineno">27 </span>      jr    ra
 </pre></div>
 </div>
 <p>从中可以看出，对于高级语言的一条简单语句（C代码的第4行，对全局变量进行读写），很可能是由多条汇编代码（汇编代码的第18~23行）组成。如果这个函数是多个线程要执行的函数，那么在上述汇编代码第18行到第23行中的各行之间，可能会发生中断，从而导致操作系统执行抢占式的线程调度和切换，就会得到不一样的结果。由于执行这段汇编代码（第18~23行））的多个线程在访问全局变量过程中可能导致竞争状态，因此我们将此段代码称为临界区（critical section）。临界区是访问共享变量（或共享资源）的代码片段，不能由多个线程同时执行，即需要保证互斥。</p>
@@ -299,14 +298,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>一般情况下，线程T0执行完毕后，再执行线程T1，那么共享全局变量``a``的值为 2 。但在上面的执行过程中，可以看到在线程执行指令的过程中会发生线程切换，这样在时刻10的时候，共享全局变量``a``的值为 1，这不是我们预期的结果。出现这种情况的原因是两个线程在操作系统的调度下（在哪个时刻调度具有不确定性），交错执行 <code class="docutils literal notranslate"><span class="pre">a=a+1</span></code> 的不同汇编指令序列，导致虽然增加全局变量 <code class="docutils literal notranslate"><span class="pre">a</span></code> 的代码被执行了两次，但结果还是只增加了1。这种多线程的最终执行结果不确定（indeterminate），取决于由于调度导致的不确定指令执行序列的情况就是竞态条件（race condition）。</p>
 <p>如果每个线程在执行 <code class="docutils literal notranslate"><span class="pre">a=a+1</span></code> 这个C语句所对应多条汇编语句过程中，不会被操作系统切换，那么就不会出现多个线程交叉读写全局变量的情况，也就不会出现结果不确定的问题了。</p>
 <p>所以，访问（特指写操作）共享变量代码片段，不能由多个线程同时执行（即并行）或者在一个时间段内都去执行（即并发）。要做到这一点，需要互斥机制的保障。从某种角度上看，这种互斥性也是一种原子性，即线程在临界区的执行过程中，不会出现只执行了一部分，就被打断并切换到其他线程执行的情况。即，要么线程执行的这一系列操作/指令都完成，要么这一系列操作/指令都不做，不会出现指令序列执行中被打断的情况。</p>
-</section>
-<section id="id4">
+</div>
+<div class="section" id="id4">
 <h2>锁的基本思路<a class="headerlink" href="#id4" title="永久链接至标题"></a></h2>
 <p>要保证多线程并发执行中的临界区的代码具有互斥性或原子性，我们可以建立一种锁，只有拿到锁的线程才能在临界区中执行。这里的锁与现实生活中的锁的含义很类似。比如，我们可以写出如下的伪代码：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="n">lock</span><span class="p">(</span><span class="n">mutex</span><span class="p">);</span><span class="w">    </span><span class="c1">// 尝试取锁</span>
-<span class="linenos">2</span><span class="n">a</span><span class="o">=</span><span class="n">a</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w">          </span><span class="c1">// 临界区，访问临界资源 a</span>
-<span class="linenos">3</span><span class="n">unlock</span><span class="p">(</span><span class="n">mutex</span><span class="p">);</span><span class="w">  </span><span class="c1">// 是否锁</span>
-<span class="linenos">4</span><span class="o">..</span><span class="p">.</span><span class="w">             </span><span class="c1">// 剩余区</span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span><span class="n">lock</span><span class="p">(</span><span class="n">mutex</span><span class="p">);</span><span class="w">    </span><span class="c1">// 尝试取锁</span>
+<span class="lineno">2 </span><span class="n">a</span><span class="o">=</span><span class="n">a</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w">          </span><span class="c1">// 临界区，访问临界资源 a</span>
+<span class="lineno">3 </span><span class="n">unlock</span><span class="p">(</span><span class="n">mutex</span><span class="p">);</span><span class="w">  </span><span class="c1">// 是否锁</span>
+<span class="lineno">4 </span><span class="p">...</span><span class="w">             </span><span class="c1">// 剩余区</span>
 </pre></div>
 </div>
 <p>对于一个应用程序而言，它的执行是受到其执行环境的管理和限制的，而执行环境的主要组成就是用户态的系统库、操作系统和更底层的处理器，这说明我们需要有硬件和操作系统来对互斥进行支持。一个自然的想法是，这个 <code class="docutils literal notranslate"><span class="pre">lock/unlock</span></code> 互斥操作就是CPU提供的机器指令，那上面这一段程序就很容易在计算机上执行了。但需要注意，这里互斥的对象是线程的临界区代码，而临界区代码可以访问各种共享变量（简称临界资源）。只靠两条机器指令，难以识别各种共享变量，不太可能约束可能在临界区的各种指令执行共享变量操作的互斥性。所以，我们还是需要有一些相对更灵活和复杂一点的方法，能够设置一种所有线程能看到的标记，在一个能进入临界区的线程设置好这个标记后，其他线程都不能再进入临界区了。总体上看，对临界区的访问过程分为四个部分：</p>
@@ -325,20 +324,20 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>公平性（fairness），当锁可用时，每个竞争线程是否有公平的机会抢到锁。</p></li>
 <li><p>性能（performance），即使用锁的时间开销。</p></li>
 </ol>
-</section>
-<section id="id5">
+</div>
+<div class="section" id="id5">
 <h2>用户态软件级方法实现锁<a class="headerlink" href="#id5" title="永久链接至标题"></a></h2>
 <p>我们可以快速想到的一个很朴素的锁的实现，用一个变量来表示锁的状态：已占用临界区 – 1，未占用临界区 – 0 ，然后根据这个变量的值来判断是否能进入临界区执行，伪代码如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex</span><span class="w"> </span>:<span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">mutex</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 7</span>
-<span class="linenos"> 8</span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kt">i32</span><span class="p">){</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">10</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex</span><span class="w"> </span>:<span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="lineno"> 2 </span>
+<span class="lineno"> 3 </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">mutex</span><span class="p">);</span><span class="w"></span>
+<span class="lineno"> 5 </span><span class="w">    </span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="lineno"> 6 </span><span class="p">}</span><span class="w"></span>
+<span class="lineno"> 7 </span>
+<span class="lineno"> 8 </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kt">i32</span><span class="p">){</span><span class="w"></span>
+<span class="lineno"> 9 </span><span class="w">    </span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">10 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>这样的锁实现是否能保证线程在临界区执行的互斥性呢？这里我们要注意到 <code class="docutils literal notranslate"><span class="pre">mutex</span></code> 其实也是一个全局共享变量，它也会把多个线程访问，在多个线程执行 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 函数的时候，其实不能保证 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 函数本身的互斥性。这就会带来问题，下面是一种可能的两线程在 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 函数中的执行序列：</p>
@@ -428,18 +427,18 @@ commentsRunWhenDOMLoaded(addUtterances);
 </tbody>
 </table>
 <p>这样到第11步，两个线程都能够继续执行，并进入临界区，我们期望的互斥性并没有达到。那我们能否为 <code class="docutils literal notranslate"><span class="pre">mutex</span></code> 这个变量加上一种锁的互斥保护呢？如果这样做，我们将进入一个无限互斥保护的怪圈。要打破这种僵局，需要再思考一下，在用户态用软件方法实现锁，单靠一个 <code class="docutils literal notranslate"><span class="pre">mutex</span></code> 变量无法阻止线程在操作系统任意调度的情况下，越过 <code class="docutils literal notranslate"><span class="pre">while</span></code> 这个阻挡的判断循环。我们需要新的全局变量来帮忙：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span>: <span class="p">[</span><span class="kt">i32</span><span class="p">;</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">];</span><span class="w"> </span><span class="c1">// 哪个线程想拿到锁？</span>
-<span class="linenos"> 2</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">turn</span><span class="w"> </span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">         </span><span class="c1">// 排号：轮到哪个线程? (线程 0 or 1?)</span>
-<span class="linenos"> 3</span>
-<span class="linenos"> 4</span><span class="k">fn</span> <span class="nf">lock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="n">flag</span><span class="p">[</span><span class="bp">self</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">             </span><span class="c1">// 设置自己想取锁 self: 线程 ID</span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="n">turn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="bp">self</span><span class="p">;</span><span class="w">            </span><span class="c1">// 设置另外一个线程先排号</span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">((</span><span class="n">flag</span><span class="p">[</span><span class="mi">1</span><span class="o">-</span><span class="bp">self</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">turn</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="bp">self</span><span class="p">));</span><span class="w"> </span><span class="c1">// 忙等</span>
-<span class="linenos"> 8</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 9</span>
-<span class="linenos">10</span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="n">flag</span><span class="p">[</span><span class="bp">self</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">             </span><span class="c1">// 设置自己放弃锁</span>
-<span class="linenos">12</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span>: <span class="p">[</span><span class="kt">i32</span><span class="p">;</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">];</span><span class="w"> </span><span class="c1">// 哪个线程想拿到锁？</span>
+<span class="lineno"> 2 </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">turn</span><span class="w"> </span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">         </span><span class="c1">// 排号：轮到哪个线程? (线程 0 or 1?)</span>
+<span class="lineno"> 3 </span>
+<span class="lineno"> 4 </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno"> 5 </span><span class="w">    </span><span class="n">flag</span><span class="p">[</span><span class="bp">self</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">             </span><span class="c1">// 设置自己想取锁 self: 线程 ID</span>
+<span class="lineno"> 6 </span><span class="w">    </span><span class="n">turn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="bp">self</span><span class="p">;</span><span class="w">            </span><span class="c1">// 设置另外一个线程先排号</span>
+<span class="lineno"> 7 </span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">((</span><span class="n">flag</span><span class="p">[</span><span class="mi">1</span><span class="o">-</span><span class="bp">self</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">turn</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="bp">self</span><span class="p">));</span><span class="w"> </span><span class="c1">// 忙等</span>
+<span class="lineno"> 8 </span><span class="p">}</span><span class="w"></span>
+<span class="lineno"> 9 </span>
+<span class="lineno">10 </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">11 </span><span class="w">    </span><span class="n">flag</span><span class="p">[</span><span class="bp">self</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">             </span><span class="c1">// 设置自己放弃锁</span>
+<span class="lineno">12 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>变量 turn 表示哪个线程可以进入临界区。即如果 turn == i，那么线程 Ti 允许在临界区内执行。数组 flag[i] 表示哪个线程准备进入临界区。例如，如果 flag[i] 为 1，那么线程 Ti 准备进入临界区，否则表示线程 Ti 不打算进入临界区。</p>
@@ -450,81 +449,81 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>如果两个线程同时在临界区内执行，那么 flag[0]==flag[1]==true。</p></li>
 </ol>
 <p>这意味着线程T0 和 T1 不可能同时成功地执行它们的 while 语句，因为 turn 的值只可能为 0 或 1，而不可能同时为两个值。因此，如果turn的值为j, 那么只有一个线程 Tj 能成功跳出 while 语句，而另外一个线程 Ti 不得不再次陷入判断（“turn == j”）的循环而无法跳出。最终结果是，只要在临界区内，flag[j]==true 和 turn==j 就同时成立。这就保证了只有一个线程能进入临界区的互斥性。</p>
-</section>
-<section id="id6">
+</div>
+<div class="section" id="id6">
 <h2>机器指令硬件级方法实现锁<a class="headerlink" href="#id6" title="永久链接至标题"></a></h2>
 <p>导致多线程结果不确定的一个重要因素是操作系统随时有可能切换线程。如果操作系统在临界区执行时，无法进行线程调度和切换，就可以解决结果不确定的问题了。
 而操作系统能抢占式调度的一个前提是硬件中断机制，如时钟中断能确保操作系统按时获得对处理器的控制权。如果应用程序能够控制中断的打开/使能与关闭/屏蔽，那就能提供互斥解决方案了。代码如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">fn</span> <span class="nf">lock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">2</span><span class="w">    </span><span class="n">disableInterrupt</span><span class="p">();</span><span class="w"> </span><span class="c1">//屏蔽中断的机器指令</span>
-<span class="linenos">3</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">4</span>
-<span class="linenos">5</span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">6</span><span class="w">    </span><span class="n">enableInterrupt</span><span class="p">();</span><span class="w"> </span><span class="c1">////使能中断的机器指令</span>
-<span class="linenos">7</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">2 </span><span class="w">    </span><span class="n">disableInterrupt</span><span class="p">();</span><span class="w"> </span><span class="c1">//屏蔽中断的机器指令</span>
+<span class="lineno">3 </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">4 </span>
+<span class="lineno">5 </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">6 </span><span class="w">    </span><span class="n">enableInterrupt</span><span class="p">();</span><span class="w"> </span><span class="c1">////使能中断的机器指令</span>
+<span class="lineno">7 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>这个方法的特点是简单。没有中断，线程可以确信它的代码会继续执行下去，不会被其他线程干扰。注：目前实现的操作系统内核就是在屏蔽中断的情况下执行的。</p>
 <p>但这种方法也有不足之处，它给了用户态程序执行特权操作的能力。如果用户态线程在执行过程中刻意关闭中断，它就可以独占处理器，让操作系统无法获得对处理器的控制权。</p>
 <p>另外，这种方法不支持多处理器。如果多个线程运行在不同的处理器上，每个线程都试图进入同一个临界区，它关闭的中断只对其正在运行的处理器有效，其他线程可以运行在其他处理器上，还是能够进入临界区，无法保证互斥性。所以，采用控制中断的方式仅对一些非常简单，且信任应用的单处理器场景有效，而对于更广泛的其他场景是不够的。</p>
-<section id="id7">
+<div class="section" id="id7">
 <h3>实现锁：原子指令<a class="headerlink" href="#id7" title="永久链接至标题"></a></h3>
 <p>再次关注一下之前不成功的朴素的锁实现，我们可以看到其主要的问题是第2行读 <code class="docutils literal notranslate"><span class="pre">mutex</span></code> 和第3行写 <code class="docutils literal notranslate"><span class="pre">mutex</span></code> 之间，可以被操作系统切换出去，导致其产生不确定的结果。</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">2</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">mutex</span><span class="p">);</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">3</span><span class="w">    </span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-</span><span class="linenos">4</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">2 </span><span class="hll"><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">mutex</span><span class="p">);</span><span class="w"></span>
+</span><span class="lineno">3 </span><span class="hll"><span class="w">    </span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+</span><span class="lineno">4 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<section id="castas">
+<div class="section" id="castas">
 <h4>CAS原子指令和TAS原子指令<a class="headerlink" href="#castas" title="永久链接至标题"></a></h4>
 <p>如果能完成读写一个变量的两个操作是一条不会被操作系统打断的机器指令来执行，那我们就可以很容易实现锁机制了，这种机器指令我们称为原子指令。</p>
 <p>假定处理器体系结构提供了一条原子指令：比较并交换(Compare-And-Swap，简称CAS)指令，即
 比较一个寄存器中的值和另一个寄存器中的内存地址指向的值,如果它们相等,将第三个寄
 存器中的值和内存中的值进行交换。这是一条通用的同步指令，在SPARC系统中是 <code class="docutils literal notranslate"><span class="pre">compare-and-swap</span></code>  指令，在x86系统是 <code class="docutils literal notranslate"><span class="pre">compare-and-exchange</span></code> 指令。
 其伪代码如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">fn</span> <span class="nf">CompareAndSwap</span><span class="p">(</span><span class="n">ptr</span>: <span class="o">*</span><span class="kt">i32</span><span class="p">,</span><span class="w"> </span><span class="n">expected</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"> </span><span class="n">new</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos"> 2</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">actual</span><span class="w"> </span>:<span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">ptr</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">actual</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">expected</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">        </span><span class="o">*</span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="n">actual</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 8</span>
-<span class="linenos"> 9</span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">lock</span><span class="w"> </span>: <span class="o">*</span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">CompareAndSwap</span><span class="p">(</span><span class="n">lock</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">11</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="k">fn</span> <span class="nf">CompareAndSwap</span><span class="p">(</span><span class="n">ptr</span>: <span class="o">*</span><span class="kt">i32</span><span class="p">,</span><span class="w"> </span><span class="n">expected</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"> </span><span class="n">new</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="lineno"> 2 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">actual</span><span class="w"> </span>:<span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">ptr</span><span class="p">;</span><span class="w"></span>
+<span class="lineno"> 3 </span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">actual</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">expected</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="w">        </span><span class="o">*</span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="p">;</span><span class="w"></span>
+<span class="lineno"> 5 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno"> 6 </span><span class="w">    </span><span class="n">actual</span><span class="w"></span>
+<span class="lineno"> 7 </span><span class="p">}</span><span class="w"></span>
+<span class="lineno"> 8 </span>
+<span class="lineno"> 9 </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">lock</span><span class="w"> </span>: <span class="o">*</span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">10 </span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">CompareAndSwap</span><span class="p">(</span><span class="n">lock</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">11 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>比较并交换原子指令的基本思路是检测ptr指向的实际值是否和expected相等；如果相等，更新ptr所指的值为new值；最后返回该内存地址之前指向的实际值。有了比较并交换指令，就可以实现对锁读写的原子操作了。在lock函数中，检查锁标志是否为0，如果是，原子地交换为1，从而获得锁。锁被持有时，竞争锁的线程会忙等在while循环中。</p>
 <p>尽管上面例子的想法很好，但没有硬件的支持是无法实现的。幸运的是，一些系统提供了这一指令，支持基于这种概念创建简单的锁。这个更强大的指令有不同的名字：在SPARC上，这个指令叫ldstub（load/store unsigned byte，加载/保存无符号字节）；在x86上，是xchg（atomic exchange，原子交换）指令。但它们基本上在不同的平台上做同样的事，</p>
 <p>假定处理器体系结构提供了另外一条原子指令：测试并设置（Test-And-Set，简称 TAS）。因为既可以测试旧值，又可以设置新值，所以我们把这条指令叫作“测试并设置”。其伪代码如下所示：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span>fn TestAndSet(old_ptr: &amp;mut i32, new:i32) -&gt; i32 {
-<span class="linenos">2</span>    let old ：i32 = *old_ptr; // 取得 old_ptr 指向内存单元的旧值 old
-<span class="linenos">3</span>    *old_ptr = new;           // 把新值 new 存入到 old_ptr 指向的内存单元中
-<span class="linenos">4</span>    old                       // 返回旧值 old
-<span class="linenos">5</span>}
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span>fn TestAndSet(old_ptr: &amp;mut i32, new:i32) -&gt; i32 {
+<span class="lineno">2 </span>    let old ：i32 = *old_ptr; // 取得 old_ptr 指向内存单元的旧值 old
+<span class="lineno">3 </span>    *old_ptr = new;           // 把新值 new 存入到 old_ptr 指向的内存单元中
+<span class="lineno">4 </span>    old                       // 返回旧值 old
+<span class="lineno">5 </span>}
 </pre></div>
 </div>
 <p>TAS原子指令完成返回old_ptr指向的旧值，同时更新为new的新值这一整个原子操作。基于这一条指令就可以实现一个简单的自旋锁（spin lock）。</p>
 <p>我们来确保理解为什么这个锁能工作。首先假设一个线程在运行，调用lock()，没有其他线程持有锁，所以flag是0。当调用TestAndSet(flag, 1)方法，返回0，线程会跳出while循环，获取锁。同时也会原子的设置flag为1，标志锁已经被持有。当线程离开临界区，调用unlock()将flag清理为0。</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex</span><span class="w"> </span>:<span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">2</span>
-<span class="linenos">3</span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">4</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">TestAndSet</span><span class="p">(</span><span class="n">mutex</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">5</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">6</span>
-<span class="linenos">7</span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">){</span><span class="w"></span>
-<span class="linenos">8</span><span class="w">    </span><span class="o">*</span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">9</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex</span><span class="w"> </span>:<span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">2 </span>
+<span class="lineno">3 </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">4 </span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">TestAndSet</span><span class="p">(</span><span class="n">mutex</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">5 </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">6 </span>
+<span class="lineno">7 </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">){</span><span class="w"></span>
+<span class="lineno">8 </span><span class="w">    </span><span class="o">*</span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">9 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>在一开始时，假设一个线程在运行，调用lock()，没有其他线程持有锁，所以mutex为0。当调用TestAndSet(&amp;mutex, 1)函数后，返回0，线程会跳出while循环，获取锁。同时也会原子的设置mutex为1，标志锁已经被持有。当线程离开临界区，调用unlock(mutex)将mutex设置为0，表示没有线程在临界区，其他线程可以尝试获取锁。</p>
 <p>如果当某线程已经持有锁（即mutex为1），而另外的线程调用lock(mutex)函数，然后调用TestAndSet(&amp;mutex, 1)函数，这一次将返回1，导致该线程会一直执行while循环。只要某线程一直持有锁，TestAndSet()会重复返回1，导致另外的其他线程会一直自旋忙等。当某线程离开临界区时，会调用unlock(mutex) 函数把mutex改为0，这之后另外的其他一个线程会调用TestAndSet()，返回0并且原子地设置为1，从而获得锁，进入临界区。这样进行了对临界区的互斥保证。</p>
 <p>这里的关键是将测试（读旧的锁值）和设置（写新的锁值）合并为一个原子操作，从而保证只有一个线程能获取锁，达到互斥的要求。</p>
 <p>注：如果是单处理器环境，要求操作系统支持抢占式调度，否则自旋锁无法使用，因为一个自旋的线程永远不会放弃处理器。</p>
-</section>
-<section id="risc-vamolr-sc">
+</div>
+<div class="section" id="risc-vamolr-sc">
 <h4>RISC-V的AMO指令与LR/SC指令<a class="headerlink" href="#risc-vamolr-sc" title="永久链接至标题"></a></h4>
 <p>RISC-V 指令集虽然没有TAS指令和CAS指令，但它提供了一个可选的原子指令集合，主要有两类：</p>
 <ul class="simple">
@@ -535,107 +534,107 @@ commentsRunWhenDOMLoaded(addUtterances);
 LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读取一个内存字，存入目标寄存器中，并留下这个字的保留记录。而如果SR指令的目标地址上存在保留
 记录，它就把字存入这个地址。如果存入成功，它向目标寄存器中写入 0，否则写入一个非 0 值，表示错误码。</p>
 <p>这里我们可以用LR/SC来实现TAS原子指令和CAS原子指令：</p>
-<div class="highlight-Asm notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1"># RISC-V sequence for implementing a TAS  at (s1)</span>
-<span class="linenos"> 2</span>    <span class="nf">li</span> <span class="no">t2</span><span class="p">,</span> <span class="mi">1</span>
-<span class="linenos"> 3</span>    <span class="nl">Try:</span> <span class="nf">lr</span>  <span class="no">t1</span><span class="p">,</span> <span class="no">s1</span>
-<span class="linenos"> 4</span>         <span class="nf">bne</span> <span class="no">t1</span><span class="p">,</span> <span class="no">x0</span><span class="p">,</span> <span class="no">Try</span>
-<span class="linenos"> 5</span>         <span class="nf">sc</span>  <span class="no">t0</span><span class="p">,</span> <span class="no">s1</span><span class="p">,</span> <span class="no">t2</span>
-<span class="linenos"> 6</span>         <span class="nf">bne</span> <span class="no">t0</span><span class="p">,</span> <span class="no">x0</span><span class="p">,</span> <span class="no">Try</span>
-<span class="linenos"> 7</span>    <span class="nl">Locked:</span>
-<span class="linenos"> 8</span>         <span class="c1"># critical section</span>
-<span class="linenos"> 9</span>    <span class="nl">Unlock:</span>
-<span class="linenos">10</span>         <span class="nf">sw</span> <span class="no">x0</span><span class="p">,</span><span class="mi">0</span><span class="p">(</span><span class="no">s1</span><span class="p">)</span>
+<div class="highlight-Asm notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c"># RISC-V sequence for implementing a TAS  at (s1)</span>
+<span class="lineno"> 2 </span>    <span class="nf">li</span> <span class="no">t2</span><span class="p">,</span> <span class="mi">1</span>
+<span class="lineno"> 3 </span>    <span class="nl">Try:</span> <span class="nf">lr</span>  <span class="no">t1</span><span class="p">,</span> <span class="no">s1</span>
+<span class="lineno"> 4 </span>         <span class="nf">bne</span> <span class="no">t1</span><span class="p">,</span> <span class="no">x0</span><span class="p">,</span> <span class="no">Try</span>
+<span class="lineno"> 5 </span>         <span class="nf">sc</span>  <span class="no">t0</span><span class="p">,</span> <span class="no">s1</span><span class="p">,</span> <span class="no">t2</span>
+<span class="lineno"> 6 </span>         <span class="nf">bne</span> <span class="no">t0</span><span class="p">,</span> <span class="no">x0</span><span class="p">,</span> <span class="no">Try</span>
+<span class="lineno"> 7 </span>    <span class="nl">Locked:</span>
+<span class="lineno"> 8 </span>         <span class="c"># critical section</span>
+<span class="lineno"> 9 </span>    <span class="nl">Unlock:</span>
+<span class="lineno">10 </span>         <span class="nf">sw</span> <span class="no">x0</span><span class="p">,</span><span class="mi">0</span><span class="p">(</span><span class="no">s1</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-Asm notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>    <span class="c1"># Sample code for compare-and-swap function using LR/SC</span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span>    <span class="c1"># a0 holds address of memory location</span>
-<span class="linenos"> 4</span>    <span class="c1"># a1 holds expected value</span>
-<span class="linenos"> 5</span>    <span class="c1"># a2 holds desired value</span>
-<span class="linenos"> 6</span>    <span class="c1"># a0 holds return value, 0 if successful, !0 otherwise</span>
-<span class="linenos"> 7</span><span class="nl">cas:</span>
-<span class="linenos"> 8</span>    <span class="nf">lr.w</span> <span class="no">t0</span><span class="p">,</span> <span class="p">(</span><span class="no">a0</span><span class="p">)</span>        <span class="c1"># Load original value.</span>
-<span class="linenos"> 9</span>    <span class="nf">bne</span> <span class="no">t0</span><span class="p">,</span> <span class="no">a1</span><span class="p">,</span> <span class="no">fail</span>     <span class="c1"># Doesn&#39;t match, so fail.</span>
-<span class="linenos">10</span>    <span class="nf">sc.w</span> <span class="no">t0</span><span class="p">,</span> <span class="no">a2</span><span class="p">,</span> <span class="p">(</span><span class="no">a0</span><span class="p">)</span>    <span class="c1"># Try to update.</span>
-<span class="linenos">11</span>    <span class="nf">bnez</span> <span class="no">t0</span><span class="p">,</span> <span class="no">cas</span>         <span class="c1"># Retry if store-conditional failed.</span>
-<span class="linenos">12</span>    <span class="nf">li</span> <span class="no">a0</span><span class="p">,</span> <span class="mi">0</span>             <span class="c1"># Set return to success.</span>
-<span class="linenos">13</span>    <span class="nf">jr</span> <span class="no">ra</span>                <span class="c1"># Return.</span>
-<span class="linenos">14</span><span class="nl">fail:</span>
-<span class="linenos">15</span>    <span class="nf">li</span> <span class="no">a0</span><span class="p">,</span> <span class="mi">1</span>             <span class="c1"># Set return to failure.</span>
-<span class="linenos">16</span>    <span class="nf">jr</span> <span class="no">ra</span>                <span class="c1"># Return.</span>
+<div class="highlight-Asm notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span>    <span class="c"># Sample code for compare-and-swap function using LR/SC</span>
+<span class="lineno"> 2 </span>
+<span class="lineno"> 3 </span>    <span class="c"># a0 holds address of memory location</span>
+<span class="lineno"> 4 </span>    <span class="c"># a1 holds expected value</span>
+<span class="lineno"> 5 </span>    <span class="c"># a2 holds desired value</span>
+<span class="lineno"> 6 </span>    <span class="c"># a0 holds return value, 0 if successful, !0 otherwise</span>
+<span class="lineno"> 7 </span><span class="nl">cas:</span>
+<span class="lineno"> 8 </span>    <span class="nf">lr.w</span> <span class="no">t0</span><span class="p">,</span> <span class="p">(</span><span class="no">a0</span><span class="p">)</span>        <span class="c"># Load original value.</span>
+<span class="lineno"> 9 </span>    <span class="nf">bne</span> <span class="no">t0</span><span class="p">,</span> <span class="no">a1</span><span class="p">,</span> <span class="no">fail</span>     <span class="c"># Doesn&#39;t match, so fail.</span>
+<span class="lineno">10 </span>    <span class="nf">sc.w</span> <span class="no">t0</span><span class="p">,</span> <span class="no">a2</span><span class="p">,</span> <span class="p">(</span><span class="no">a0</span><span class="p">)</span>    <span class="c"># Try to update.</span>
+<span class="lineno">11 </span>    <span class="nf">bnez</span> <span class="no">t0</span><span class="p">,</span> <span class="no">cas</span>         <span class="c"># Retry if store-conditional failed.</span>
+<span class="lineno">12 </span>    <span class="nf">li</span> <span class="no">a0</span><span class="p">,</span> <span class="mi">0</span>             <span class="c"># Set return to success.</span>
+<span class="lineno">13 </span>    <span class="nf">jr</span> <span class="no">ra</span>                <span class="c"># Return.</span>
+<span class="lineno">14 </span><span class="nl">fail:</span>
+<span class="lineno">15 </span>    <span class="nf">li</span> <span class="no">a0</span><span class="p">,</span> <span class="mi">1</span>             <span class="c"># Set return to failure.</span>
+<span class="lineno">16 </span>    <span class="nf">jr</span> <span class="no">ra</span>                <span class="c"># Return.</span>
 </pre></div>
 </div>
 <p>基于硬件实现的锁简洁有效，但在某些场景下会效率低下。比如两个线程运行在单处理器上，当一个线程持有锁时，被中断并切换到第二个线程。第二个线程想去获取锁，发现锁已经被前一个线程持有，导致它不得不自旋忙等，直到其时间片耗尽后，被中断并切换回第一个线程。如果有多个线程去竞争一个锁，那么浪费的时间片会更多。要想提高效率，减少不必要的处理器空转的资源浪费，就需要操作系统的帮忙了。</p>
-</section>
-</section>
-</section>
-<section id="id8">
+</div>
+</div>
+</div>
+<div class="section" id="id8">
 <h2>内核态操作系统级方法实现锁<a class="headerlink" href="#id8" title="永久链接至标题"></a></h2>
-<section id="yield">
+<div class="section" id="yield">
 <h3>实现锁：yield系统调用<a class="headerlink" href="#yield" title="永久链接至标题"></a></h3>
 <p>解决忙等的简单方法就是线程主动放弃处理器，而这可以通过操作系统提供的 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 系统调用就可以达到目的。</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex</span><span class="w"> </span>:<span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">TestAndSet</span><span class="p">(</span><span class="n">mutex</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">){</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">       </span><span class="n">yield_</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 8</span>
-<span class="linenos"> 9</span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">){</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="o">*</span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">11</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex</span><span class="w"> </span>:<span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="lineno"> 2 </span>
+<span class="lineno"> 3 </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">TestAndSet</span><span class="p">(</span><span class="n">mutex</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">){</span><span class="w"></span>
+<span class="lineno"> 5 </span><span class="w">       </span><span class="n">yield_</span><span class="p">();</span><span class="w"></span>
+<span class="lineno"> 6 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno"> 7 </span><span class="p">}</span><span class="w"></span>
+<span class="lineno"> 8 </span>
+<span class="lineno"> 9 </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="n">mutex</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">){</span><span class="w"></span>
+<span class="lineno">10 </span><span class="w">    </span><span class="o">*</span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">11 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>当线程可以调用 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 系统调用后，它就会主动放弃CPU，从运行（running）态变为就绪（ready）态，让其他线程运行。</p>
 <p>在有许多线程反复竞争一把锁的情况下，一个线程持有锁，但在释放锁之前被抢占，这时其他多个线程分别调用lock()，发现锁被抢占，然后执行线程切换让出CPU。这种方法引入了多次不必要的线程切换，仍然开销比较大。这时让拿不到锁的线程睡眠，就成为了一个更有效的手段了。</p>
 <p>考虑到目前的操作系统中有一个可以让线程睡眠的 <code class="docutils literal notranslate"><span class="pre">sleep</span></code> 系统调用，但这种系统调用只能让线程直接休眠（处于阻塞状态）一个固定的睡眠时间。但线程实际可以再次能测试锁的时间其实是不确定的。这两个时间很难彼此接近，导致引入不必要的切换或等待。所以，简单的采用 <code class="docutils literal notranslate"><span class="pre">sleep</span></code> 系统调用也是不合适的。</p>
-</section>
-<section id="mutex">
+</div>
+<div class="section" id="mutex">
 <h3>实现锁：mutex系统调用<a class="headerlink" href="#mutex" title="永久链接至标题"></a></h3>
-<section id="id9">
+<div class="section" id="id9">
 <h4>使用mutex系统调用<a class="headerlink" href="#id9" title="永久链接至标题"></a></h4>
 <p>既然上面的方法存在这样那样的开销，我们需要进一步思考一下，如何能够减少开销。一个自然的想法就是，让等待锁的线程睡眠，让释放说的线程显式地唤醒等待锁的线程。如果有多个等待锁的线程，可以全部释放，让大家再次竞争锁；也可以只释放最早等待的那个线程。这就需要更多的操作系统支持，特别是需要一个等待队列来保存等待锁的线程。</p>
 <p>我们先看看多线程应用程序如何使用mutex系统调用的：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/race_adder_mutex_blocking.rs</span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">f</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="k">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">PER_THREAD</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos"> 8</span><span class="w">            </span><span class="n">mutex_lock</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
-</span><span class="linenos"> 9</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">cur</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">read_volatile</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">500</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">10007</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">            </span><span class="n">a</span><span class="p">.</span><span class="n">write_volatile</span><span class="p">(</span><span class="n">cur</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
-<span class="hll"><span class="linenos">13</span><span class="w">            </span><span class="n">mutex_unlock</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
-</span><span class="linenos">14</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">        </span><span class="n">exit</span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">17</span>
-<span class="linenos">18</span><span class="w">    </span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_time</span><span class="p">();</span><span class="w"></span>
-<span class="hll"><span class="linenos">21</span><span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">mutex_blocking_create</span><span class="p">(),</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
-</span><span class="linenos">22</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">THREAD_COUNT</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">            </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">f</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">28</span>
-<span class="linenos">29</span><span class="c1">// usr/src/syscall.rs</span>
-<span class="linenos">30</span>
-<span class="linenos">31</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_create</span><span class="p">(</span><span class="n">blocking</span>: <span class="kt">bool</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">32</span><span class="w">        </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_MUTEX_CREATE</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">blocking</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
-</span><span class="linenos">33</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">34</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_lock</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">35</span><span class="w">        </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_MUTEX_LOCK</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
-</span><span class="linenos">36</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">37</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_unlock</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">38</span><span class="w">        </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_MUTEX_UNLOCK</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
-</span><span class="linenos">39</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// user/src/bin/race_adder_mutex_blocking.rs</span>
+<span class="lineno"> 2 </span>
+<span class="lineno"> 3 </span><span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="w">    </span><span class="p">...</span><span class="w"></span>
+<span class="lineno"> 5 </span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">f</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno"> 6 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="k">usize</span><span class="p">;</span><span class="w"></span>
+<span class="lineno"> 7 </span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="p">..</span><span class="n">PER_THREAD</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno"> 8 </span><span class="hll"><span class="w">            </span><span class="n">mutex_lock</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+</span><span class="lineno"> 9 </span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">10 </span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">cur</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">read_volatile</span><span class="p">();</span><span class="w"></span>
+<span class="lineno">11 </span><span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="p">..</span><span class="mi">500</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">10007</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">12 </span><span class="w">            </span><span class="n">a</span><span class="p">.</span><span class="n">write_volatile</span><span class="p">(</span><span class="n">cur</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">13 </span><span class="hll"><span class="w">            </span><span class="n">mutex_unlock</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+</span><span class="lineno">14 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">15 </span><span class="w">        </span><span class="n">exit</span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"></span>
+<span class="lineno">16 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">17 </span>
+<span class="lineno">18 </span><span class="w">    </span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="lineno">19 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="lineno">20 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_time</span><span class="p">();</span><span class="w"></span>
+<span class="lineno">21 </span><span class="hll"><span class="w">        </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">mutex_blocking_create</span><span class="p">(),</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+</span><span class="lineno">22 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="lineno">23 </span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="p">..</span><span class="n">THREAD_COUNT</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">24 </span><span class="w">            </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">f</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">25 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">26 </span><span class="w">        </span><span class="p">...</span><span class="w"></span>
+<span class="lineno">27 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">28 </span>
+<span class="lineno">29 </span><span class="c1">// usr/src/syscall.rs</span>
+<span class="lineno">30 </span>
+<span class="lineno">31 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_create</span><span class="p">(</span><span class="n">blocking</span>: <span class="kt">bool</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="lineno">32 </span><span class="hll"><span class="w">        </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_MUTEX_CREATE</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">blocking</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
+</span><span class="lineno">33 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">34 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_lock</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="lineno">35 </span><span class="hll"><span class="w">        </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_MUTEX_LOCK</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
+</span><span class="lineno">36 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">37 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_unlock</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="lineno">38 </span><span class="hll"><span class="w">        </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_MUTEX_UNLOCK</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
+</span><span class="lineno">39 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -643,57 +642,57 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
 <li><p>第8行，尝试获取锁（对应的是第35行 <code class="docutils literal notranslate"><span class="pre">SYSCALL_MUTEX_LOCK</span></code> 系统调用），如果取得锁，将继续向下执行临界区代码；如果没有取得锁，将阻塞；</p></li>
 <li><p>第13行，释放锁（对应的是第38行 <code class="docutils literal notranslate"><span class="pre">SYSCALL_MUTEX_UNLOCK</span></code> 系统调用），如果有等待在该锁上的线程，则唤醒这些等待线程。</p></li>
 </ul>
-</section>
-<section id="id10">
+</div>
+<div class="section" id="id10">
 <h4>mutex系统调用的实现<a class="headerlink" href="#id10" title="永久链接至标题"></a></h4>
 <p>操作系统如何实现这些系统调用呢？首先考虑一下与此相关的核心数据结构，然后考虑与数据结构相关的相关函数/方法的实现。</p>
 <p>在线程的眼里，<strong>互斥</strong> 是一种每个线程能看到的资源，且在一个进程中，可以存在多个不同互斥资源，所以我们可以把所有的互斥资源放在一起让进程来管理，如下面代码第9行所示。这里需要注意的是： <code class="docutils literal notranslate"><span class="pre">mutex_list:</span> <span class="pre">Vec&lt;Option&lt;Arc&lt;dyn</span> <span class="pre">Mutex&gt;&gt;&gt;</span></code> 表示的是实现了 <code class="docutils literal notranslate"><span class="pre">Mutex</span></code> trait 的一个“互斥资源”的向量。而 <code class="docutils literal notranslate"><span class="pre">MutexBlocking</span></code> 是会实现 <code class="docutils literal notranslate"><span class="pre">Mutex</span></code> trait 的内核数据结构，它就是我们提到的 <code class="docutils literal notranslate"><span class="pre">互斥资源</span></code> 即 <strong>互斥锁</strong> 。操作系统需要显式地施加某种控制，来确定当一个线程释放锁时，等待的线程谁将能抢到锁。为了做到这一点，操作系统需要有一个等待队列来保存等待锁的线程，如下面代码的第20行所示。</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 2</span><span class="w">        </span><span class="c1">// immutable</span>
-<span class="linenos"> 3</span><span class="w">        </span><span class="k">pub</span><span class="w"> </span><span class="n">pid</span>: <span class="nc">PidHandle</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">        </span><span class="c1">// mutable</span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">ProcessControlBlockInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="hll"><span class="linenos"> 9</span><span class="w">        </span><span class="k">pub</span><span class="w"> </span><span class="n">mutex_list</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">Mutex</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-</span><span class="linenos">10</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Mutex</span>: <span class="nb">Sync</span> <span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">        </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">        </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">MutexBlocking</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">        </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">MutexBlockingInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">MutexBlockingInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">        </span><span class="n">locked</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
-<span class="hll"><span class="linenos">20</span><span class="w">        </span><span class="n">wait_queue</span>: <span class="nc">VecDeque</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-</span><span class="linenos">21</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno"> 2 </span><span class="w">        </span><span class="c1">// immutable</span>
+<span class="lineno"> 3 </span><span class="w">        </span><span class="k">pub</span><span class="w"> </span><span class="n">pid</span>: <span class="nc">PidHandle</span><span class="p">,</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="w">        </span><span class="c1">// mutable</span>
+<span class="lineno"> 5 </span><span class="w">        </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">ProcessControlBlockInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="lineno"> 6 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno"> 7 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno"> 8 </span><span class="w">        </span><span class="p">...</span><span class="w"></span>
+<span class="lineno"> 9 </span><span class="hll"><span class="w">        </span><span class="k">pub</span><span class="w"> </span><span class="n">mutex_list</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">dyn</span><span class="w"> </span><span class="n">Mutex</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+</span><span class="lineno">10 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">11 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Mutex</span>: <span class="nb">Sync</span> <span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">12 </span><span class="w">        </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">13 </span><span class="w">        </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">14 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">15 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">MutexBlocking</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">16 </span><span class="w">        </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">MutexBlockingInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">17 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">18 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">MutexBlockingInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">19 </span><span class="w">        </span><span class="n">locked</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">20 </span><span class="hll"><span class="w">        </span><span class="n">wait_queue</span>: <span class="nc">VecDeque</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+</span><span class="lineno">21 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>这样，在操作系统中，需要设计实现三个核心成员变量。互斥锁的成员变量有两个：表示是否锁上的 <code class="docutils literal notranslate"><span class="pre">locked</span></code> 和管理等待线程的等待队列 <code class="docutils literal notranslate"><span class="pre">wait_queue</span></code>；进程的成员变量：锁向量 <code class="docutils literal notranslate"><span class="pre">mutex_list</span></code> 。</p>
 <p>首先需要创建一个互斥锁，下面是应对``SYSCALL_MUTEX_CREATE`` 系统调用的创建互斥锁的函数：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="c1">// os/src/syscall/sync.rs</span>
-<span class="linenos"> 2</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_create</span><span class="p">(</span><span class="n">blocking</span>: <span class="kt">bool</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_process</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process_inner</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">            </span><span class="p">.</span><span class="n">mutex_list</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">            </span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">            </span><span class="p">.</span><span class="n">enumerate</span><span class="p">()</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">            </span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="o">|</span><span class="p">(</span><span class="n">_</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">)</span><span class="o">|</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">is_none</span><span class="p">())</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">            </span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">_</span><span class="p">)</span><span class="o">|</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">            </span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">[</span><span class="n">id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">blocking</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">                </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">MutexSpin</span>::<span class="n">new</span><span class="p">()))</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">14</span><span class="w">                </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">MutexBlocking</span>::<span class="n">new</span><span class="p">()))</span><span class="w"></span>
-</span><span class="linenos">15</span><span class="w">            </span><span class="p">};</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">            </span><span class="n">id</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">            </span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">MutexSpin</span>::<span class="n">new</span><span class="p">())));</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">            </span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="w">    </span><span class="c1">// os/src/syscall/sync.rs</span>
+<span class="lineno"> 2 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_create</span><span class="p">(</span><span class="n">blocking</span>: <span class="kt">bool</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="lineno"> 3 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_process</span><span class="p">();</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="lineno"> 5 </span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process_inner</span><span class="w"></span>
+<span class="lineno"> 6 </span><span class="w">            </span><span class="p">.</span><span class="n">mutex_list</span><span class="w"></span>
+<span class="lineno"> 7 </span><span class="w">            </span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"></span>
+<span class="lineno"> 8 </span><span class="w">            </span><span class="p">.</span><span class="n">enumerate</span><span class="p">()</span><span class="w"></span>
+<span class="lineno"> 9 </span><span class="w">            </span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="o">|</span><span class="p">(</span><span class="n">_</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">)</span><span class="o">|</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">is_none</span><span class="p">())</span><span class="w"></span>
+<span class="lineno">10 </span><span class="w">            </span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">_</span><span class="p">)</span><span class="o">|</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">11 </span><span class="w">            </span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">[</span><span class="n">id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">blocking</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">12 </span><span class="w">                </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">MutexSpin</span>::<span class="n">new</span><span class="p">()))</span><span class="w"></span>
+<span class="lineno">13 </span><span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">14 </span><span class="hll"><span class="w">                </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">MutexBlocking</span>::<span class="n">new</span><span class="p">()))</span><span class="w"></span>
+</span><span class="lineno">15 </span><span class="w">            </span><span class="p">};</span><span class="w"></span>
+<span class="lineno">16 </span><span class="w">            </span><span class="n">id</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
+<span class="lineno">17 </span><span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">18 </span><span class="w">            </span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">MutexSpin</span>::<span class="n">new</span><span class="p">())));</span><span class="w"></span>
+<span class="lineno">19 </span><span class="w">            </span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w"></span>
+<span class="lineno">20 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">21 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -701,29 +700,29 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
 <li><p>第30行，如果向量满了，就在向量中添加新的可睡眠的互斥锁；</p></li>
 </ul>
 <p>有了互斥锁，接下来就是实现 <code class="docutils literal notranslate"><span class="pre">Mutex</span></code> trait的内核函数：对应 <code class="docutils literal notranslate"><span class="pre">SYSCALL_MUTEX_LOCK</span></code> 系统调用的 <code class="docutils literal notranslate"><span class="pre">sys_mutex_lock</span></code> 。操作系统主要工作是，在锁已被其他线程获取的情况下，把当前线程放到等待队列中，并调度一个新线程执行。主要代码如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/sync.rs</span>
-<span class="linenos"> 2</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_lock</span><span class="p">(</span><span class="n">mutex_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_process</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">[</span><span class="n">mutex_id</span><span class="p">].</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">process_inner</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">process</span><span class="p">);</span><span class="w"></span>
-<span class="hll"><span class="linenos"> 8</span><span class="w">        </span><span class="n">mutex</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-</span><span class="linenos"> 9</span><span class="w">        </span><span class="mi">0</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="c1">// os/src/sync/mutex.rs</span>
-<span class="linenos">12</span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Mutex</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">MutexBlocking</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">        </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="hll"><span class="linenos">15</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">16</span><span class="w">                </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
-</span><span class="linenos">17</span><span class="w">                </span><span class="nb">drop</span><span class="p">(</span><span class="n">mutex_inner</span><span class="p">);</span><span class="w"></span>
-<span class="hll"><span class="linenos">18</span><span class="w">                </span><span class="n">block_current_and_run_next</span><span class="p">();</span><span class="w"></span>
-</span><span class="linenos">19</span><span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">20</span><span class="w">                </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w"></span>
-</span><span class="linenos">21</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/syscall/sync.rs</span>
+<span class="lineno"> 2 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_lock</span><span class="p">(</span><span class="n">mutex_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="lineno"> 3 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_process</span><span class="p">();</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="lineno"> 5 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">[</span><span class="n">mutex_id</span><span class="p">].</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
+<span class="lineno"> 6 </span><span class="w">        </span><span class="n">drop</span><span class="p">(</span><span class="n">process_inner</span><span class="p">);</span><span class="w"></span>
+<span class="lineno"> 7 </span><span class="w">        </span><span class="n">drop</span><span class="p">(</span><span class="n">process</span><span class="p">);</span><span class="w"></span>
+<span class="lineno"> 8 </span><span class="hll"><span class="w">        </span><span class="n">mutex</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
+</span><span class="lineno"> 9 </span><span class="w">        </span><span class="mi">0</span><span class="w"></span>
+<span class="lineno">10 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">11 </span><span class="w">    </span><span class="c1">// os/src/sync/mutex.rs</span>
+<span class="lineno">12 </span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Mutex</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">MutexBlocking</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">13 </span><span class="w">        </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">14 </span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="lineno">15 </span><span class="hll"><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+</span><span class="lineno">16 </span><span class="hll"><span class="w">                </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
+</span><span class="lineno">17 </span><span class="w">                </span><span class="n">drop</span><span class="p">(</span><span class="n">mutex_inner</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">18 </span><span class="hll"><span class="w">                </span><span class="n">block_current_and_run_next</span><span class="p">();</span><span class="w"></span>
+</span><span class="lineno">19 </span><span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">20 </span><span class="hll"><span class="w">                </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w"></span>
+</span><span class="lineno">21 </span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">22 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">23 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -732,27 +731,27 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
 <li><p>第20行，如果互斥锁mutex还没被获取，那么当前线程会获取给互斥锁，并返回系统调用。</p></li>
 </ul>
 <p>最后是实现 <code class="docutils literal notranslate"><span class="pre">Mutex</span></code> trait的内核函数：对应 <code class="docutils literal notranslate"><span class="pre">SYSCALL_MUTEX_UNLOCK</span></code> 系统调用的 <code class="docutils literal notranslate"><span class="pre">sys_mutex_unlock</span></code> 。操作系统的主要工作是，如果有等待在这个互斥锁上的线程，需要唤醒最早等待的线程。主要代码如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/sync.rs</span>
-<span class="linenos"> 2</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_unlock</span><span class="p">(</span><span class="n">mutex_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_process</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">[</span><span class="n">mutex_id</span><span class="p">].</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">process_inner</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">process</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">        </span><span class="n">mutex</span><span class="p">.</span><span class="n">unlock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">        </span><span class="mi">0</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="c1">// os/src/sync/mutex.rs</span>
-<span class="linenos">12</span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Mutex</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">MutexBlocking</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">        </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">            </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">            </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">waking_task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">pop_front</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">                </span><span class="n">add_task</span><span class="p">(</span><span class="n">waking_task</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/syscall/sync.rs</span>
+<span class="lineno"> 2 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_unlock</span><span class="p">(</span><span class="n">mutex_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="lineno"> 3 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_process</span><span class="p">();</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="lineno"> 5 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">[</span><span class="n">mutex_id</span><span class="p">].</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
+<span class="lineno"> 6 </span><span class="w">        </span><span class="n">drop</span><span class="p">(</span><span class="n">process_inner</span><span class="p">);</span><span class="w"></span>
+<span class="lineno"> 7 </span><span class="w">        </span><span class="n">drop</span><span class="p">(</span><span class="n">process</span><span class="p">);</span><span class="w"></span>
+<span class="lineno"> 8 </span><span class="w">        </span><span class="n">mutex</span><span class="p">.</span><span class="n">unlock</span><span class="p">();</span><span class="w"></span>
+<span class="lineno"> 9 </span><span class="w">        </span><span class="mi">0</span><span class="w"></span>
+<span class="lineno">10 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">11 </span><span class="w">    </span><span class="c1">// os/src/sync/mutex.rs</span>
+<span class="lineno">12 </span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Mutex</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">MutexBlocking</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">13 </span><span class="w">        </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">14 </span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="lineno">15 </span><span class="w">            </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">16 </span><span class="w">            </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">17 </span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">waking_task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">pop_front</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">18 </span><span class="w">                </span><span class="n">add_task</span><span class="p">(</span><span class="n">waking_task</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">19 </span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">20 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">21 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -760,10 +759,10 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
 <li><p>第16行，释放锁。</p></li>
 <li><p>第17-18行，如果有等待的线程，唤醒等待最久的那个线程。</p></li>
 </ul>
-</section>
-</section>
-</section>
-</section>
+</div>
+</div>
+</div>
+</div>
 
 
            </div>
