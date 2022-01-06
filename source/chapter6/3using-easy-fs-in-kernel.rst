@@ -327,7 +327,7 @@ K210 真实硬件平台
 ``OSInode`` 就表示进程中一个被打开的常规文件或目录。 ``readable/writable`` 分别表明该文件是否允许通过 ``sys_read/write`` 进行读写。至于在 ``sys_read/write`` 期间被维护偏移量 ``offset`` 和它在 ``easy-fs`` 中的 ``Inode`` 则加上一把互斥锁丢到 ``OSInodeInner`` 中。这在提供内部可变性的同时，也可以简单应对多个进程同时读写一个文件的情况。
 
 
-文件描述符层与文件描述符表
+文件描述符层
 -----------------------------------------------
 
 
@@ -374,6 +374,45 @@ K210 真实硬件平台
     }
 
 本章我们为 ``File`` Trait 新增了 ``readable/writable`` 两个抽象接口从而在 ``sys_read/sys_write`` 的时候进行简单的访问权限检查。 ``read/write`` 的实现也比较简单，只需遍历 ``UserBuffer`` 中的每个缓冲区片段，调用 ``Inode`` 写好的 ``read/write_at`` 接口就好了。注意 ``read/write_at`` 的起始位置是在 ``OSInode`` 中维护的 ``offset`` ，这个 ``offset`` 也随着遍历的进行被持续更新。在 ``read/write`` 的全程需要获取 ``OSInode`` 的互斥锁，保证两个进程无法同时访问同个文件。
+
+文件描述符表
+-----------------------------------------------
+
+为了支持进程对文件的管理，我们需要在进程控制块中加入文件描述符表的相应字段：
+
+.. code-block:: rust
+    :linenos:
+    :emphasize-lines: 12
+
+    // os/src/task/task.rs
+
+    pub struct TaskControlBlockInner {
+        pub trap_cx_ppn: PhysPageNum,
+        pub base_size: usize,
+        pub task_cx_ptr: usize,
+        pub task_status: TaskStatus,
+        pub memory_set: MemorySet,
+        pub parent: Option<Weak<TaskControlBlock>>,
+        pub children: Vec<Arc<TaskControlBlock>>,
+        pub exit_code: i32,
+        pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
+    }
+
+可以看到 ``fd_table`` 的类型包含多层嵌套，我们从外到里分别说明：
+
+- ``Vec`` 的动态长度特性使得我们无需设置一个固定的文件描述符数量上限，我们可以更加灵活的使用内存，而不必操心内存管理问题；
+- ``Option`` 使得我们可以区分一个文件描述符当前是否空闲，当它是 ``None`` 的时候是空闲的，而 ``Some`` 则代表它已被占用；
+- ``Arc`` 首先提供了共享引用能力。后面我们会提到，可能会有多个进程共享同一个文件对它进行读写。此外被它包裹的内容会被放到内核堆而不是栈上，于是它便不需要在编译期有着确定的大小；
+- ``dyn`` 关键字表明 ``Arc`` 里面的类型实现了 ``File/Send/Sync`` 三个 Trait ，但是编译期无法知道它具体是哪个类型（可能是任何实现了 ``File`` Trait 的类型如 ``Stdin/Stdout`` ，故而它所占的空间大小自然也无法确定），需要等到运行时才能知道它的具体类型，对于一些抽象方法的调用也是在那个时候才能找到该类型实现的方法并跳转过去。
+
+.. note::
+
+    **Rust 语法卡片：Rust 中的多态**
+
+    在编程语言中， **多态** (Polymorphism) 指的是在同一段代码中可以隐含多种不同类型的特征。在 Rust 中主要通过泛型和 Trait 来实现多态。
+    
+    泛型是一种 **编译期多态** (Static Polymorphism)，在编译一个泛型函数的时候，编译器会对于所有可能用到的类型进行实例化并对应生成一个版本的汇编代码，在编译期就能知道选取哪个版本并确定函数地址，这可能会导致生成的二进制文件体积较大；而 Trait 对象（也即上面提到的 ``dyn`` 语法）是一种 **运行时多态** (Dynamic Polymorphism)，需要在运行时查一种类似于 C++ 中的 **虚表** (Virtual Table) 才能找到实际类型对于抽象接口实现的函数地址并进行调用，这样会带来一定的运行时开销，但是更省空间且灵活。
+
 
 应用访问文件的内核机制实现
 -----------------------------------------------
