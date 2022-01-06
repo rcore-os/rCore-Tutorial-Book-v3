@@ -151,7 +151,7 @@
 
 .. code-block:: rust
 
-    //https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=18b0f956b83e6a8a408215edcfcb6d01
+    // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=18b0f956b83e6a8a408215edcfcb6d01
     use std::cell::RefCell;
     static A: RefCell<i32> = RefCell::new(3);
     fn main() {
@@ -220,7 +220,7 @@ Rust 编译器提示我们 ``RefCell<i32>`` 未被标记为 ``Sync`` ，因此 R
 
 .. code-block:: rust
 
-    # os/src/batch.rs
+    // os/src/batch.rs
 
     lazy_static! {
         static ref APP_MANAGER: UPSafeCell<AppManager> = unsafe { UPSafeCell::new({
