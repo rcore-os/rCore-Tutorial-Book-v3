@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>进程管理机制的设计实现 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -41,7 +42,7 @@ var addUtterances = () => {
     script.setAttribute("label", "comments");
     script.setAttribute("crossorigin", "anonymous");
 
-    sections = document.querySelectorAll("div.section");
+    sections = document.querySelectorAll("div > section");
     if (sections !== null) {
         section = sections[sections.length-1];
         section.appendChild(script);
@@ -72,7 +73,7 @@ commentsRunWhenDOMLoaded(addUtterances);
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Part1 - Just do it!</span></p>
+              <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
@@ -109,7 +110,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter8/index.html">第八章：并发</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter9/index.html">第九章：I/O设备管理</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">附录</span></p>
+<p class="caption"><span class="caption-text">附录</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../final-lab.html">综合练习</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 系统编程入门</a></li>
@@ -119,7 +120,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../appendix-e/index.html">附录 E：操作系统进一步介绍</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">开发注记</span></p>
+<p class="caption"><span class="caption-text">开发注记</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
@@ -151,9 +152,9 @@ commentsRunWhenDOMLoaded(addUtterances);
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="id1">
+  <section id="id1">
 <h1>进程管理机制的设计实现<a class="headerlink" href="#id1" title="永久链接至标题"></a></h1>
-<div class="section" id="id2">
+<section id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
 <p>有了上节的数据结构和相关基本方法的介绍后，我们还需完成进程管理关键功能的实现，从而构造出一个完整的白垩纪“伤齿龙”操作系统。本节将从如下四个方面介绍如何基于上一节设计的内核数据结构来实现进程管理：</p>
 <ul class="simple">
@@ -163,8 +164,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>进程资源回收机制：当进程调用 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 正常退出或者出错被内核终止之后如何保存其退出码，其父进程通过 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 系统调用收集该进程的信息并回收其资源。</p></li>
 <li><p>字符输入机制：为了支对shell程序-user_shell获得字符输入，介绍 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用的实现；</p></li>
 </ul>
-</div>
-<div class="section" id="id3">
+</section>
+<section id="id3">
 <h2>初始进程的创建<a class="headerlink" href="#id3" title="永久链接至标题"></a></h2>
 <p>内核初始化完毕之后即会调用 <code class="docutils literal notranslate"><span class="pre">task</span></code> 子模块提供的 <code class="docutils literal notranslate"><span class="pre">add_initproc</span></code> 函数来将初始进程 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> 加入任务管理器，但在这之前我们需要初始化初始进程的进程控制块 <code class="docutils literal notranslate"><span class="pre">INITPROC</span></code> ，这个过程基于 <code class="docutils literal notranslate"><span class="pre">lazy_static</span></code> 在运行时完成。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/mod.rs</span>
@@ -185,51 +186,51 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>我们调用 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::new</span></code> 来创建一个进程控制块，它需要传入 ELF 可执行文件的数据切片作为参数，这可以通过加载器 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 子模块提供的 <code class="docutils literal notranslate"><span class="pre">get_app_data_by_name</span></code> 接口查找 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> 的 ELF 执行文件数据来获得。在初始化 <code class="docutils literal notranslate"><span class="pre">INITPROC</span></code> 之后，就可以在 <code class="docutils literal notranslate"><span class="pre">add_initproc</span></code> 中调用 <code class="docutils literal notranslate"><span class="pre">task</span></code> 的任务管理器 <code class="docutils literal notranslate"><span class="pre">manager</span></code> 子模块提供的 <code class="docutils literal notranslate"><span class="pre">add_task</span></code> 接口，将其加入到任务管理器。</p>
 <p>接下来介绍 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::new</span></code> 是如何实现的：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/task/task.rs</span>
-<span class="lineno"> 2 </span>
-<span class="lineno"> 3 </span><span class="k">use</span><span class="w"> </span><span class="k">super</span>::<span class="p">{</span><span class="n">PidHandle</span><span class="p">,</span><span class="w"> </span><span class="n">pid_alloc</span><span class="p">,</span><span class="w"> </span><span class="n">KernelStack</span><span class="p">};</span><span class="w"></span>
-<span class="lineno"> 4 </span><span class="k">use</span><span class="w"> </span><span class="k">super</span>::<span class="n">TaskContext</span><span class="p">;</span><span class="w"></span>
-<span class="lineno"> 5 </span><span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">config</span>::<span class="n">TRAP_CONTEXT</span><span class="p">;</span><span class="w"></span>
-<span class="lineno"> 6 </span><span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">trap</span>::<span class="n">TrapContext</span><span class="p">;</span><span class="w"></span>
-<span class="lineno"> 7 </span>
-<span class="lineno"> 8 </span><span class="c1">// impl TaskControlBlock</span>
-<span class="lineno"> 9 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">elf_data</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">10 </span><span class="w">    </span><span class="c1">// memory_set with elf program headers/trampoline/trap context/user stack</span>
-<span class="lineno">11 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">memory_set</span><span class="p">,</span><span class="w"> </span><span class="n">user_sp</span><span class="p">,</span><span class="w"> </span><span class="n">entry_point</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemorySet</span>::<span class="n">from_elf</span><span class="p">(</span><span class="n">elf_data</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">12 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span><span class="w"></span>
-<span class="lineno">13 </span><span class="w">        </span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">TRAP_CONTEXT</span><span class="p">).</span><span class="n">into</span><span class="p">())</span><span class="w"></span>
-<span class="lineno">14 </span><span class="w">        </span><span class="p">.</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
-<span class="lineno">15 </span><span class="w">        </span><span class="p">.</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">16 </span><span class="w">    </span><span class="c1">// alloc a pid and a kernel stack in kernel space</span>
-<span class="lineno">17 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">pid_handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pid_alloc</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">18 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">kernel_stack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KernelStack</span>::<span class="n">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pid_handle</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">19 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">kernel_stack_top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack</span><span class="p">.</span><span class="n">get_top</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">20 </span><span class="w">    </span><span class="c1">// push a task context which goes to trap_return to the top of kernel stack</span>
-<span class="lineno">21 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_control_block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">22 </span><span class="w">        </span><span class="n">pid</span>: <span class="nc">pid_handle</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">23 </span><span class="w">        </span><span class="n">kernel_stack</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">24 </span><span class="w">        </span><span class="n">inner</span>: <span class="nc">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">25 </span><span class="w">            </span><span class="n">trap_cx_ppn</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">26 </span><span class="w">            </span><span class="n">base_size</span>: <span class="nc">user_sp</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">27 </span><span class="w">            </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span>::<span class="n">goto_trap_return</span><span class="p">(</span><span class="n">kernel_stack_top</span><span class="p">),</span><span class="w"></span>
-<span class="lineno">28 </span><span class="w">            </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span>::<span class="n">Ready</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">29 </span><span class="w">            </span><span class="n">memory_set</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">30 </span><span class="w">            </span><span class="n">parent</span>: <span class="nb">None</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">31 </span><span class="w">            </span><span class="n">children</span>: <span class="nb">Vec</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
-<span class="lineno">32 </span><span class="w">            </span><span class="n">exit_code</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">33 </span><span class="w">        </span><span class="p">})},</span><span class="w"></span>
-<span class="lineno">34 </span><span class="w">    </span><span class="p">};</span><span class="w"></span>
-<span class="lineno">35 </span><span class="w">    </span><span class="c1">// prepare TrapContext in user space</span>
-<span class="lineno">36 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_control_block</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">37 </span><span class="w">    </span><span class="o">*</span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TrapContext</span>::<span class="n">app_init_context</span><span class="p">(</span><span class="w"></span>
-<span class="lineno">38 </span><span class="w">        </span><span class="n">entry_point</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">39 </span><span class="w">        </span><span class="n">user_sp</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">40 </span><span class="w">        </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">token</span><span class="p">(),</span><span class="w"></span>
-<span class="lineno">41 </span><span class="w">        </span><span class="n">kernel_stack_top</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">42 </span><span class="w">        </span><span class="n">trap_handler</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">43 </span><span class="w">    </span><span class="p">);</span><span class="w"></span>
-<span class="lineno">44 </span><span class="w">    </span><span class="n">task_control_block</span><span class="w"></span>
-<span class="lineno">45 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/task.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">use</span><span class="w"> </span><span class="k">super</span>::<span class="p">{</span><span class="n">PidHandle</span><span class="p">,</span><span class="w"> </span><span class="n">pid_alloc</span><span class="p">,</span><span class="w"> </span><span class="n">KernelStack</span><span class="p">};</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="k">use</span><span class="w"> </span><span class="k">super</span>::<span class="n">TaskContext</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">config</span>::<span class="n">TRAP_CONTEXT</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">trap</span>::<span class="n">TrapContext</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="c1">// impl TaskControlBlock</span>
+<span class="linenos"> 9</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">elf_data</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">    </span><span class="c1">// memory_set with elf program headers/trampoline/trap context/user stack</span>
+<span class="linenos">11</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">memory_set</span><span class="p">,</span><span class="w"> </span><span class="n">user_sp</span><span class="p">,</span><span class="w"> </span><span class="n">entry_point</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemorySet</span>::<span class="n">from_elf</span><span class="p">(</span><span class="n">elf_data</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">        </span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">TRAP_CONTEXT</span><span class="p">).</span><span class="n">into</span><span class="p">())</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">        </span><span class="p">.</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">        </span><span class="p">.</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">    </span><span class="c1">// alloc a pid and a kernel stack in kernel space</span>
+<span class="linenos">17</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">pid_handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pid_alloc</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">kernel_stack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KernelStack</span>::<span class="n">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pid_handle</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">kernel_stack_top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack</span><span class="p">.</span><span class="n">get_top</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">    </span><span class="c1">// push a task context which goes to trap_return to the top of kernel stack</span>
+<span class="linenos">21</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_control_block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">        </span><span class="n">pid</span>: <span class="nc">pid_handle</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">        </span><span class="n">kernel_stack</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">        </span><span class="n">inner</span>: <span class="nc">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">            </span><span class="n">trap_cx_ppn</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">            </span><span class="n">base_size</span>: <span class="nc">user_sp</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">            </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span>::<span class="n">goto_trap_return</span><span class="p">(</span><span class="n">kernel_stack_top</span><span class="p">),</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">            </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span>::<span class="n">Ready</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">            </span><span class="n">memory_set</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">            </span><span class="n">parent</span>: <span class="nb">None</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">            </span><span class="n">children</span>: <span class="nb">Vec</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">            </span><span class="n">exit_code</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">        </span><span class="p">})},</span><span class="w"></span>
+<span class="linenos">34</span><span class="w">    </span><span class="p">};</span><span class="w"></span>
+<span class="linenos">35</span><span class="w">    </span><span class="c1">// prepare TrapContext in user space</span>
+<span class="linenos">36</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_control_block</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">37</span><span class="w">    </span><span class="o">*</span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TrapContext</span>::<span class="n">app_init_context</span><span class="p">(</span><span class="w"></span>
+<span class="linenos">38</span><span class="w">        </span><span class="n">entry_point</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">39</span><span class="w">        </span><span class="n">user_sp</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">40</span><span class="w">        </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">token</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">41</span><span class="w">        </span><span class="n">kernel_stack_top</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">42</span><span class="w">        </span><span class="n">trap_handler</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">43</span><span class="w">    </span><span class="p">);</span><span class="w"></span>
+<span class="linenos">44</span><span class="w">    </span><span class="n">task_control_block</span><span class="w"></span>
+<span class="linenos">45</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -241,8 +242,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>第 37 行我们初始化位于该进程应用地址空间中的 Trap 上下文，使得第一次进入用户态的时候时候能正确跳转到应用入口点并设置好用户栈，同时也保证在 Trap 的时候用户态能正确进入内核态。</p></li>
 <li><p>第 44 行将 <code class="docutils literal notranslate"><span class="pre">task_control_block</span></code> 返回。</p></li>
 </ul>
-</div>
-<div class="section" id="id4">
+</section>
+<section id="id4">
 <h2>进程调度机制<a class="headerlink" href="#id4" title="永久链接至标题"></a></h2>
 <p>通过调用 <code class="docutils literal notranslate"><span class="pre">task</span></code> 子模块提供的 <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 函数可以暂停当前任务并切换到下一个任务，当应用调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 主动交出使用权、本轮时间片用尽或者由于某些原因内核中的处理无法继续的时候，就会在内核中调用此函数触发调度机制并进行任务切换。下面给出了两种典型的使用情况：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/process.rs</span>
@@ -264,80 +265,80 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">            </span><span class="n">set_next_trigger</span><span class="p">();</span><span class="w"></span>
 <span class="hll"><span class="w">            </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span><span class="w"></span>
 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="p">...</span><span class="w"></span>
+<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>随着进程概念的引入， <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 的实现也需要发生变化：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/task/mod.rs</span>
-<span class="lineno"> 2 </span>
-<span class="lineno"> 3 </span><span class="k">use</span><span class="w"> </span><span class="n">processor</span>::<span class="p">{</span><span class="n">task_current_task</span><span class="p">,</span><span class="w"> </span><span class="n">schedule</span><span class="p">};</span><span class="w"></span>
-<span class="lineno"> 4 </span><span class="k">use</span><span class="w"> </span><span class="n">manager</span>::<span class="n">add_task</span><span class="p">;</span><span class="w"></span>
-<span class="lineno"> 5 </span>
-<span class="lineno"> 6 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">suspend_current_and_run_next</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 7 </span><span class="w">    </span><span class="c1">// There must be an application running.</span>
-<span class="lineno"> 8 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">take_current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="lineno"> 9 </span>
-<span class="lineno">10 </span><span class="w">    </span><span class="c1">// ---- access current TCB exclusively</span>
-<span class="lineno">11 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">12 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_cx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">13 </span><span class="w">    </span><span class="c1">// Change status to Ready</span>
-<span class="lineno">14 </span><span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Ready</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">15 </span><span class="w">    </span><span class="n">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">16 </span><span class="w">    </span><span class="c1">// ---- release current PCB</span>
-<span class="lineno">17 </span>
-<span class="lineno">18 </span><span class="w">    </span><span class="c1">// push back to ready queue.</span>
-<span class="lineno">19 </span><span class="w">    </span><span class="n">add_task</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">20 </span><span class="w">    </span><span class="c1">// jump to scheduling cycle</span>
-<span class="lineno">21 </span><span class="w">    </span><span class="n">schedule</span><span class="p">(</span><span class="n">task_cx_ptr</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">22 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/mod.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">use</span><span class="w"> </span><span class="n">processor</span>::<span class="p">{</span><span class="n">task_current_task</span><span class="p">,</span><span class="w"> </span><span class="n">schedule</span><span class="p">};</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="k">use</span><span class="w"> </span><span class="n">manager</span>::<span class="n">add_task</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">suspend_current_and_run_next</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="c1">// There must be an application running.</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">take_current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span><span class="w">    </span><span class="c1">// ---- access current TCB exclusively</span>
+<span class="linenos">11</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_cx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="c1">// Change status to Ready</span>
+<span class="linenos">14</span><span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Ready</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">    </span><span class="c1">// ---- release current PCB</span>
+<span class="linenos">17</span>
+<span class="linenos">18</span><span class="w">    </span><span class="c1">// push back to ready queue.</span>
+<span class="linenos">19</span><span class="w">    </span><span class="n">add_task</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">    </span><span class="c1">// jump to scheduling cycle</span>
+<span class="linenos">21</span><span class="w">    </span><span class="n">schedule</span><span class="p">(</span><span class="n">task_cx_ptr</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">22</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>首先通过 <code class="docutils literal notranslate"><span class="pre">take_current_task</span></code> 来取出当前正在执行的任务，修改其进程控制块内的状态，随后将这个任务放入任务管理器的队尾。接着调用 <code class="docutils literal notranslate"><span class="pre">schedule</span></code> 函数来触发调度并切换任务。注意，当仅有一个任务的时候， <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 的效果是会继续执行这个任务。</p>
-</div>
-<div class="section" id="id5">
+</section>
+<section id="id5">
 <h2>进程的生成机制<a class="headerlink" href="#id5" title="永久链接至标题"></a></h2>
 <p>在内核中手动生成的进程只有初始进程 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> ，余下所有的进程都是它直接或间接 fork 出来的。当一个子进程被 fork 出来之后，它可以调用 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 系统调用来加载并执行另一个可执行文件。因此， <code class="docutils literal notranslate"><span class="pre">fork/exec</span></code> 两个系统调用提供了进程的生成机制。下面我们分别来介绍二者的实现。</p>
-<div class="section" id="fork">
+<section id="fork">
 <h3>fork 系统调用的实现<a class="headerlink" href="#fork" title="永久链接至标题"></a></h3>
 <p>在实现 fork 的时候，最为关键且困难的是为子进程创建一个和父进程几乎完全相同的应用地址空间。我们的实现如下：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/mm/memory_set.rs</span>
-<span class="lineno"> 2 </span>
-<span class="lineno"> 3 </span><span class="k">impl</span><span class="w"> </span><span class="n">MapArea</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 4 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">from_another</span><span class="p">(</span><span class="n">another</span>: <span class="kp">&amp;</span><span class="nc">MapArea</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 5 </span><span class="w">        </span><span class="n">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 6 </span><span class="w">            </span><span class="n">vpn_range</span>: <span class="nc">VPNRange</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
-<span class="lineno"> 7 </span><span class="w">                </span><span class="n">another</span><span class="p">.</span><span class="n">vpn_range</span><span class="p">.</span><span class="n">get_start</span><span class="p">(),</span><span class="w"></span>
-<span class="lineno"> 8 </span><span class="w">                </span><span class="n">another</span><span class="p">.</span><span class="n">vpn_range</span><span class="p">.</span><span class="n">get_end</span><span class="p">()</span><span class="w"></span>
-<span class="lineno"> 9 </span><span class="w">            </span><span class="p">),</span><span class="w"></span>
-<span class="lineno">10 </span><span class="w">            </span><span class="n">data_frames</span>: <span class="nc">BTreeMap</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
-<span class="lineno">11 </span><span class="w">            </span><span class="n">map_type</span>: <span class="nc">another</span><span class="p">.</span><span class="n">map_type</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">12 </span><span class="w">            </span><span class="n">map_perm</span>: <span class="nc">another</span><span class="p">.</span><span class="n">map_perm</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">13 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">14 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">15 </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">16 </span>
-<span class="lineno">17 </span><span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">18 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">from_existed_user</span><span class="p">(</span><span class="n">user_space</span>: <span class="kp">&amp;</span><span class="nc">MemorySet</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">19 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">memory_set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Self</span>::<span class="n">new_bare</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">20 </span><span class="w">        </span><span class="c1">// map trampoline</span>
-<span class="lineno">21 </span><span class="w">        </span><span class="n">memory_set</span><span class="p">.</span><span class="n">map_trampoline</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">22 </span><span class="w">        </span><span class="c1">// copy data sections/trap_context/user_stack</span>
-<span class="lineno">23 </span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">area</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">user_space</span><span class="p">.</span><span class="n">areas</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">24 </span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">new_area</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MapArea</span>::<span class="n">from_another</span><span class="p">(</span><span class="n">area</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">25 </span><span class="w">            </span><span class="n">memory_set</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">new_area</span><span class="p">,</span><span class="w"> </span><span class="nb">None</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">26 </span><span class="w">            </span><span class="c1">// copy data from another space</span>
-<span class="lineno">27 </span><span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">vpn</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">area</span><span class="p">.</span><span class="n">vpn_range</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">28 </span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">src_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">user_space</span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">vpn</span><span class="p">).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">29 </span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">dst_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">vpn</span><span class="p">).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">30 </span><span class="w">                </span><span class="n">dst_ppn</span><span class="p">.</span><span class="n">get_bytes_array</span><span class="p">().</span><span class="n">copy_from_slice</span><span class="p">(</span><span class="n">src_ppn</span><span class="p">.</span><span class="n">get_bytes_array</span><span class="p">());</span><span class="w"></span>
-<span class="lineno">31 </span><span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">32 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">33 </span><span class="w">        </span><span class="n">memory_set</span><span class="w"></span>
-<span class="lineno">34 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">35 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/mm/memory_set.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">MapArea</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">from_another</span><span class="p">(</span><span class="n">another</span>: <span class="kp">&amp;</span><span class="nc">MapArea</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">            </span><span class="n">vpn_range</span>: <span class="nc">VPNRange</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">                </span><span class="n">another</span><span class="p">.</span><span class="n">vpn_range</span><span class="p">.</span><span class="n">get_start</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">                </span><span class="n">another</span><span class="p">.</span><span class="n">vpn_range</span><span class="p">.</span><span class="n">get_end</span><span class="p">()</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="p">),</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">            </span><span class="n">data_frames</span>: <span class="nc">BTreeMap</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">            </span><span class="n">map_type</span>: <span class="nc">another</span><span class="p">.</span><span class="n">map_type</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="n">map_perm</span>: <span class="nc">another</span><span class="p">.</span><span class="n">map_perm</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">15</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">16</span>
+<span class="linenos">17</span><span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">from_existed_user</span><span class="p">(</span><span class="n">user_space</span>: <span class="kp">&amp;</span><span class="nc">MemorySet</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">memory_set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">Self</span>::<span class="n">new_bare</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">        </span><span class="c1">// map trampoline</span>
+<span class="linenos">21</span><span class="w">        </span><span class="n">memory_set</span><span class="p">.</span><span class="n">map_trampoline</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">        </span><span class="c1">// copy data sections/trap_context/user_stack</span>
+<span class="linenos">23</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">area</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">user_space</span><span class="p">.</span><span class="n">areas</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">new_area</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MapArea</span>::<span class="n">from_another</span><span class="p">(</span><span class="n">area</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">            </span><span class="n">memory_set</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">new_area</span><span class="p">,</span><span class="w"> </span><span class="nb">None</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">            </span><span class="c1">// copy data from another space</span>
+<span class="linenos">27</span><span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">vpn</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">area</span><span class="p">.</span><span class="n">vpn_range</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">src_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">user_space</span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">vpn</span><span class="p">).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">dst_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">vpn</span><span class="p">).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">                </span><span class="n">dst_ppn</span><span class="p">.</span><span class="n">get_bytes_array</span><span class="p">().</span><span class="n">copy_from_slice</span><span class="p">(</span><span class="n">src_ppn</span><span class="p">.</span><span class="n">get_bytes_array</span><span class="p">());</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">        </span><span class="n">memory_set</span><span class="w"></span>
+<span class="linenos">34</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">35</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>这需要对内存管理子模块 <code class="docutils literal notranslate"><span class="pre">mm</span></code> 做一些拓展：</p>
@@ -348,50 +349,50 @@ commentsRunWhenDOMLoaded(addUtterances);
 </li>
 </ul>
 <p>接着，我们实现 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::fork</span></code> 来从父进程的进程控制块创建一份子进程的控制块：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/task/task.rs</span>
-<span class="lineno"> 2 </span>
-<span class="lineno"> 3 </span><span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 4 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">fork</span><span class="p">(</span><span class="bp">self</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 5 </span><span class="w">        </span><span class="c1">// ---- access parent PCB exclusively</span>
-<span class="lineno"> 6 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">parent_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="lineno"> 7 </span><span class="w">        </span><span class="c1">// copy user space(include trap context)</span>
-<span class="lineno"> 8 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">memory_set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemorySet</span>::<span class="n">from_existed_user</span><span class="p">(</span><span class="w"></span>
-<span class="lineno"> 9 </span><span class="w">            </span><span class="o">&amp;</span><span class="n">parent_inner</span><span class="p">.</span><span class="n">memory_set</span><span class="w"></span>
-<span class="lineno">10 </span><span class="w">        </span><span class="p">);</span><span class="w"></span>
-<span class="lineno">11 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span><span class="w"></span>
-<span class="lineno">12 </span><span class="w">            </span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">TRAP_CONTEXT</span><span class="p">).</span><span class="n">into</span><span class="p">())</span><span class="w"></span>
-<span class="lineno">13 </span><span class="w">            </span><span class="p">.</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
-<span class="lineno">14 </span><span class="w">            </span><span class="p">.</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">15 </span><span class="w">        </span><span class="c1">// alloc a pid and a kernel stack in kernel space</span>
-<span class="lineno">16 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">pid_handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pid_alloc</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">17 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">kernel_stack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KernelStack</span>::<span class="n">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pid_handle</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">18 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">kernel_stack_top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack</span><span class="p">.</span><span class="n">get_top</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">19 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task_control_block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">20 </span><span class="w">            </span><span class="n">pid</span>: <span class="nc">pid_handle</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">21 </span><span class="w">            </span><span class="n">kernel_stack</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">22 </span><span class="w">            </span><span class="n">inner</span>: <span class="nc">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">23 </span><span class="w">                </span><span class="n">trap_cx_ppn</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">24 </span><span class="w">                </span><span class="n">base_size</span>: <span class="nc">parent_inner</span><span class="p">.</span><span class="n">base_size</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">25 </span><span class="w">                </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span>::<span class="n">goto_trap_return</span><span class="p">(</span><span class="n">kernel_stack_top</span><span class="p">),</span><span class="w"></span>
-<span class="lineno">26 </span><span class="w">                </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span>::<span class="n">Ready</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">27 </span><span class="w">                </span><span class="n">memory_set</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">28 </span><span class="w">                </span><span class="n">parent</span>: <span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">downgrade</span><span class="p">(</span><span class="bp">self</span><span class="p">)),</span><span class="w"></span>
-<span class="lineno">29 </span><span class="w">                </span><span class="n">children</span>: <span class="nb">Vec</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
-<span class="lineno">30 </span><span class="w">                </span><span class="n">exit_code</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">31 </span><span class="w">            </span><span class="p">})},</span><span class="w"></span>
-<span class="lineno">32 </span><span class="w">        </span><span class="p">});</span><span class="w"></span>
-<span class="lineno">33 </span><span class="w">        </span><span class="c1">// add child</span>
-<span class="lineno">34 </span><span class="w">        </span><span class="n">parent_inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">task_control_block</span><span class="p">.</span><span class="n">clone</span><span class="p">());</span><span class="w"></span>
-<span class="lineno">35 </span><span class="w">        </span><span class="c1">// modify kernel_sp in trap_cx</span>
-<span class="lineno">36 </span><span class="w">        </span><span class="c1">// **** access children PCB exclusively</span>
-<span class="lineno">37 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_control_block</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">38 </span><span class="w">        </span><span class="n">trap_cx</span><span class="p">.</span><span class="n">kernel_sp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack_top</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">39 </span><span class="w">        </span><span class="c1">// return</span>
-<span class="lineno">40 </span><span class="w">        </span><span class="n">task_control_block</span><span class="w"></span>
-<span class="lineno">41 </span><span class="w">        </span><span class="c1">// ---- release parent PCB automatically</span>
-<span class="lineno">42 </span><span class="w">        </span><span class="c1">// **** release children PCB automatically</span>
-<span class="lineno">43 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">44 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/task.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">fork</span><span class="p">(</span><span class="bp">self</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="c1">// ---- access parent PCB exclusively</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">parent_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="c1">// copy user space(include trap context)</span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">memory_set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemorySet</span>::<span class="n">from_existed_user</span><span class="p">(</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="o">&amp;</span><span class="n">parent_inner</span><span class="p">.</span><span class="n">memory_set</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">        </span><span class="p">);</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">TRAP_CONTEXT</span><span class="p">).</span><span class="n">into</span><span class="p">())</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">            </span><span class="p">.</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">            </span><span class="p">.</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">        </span><span class="c1">// alloc a pid and a kernel stack in kernel space</span>
+<span class="linenos">16</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">pid_handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pid_alloc</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">kernel_stack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KernelStack</span>::<span class="n">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pid_handle</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">kernel_stack_top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack</span><span class="p">.</span><span class="n">get_top</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task_control_block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">            </span><span class="n">pid</span>: <span class="nc">pid_handle</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">            </span><span class="n">kernel_stack</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">            </span><span class="n">inner</span>: <span class="nc">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">                </span><span class="n">trap_cx_ppn</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">                </span><span class="n">base_size</span>: <span class="nc">parent_inner</span><span class="p">.</span><span class="n">base_size</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">                </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span>::<span class="n">goto_trap_return</span><span class="p">(</span><span class="n">kernel_stack_top</span><span class="p">),</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">                </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span>::<span class="n">Ready</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">                </span><span class="n">memory_set</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">                </span><span class="n">parent</span>: <span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">downgrade</span><span class="p">(</span><span class="bp">self</span><span class="p">)),</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">                </span><span class="n">children</span>: <span class="nb">Vec</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">                </span><span class="n">exit_code</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">            </span><span class="p">})},</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">        </span><span class="p">});</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">        </span><span class="c1">// add child</span>
+<span class="linenos">34</span><span class="w">        </span><span class="n">parent_inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">task_control_block</span><span class="p">.</span><span class="n">clone</span><span class="p">());</span><span class="w"></span>
+<span class="linenos">35</span><span class="w">        </span><span class="c1">// modify kernel_sp in trap_cx</span>
+<span class="linenos">36</span><span class="w">        </span><span class="c1">// **** access children PCB exclusively</span>
+<span class="linenos">37</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_control_block</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">38</span><span class="w">        </span><span class="n">trap_cx</span><span class="p">.</span><span class="n">kernel_sp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack_top</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">39</span><span class="w">        </span><span class="c1">// return</span>
+<span class="linenos">40</span><span class="w">        </span><span class="n">task_control_block</span><span class="w"></span>
+<span class="linenos">41</span><span class="w">        </span><span class="c1">// ---- release parent PCB automatically</span>
+<span class="linenos">42</span><span class="w">        </span><span class="c1">// **** release children PCB automatically</span>
+<span class="linenos">43</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">44</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>它基本上和新建进程控制块的 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::new</span></code> 是相同的，但要注意以下几点：</p>
@@ -402,80 +403,80 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>我们在子进程内核栈上压入一个初始化的任务上下文，使得内核一旦通过任务切换到该进程，就会跳转到 <code class="docutils literal notranslate"><span class="pre">trap_return</span></code> 来进入用户态。而在复制地址空间的时候，子进程的 Trap 上下文也是完全从父进程复制过来的，这可以保证子进程进入用户态和其父进程回到用户态的那一瞬间 CPU 的状态是完全相同的（后面我们会让它们的返回值不同从而区分两个进程）。而两个进程的应用数据由于地址空间复制的原因也是完全相同的，这是 fork 语义要求做到的。</p>
 <p>在具体实现 <code class="docutils literal notranslate"><span class="pre">sys_fork</span></code> 的时候，我们需要特别注意如何体现父子进程的差异：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/syscall/process.rs</span>
-<span class="lineno"> 2 </span>
-<span class="lineno"> 3 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_fork</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="lineno"> 4 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">current_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="lineno"> 5 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">new_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">.</span><span class="n">fork</span><span class="p">();</span><span class="w"></span>
-<span class="lineno"> 6 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">new_pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_task</span><span class="p">.</span><span class="n">pid</span><span class="p">.</span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="lineno"> 7 </span><span class="w">    </span><span class="c1">// modify trap context of new_task, because it returns immediately after switching</span>
-<span class="lineno"> 8 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="lineno"> 9 </span><span class="w">    </span><span class="c1">// we do not have to move to next instruction since we have done it before</span>
-<span class="lineno">10 </span><span class="w">    </span><span class="c1">// for child process, fork returns 0</span>
-<span class="lineno">11 </span><span class="hll"><span class="w">    </span><span class="n">trap_cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">  </span><span class="c1">//x[10] is a0 reg</span>
-</span><span class="lineno">12 </span><span class="w">    </span><span class="c1">// add new task to scheduler</span>
-<span class="lineno">13 </span><span class="w">    </span><span class="n">add_task</span><span class="p">(</span><span class="n">new_task</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">14 </span><span class="w">    </span><span class="n">new_pid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
-<span class="lineno">15 </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">16 </span>
-<span class="lineno">17 </span><span class="c1">// os/src/trap/mod.rs</span>
-<span class="lineno">18 </span>
-<span class="lineno">19 </span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="lineno">20 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">21 </span><span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">22 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">23 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">24 </span><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">25 </span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">UserEnvCall</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">26 </span><span class="w">            </span><span class="c1">// jump to next instruction anyway</span>
-<span class="lineno">27 </span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">28 </span><span class="hll"><span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">sepc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
-</span><span class="lineno">29 </span><span class="w">            </span><span class="c1">// get system call return value</span>
-<span class="lineno">30 </span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">syscall</span><span class="p">(</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">17</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">11</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">12</span><span class="p">]]);</span><span class="w"></span>
-<span class="lineno">31 </span><span class="w">            </span><span class="c1">// cx is changed during sys_exec, so we have to call it again</span>
-<span class="lineno">32 </span><span class="w">            </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">33 </span><span class="hll"><span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-</span><span class="lineno">34 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">35 </span><span class="w">    </span><span class="p">...</span><span class="w"></span>
-<span class="lineno">36 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_fork</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">current_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">new_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">.</span><span class="n">fork</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">new_pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_task</span><span class="p">.</span><span class="n">pid</span><span class="p">.</span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="c1">// modify trap context of new_task, because it returns immediately after switching</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="c1">// we do not have to move to next instruction since we have done it before</span>
+<span class="linenos">10</span><span class="w">    </span><span class="c1">// for child process, fork returns 0</span>
+<span class="hll"><span class="linenos">11</span><span class="w">    </span><span class="n">trap_cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">  </span><span class="c1">//x[10] is a0 reg</span>
+</span><span class="linenos">12</span><span class="w">    </span><span class="c1">// add new task to scheduler</span>
+<span class="linenos">13</span><span class="w">    </span><span class="n">add_task</span><span class="p">(</span><span class="n">new_task</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="n">new_pid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
+<span class="linenos">15</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">16</span>
+<span class="linenos">17</span><span class="c1">// os/src/trap/mod.rs</span>
+<span class="linenos">18</span>
+<span class="linenos">19</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos">20</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">UserEnvCall</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">            </span><span class="c1">// jump to next instruction anyway</span>
+<span class="linenos">27</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
+<span class="hll"><span class="linenos">28</span><span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">sepc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
+</span><span class="linenos">29</span><span class="w">            </span><span class="c1">// get system call return value</span>
+<span class="linenos">30</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">syscall</span><span class="p">(</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">17</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">11</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">12</span><span class="p">]]);</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">            </span><span class="c1">// cx is changed during sys_exec, so we have to call it again</span>
+<span class="linenos">32</span><span class="w">            </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
+<span class="hll"><span class="linenos">33</span><span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+</span><span class="linenos">34</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">35</span><span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos">36</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>在调用 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 进行系统调用分发并具体调用 <code class="docutils literal notranslate"><span class="pre">sys_fork</span></code> 之前， 第28行，<code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 已经将当前进程 Trap 上下文中的 <code class="docutils literal notranslate"><span class="pre">sepc</span></code> 向后移动了 4 字节，使得它回到用户态之后，会从发出系统调用的 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令的下一条指令开始执行。之后当我们复制地址空间的时候，子进程地址空间 Trap 上下文的 <code class="docutils literal notranslate"><span class="pre">sepc</span></code>  也是移动之后的值，我们无需再进行修改。</p>
 <p>父子进程回到用户态的瞬间都处于刚刚从一次系统调用返回的状态，但二者的返回值不同。第 8~11 行我们将子进程的 Trap 上下文中用来存放系统调用返回值的 a0 寄存器修改为 0 ；第33行，而父进程系统调用的返回值会在 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 中 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 返回之后再设置为 <code class="docutils literal notranslate"><span class="pre">sys_fork</span></code> 的返回值，这里我们返回子进程的 PID 。这就做到了父进程 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 的返回值为子进程的 PID ，而子进程的返回值则为 0 。通过返回值是否为 0 可以区分父子进程。</p>
 <p>另外，不要忘记在第 13 行，我们将生成的子进程通过 <code class="docutils literal notranslate"><span class="pre">add_task</span></code> 加入到任务管理器中。</p>
-</div>
-<div class="section" id="exec">
+</section>
+<section id="exec">
 <h3>exec 系统调用的实现<a class="headerlink" href="#exec" title="永久链接至标题"></a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">exec</span></code> 系统调用使得一个进程能够加载一个新应用的 ELF 可执行文件中的代码和数据替换原有的应用地址空间中的内容，并开始执行。我们先从进程控制块的层面进行修改：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/task/task.rs</span>
-<span class="lineno"> 2 </span>
-<span class="lineno"> 3 </span><span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 4 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exec</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">elf_data</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 5 </span><span class="w">        </span><span class="c1">// memory_set with elf program headers/trampoline/trap context/user stack</span>
-<span class="lineno"> 6 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">memory_set</span><span class="p">,</span><span class="w"> </span><span class="n">user_sp</span><span class="p">,</span><span class="w"> </span><span class="n">entry_point</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemorySet</span>::<span class="n">from_elf</span><span class="p">(</span><span class="n">elf_data</span><span class="p">);</span><span class="w"></span>
-<span class="lineno"> 7 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span><span class="w"></span>
-<span class="lineno"> 8 </span><span class="w">            </span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">TRAP_CONTEXT</span><span class="p">).</span><span class="n">into</span><span class="p">())</span><span class="w"></span>
-<span class="lineno"> 9 </span><span class="w">            </span><span class="p">.</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
-<span class="lineno">10 </span><span class="w">            </span><span class="p">.</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">11 </span>
-<span class="lineno">12 </span><span class="w">        </span><span class="c1">// **** hold current PCB lock</span>
-<span class="lineno">13 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">acquire_inner_lock</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">14 </span><span class="w">        </span><span class="c1">// substitute memory_set</span>
-<span class="lineno">15 </span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">memory_set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">16 </span><span class="w">        </span><span class="c1">// update trap_cx ppn</span>
-<span class="lineno">17 </span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">trap_cx_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">trap_cx_ppn</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">18 </span><span class="w">        </span><span class="c1">// initialize trap_cx</span>
-<span class="lineno">19 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">20 </span><span class="w">        </span><span class="o">*</span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TrapContext</span>::<span class="n">app_init_context</span><span class="p">(</span><span class="w"></span>
-<span class="lineno">21 </span><span class="w">            </span><span class="n">entry_point</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">22 </span><span class="w">            </span><span class="n">user_sp</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">23 </span><span class="w">            </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">token</span><span class="p">(),</span><span class="w"></span>
-<span class="lineno">24 </span><span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">kernel_stack</span><span class="p">.</span><span class="n">get_top</span><span class="p">(),</span><span class="w"></span>
-<span class="lineno">25 </span><span class="w">            </span><span class="n">trap_handler</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">26 </span><span class="w">        </span><span class="p">);</span><span class="w"></span>
-<span class="lineno">27 </span><span class="w">        </span><span class="c1">// **** release current PCB lock</span>
-<span class="lineno">28 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">29 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/task.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exec</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">elf_data</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="c1">// memory_set with elf program headers/trampoline/trap context/user stack</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">memory_set</span><span class="p">,</span><span class="w"> </span><span class="n">user_sp</span><span class="p">,</span><span class="w"> </span><span class="n">entry_point</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemorySet</span>::<span class="n">from_elf</span><span class="p">(</span><span class="n">elf_data</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">            </span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">TRAP_CONTEXT</span><span class="p">).</span><span class="n">into</span><span class="p">())</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="p">.</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">            </span><span class="p">.</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">11</span>
+<span class="linenos">12</span><span class="w">        </span><span class="c1">// **** hold current PCB lock</span>
+<span class="linenos">13</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">acquire_inner_lock</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">        </span><span class="c1">// substitute memory_set</span>
+<span class="linenos">15</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">memory_set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">        </span><span class="c1">// update trap_cx ppn</span>
+<span class="linenos">17</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">trap_cx_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">trap_cx_ppn</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">        </span><span class="c1">// initialize trap_cx</span>
+<span class="linenos">19</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">        </span><span class="o">*</span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TrapContext</span>::<span class="n">app_init_context</span><span class="p">(</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">            </span><span class="n">entry_point</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">            </span><span class="n">user_sp</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">            </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">token</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">kernel_stack</span><span class="p">.</span><span class="n">get_top</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">            </span><span class="n">trap_handler</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">        </span><span class="p">);</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">        </span><span class="c1">// **** release current PCB lock</span>
+<span class="linenos">28</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">29</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>它在解析传入的 ELF 格式数据之后只做了两件事情：</p>
@@ -485,43 +486,43 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>这里无需对任务上下文进行处理，因为这个进程本身已经在执行了，而只有被暂停的应用才需要在内核栈上保留一个任务上下文。</p>
 <p>有了 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 函数后， <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 就很容易实现了：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/mm/page_table.rs</span>
-<span class="lineno"> 2 </span>
-<span class="lineno"> 3 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">translated_str</span><span class="p">(</span><span class="n">token</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">String</span> <span class="p">{</span><span class="w"></span>
-<span class="lineno"> 4 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">page_table</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PageTable</span>::<span class="n">from_token</span><span class="p">(</span><span class="n">token</span><span class="p">);</span><span class="w"></span>
-<span class="lineno"> 5 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
-<span class="lineno"> 6 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="lineno"> 7 </span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 8 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">ch</span>: <span class="kt">u8</span> <span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="n">page_table</span><span class="p">.</span><span class="n">translate_va</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">va</span><span class="p">)).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">get_mut</span><span class="p">());</span><span class="w"></span>
-<span class="lineno"> 9 </span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">ch</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">10 </span><span class="w">            </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">11 </span><span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">12 </span><span class="w">            </span><span class="n">string</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">ch</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">char</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">13 </span><span class="w">            </span><span class="n">va</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">14 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">15 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">16 </span><span class="w">    </span><span class="n">string</span><span class="w"></span>
-<span class="lineno">17 </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">18 </span>
-<span class="lineno">19 </span><span class="c1">// os/src/syscall/process.rs</span>
-<span class="lineno">20 </span>
-<span class="lineno">21 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exec</span><span class="p">(</span><span class="n">path</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="lineno">22 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">23 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_str</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">24 </span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_app_data_by_name</span><span class="p">(</span><span class="n">path</span><span class="p">.</span><span class="n">as_str</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">25 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">26 </span><span class="w">        </span><span class="n">task</span><span class="p">.</span><span class="n">exec</span><span class="p">(</span><span class="n">data</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">27 </span><span class="w">        </span><span class="mi">0</span><span class="w"></span>
-<span class="lineno">28 </span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">29 </span><span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-<span class="lineno">30 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">31 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/mm/page_table.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">translated_str</span><span class="p">(</span><span class="n">token</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">String</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">page_table</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PageTable</span>::<span class="n">from_token</span><span class="p">(</span><span class="n">token</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">ch</span>: <span class="kt">u8</span> <span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="n">page_table</span><span class="p">.</span><span class="n">translate_va</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">va</span><span class="p">)).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">get_mut</span><span class="p">());</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">ch</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">            </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="n">string</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">ch</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">char</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">            </span><span class="n">va</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">    </span><span class="n">string</span><span class="w"></span>
+<span class="linenos">17</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">18</span>
+<span class="linenos">19</span><span class="c1">// os/src/syscall/process.rs</span>
+<span class="linenos">20</span>
+<span class="linenos">21</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exec</span><span class="p">(</span><span class="n">path</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_str</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_app_data_by_name</span><span class="p">(</span><span class="n">path</span><span class="p">.</span><span class="n">as_str</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">        </span><span class="n">task</span><span class="p">.</span><span class="n">exec</span><span class="p">(</span><span class="n">data</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">        </span><span class="mi">0</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">31</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>应用在 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 系统调用中传递给内核的只有一个要执行的应用名字符串在当前应用地址空间中的起始地址，如果想在内核中具体获得字符串的话就需要手动查页表。第 3 行的 <code class="docutils literal notranslate"><span class="pre">translated_str</span></code> 便可以从内核地址空间之外的某个应用的用户态地址空间中拿到一个字符串，其原理就是针对应用的字符串中字符的用户态虚拟地址，查页表，找到对应的内核虚拟地址，逐字节地构造字符串，直到发现一个 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 为止（第7~15行）。</p>
 <p>回到 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 的实现，它调用 <code class="docutils literal notranslate"><span class="pre">translated_str</span></code> 找到要执行的应用名并试图在应用加载器提供的 <code class="docutils literal notranslate"><span class="pre">get_app_data_by_name</span></code> 接口中找到对应的 ELF 格式的数据。如果找到，就调用 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::exec</span></code> 替换掉地址空间并返回 0。这个返回值其实并没有意义，因为我们在替换地址空间的时候本来就对 Trap 上下文重新进行了初始化。如果没有找到，就不做任何事情并返回 -1。在shell程序-user_shell中我们也正是通过这个返回值来判断要执行的应用是否存在。</p>
-</div>
-<div class="section" id="trap">
+</section>
+<section id="trap">
 <h3>系统调用后重新获取 Trap 上下文<a class="headerlink" href="#trap" title="永久链接至标题"></a></h3>
 <p>过去的 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 实现是这样处理系统调用的：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/trap/mod.rs</span>
@@ -537,7 +538,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">sepc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
 <span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">syscall</span><span class="p">(</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">17</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">11</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">12</span><span class="p">]])</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="p">...</span><span class="w"></span>
+<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
@@ -562,15 +563,15 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">            </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
 <span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="p">...</span><span class="w"></span>
+<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-</div>
-</div>
-<div class="section" id="shell-user-shell">
+</section>
+</section>
+<section id="shell-user-shell">
 <h2>shell程序-user_shell的输入机制<a class="headerlink" href="#shell-user-shell" title="永久链接至标题"></a></h2>
 <p>为了实现shell程序-user_shell的输入机制，我们需要实现 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用使得应用能够取得用户的键盘输入。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
@@ -582,7 +583,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_read</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="n">FD_STDIN</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">len</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Only support len = 1 in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">len</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Only support len = 1 in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">c</span>: <span class="kt">usize</span><span class="p">;</span><span class="w"></span>
 <span class="w">            </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">                </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">console_getchar</span><span class="p">();</span><span class="w"></span>
@@ -599,7 +600,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">            </span><span class="mi">1</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
 <span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Unsupported fd in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unsupported fd in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
@@ -607,96 +608,96 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>目前我们仅支持从标准输入 <code class="docutils literal notranslate"><span class="pre">FD_STDIN</span></code> 即文件描述符 0 读入，且单次读入的长度限制为 1，即每次只能读入一个字符。我们调用 <code class="docutils literal notranslate"><span class="pre">sbi</span></code> 子模块提供的从键盘获取输入的接口 <code class="docutils literal notranslate"><span class="pre">console_getchar</span></code> ，如果返回 0 则说明还没有输入，我们调用 <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 暂时切换到其他进程，等下次切换回来的时候再看看是否有输入了。获取到输入之后，我们退出循环并手动查页表将输入的字符正确的写入到应用地址空间。</p>
 <p>注：我们这里还没有涉及 <strong>文件</strong> 的概念，在后续章节中有具体的介绍。</p>
-</div>
-<div class="section" id="id6">
+</section>
+<section id="id6">
 <h2>进程资源回收机制<a class="headerlink" href="#id6" title="永久链接至标题"></a></h2>
-<div class="section" id="id7">
+<section id="id7">
 <h3>进程的退出<a class="headerlink" href="#id7" title="永久链接至标题"></a></h3>
 <p>当应用调用 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 系统调用主动退出或者出错由内核终止之后，会在内核中调用 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 函数退出当前进程并切换到下一个进程。使用方法如下：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/syscall/process.rs</span>
-<span class="lineno"> 2 </span>
-<span class="lineno"> 3 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exit</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 4 </span><span class="hll"><span class="w">    </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="n">exit_code</span><span class="p">);</span><span class="w"></span>
-</span><span class="lineno"> 5 </span><span class="w">    </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Unreachable in sys_exit!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="lineno"> 6 </span><span class="p">}</span><span class="w"></span>
-<span class="lineno"> 7 </span>
-<span class="lineno"> 8 </span><span class="c1">// os/src/trap/mod.rs</span>
-<span class="lineno"> 9 </span>
-<span class="lineno">10 </span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="lineno">11 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">12 </span><span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">13 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">14 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">15 </span><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">16 </span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">StoreFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
-<span class="lineno">17 </span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">StorePageFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
-<span class="lineno">18 </span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">InstructionFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
-<span class="lineno">19 </span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">InstructionPageFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
-<span class="lineno">20 </span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
-<span class="lineno">21 </span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadPageFault</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">22 </span><span class="w">            </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="w"></span>
-<span class="lineno">23 </span><span class="w">                </span><span class="s">&quot;[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.&quot;</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">24 </span><span class="w">                </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">(),</span><span class="w"></span>
-<span class="lineno">25 </span><span class="w">                </span><span class="n">stval</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">26 </span><span class="w">                </span><span class="n">current_trap_cx</span><span class="p">().</span><span class="n">sepc</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">27 </span><span class="w">            </span><span class="p">);</span><span class="w"></span>
-<span class="lineno">28 </span><span class="w">            </span><span class="c1">// page fault exit code</span>
-<span class="lineno">29 </span><span class="hll"><span class="w">            </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">);</span><span class="w"></span>
-</span><span class="lineno">30 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">31 </span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">IllegalInstruction</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">32 </span><span class="w">            </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;[kernel] IllegalInstruction in application, core dumped.&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">33 </span><span class="w">            </span><span class="c1">// illegal instruction exit code</span>
-<span class="lineno">34 </span><span class="hll"><span class="w">            </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">);</span><span class="w"></span>
-</span><span class="lineno">35 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">36 </span><span class="w">        </span><span class="p">...</span><span class="w"></span>
-<span class="lineno">37 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">38 </span><span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">39 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exit</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="linenos"> 4</span><span class="w">    </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="n">exit_code</span><span class="p">);</span><span class="w"></span>
+</span><span class="linenos"> 5</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unreachable in sys_exit!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="c1">// os/src/trap/mod.rs</span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos">11</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">StoreFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">StorePageFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">InstructionFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">InstructionPageFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadFault</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadPageFault</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">                </span><span class="s">&quot;[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">                </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">                </span><span class="n">stval</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">                </span><span class="n">current_trap_cx</span><span class="p">().</span><span class="n">sepc</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">            </span><span class="p">);</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">            </span><span class="c1">// page fault exit code</span>
+<span class="hll"><span class="linenos">29</span><span class="w">            </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">);</span><span class="w"></span>
+</span><span class="linenos">30</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">IllegalInstruction</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;[kernel] IllegalInstruction in application, core dumped.&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">            </span><span class="c1">// illegal instruction exit code</span>
+<span class="hll"><span class="linenos">34</span><span class="w">            </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">);</span><span class="w"></span>
+</span><span class="linenos">35</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">36</span><span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos">37</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">38</span><span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">39</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>相比前面的章节， <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 带有一个退出码作为参数。当在 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 正常退出的时候，退出码由应用传到内核中；而出错退出的情况（如第 29 行的访存错误或第 34 行的非法指令异常）则是由内核指定一个特定的退出码。这个退出码会在 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 写入当前进程的进程控制块中：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/mm/memory_set.rs</span>
-<span class="lineno"> 2 </span>
-<span class="lineno"> 3 </span><span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 4 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">recycle_data_pages</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 5 </span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">areas</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
-<span class="lineno"> 6 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno"> 7 </span><span class="p">}</span><span class="w"></span>
-<span class="lineno"> 8 </span>
-<span class="lineno"> 9 </span><span class="c1">// os/src/task/mod.rs</span>
-<span class="lineno">10 </span>
-<span class="lineno">11 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exit_current_and_run_next</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">12 </span><span class="w">    </span><span class="c1">// take from Processor</span>
-<span class="lineno">13 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">take_current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">14 </span><span class="w">    </span><span class="c1">// **** access current TCB exclusively</span>
-<span class="lineno">15 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">16 </span><span class="w">    </span><span class="c1">// Change status to Zombie</span>
-<span class="lineno">17 </span><span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Zombie</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">18 </span><span class="w">    </span><span class="c1">// Record exit code</span>
-<span class="lineno">19 </span><span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">exit_code</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">20 </span><span class="w">    </span><span class="c1">// do not move to its parent but under initproc</span>
-<span class="lineno">21 </span>
-<span class="lineno">22 </span><span class="w">    </span><span class="c1">// ++++++ access initproc TCB exclusively</span>
-<span class="lineno">23 </span><span class="w">    </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">24 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">initproc_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">INITPROC</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">25 </span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">26 </span><span class="w">            </span><span class="n">child</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">parent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">downgrade</span><span class="p">(</span><span class="o">&amp;</span><span class="n">INITPROC</span><span class="p">));</span><span class="w"></span>
-<span class="lineno">27 </span><span class="w">            </span><span class="n">initproc_inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">child</span><span class="p">.</span><span class="n">clone</span><span class="p">());</span><span class="w"></span>
-<span class="lineno">28 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">29 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">30 </span><span class="w">    </span><span class="c1">// ++++++ release parent PCB</span>
-<span class="lineno">31 </span>
-<span class="lineno">32 </span><span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">33 </span><span class="w">    </span><span class="c1">// deallocate user space</span>
-<span class="lineno">34 </span><span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">memory_set</span><span class="p">.</span><span class="n">recycle_data_pages</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">35 </span><span class="w">    </span><span class="n">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">36 </span><span class="w">    </span><span class="c1">// **** release current PCB</span>
-<span class="lineno">37 </span><span class="w">    </span><span class="c1">// drop task manually to maintain rc correctly</span>
-<span class="lineno">38 </span><span class="w">    </span><span class="n">drop</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">39 </span><span class="w">    </span><span class="c1">// we do not have to save task context</span>
-<span class="lineno">40 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">_unused</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskContext</span>::<span class="n">zero_init</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">41 </span><span class="w">    </span><span class="n">schedule</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">_unused</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">_</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">42 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/mm/memory_set.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">recycle_data_pages</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">areas</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 8</span>
+<span class="linenos"> 9</span><span class="c1">// os/src/task/mod.rs</span>
+<span class="linenos">10</span>
+<span class="linenos">11</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exit_current_and_run_next</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="c1">// take from Processor</span>
+<span class="linenos">13</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">take_current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="c1">// **** access current TCB exclusively</span>
+<span class="linenos">15</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">    </span><span class="c1">// Change status to Zombie</span>
+<span class="linenos">17</span><span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Zombie</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">    </span><span class="c1">// Record exit code</span>
+<span class="linenos">19</span><span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">exit_code</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">    </span><span class="c1">// do not move to its parent but under initproc</span>
+<span class="linenos">21</span>
+<span class="linenos">22</span><span class="w">    </span><span class="c1">// ++++++ access initproc TCB exclusively</span>
+<span class="linenos">23</span><span class="w">    </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">initproc_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">INITPROC</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">            </span><span class="n">child</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">parent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">downgrade</span><span class="p">(</span><span class="o">&amp;</span><span class="n">INITPROC</span><span class="p">));</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">            </span><span class="n">initproc_inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">child</span><span class="p">.</span><span class="n">clone</span><span class="p">());</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">    </span><span class="c1">// ++++++ release parent PCB</span>
+<span class="linenos">31</span>
+<span class="linenos">32</span><span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">    </span><span class="c1">// deallocate user space</span>
+<span class="linenos">34</span><span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">memory_set</span><span class="p">.</span><span class="n">recycle_data_pages</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">35</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">36</span><span class="w">    </span><span class="c1">// **** release current PCB</span>
+<span class="linenos">37</span><span class="w">    </span><span class="c1">// drop task manually to maintain rc correctly</span>
+<span class="linenos">38</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">39</span><span class="w">    </span><span class="c1">// we do not have to save task context</span>
+<span class="linenos">40</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">_unused</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskContext</span>::<span class="n">zero_init</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">41</span><span class="w">    </span><span class="n">schedule</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">_unused</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">_</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">42</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -707,62 +708,62 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>第 34 行对于当前进程占用的资源进行早期回收。在第 4 行可以看出， <code class="docutils literal notranslate"><span class="pre">MemorySet::recycle_data_pages</span></code> 只是将地址空间中的逻辑段列表 <code class="docutils literal notranslate"><span class="pre">areas</span></code> 清空（即执行 <code class="docutils literal notranslate"><span class="pre">Vec</span></code>  向量清空），这将导致应用地址空间被回收（即进程的数据和代码对应的物理页帧都被回收），但用来存放页表的那些物理页帧此时还不会被回收（会由父进程最后回收子进程剩余的占用资源）。</p></li>
 <li><p>最后在第 41 行我们调用 <code class="docutils literal notranslate"><span class="pre">schedule</span></code> 触发调度及任务切换，由于我们再也不会回到该进程的执行过程中，因此无需关心任务上下文的保存。</p></li>
 </ul>
-</div>
-<div class="section" id="id8">
+</section>
+<section id="id8">
 <h3>父进程回收子进程资源<a class="headerlink" href="#id8" title="永久链接至标题"></a></h3>
 <p>父进程通过 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 系统调用来回收子进程的资源并收集它的一些信息：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/syscall/process.rs</span>
-<span class="lineno"> 2 </span>
-<span class="lineno"> 3 </span><span class="sd">/// If there is not a child process whose pid is same as given, return -1.</span>
-<span class="lineno"> 4 </span><span class="sd">/// Else if there is a child process but it is still running, return -2.</span>
-<span class="lineno"> 5 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_waitpid</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">isize</span><span class="p">,</span><span class="w"> </span><span class="n">exit_code_ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="lineno"> 6 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="lineno"> 7 </span><span class="w">    </span><span class="c1">// find a child process</span>
-<span class="lineno"> 8 </span>
-<span class="lineno"> 9 </span><span class="w">    </span><span class="c1">// ---- access current TCB exclusively</span>
-<span class="lineno">10 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">11 </span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="w"></span>
-<span class="lineno">12 </span><span class="w">        </span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"></span>
-<span class="lineno">13 </span><span class="w">        </span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="o">|</span><span class="n">p</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="n">pid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">getpid</span><span class="p">()})</span><span class="w"></span>
-<span class="lineno">14 </span><span class="w">        </span><span class="p">.</span><span class="n">is_none</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">15 </span><span class="hll"><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-</span><span class="lineno">16 </span><span class="w">        </span><span class="c1">// ---- release current PCB</span>
-<span class="lineno">17 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">18 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">pair</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="w"></span>
-<span class="lineno">19 </span><span class="w">        </span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"></span>
-<span class="lineno">20 </span><span class="w">        </span><span class="p">.</span><span class="n">enumerate</span><span class="p">()</span><span class="w"></span>
-<span class="lineno">21 </span><span class="w">        </span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="o">|</span><span class="p">(</span><span class="n">_</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">)</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">22 </span><span class="w">            </span><span class="c1">// ++++ temporarily access child PCB lock exclusively</span>
-<span class="lineno">23 </span><span class="w">            </span><span class="n">p</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">is_zombie</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">pid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">getpid</span><span class="p">())</span><span class="w"></span>
-<span class="lineno">24 </span><span class="w">            </span><span class="c1">// ++++ release child PCB</span>
-<span class="lineno">25 </span><span class="w">        </span><span class="p">});</span><span class="w"></span>
-<span class="lineno">26 </span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">((</span><span class="n">idx</span><span class="p">,</span><span class="w"> </span><span class="n">_</span><span class="p">))</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pair</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">27 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">remove</span><span class="p">(</span><span class="n">idx</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">28 </span><span class="w">        </span><span class="c1">// confirm that child will be deallocated after removing from children list</span>
-<span class="lineno">29 </span><span class="w">        </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">strong_count</span><span class="p">(</span><span class="o">&amp;</span><span class="n">child</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">30 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">found_pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">child</span><span class="p">.</span><span class="n">getpid</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">31 </span><span class="w">        </span><span class="c1">// ++++ temporarily access child TCB exclusively</span>
-<span class="lineno">32 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">child</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">exit_code</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">33 </span><span class="w">        </span><span class="c1">// ++++ release child PCB</span>
-<span class="lineno">34 </span><span class="w">        </span><span class="o">*</span><span class="n">translated_refmut</span><span class="p">(</span><span class="n">inner</span><span class="p">.</span><span class="n">memory_set</span><span class="p">.</span><span class="n">token</span><span class="p">(),</span><span class="w"> </span><span class="n">exit_code_ptr</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">exit_code</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">35 </span><span class="hll"><span class="w">        </span><span class="n">found_pid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
-</span><span class="lineno">36 </span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">37 </span><span class="hll"><span class="w">        </span><span class="o">-</span><span class="mi">2</span><span class="w"></span>
-</span><span class="lineno">38 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">39 </span><span class="w">    </span><span class="c1">// ---- release current PCB lock automatically</span>
-<span class="lineno">40 </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">41 </span>
-<span class="lineno">42 </span><span class="c1">// user/src/lib.rs</span>
-<span class="lineno">43 </span>
-<span class="lineno">44 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">wait</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="lineno">45 </span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">46 </span><span class="hll"><span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">sys_waitpid</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">exit_code</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-</span><span class="lineno">47 </span><span class="hll"><span class="w">            </span><span class="o">-</span><span class="mi">2</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">yield_</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-</span><span class="lineno">48 </span><span class="w">            </span><span class="c1">// -1 or a real pid</span>
-<span class="lineno">49 </span><span class="w">            </span><span class="n">exit_pid</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">exit_pid</span><span class="p">,</span><span class="w"></span>
-<span class="lineno">50 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">51 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">52 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="sd">/// If there is not a child process whose pid is same as given, return -1.</span>
+<span class="linenos"> 4</span><span class="sd">/// Else if there is a child process but it is still running, return -2.</span>
+<span class="linenos"> 5</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_waitpid</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">isize</span><span class="p">,</span><span class="w"> </span><span class="n">exit_code_ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="c1">// find a child process</span>
+<span class="linenos"> 8</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="c1">// ---- access current TCB exclusively</span>
+<span class="linenos">10</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">        </span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">        </span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="o">|</span><span class="n">p</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="n">pid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">getpid</span><span class="p">()})</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">        </span><span class="p">.</span><span class="n">is_none</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="linenos">15</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+</span><span class="linenos">16</span><span class="w">        </span><span class="c1">// ---- release current PCB</span>
+<span class="linenos">17</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">pair</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">        </span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">        </span><span class="p">.</span><span class="n">enumerate</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">        </span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="o">|</span><span class="p">(</span><span class="n">_</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">)</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">            </span><span class="c1">// ++++ temporarily access child PCB lock exclusively</span>
+<span class="linenos">23</span><span class="w">            </span><span class="n">p</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">is_zombie</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">pid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">getpid</span><span class="p">())</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">            </span><span class="c1">// ++++ release child PCB</span>
+<span class="linenos">25</span><span class="w">        </span><span class="p">});</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">((</span><span class="n">idx</span><span class="p">,</span><span class="w"> </span><span class="n">_</span><span class="p">))</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pair</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">remove</span><span class="p">(</span><span class="n">idx</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">        </span><span class="c1">// confirm that child will be deallocated after removing from children list</span>
+<span class="linenos">29</span><span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">strong_count</span><span class="p">(</span><span class="o">&amp;</span><span class="n">child</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">found_pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">child</span><span class="p">.</span><span class="n">getpid</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">        </span><span class="c1">// ++++ temporarily access child TCB exclusively</span>
+<span class="linenos">32</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">child</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">exit_code</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">        </span><span class="c1">// ++++ release child PCB</span>
+<span class="linenos">34</span><span class="w">        </span><span class="o">*</span><span class="n">translated_refmut</span><span class="p">(</span><span class="n">inner</span><span class="p">.</span><span class="n">memory_set</span><span class="p">.</span><span class="n">token</span><span class="p">(),</span><span class="w"> </span><span class="n">exit_code_ptr</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">exit_code</span><span class="p">;</span><span class="w"></span>
+<span class="hll"><span class="linenos">35</span><span class="w">        </span><span class="n">found_pid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
+</span><span class="linenos">36</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="linenos">37</span><span class="w">        </span><span class="o">-</span><span class="mi">2</span><span class="w"></span>
+</span><span class="linenos">38</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">39</span><span class="w">    </span><span class="c1">// ---- release current PCB lock automatically</span>
+<span class="linenos">40</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">41</span>
+<span class="linenos">42</span><span class="c1">// user/src/lib.rs</span>
+<span class="linenos">43</span>
+<span class="linenos">44</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">wait</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">45</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="linenos">46</span><span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">sys_waitpid</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">exit_code</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+</span><span class="hll"><span class="linenos">47</span><span class="w">            </span><span class="o">-</span><span class="mi">2</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">yield_</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+</span><span class="linenos">48</span><span class="w">            </span><span class="c1">// -1 or a real pid</span>
+<span class="linenos">49</span><span class="w">            </span><span class="n">exit_pid</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">exit_pid</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">50</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">51</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">52</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 是一个立即返回的系统调用，它的返回值语义是：如果当前的进程不存在一个进程ID为pid（pid==-1或pid &gt;0）的子进程，则返回 -1；如果存在一个进程ID为pid的僵尸子进程，则正常回收并返回子进程的id，并更新系统调用的退出码参数为 <code class="docutils literal notranslate"><span class="pre">exit_code</span></code>  。这里还有一个 -2 的返回值，它的含义是子进程还没退出，通知用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> （是实际发出系统调用的地方），这样用户库看到是 -2 后，就进一步调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 系统调用（第46行），让当前父进程进入等待状态。</p>
@@ -780,9 +781,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>第 34 行写入到当前进程的应用地址空间中。由于应用传递给内核的仅仅是一个指向应用地址空间中保存子进程返回值的内存区域的指针，我们还需要在 <code class="docutils literal notranslate"><span class="pre">translated_refmut</span></code> 中手动查页表找到应该写入到物理内存中的哪个位置，这样才能把子进程的退出码 <code class="docutils literal notranslate"><span class="pre">exit_code</span></code> 返回给父进程。其实现可以在 <code class="docutils literal notranslate"><span class="pre">os/src/mm/page_table.rs</span></code> 中找到，比较简单，在这里不再赘述。</p></li>
 </ul>
 <p>到这里，“伤齿龙”操作系统就算完成了。它在启动后，会加载执行用户态的shell程序，并可以通过shell程序提供的命令行交互界面，让使用者敲入要执行的应用程序名字，就可以创建一个子进程来执行这个应用程序，实现了灵活的人机交互和进程管理的动态灵活性。</p>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
            </div>

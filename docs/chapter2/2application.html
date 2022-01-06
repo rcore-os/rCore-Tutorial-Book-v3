@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>实现应用程序 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -41,7 +42,7 @@ var addUtterances = () => {
     script.setAttribute("label", "comments");
     script.setAttribute("crossorigin", "anonymous");
 
-    sections = document.querySelectorAll("div.section");
+    sections = document.querySelectorAll("div > section");
     if (sections !== null) {
         section = sections[sections.length-1];
         section.appendChild(script);
@@ -72,7 +73,7 @@ commentsRunWhenDOMLoaded(addUtterances);
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Part1 - Just do it!</span></p>
+              <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
@@ -104,7 +105,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter8/index.html">第八章：并发</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter9/index.html">第九章：I/O设备管理</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">附录</span></p>
+<p class="caption"><span class="caption-text">附录</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../final-lab.html">综合练习</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 系统编程入门</a></li>
@@ -114,7 +115,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../appendix-e/index.html">附录 E：操作系统进一步介绍</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">开发注记</span></p>
+<p class="caption"><span class="caption-text">开发注记</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
@@ -146,11 +147,11 @@ commentsRunWhenDOMLoaded(addUtterances);
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="id1">
+  <section id="id1">
 <h1>实现应用程序<a class="headerlink" href="#id1" title="永久链接至标题"></a></h1>
 <div class="toctree-wrapper compound">
 </div>
-<div class="section" id="id2">
+<section id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
 <p>本节主要讲解如何设计实现被批处理系统逐个加载并运行的应用程序。这有个前提，即应用程序假定在用户态（U 特权级模式）下运行。实际上，如果应用程序的代码都符合用户态特权级的约束，那它完全可以正常在用户态中运行；但如果应用程序执行特权指令或非法操作（如执行非法指令，访问一个非法的地址等），那会产生异常，并导致程序退出。保证应用程序的代码在用户态能正常运行是将要实现的批处理系统的关键任务之一。应用程序的设计实现要点是：</p>
 <ul class="simple">
@@ -158,8 +159,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>应用程序发出的系统调用</p></li>
 </ul>
 <p>从某种程度上讲，这里设计的应用程序与第一章中的最小用户态执行环境有很多相同的地方。即设计一个应用程序和基本的支持功能库，这样应用程序在用户态通过操作系统提供的服务完成自身的任务。</p>
-</div>
-<div class="section" id="id3">
+</section>
+<section id="id3">
 <h2>应用程序设计<a class="headerlink" href="#id3" title="永久链接至标题"></a></h2>
 <p>应用程序、用户库（包括入口函数、初始化函数、I/O 函数和系统调用接口等多个 rs 文件组成）放在项目根目录的 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下，它和第一章的裸机应用不同之处主要在项目的目录文件结构和内存布局上：</p>
 <ul class="simple">
@@ -167,7 +168,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p><code class="docutils literal notranslate"><span class="pre">user/src/*.rs</span></code> ：用户库（包括入口函数、初始化函数、I/O 函数和系统调用接口等）</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">user/src/linker.ld</span></code> ：应用程序的内存布局说明。</p></li>
 </ul>
-<div class="section" id="id4">
+<section id="id4">
 <h3>项目结构<a class="headerlink" href="#id4" title="永久链接至标题"></a></h3>
 <p>我们看到 <code class="docutils literal notranslate"><span class="pre">user/src</span></code> 目录下面多出了一个 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录。<code class="docutils literal notranslate"><span class="pre">bin</span></code> 里面有多个文件，目前里面至少有三个程序（一个文件是一个应用程序），分别是：</p>
 <ul class="simple">
@@ -184,23 +185,23 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>这个外部库其实就是 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下的 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 以及它引用的若干子模块中。至于这个外部库为何叫 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 而不叫 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 所在的目录的名字 <code class="docutils literal notranslate"><span class="pre">user</span></code> ，是因为在 <code class="docutils literal notranslate"><span class="pre">user/Cargo.toml</span></code> 中我们对于库的名字进行了设置： <code class="docutils literal notranslate"><span class="pre">name</span> <span class="pre">=</span>&#160; <span class="pre">&quot;user_lib&quot;</span></code> 。它作为 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录下的源程序所依赖的用户库，等价于其他编程语言提供的标准库。</p>
 <p>在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 中我们定义了用户库的入口点 <code class="docutils literal notranslate"><span class="pre">_start</span></code> ：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="lineno">2 </span><span class="cp">#[link_section = </span><span class="s">&quot;.text.entry&quot;</span><span class="cp">]</span><span class="w"></span>
-<span class="lineno">3 </span><span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">4 </span><span class="w">    </span><span class="n">clear_bss</span><span class="p">();</span><span class="w"></span>
-<span class="lineno">5 </span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">());</span><span class="w"></span>
-<span class="lineno">6 </span><span class="w">    </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;unreachable after sys_exit!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">7 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos">2</span><span class="cp">#[link_section = </span><span class="s">&quot;.text.entry&quot;</span><span class="cp">]</span><span class="w"></span>
+<span class="linenos">3</span><span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">4</span><span class="w">    </span><span class="n">clear_bss</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">5</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">());</span><span class="w"></span>
+<span class="linenos">6</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;unreachable after sys_exit!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">7</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>第 2 行使用 Rust 的宏将 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 这段代码编译后的汇编代码中放在一个名为 <code class="docutils literal notranslate"><span class="pre">.text.entry</span></code> 的代码段中，方便我们在后续链接的时候调整它的位置使得它能够作为用户库的入口。</p>
 <p>从第 4 行开始，进入用户库入口之后，首先和第一章一样，手动清空需要零初始化的 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段（很遗憾到目前为止底层的批处理系统还没有这个能力，所以我们只能在用户库中完成）；然后调用 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数得到一个类型为 <code class="docutils literal notranslate"><span class="pre">i32</span></code> 的返回值，最后调用用户库提供的 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 接口退出应用程序，并将 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数的返回值告知批处理系统。</p>
 <p>我们还在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 中看到了另一个 <code class="docutils literal notranslate"><span class="pre">main</span></code> ：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span><span class="cp">#[linkage = </span><span class="s">&quot;weak&quot;</span><span class="cp">]</span><span class="w"></span>
-<span class="lineno">2 </span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="lineno">3 </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="lineno">4 </span><span class="w">    </span><span class="n">panic</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Cannot find main!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="lineno">5 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="cp">#[linkage = </span><span class="s">&quot;weak&quot;</span><span class="cp">]</span><span class="w"></span>
+<span class="linenos">2</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos">3</span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">4</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Cannot find main!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">5</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>第 1 行，我们使用 Rust 的宏将其函数符号 <code class="docutils literal notranslate"><span class="pre">main</span></code> 标志为弱链接。这样在最后链接的时候，虽然在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录下的某个应用程序都有 <code class="docutils literal notranslate"><span class="pre">main</span></code> 符号，但由于 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">main</span></code> 符号是弱链接，链接器会使用 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录下的应用主逻辑作为 <code class="docutils literal notranslate"><span class="pre">main</span></code> 。这里我们主要是进行某种程度上的保护，如果在 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录下找不到任何 <code class="docutils literal notranslate"><span class="pre">main</span></code> ，那么编译也能够通过，但会在运行时报错。</p>
@@ -208,8 +209,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#![feature(linkage)]</span><span class="w"></span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="term-app-mem-layout">
+</section>
+<section id="term-app-mem-layout">
 <span id="id5"></span><h3>内存布局<a class="headerlink" href="#term-app-mem-layout" title="永久链接至标题"></a></h3>
 <p>在 <code class="docutils literal notranslate"><span class="pre">user/.cargo/config</span></code> 中，我们和第一章一样设置链接时使用链接脚本 <code class="docutils literal notranslate"><span class="pre">user/src/linker.ld</span></code> 。在其中我们做的重要的事情是：</p>
 <ul class="simple">
@@ -219,8 +220,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>提供了最终生成可执行文件的 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的起始和终止地址，方便 <code class="docutils literal notranslate"><span class="pre">clear_bss</span></code> 函数使用。</p></li>
 </ul>
 <p>其余的部分和第一章基本相同。</p>
-</div>
-<div class="section" id="term-call-syscall">
+</section>
+<section id="term-call-syscall">
 <span id="id6"></span><h3>系统调用<a class="headerlink" href="#term-call-syscall" title="永久链接至标题"></a></h3>
 <p>在子模块 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 中我们作为应用程序来通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 调用批处理系统提供的接口，由于应用程序运行在用户态（即 U 模式）， <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令会触发 名为 <em>Environment call from U-mode</em> 的异常，并 Trap 进入 S 模式执行批处理系统针对这个异常特别提供的服务代码。由于这个接口处于 S 模式的批处理系统和 U 模式的应用程序之间，从上一节我们可以知道，这个接口可以被称为 ABI 或者系统调用。现在我们不关心底层的批处理系统如何提供应用程序所需的功能，只是站在应用程序的角度去使用即可。</p>
 <p>在本章中，应用程序和批处理系统之间按照 API 的结构，约定如下两个系统调用：</p>
@@ -245,7 +246,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>我们知道系统调用实际上是汇编指令级的二进制接口，因此这里给出的只是使用 Rust 语言描述的 API 版本。在实际调用的时候，我们需要按照 RISC-V 调用规范（即ABI格式）在合适的寄存器中放置系统调用的参数，然后执行 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令触发 Trap。在 Trap 回到 U 模式的应用程序代码之后，会从 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 的下一条指令继续执行，同时我们能够按照调用规范在合适的寄存器中读取返回值。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p>RISC-V 寄存器编号和别名</p>
+<p><strong>RISC-V 寄存器编号和别名</strong></p>
 <p>RISC-V 寄存器编号从 <code class="docutils literal notranslate"><span class="pre">0~31</span></code> ，表示为 <code class="docutils literal notranslate"><span class="pre">x0~x31</span></code> 。 其中：</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">x10~x17</span></code> : 对应  <code class="docutils literal notranslate"><span class="pre">a0~a7</span></code></p></li>
@@ -253,21 +254,21 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 </div>
 <p>在 RISC-V 调用规范中，和函数调用的 ABI 情形类似，约定寄存器 <code class="docutils literal notranslate"><span class="pre">a0~a6</span></code> 保存系统调用的参数， <code class="docutils literal notranslate"><span class="pre">a0~a1</span></code> 保存系统调用的返回值。有些许不同的是寄存器 <code class="docutils literal notranslate"><span class="pre">a7</span></code> 用来传递 syscall ID，这是因为所有的 syscall 都是通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令触发的，除了各输入参数之外我们还额外需要一个寄存器来保存要请求哪个系统调用。由于这超出了 Rust 语言的表达能力，我们需要在代码中使用内嵌汇编来完成参数/返回值绑定和 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令的插入：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// user/src/syscall.rs</span>
-<span class="lineno"> 2 </span><span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">arch</span>::<span class="n">asm</span><span class="p">;</span><span class="w"></span>
-<span class="lineno"> 3 </span><span class="k">fn</span> <span class="nf">syscall</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">args</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">3</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="lineno"> 4 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ret</span>: <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
-<span class="lineno"> 5 </span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno"> 6 </span><span class="w">        </span><span class="n">asm</span><span class="o">!</span><span class="p">(</span><span class="w"></span>
-<span class="lineno"> 7 </span><span class="w">            </span><span class="s">&quot;ecall&quot;</span><span class="p">,</span><span class="w"></span>
-<span class="lineno"> 8 </span><span class="w">            </span><span class="n">inlateout</span><span class="p">(</span><span class="s">&quot;x10&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">ret</span><span class="p">,</span><span class="w"></span>
-<span class="lineno"> 9 </span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;x11&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"></span>
-<span class="lineno">10 </span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;x12&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="w"></span>
-<span class="lineno">11 </span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;x17&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">id</span><span class="w"></span>
-<span class="lineno">12 </span><span class="w">        </span><span class="p">);</span><span class="w"></span>
-<span class="lineno">13 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">14 </span><span class="w">    </span><span class="n">ret</span><span class="w"></span>
-<span class="lineno">15 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/syscall.rs</span>
+<span class="linenos"> 2</span><span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">arch</span>::<span class="n">asm</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">syscall</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">args</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">3</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ret</span>: <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="fm">asm!</span><span class="p">(</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">            </span><span class="s">&quot;ecall&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">            </span><span class="n">inlateout</span><span class="p">(</span><span class="s">&quot;x10&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">ret</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;x11&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;x12&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;x17&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">id</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">        </span><span class="p">);</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="n">ret</span><span class="w"></span>
+<span class="linenos">15</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>第 3 行，我们将所有的系统调用都封装成 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 函数，可以看到它支持传入 syscall ID 和 3 个参数。</p>
@@ -277,57 +278,57 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>有些时候不必将变量绑定到固定的寄存器，此时 <code class="docutils literal notranslate"><span class="pre">asm!</span></code> 宏可以自动完成寄存器分配。某些汇编代码段还会带来一些编译器无法预知的副作用，这种情况下需要在 <code class="docutils literal notranslate"><span class="pre">asm!</span></code> 中通过 <code class="docutils literal notranslate"><span class="pre">options</span></code> 告知编译器这些可能的副作用，这样可以帮助编译器在避免出错更加高效分配寄存器。事实上， <code class="docutils literal notranslate"><span class="pre">asm!</span></code> 宏远比我们这里介绍的更加强大易用，详情参考 Rust 相关 RFC 文档 <a class="footnote-reference brackets" href="#rust-asm-macro-rfc" id="id7">1</a> 。</p>
 <p>上面这一段汇编代码的含义和内容与 <a class="reference internal" href="../chapter1/old3-2-mini-rt-baremetal.html#term-llvm-sbicall"><span class="std std-ref">第一章中的 RustSBI 输出到屏幕的 SBI 调用汇编代码</span></a> 涉及的汇编指令一样，但传递参数的寄存器的含义是不同的。有兴趣的同学可以回顾第一章的 <code class="docutils literal notranslate"><span class="pre">console.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sbi.rs</span></code> 。</p>
 <p>于是 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 只需将 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 进行包装：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// user/src/syscall.rs</span>
-<span class="lineno"> 2 </span>
-<span class="lineno"> 3 </span><span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_WRITE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="p">;</span><span class="w"></span>
-<span class="lineno"> 4 </span><span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_EXIT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">93</span><span class="p">;</span><span class="w"></span>
-<span class="lineno"> 5 </span>
-<span class="lineno"> 6 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="lineno"> 7 </span><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_WRITE</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="p">.</span><span class="n">len</span><span class="p">()])</span><span class="w"></span>
-<span class="lineno"> 8 </span><span class="p">}</span><span class="w"></span>
-<span class="lineno"> 9 </span>
-<span class="lineno">10 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exit</span><span class="p">(</span><span class="n">xstate</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="lineno">11 </span><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_EXIT</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">xstate</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
-<span class="lineno">12 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/syscall.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_WRITE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_EXIT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">93</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_WRITE</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="p">.</span><span class="n">len</span><span class="p">()])</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exit</span><span class="p">(</span><span class="n">xstate</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_EXIT</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">xstate</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
+<span class="linenos">12</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p id="term-fat-pointer">注意 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 使用一个 <code class="docutils literal notranslate"><span class="pre">&amp;[u8]</span></code> 切片类型来描述缓冲区，这是一个 <strong>胖指针</strong> (Fat Pointer)，里面既包含缓冲区的起始地址，还
 包含缓冲区的长度。我们可以分别通过 <code class="docutils literal notranslate"><span class="pre">as_ptr</span></code> 和 <code class="docutils literal notranslate"><span class="pre">len</span></code> 方法取出它们并独立地作为实际的系统调用参数。</p>
 <p>我们将上述两个系统调用在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中进一步封装，从而更加接近在 Linux 等平台的实际系统调用接口：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span><span class="c1">// user/src/lib.rs</span>
-<span class="lineno">2 </span><span class="k">use</span><span class="w"> </span><span class="n">syscall</span>::<span class="o">*</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">3 </span>
-<span class="lineno">4 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">5 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exit</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_exit</span><span class="p">(</span><span class="n">exit_code</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// user/src/lib.rs</span>
+<span class="linenos">2</span><span class="k">use</span><span class="w"> </span><span class="n">syscall</span>::<span class="o">*</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">3</span>
+<span class="linenos">4</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">5</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exit</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_exit</span><span class="p">(</span><span class="n">exit_code</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>我们把 <code class="docutils literal notranslate"><span class="pre">console</span></code> 子模块中 <code class="docutils literal notranslate"><span class="pre">Stdout::write_str</span></code> 改成基于 <code class="docutils literal notranslate"><span class="pre">write</span></code> 的实现，且传入的 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 参数设置为 1，它代表标准输出，
 也就是输出到屏幕。目前我们不需要考虑其他的 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 选取情况。这样，应用程序的 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏借助系统调用变得可用了。
 参考下面的代码片段：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span><span class="c1">// user/src/console.rs</span>
-<span class="lineno">2 </span><span class="k">const</span><span class="w"> </span><span class="n">STDOUT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="lineno">3 </span>
-<span class="lineno">4 </span><span class="k">impl</span><span class="w"> </span><span class="n">Write</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Stdout</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">5 </span><span class="w">    </span><span class="k">fn</span> <span class="nf">write_str</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">s</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">fmt</span>::<span class="nb">Result</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="lineno">6 </span><span class="w">        </span><span class="n">write</span><span class="p">(</span><span class="n">STDOUT</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">());</span><span class="w"></span>
-<span class="lineno">7 </span><span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span><span class="w"></span>
-<span class="lineno">8 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="lineno">9 </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// user/src/console.rs</span>
+<span class="linenos">2</span><span class="k">const</span><span class="w"> </span><span class="n">STDOUT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">3</span>
+<span class="linenos">4</span><span class="k">impl</span><span class="w"> </span><span class="n">Write</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Stdout</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">5</span><span class="w">    </span><span class="k">fn</span> <span class="nf">write_str</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">s</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">fmt</span>::<span class="nb">Result</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">6</span><span class="w">        </span><span class="n">write</span><span class="p">(</span><span class="n">STDOUT</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">());</span><span class="w"></span>
+<span class="linenos">7</span><span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span><span class="w"></span>
+<span class="linenos">8</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">9</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">exit</span></code> 接口则在用户库中的 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 内使用，当应用程序主逻辑 <code class="docutils literal notranslate"><span class="pre">main</span></code> 返回之后，使用它退出应用程序并将返回值告知
 底层的批处理系统。</p>
-</div>
-</div>
-<div class="section" id="id8">
+</section>
+</section>
+<section id="id8">
 <h2>编译生成应用程序二进制码<a class="headerlink" href="#id8" title="永久链接至标题"></a></h2>
 <p>这里简要介绍一下应用程序的自动构建。只需要在 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">build</span></code> 即可：</p>
 <ol class="arabic simple">
 <li><p>对于 <code class="docutils literal notranslate"><span class="pre">src/bin</span></code> 下的每个应用程序，在 <code class="docutils literal notranslate"><span class="pre">target/riscv64gc-unknown-none-elf/release</span></code> 目录下生成一个同名的 ELF 可执行文件；</p></li>
 <li><p>使用 objcopy 二进制工具将上一步中生成的 ELF 文件删除所有 ELF header 和符号得到 <code class="docutils literal notranslate"><span class="pre">.bin</span></code> 后缀的纯二进制镜像文件。它们将被链接进内核并由内核在合适的时机加载到内存。</p></li>
 </ol>
-</div>
-<div class="section" id="id9">
+</section>
+<section id="id9">
 <h2>实现操作系统前执行应用程序<a class="headerlink" href="#id9" title="永久链接至标题"></a></h2>
 <p>我们还没有实现操作系统，能提前执行或测试应用程序吗？可以！这是因为我们除了一个能模拟一台 RISC-V 64 计算机的全系统模拟器 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 外，还有一个直接支持运行 RISC-V 64 用户程序的半系统模拟器 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 。不过需要注意的是，如果想让用户态应用程序在 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 模拟器（实际上是一个 RISC-V 架构下的 Linux 操作系统）上和在我们自己写的 OS 上执行效果一样，需要做到二者的系统调用的接口是一样的（包括系统调用编号，参数约定的具体的寄存器和栈等）。</p>
 <div class="admonition note">
@@ -340,10 +341,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">arch</span>::<span class="n">asm</span><span class="p">;</span><span class="w"></span>
 <span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Try to execute privileged instruction in U Mode&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Kernel should kill this application!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Try to execute privileged instruction in U Mode&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Kernel should kill this application!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">asm</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;sret&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="fm">asm!</span><span class="p">(</span><span class="s">&quot;sret&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="mi">0</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
@@ -352,8 +353,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="k">use</span><span class="w"> </span><span class="n">riscv</span>::<span class="n">register</span>::<span class="n">sstatus</span>::<span class="p">{</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">SPP</span><span class="p">};</span><span class="w"></span>
 <span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Try to access privileged CSR in U Mode&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Kernel should kill this application!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Try to access privileged CSR in U Mode&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Kernel should kill this application!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="n">sstatus</span>::<span class="n">set_spp</span><span class="p">(</span><span class="n">SPP</span>::<span class="n">User</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
@@ -363,37 +364,37 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>在上述代码中，两个应用都会打印提示信息，随后应用 <code class="docutils literal notranslate"><span class="pre">03priv_inst</span></code> 会尝试在用户态执行内核态的特权指令 <code class="docutils literal notranslate"><span class="pre">sret</span></code> ，而应用 <code class="docutils literal notranslate"><span class="pre">04priv_csr</span></code> 则会试图在用户态修改内核态 CSR <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 。</p>
 <p>接下来，我们尝试在用户态模拟器 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 执行这两个应用：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> user
-<span class="gp">$</span> make build
-<span class="gp">$</span> <span class="nb">cd</span> target/riscv64gc-unknown-none-elf/release/
-<span class="gp">#</span> 确认待执行的应用为 ELF 格式
-<span class="gp">$</span> file 03priv_inst
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> user
+<span class="gp">$ </span>make build
+<span class="gp">$ </span><span class="nb">cd</span> target/riscv64gc-unknown-none-elf/release/
+<span class="gp"># </span>确认待执行的应用为 ELF 格式
+<span class="gp">$ </span>file 03priv_inst
 <span class="go">03priv_inst: ELF 64-bit LSB executable, UCB RISC-V, version 1 (SYSV), statically linked, not stripped</span>
-<span class="gp">#</span> 执行特权指令出错
-<span class="gp">$</span> qemu-riscv64 ./03priv_inst
+<span class="gp"># </span>执行特权指令出错
+<span class="gp">$ </span>qemu-riscv64 ./03priv_inst
 <span class="go">Try to execute privileged instruction in U Mode</span>
 <span class="go">Kernel should kill this application!</span>
 <span class="go">Illegal instruction (core dumped)</span>
-<span class="gp">#</span> 执行访问特权级 CSR 的指令出错
-<span class="gp">$</span> qemu-riscv64 ./04priv_csr
+<span class="gp"># </span>执行访问特权级 CSR 的指令出错
+<span class="gp">$ </span>qemu-riscv64 ./04priv_csr
 <span class="go">Try to access privileged CSR in U Mode</span>
 <span class="go">Kernel should kill this application!</span>
 <span class="go">Illegal instruction (core dumped)</span>
 </pre></div>
 </div>
 <p>看来RV64的特权级机制确实有用。那对于一般的用户态应用程序，在 <code class="docutils literal notranslate"><span class="pre">qemu-riscv64</span></code> 模拟器下能正确执行吗？</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> user/target/riscv64gc-unknown-none-elf/release/
-<span class="gp">$</span> qemu-riscv64 ./00hello_world
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> user/target/riscv64gc-unknown-none-elf/release/
+<span class="gp">$ </span>qemu-riscv64 ./00hello_world
 <span class="go">Hello, world!</span>
-<span class="gp">#</span> 正确显示了字符串
-<span class="gp">$</span> qemu-riscv64 ./01store_fault
+<span class="gp"># </span>正确显示了字符串
+<span class="gp">$ </span>qemu-riscv64 ./01store_fault
 <span class="go">Into Test store_fault, we will insert an invalid store operation...</span>
 <span class="go">Kernel should kill this application!</span>
 <span class="go">Segmentation fault (core dumped)</span>
-<span class="gp">#</span> 故意访问了一个非法地址，导致应用和 qemu-riscv64 被 Linux 内核杀死
-<span class="gp">$</span> qemu-riscv64 ./02power
+<span class="gp"># </span>故意访问了一个非法地址，导致应用和 qemu-riscv64 被 Linux 内核杀死
+<span class="gp">$ </span>qemu-riscv64 ./02power
 <span class="go">3^10000=Segmentation fault (core dumped)</span>
-<span class="gp">#</span> 由于 Qemu 和 Rust 编译器版本不匹配，无法正常运行
+<span class="gp"># </span>由于 Qemu 和 Rust 编译器版本不匹配，无法正常运行
 </pre></div>
 </div>
 <p>可以看到，除了 <code class="docutils literal notranslate"><span class="pre">02power</span></code> 之外，其余两个应用程序都能够执行并顺利结束。这是由于它们在运行时得到了操作系统 Linux for RISC-V 64 的支持。而 <code class="docutils literal notranslate"><span class="pre">02power</span></code> 的例子也说明我们应用的兼容性比较受限，当应用用到较多特性时很可能就不再兼容 Qemu 了。我们期望在下一节开始实现的泥盆纪“邓式鱼”操作系统也能够正确加载和执行这些应用程序。</p>
@@ -402,8 +403,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <dd><p><a class="reference external" href="https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html">https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html</a></p>
 </dd>
 </dl>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
