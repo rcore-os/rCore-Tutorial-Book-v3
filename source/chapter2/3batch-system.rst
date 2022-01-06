@@ -216,7 +216,7 @@ Rust 编译器提示我们 ``RefCell<i32>`` 未被标记为 ``Sync`` ，因此 R
 
 .. 为了解决上述矛盾，我们设计实现了 ``UPSafeCell<T>`` ，通过封装 ``RefCell<T>`` 来提供 **内部可变性** (Interior Mutability)，所谓的内部可变性就是指在我们只能拿到 ``<T>`` 类型变量的不可变借用的情况下（即同样也只能拿到其中的字段 ``current_app`` 的不可变借用），依然可以通过 ``RefCell`` 来修改 ``AppManager`` 里面的字段。使用 ``RefCell::borrow_mut`` 可以拿到 ``RefCell`` 里面内容的可变借用， ``RefCell`` 会在运行时维护当前它管理的对象的已有借用状态，并在访问对象时进行运行时借用检查。所以 ``RefCell::borrow_mut`` 就是我们实现内部可变性的关键。此外，为了让 ``AppManager`` 能被直接全局实例化，我们需要将其通过 ``UPSafeCell<T>`` 标记为 ``Sync`` 。 ``UPSafeCell<T>`` 的实现如下所示：
 
-这样，我们就以尽量少的 unsafe code 来初始化 ``AppManager`` 的全局实例：
+这样，我们就以尽量少的 unsafe code 来初始化 ``AppManager`` 的全局实例 ``APP_MANAGER`` ：
 
 .. code-block:: rust
 
@@ -253,7 +253,7 @@ Rust 编译器提示我们 ``RefCell<i32>`` 未被标记为 ``Sync`` ，因此 R
 
 ``lazy_static!`` 宏提供了全局变量的运行时初始化功能。一般情况下，全局变量必须在编译期设置一个初始值，但是有些全局变量依赖于运行期间才能得到的数据作为初始值。这导致这些全局变量需要在运行时发生变化，即需要重新设置初始值之后才能使用。如果我们手动实现的话有诸多不便之处，比如需要把这种全局变量声明为 ``static mut`` 并衍生出很多 unsafe 代码 。这种情况下我们可以使用 ``lazy_static!`` 宏来帮助我们解决这个问题。这里我们借助 ``lazy_static!`` 声明了一个 ``AppManager`` 结构的名为 ``APP_MANAGER`` 的全局实例，且只有在它第一次被使用到的时候，才会进行实际的初始化工作。
 
-因此，借助我们设计的 ``UPSafeCell<T>`` 和外部库 ``lazy_static!``，我们就能在避免使用 ``static mut`` 声明的情况下，以更加优雅的 Rust 风格使用全局变量了。
+因此，借助我们设计的 ``UPSafeCell<T>`` 和外部库 ``lazy_static!``，我们就能使用尽量少的 unsafe 代码完成可变全局变量的声明和初始化，且一旦初始化完成，在后续的使用过程中便不再触及 unsafe 代码。
 
 ``AppManager`` 的方法中， ``print_app_info/get_current_app/move_to_next_app`` 都相当简单直接，需要说明的是 ``load_app``：
 
