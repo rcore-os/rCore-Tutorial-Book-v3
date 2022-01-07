@@ -222,8 +222,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </section>
 <section id="id5">
 <h3>特权级切换<a class="headerlink" href="#id5" title="永久链接至标题"></a></h3>
-<p>大多数的 Trap (陷入) 发生的场景都是在执行某条特殊指令（如 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> ）之后，CPU 发现触发了一个 Trap 并需要进行特殊处理，这涉及到 <a class="reference internal" href="../chapter0/3os-hw-abstract.html#term-ee-switch"><span class="std std-ref">执行环境切换</span></a> 。具体而言，用户态执行环境中的应用程序通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令
-向内核态执行环境中的操作系统请求某项服务功能，那么处理器和操作系统会完成到内核态执行环境的切换，并在操作系统完成服务后，再次切换回用户态执行环境，然后应用程序会紧接着 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令的后一条指令位置处继续执行，参考 <a class="reference internal" href="1rv-privilege.html#environment-call-flow"><span class="std std-ref">图示</span></a> 。</p>
+<p>当执行一条 Trap 类指令（如 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 时），CPU 发现触发了一个异常并需要进行特殊处理，这涉及到 <a class="reference internal" href="../chapter0/3os-hw-abstract.html#term-ee-switch"><span class="std std-ref">执行环境切换</span></a> 。具体而言，用户态执行环境中的应用程序通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令向内核态执行环境中的操作系统请求某项服务功能，那么处理器和操作系统会完成到内核态执行环境的切换，并在操作系统完成服务后，再次切换回用户态执行环境，然后应用程序会紧接着 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令的后一条指令位置处继续执行，参考 <a class="reference internal" href="1rv-privilege.html#environment-call-flow"><span class="std std-ref">图示</span></a> 。</p>
 <p>应用程序被切换回来之后需要从发出系统调用请求的执行位置恢复应用程序上下文并继续执行，这需要在切换前后维持应用程序的上下文保持不变。应用程序的上下文包括通用寄存器和栈两个主要部分。由于 CPU 在不同特权级下共享一套通用寄存器，所以在运行操作系统的 Trap 处理过程中，操作系统也会用到这些寄存器，这会改变应用程序的上下文。因此，与函数调用需要保存函数调用上下文/活动记录一样，在执行操作系统的 Trap 处理过程（会修改通用寄存器）之前，我们需要在某个地方（某内存块或内核的栈）保存这些寄存器并在 Trap 处理结束后恢复这些寄存器。</p>
 <p>除了通用寄存器之外还有一些可能在处理 Trap 过程中会被修改的 CSR，比如 CPU 所在的特权级。我们要保证它们的变化在我们的预期之内。比如，对于特权级转换而言，应该是 Trap 之前在 U 特权级，处理 Trap 的时候在 S 特权级，返回之后又需要回到 U 特权级。而对于栈问题则相对简单，只要两个应用程序执行过程中用来记录执行历史的栈所对应的内存区域不相交，就不会产生令我们头痛的覆盖问题或数据破坏问题，也就无需进行保存/恢复。</p>
 <p>特权级切换的具体过程一部分由硬件直接完成，另一部分则需要由操作系统来实现。</p>
@@ -311,7 +310,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>Trap 管理<a class="headerlink" href="#trap" title="永久链接至标题"></a></h2>
 <p>特权级切换的核心是对Trap的管理。这主要涉及到如下一些内容：</p>
 <ul class="simple">
-<li><p>应用程序通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 进入到内核状态时，操作系统保存被打断的应用程序的Trap 上下文；</p></li>
+<li><p>应用程序通过 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 进入到内核状态时，操作系统保存被打断的应用程序的 Trap 上下文；</p></li>
 <li><p>操作系统根据Trap相关的CSR寄存器内容，完成系统调用服务的分发与处理；</p></li>
 <li><p>操作系统完成系统调用服务后，需要恢复被打断的应用程序的Trap 上下文，并通 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 让应用程序继续执行。</p></li>
 </ul>

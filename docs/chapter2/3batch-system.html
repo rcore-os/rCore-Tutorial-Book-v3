@@ -233,7 +233,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>这里我们可以看出，上面提到的应用管理器需要保存和维护的信息都在 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 里面。这样设计的原因在于：我们希望将 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 实例化为一个全局变量，使得任何函数都可以直接访问。但是里面的 <code class="docutils literal notranslate"><span class="pre">current_app</span></code> 字段表示当前执行的是第几个应用，它是一个可修改的变量，会在系统运行期间发生变化。因此在声明全局变量的时候，采用 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 是一种比较简单自然的方法。但是在 Rust 中，任何对于 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 变量的访问控制都是 unsafe 的，而我们要在编程中尽量避免使用 unsafe ，这样才能让编译器负责更多的安全性检查。因此，我们需要考虑如何在尽量避免触及 unsafe 的情况下仍能声明并使用可变的全局变量。</p>
-<div class="admonition note">
+<div class="admonition note" id="rust-ownership-model">
 <p class="admonition-title">注解</p>
 <p><strong>Rust Tips：Rust 所有权模型和借用检查</strong></p>
 <p>我们这里简单介绍一下 Rust 的所有权模型。它可以用一句话来概括： <strong>值</strong> （Value）在同一时间只能被绑定到一个 <strong>变量</strong> （Variable）上。这里，“值”指的是储存在内存中固定位置，且格式属于某种特定类型的数据；而变量就是我们在 Rust 代码中通过 <code class="docutils literal notranslate"><span class="pre">let</span></code> 声明的局部变量或者函数的参数等，变量的类型与值的类型相匹配。在这种情况下，我们称值的 <strong>所有权</strong> （Ownership）属于它被绑定到的变量，且变量可以作为访问/控制绑定到它上面的值的一个媒介。变量可以将它拥有的值的所有权转移给其他变量，或者当变量退出其作用域之后，它拥有的值也会被销毁，这意味着值占用的内存或其他资源会被回收。</p>
