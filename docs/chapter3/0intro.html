@@ -154,49 +154,47 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="simple">
 <li><p>通过提前加载应用程序到内存，减少应用程序切换开销</p></li>
 <li><p>通过协作机制支持程序主动放弃处理器，提高系统执行效率</p></li>
-<li><p>通抢占机制支持程序被动放弃处理器，提高不同程序对处理器资源使用的公平性，也进一步提高了应用对I/O事件的响应效率</p></li>
+<li><p>通过抢占机制支持程序被动放弃处理器，提高不同程序对处理器资源使用的公平性，也进一步提高了应用对 I/O 事件的响应效率</p></li>
 </ul>
 <p>上一章，我们实现了一个安全的“邓式鱼” 批处理操作系统。首先，它能够自动按照顺序加载并运行序列中的每一个应用，当一个应用运行结束之后无需操作员的手动替换；另一方面，在硬件级特权隔离机制的帮助下，运行在更高特权级的操作系统不会受到有意或者无意出错的应用的影响；在硬件异常触发机制的帮助下，可以全方位监控运行在用户态低特权级的应用执行，一旦应用越过了特权级界限或主动申请获得操作系统的服务，就会触发 Trap 并进入到批处理系统中进行处理。无论原因是应用出错或是应用声明自己执行完毕，批处理系统都只需要加载应用序列中的下一个应用并让其执行。可以看到批处理系统的特性是：在内存中同一时间最多只需驻留一个应用。这是因为只有当一个应用出错或退出之后，批处理系统才会去将另一个应用加载到相同的一块内存区域。</p>
-<p>而计算机硬件在快速发展，内存容量在逐渐增大，处理器的速度也在增加，外设IO性能方面的进展不大。这就使得以往内存只能放下一个程序的情况得到很大改善，但处理器的空闲程度加大了。于是科学家就开始考虑在内存中尽量同时驻留多个应用，这样处理器的利用率就会提高。但只有一个程序执行完毕后或主动放弃执行，处理器才能执行另外一个程序。我们把这种运行方式称为 <strong>多道程序（Multiprogramming）</strong> 。</p>
+<p>而计算机硬件在快速发展，内存容量在逐渐增大，处理器的速度也在增加，外设 I/O 性能方面的进展不大。这就使得以往内存只能放下一个程序的情况得到很大改善，但处理器的空闲程度加大了。于是科学家就开始考虑在内存中尽量同时驻留多个应用，这样处理器的利用率就会提高。但只有一个程序执行完毕后或主动放弃执行，处理器才能执行另外一个程序。我们把这种运行方式称为 <strong>多道程序（Multiprogramming）</strong> 。</p>
 <section id="id3">
 <h3>协作式操作系统<a class="headerlink" href="#id3" title="永久链接至标题"></a></h3>
-<p>早期的计算机系统大部分是单处理器计算机系统，由于计算机系统很昂贵，所以是多人共用一台计算机。当处理器进一步发展后，它与IO的速度差距也进一步拉大。这时计算机科学家发现，在 <strong>多道程序</strong> 运行方式下，一个程序如果不让出处理器，其他程序是无法执行的。如果一个应用由于IO操作让处理器空闲下来或让处理器忙等，那其他需要处理器资源进行计算的应用还是没法使用空闲的处理器资源。于是就想到，让应用在执行IO操作或空闲时，可以主动 <strong>释放处理器</strong> ，让其他应用继续执行。当然执行 <strong>放弃处理器</strong> 的操作算是一种对处理器资源的直接管理，所以应用程序可以发出这样的系统调用，让操作系统来具体完成。这样的操作系统就是支持 <strong>多道程序</strong> 或 <strong>协作式多任务</strong> 的协作式操作系统。</p>
+<p>早期的计算机系统大部分是单处理器计算机系统，由于计算机系统很昂贵，所以是多人共用一台计算机。当处理器进一步发展后，它与 I/O 的速度差距也进一步拉大。这时计算机科学家发现，在 <strong>多道程序</strong> 运行方式下，一个程序如果不让出处理器，其他程序是无法执行的。如果一个应用由于 I/O 操作让处理器空闲下来或让处理器忙等，那其他需要处理器资源进行计算的应用还是没法使用空闲的处理器资源。于是就想到，让应用在执行 I/O 操作或空闲时，可以主动 <em>释放处理器</em> ，让其他应用继续执行。当然执行 <em>放弃处理器</em> 的操作算是一种对处理器资源的直接管理，所以应用程序可以发出这样的系统调用，让操作系统来具体完成。这样的操作系统就是支持 <strong>多道程序</strong> 或 <strong>协作式多任务</strong> 的协作式操作系统。</p>
 </section>
 <section id="id4">
 <h3>抢占式操作系统<a class="headerlink" href="#id4" title="永久链接至标题"></a></h3>
 <p>计算机科学家很快发现，编写应用程序的科学家（简称应用程序员）来自不同的领域，他们不一定有友好互助的意识，也不了解其它程序的执行情况，很难（也没必要）有提高整个系统利用率上的大局观。在他们的脑海里，整个计算机就应该是为他们自己的应用准备的，不用考虑其他程序的运行。这导致应用程序员在编写程序时，无法做到在程序的合适位置放置 <strong>放弃处理器的系统调用请求</strong> ，这样系统的整体利用率还是无法提高。</p>
-<p>所以，站在系统的层面，还是需要有一种办法能强制打断应用程序的执行，来提高整个系统的效率，让在整个系统中执行的多个程序之间占用计算机资源的情况相对公平一些。根据计算机系统的硬件设计，为提高I/O效率，外设可以通过硬件中断机制来与处理机进行I/O交互操作。这种硬件中断机制可随时打断应用程序的执行，并让操作系统来完成对外设的I/O响应。</p>
-<p>而操作系统可进一步利用某种以固定时长为时间间隔的外设中断（比如时钟中断）来强制打断一个程序的执行，这样一个程序只能运行一段时间（可以简称为一个时间片, Time Slice）就一定会让出处理器，且操作系统可以在处理外设的I/O响应后，让不同应用程序分时占用处理器执行，并可通过统计程序占用处理器的总执行时间，来评估运行的程序对处理器资源的消耗。我们把这种运行方式称为 <strong>分时共享（Time Sharing）或 抢占式多任务（Multitasking）</strong> ，也可合并在一起称为 <strong>分时多任务</strong> 。</p>
+<p>所以，站在系统的层面，还是需要有一种办法能强制打断应用程序的执行，来提高整个系统的效率，让在整个系统中执行的多个程序之间占用计算机资源的情况相对公平一些。根据计算机系统的硬件设计，为提高 I/O 效率，外设可以通过硬件中断机制来与处理机进行 I/O 交互操作。这种硬件中断机制可随时打断应用程序的执行，并让操作系统来完成对外设的 I/O 响应。</p>
+<p>而操作系统可进一步利用某种以固定时长为时间间隔的外设中断（比如时钟中断）来强制打断一个程序的执行，这样一个程序只能运行一段时间（可以简称为一个时间片, Time Slice）就一定会让出处理器，且操作系统可以在处理外设的 I/O 响应后，让不同应用程序分时占用处理器执行，并可通过统计程序占用处理器的总执行时间，来评估运行的程序对处理器资源的消耗。我们把这种运行方式称为 <strong>分时共享（Time Sharing）</strong> 或 <strong>抢占式多任务（Multitasking）</strong> ，也可合并在一起称为 <strong>分时多任务</strong> 。</p>
 <p id="term-task">我们可以把一个程序的一次完整执行过程称为一次 <strong>任务</strong> (Task)，把一个程序在一个时间片（Time Slice）上占用处理器执行的过程称为一个 <strong>任务片</strong> (Task Slice)。操作系统对不同程序的执行过程中的 <strong>任务片</strong> 进行调度和管理，即通过平衡各个程序在整个时间段上的任务片数量，就能达到一定程度的系统公平和高效的系统效率。在一个包含多个时间片的时间段上，会有属于不同程序的多个任务片在轮流占用处理器执行，这样的操作系统就是支持 <strong>分时多任务</strong> 或 <strong>抢占式多任务</strong> 的抢占式操作系统。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>支持多道程序的各种操作系统</strong></p>
-<p>支持多道程序的第一台计算机是1961年的英国 Leo III 计算机，支持在计算机内存中加载几个不同的程序，并从第一个开始依次运行。当第一个程序到达等待外围设备的指令时，该程序的执行上下文被保存下来，内存中的第二个程序就有机会运行。该过程一直持续到所有程序运行完毕。但 1960 年以后，美国人已经占领了英国计算机市场的大部分，他们的机器设计得更好，更可靠，最重要的是更便宜。随着时间的推移，英国的计算机制造逐渐消失。</p>
+<p>支持多道程序的第一台计算机是 1961 年的英国 Leo III 计算机，支持在计算机内存中加载几个不同的程序，并从第一个开始依次运行。当第一个程序到达等待外围设备的指令时，该程序的执行上下文被保存下来，内存中的第二个程序就有机会运行。该过程一直持续到所有程序运行完毕。但 1960 年以后，美国人已经占领了英国计算机市场的大部分，他们的机器设计得更好，更可靠，最重要的是更便宜。随着时间的推移，英国的计算机制造逐渐消失。</p>
 <p><strong>协作式操作系统</strong></p>
-<p>对于计算机硬件而言，中断机制很早就出现了，但利用中断机制实现抢占式多任务，会涉及到不少并发的问题，这对操作系统设计是一个比较大的挑战。所以一些相对简单的操作系统采用协作式的任务调度管理方式，如微软早期（1990年~1998年）的Windows 3.x/9x 操作系统和苹果早期（1987年-2001年）的Mac OS 操作系统中的MultiFinder扩展功能。Windows和Mac OS都是有着漂亮的GUI界面的操作系统，它们都采用了协作多任务处理模型，这意味着只有在前台应用程序主动让出控制权时（比如，在等待键盘或鼠标输入时），才将CPU时间分配给后台应用程序执行。由于具有便于没有计算机知识的人上手的GUI界面，使得即使任务管理功能较弱的早期Windows操作系统迅速占领PC市场，统治了我们的桌面。</p>
+<p>对于计算机硬件而言，中断机制很早就出现了，但利用中断机制实现抢占式多任务，会涉及到不少并发的问题，这对操作系统设计是一个比较大的挑战。所以一些相对简单的操作系统采用协作式的任务调度管理方式，如微软早期（1990~1998 年）的 Windows 3.x/9x 操作系统和苹果早期（1987~2001 年）的 Mac OS 操作系统中的 MultiFinder 扩展功能。Windows 和 Mac OS 都是有着漂亮的 GUI 界面的操作系统，它们都采用了协作多任务处理模型，这意味着只有在前台应用程序主动让出控制权时（比如，在等待键盘或鼠标输入时），才将 CPU 时间分配给后台应用程序执行。由于具有便于没有计算机知识的人上手的GUI界面，尽管早期 Windows 操作系统任务管理能力较弱，它仍迅速占领 PC 市场，统治了我们的桌面。</p>
 <p><strong>分时共享（Time Sharing）的本质</strong></p>
-<p>1959年1月1日，John McCarthy在MIT的一份未发表的备忘录中提出了 <strong>分时共享（Time Sharing）</strong> 的最初想法：“我想提出一个在IBM 709计算机上的操作系统的设计思路，它将大大减少用户/程序员在机器上求解问题的时间 … 。能够让计算机以可承受的成本提供快速响应的唯一方法是通过分时共享（Time Sharing）。也就是说，当一个用户对某些输出进行处理时,计算机必须去照顾到其他用户。我认为该提案指出了未来所有计算机的操作方式，我们有机会在计算机使用方式上开拓出一大步。”</p>
-<p>在1961年的春天,John McCarthy进一步解释了他的远见卓识：“ 我所说的分时计算机系统是指通过一些远程控制台与许多用户同步互动的计算机系统。这样一个系统对每个用户来说就像一台大型的私人电脑。当用户需要服务时，他只需开始输入请求服务的信息。计算机随时准备关注他可能敲击的任何键。因为程序可能 … 在人与人之间的互动中只做相对较短的工作,所以必须不断地在二级存储中来回穿梭,这是不经济的做法。因此,需要有一个大的主存储器。 … 最后的要求是二级存储要足够大,以维持用户的文件,这样用户就不需要有单独的卡或磁带输入输出单元。”</p>
-<p>从John McCarthy的文章中，我们可以看到，分时共享（Time Sharing）的核心目标是让多个用户共享使用一台计算机，且每个用户感觉自己是在独占这台强大的计算机。为达到这一目标，需要计算机硬件和操作系统充分协作，达到两个要素：及时响应和快速执行。首先，计算机要有硬件中断机制，这样在必要的时候（用户敲键盘或时间片到了），硬件能通过中断打断当前执行的应用程序，把控制权交给操作系统，让操作系统切换到需要及时响应用户需求的应用程序。其次，计算机要有足够大的主存，这样应用程序都能放到主存中，这是实现快速保存/回复程序执行状态并能快速持续执行程序的重要条件之一。</p>
-<p><strong>抢占式操作系统</strong></p>
-<p>支持现代云计算的古老Compatible Time-Sharing System (CTSS) 操作系统</p>
-<p>抢占式操作系统的典型代表是支持分时多任务的操作系统。Compatible Time-Sharing System (CTSS) 操作系统是MIT的Fernando J. Corbató 带领团队开发的第一个分时操作系统。CTSS 于1961 年 11 月首次在 MIT 的IBM 709上演示，在1963年-1973年期间，为麻省理工学院用户提供服务。CTSS 的“兼容性”是指兼容以往的批处理运行方式，即在同一台计算机上运行后台作业，这通常比分时功能使用更多的计算资源。</p>
-<p>CTSS 操作系统包括一个位于处理器保护模式（内核态）中的内核，内核中的监管功能只能通过软件中断（即系统调用接口）来调用，这与运行在内核态的现代操作系统一样。处理器分配调度算法是多级反馈队列算法，调度的时间片单位为200 ms。硬件产生时钟中断后会跳转到CTSS操作系统内核中进行进一步处理（比如进行任务切换）。</p>
-<p>CTSS操作系统的实现允许一台昂贵的大型机被大量不同用户群分时并发使用，且每个用户感觉上是在独占这台强大的机器，这在当时引起了广泛的关注，并影响了后续一系列操作系统的发展，现在的操作系统基本上都支持分时共享的基础功能。CTSS是操作系统又一个革命性的突破。</p>
+<p>1959 年 1 月 1 日，John McCarthy 在 MIT 的一份未发表的备忘录中提出了分时共享最初想法：“我想提出一个在 IBM 709 计算机上的操作系统的设计思路，它将大大减少用户/程序员在机器上求解问题的时间 … 。能够让计算机以可承受的成本提供快速响应的唯一方法是通过分时共享。也就是说，当一个用户对某些输出进行处理时，计算机必须去照顾到其他用户。我认为该提案指出了未来所有计算机的操作方式，我们有机会在计算机使用方式上开拓出一大步。”</p>
+<p>在 1961 年的春天，John McCarthy 进一步解释了他的远见卓识：“我所说的分时计算机系统是指通过一些远程控制台与许多用户同步互动的计算机系统。这样一个系统对每个用户来说就像一台大型的私人电脑。当用户需要服务时，他只需开始输入请求服务的信息。计算机随时准备关注他可能敲击的任何键。因为程序可能 … 在人与人之间的互动中只做相对较短的工作,所以必须不断地在二级存储中来回穿梭,这是不经济的做法。因此,需要有一个大的主存储器。 … 最后的要求是二级存储要足够大,以维持用户的文件,这样用户就不需要有单独的卡或磁带输入输出单元。”</p>
+<p>从 John McCarthy 的文章中，我们可以看到，分时共享的核心目标是让多个用户共享使用一台计算机，且每个用户感觉自己是在独占这台强大的计算机。为达到这一目标，需要计算机硬件和操作系统充分协作，达到两个要素：及时响应和快速执行。首先，计算机要有硬件中断机制，这样在必要的时候（用户敲键盘或时间片到了），硬件能通过中断打断当前执行的应用程序，把控制权交给操作系统，让操作系统切换到需要及时响应用户需求的应用程序。其次，计算机要有足够大的主存，这样应用程序都能放到主存中，这是实现快速保存/恢复程序执行状态并能快速持续执行程序的重要条件之一。</p>
+<p><strong>抢占式操作系统：支持现代云计算的古老 Compatible Time-Sharing System (CTSS) 操作系统</strong></p>
+<p>抢占式操作系统的典型代表是支持分时多任务的操作系统。CTSS 操作系统是 MIT 的 Fernando J. Corbató 带领团队开发的第一个分时操作系统。CTSS 于 1961 年 11 月首次在 MIT 的 IBM 709 上演示，在 1963-1973年期间，为麻省理工学院用户提供服务。CTSS 的“兼容性”是指兼容以往的批处理运行方式，即在同一台计算机上运行后台作业，这通常比分时功能使用更多的计算资源。</p>
+<p>CTSS 操作系统包括一个位于处理器保护模式（内核态）中的内核，内核中的监管功能只能通过软件中断（即系统调用接口）来调用，这与运行在内核态的现代操作系统一样。处理器分配调度算法是多级反馈队列算法，调度的时间片单位为 200 ms。硬件产生时钟中断后会跳转到 CTSS 操作系统内核中进行进一步处理（比如进行任务切换）。</p>
+<p>CTSS 操作系统的实现允许一台昂贵的大型机被大量不同用户群分时并发使用，且每个用户感觉上是在独占这台强大的机器，这在当时引起了广泛的关注，并影响了后续一系列操作系统的发展，现在的操作系统基本上都支持分时共享的基础功能。CTSS 是操作系统又一个革命性的突破。</p>
 </div>
-<p>本章所介绍的多道程序和分时多任务系统都有一些共同的特点：在内存中同一时间可以驻留多个应用，而且所有的应用都是在系统启动的时候分别加载到内存的不同区域中。由于目前计算机系统中只有一个处理器，所以同一时间最多只有一个应用在执行（即处于运行状态），剩下的应用处于就绪状态或等待状态，需要内核将处理器分配给它们才能开始执行。一旦应用开始执行，它就处于运行状态了。</p>
+<p>本章所介绍的多道程序和分时多任务系统都有一些共同的特点：在内存中同一时间可以驻留多个应用，而且所有的应用都是在系统启动的时候分别加载到内存的不同区域中。由于目前计算机系统中只有一个处理器核，所以同一时间最多只有一个应用在执行（即处于运行状态），剩下的应用处于就绪状态或等待状态，需要内核将处理器分配给它们才能开始执行。一旦应用开始执行，它就处于运行状态了。</p>
 <p>本章主要是设计和实现建立支持 <strong>多道程序</strong> 的二叠纪“锯齿螈” <a class="footnote-reference brackets" href="#prionosuchus" id="id5">1</a> 初级操作系统、支持 <strong>多道程序</strong> 的三叠纪“始初龙” <a class="footnote-reference brackets" href="#eoraptor" id="id6">2</a> 协作式操作系统和支持 <strong>分时多任务</strong> 的三叠纪“腔骨龙” <a class="footnote-reference brackets" href="#coelophysis" id="id7">3</a> 抢占式操作系统，从而对可支持运行一批应用程序的多种执行环境有一个全面和深入的理解，并可归纳抽象出 <strong>任务</strong> 、 <strong>任务切换</strong> 等操作系统的概念。</p>
 <div class="admonition hint">
 <p class="admonition-title">提示</p>
-<p>同学也许会有疑问：由于只有一个处理器，即使这样做，同一时间最多还是只能运行一个应用，还浪费了更多的内存来把所有
-的应用都加载进来。那么这样做有什么意义呢？</p>
+<p>同学也许会有疑问：由于只有一个处理器，即使这样做，同一时间最多还是只能运行一个应用，还浪费了更多的内存来把所有的应用都加载进来。那么这样做有什么意义呢？</p>
 <p>同学可以带着这个问题继续看下去。后面我们会介绍这样做到底能够解决什么问题。</p>
 </div>
 <div class="admonition hint">
 <p class="admonition-title">提示</p>
-<p>批处理与多道程序的区别是什么？</p>
+<p><strong>批处理与多道程序的区别是什么？</strong></p>
 <p>对于批处理系统而言，它在一段时间内可以处理一批程序，但内存中只放一个程序，处理器一次只能运行一个程序，只有在一个程序运行完毕后再把另外一个程序调入内存，并执行。即批处理系统不能交错执行多个程序。</p>
-<p>对于支持多道程序的系统而言，它在一段时间内也可以处理一批程序，，但内存中可以放多个程序，一个程序在执行过程中，可以主动（协作式）或被动（抢占式）地放弃自己的执行，让另外一个程序执行。即支持多道程序的系统可以交错地执行多个程序，这样系统的利用率会更高。</p>
+<p>对于支持多道程序的系统而言，它在一段时间内也可以处理一批程序，但内存中可以放多个程序，一个程序在执行过程中，可以主动（协作式）或被动（抢占式）地放弃自己的执行，让另外一个程序执行。即支持多道程序的系统可以交错地执行多个程序，这样系统的利用率会更高。</p>
 </div>
 </section>
 </section>
@@ -225,20 +223,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="gp">$ </span>make run <span class="nv">BOARD</span><span class="o">=</span>k210
 </pre></div>
 </div>
-<p>多道程序的应用分别会输出一个不同的字母矩阵。当他们交替执行的时候，以 k210 平台为例，我们将看到字母行的交错输出：</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[rustsbi] Version 0.1.0
-.______       __    __      _______.___________.  _______..______   __
-|   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
-|  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
-|      /     |  |  |  |    \   \       |  |      \   \    |   _  &lt; |  |
-|  |\  \----.|  `--&#39;  |.----)   |      |  |  .----)   |   |  |_)  ||  |
-| _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
-
-[rustsbi] Platform: K210
-[rustsbi] misa: RV64ACDFIMSU
-[rustsbi] mideleg: 0x222
-[rustsbi] medeleg: 0x1ab
-[rustsbi] Kernel entry: 0x80020000
+<p>多道程序的应用分别会输出一个不同的字母矩阵。当他们交替执行的时候，我们将看到字母行的交错输出：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[RustSBI output]
 [kernel] Hello, world!
 AAAAAAAAAA [1/5]
 BBBBBBBBBB [1/2]
@@ -256,26 +242,11 @@ Test write_c OK!
 AAAAAAAAAA [5/5]
 Test write_a OK!
 [kernel] Application exited with code 0
-[kernel] Panicked at src/task/mod.rs:97 All applications completed!
-[rustsbi] reset triggered! todo: shutdown all harts on k210; program halt
+[kernel] Panicked at src/task/mod.rs:106 All applications completed!
 </pre></div>
 </div>
-<p>分时多任务系统应用分为两种。编号为 00/01/02 的应用分别会计算质数 3/5/7 的幂次对一个大质数取模的余数，并会将结果阶段性输出。编号为 03 的
-应用则会等待三秒钟之后再退出。以 k210 平台为例，我们将会看到 00/01/02 三个应用分段完成它们的计算任务，而应用 03 由于等待时间过长总是
-最后一个结束执行。</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[rustsbi] RustSBI version 0.1.1
-.______       __    __      _______.___________.  _______..______   __
-|   _  \     |  |  |  |    /       |           | /       ||   _  \ |  |
-|  |_)  |    |  |  |  |   |   (----`---|  |----`|   (----`|  |_)  ||  |
-|      /     |  |  |  |    \   \       |  |      \   \    |   _  &lt; |  |
-|  |\  \----.|  `--&#39;  |.----)   |      |  |  .----)   |   |  |_)  ||  |
-| _| `._____| \______/ |_______/       |__|  |_______/    |______/ |__|
-
-[rustsbi] Platform: K210 (Version 0.1.0)
-[rustsbi] misa: RV64ACDFIMSU
-[rustsbi] mideleg: 0x22
-[rustsbi] medeleg: 0x1ab
-[rustsbi] Kernel entry: 0x80020000
+<p>分时多任务系统应用分为两种。编号为 00/01/02 的应用分别会计算质数 3/5/7 的幂次对一个大质数取模的余数，并会将结果阶段性输出。编号为 03 的应用则会等待三秒钟之后再退出。以 k210 平台为例，我们将会看到 00/01/02 三个应用分段完成它们的计算任务，而应用 03 由于等待时间过长总是最后一个结束执行。</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[RustSBI output]
 [kernel] Hello, world!
 power_3 [10000/200000]
 power_3 [20000/200000]
@@ -347,9 +318,10 @@ Test sleep OK!
 </section>
 <section id="id9">
 <h2>本章代码树<a class="headerlink" href="#id9" title="永久链接至标题"></a></h2>
+<p>这里以位于 <code class="docutils literal notranslate"><span class="pre">ch3</span></code> 分支上的分时多任务系统为例。</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>./os/src
-<span class="linenos"> 2</span>Rust        16 Files   481 Lines
-<span class="linenos"> 3</span>Assembly     3 Files    84 Lines
+<span class="linenos"> 2</span>Rust        18 Files   511 Lines
+<span class="linenos"> 3</span>Assembly     3 Files    82 Lines
 <span class="linenos"> 4</span>
 <span class="linenos"> 5</span>├── bootloader
 <span class="linenos"> 6</span>│   ├── rustsbi-k210.bin
@@ -371,44 +343,47 @@ Test sleep OK!
 <span class="linenos">22</span>│       ├── loader.rs(新增：将应用加载到内存并进行管理)
 <span class="linenos">23</span>│       ├── main.rs(修改：主函数进行了修改)
 <span class="linenos">24</span>│       ├── sbi.rs(修改：引入新的 sbi call set_timer)
-<span class="linenos">25</span>│       ├── syscall(修改：新增若干 syscall)
-<span class="linenos">26</span>│       │   ├── fs.rs
-<span class="linenos">27</span>│       │   ├── mod.rs
-<span class="linenos">28</span>│       │   └── process.rs
-<span class="linenos">29</span>│       ├── task(新增：task 子模块，主要负责任务管理)
-<span class="linenos">30</span>│       │   ├── context.rs(引入 Task 上下文 TaskContext)
-<span class="linenos">31</span>│       │   ├── mod.rs(全局任务管理器和提供给其他模块的接口)
-<span class="linenos">32</span>│       │   ├── switch.rs(将任务切换的汇编代码解释为 Rust 接口 __switch)
-<span class="linenos">33</span>│       │   ├── switch.S(任务切换的汇编代码)
-<span class="linenos">34</span>│       │   └── task.rs(任务控制块 TaskControlBlock 和任务状态 TaskStatus 的定义)
-<span class="linenos">35</span>│       ├── timer.rs(新增：计时器相关)
-<span class="linenos">36</span>│       └── trap
-<span class="linenos">37</span>│           ├── context.rs
-<span class="linenos">38</span>│           ├── mod.rs(修改：时钟中断相应处理)
-<span class="linenos">39</span>│           └── trap.S
-<span class="linenos">40</span>├── README.md
-<span class="linenos">41</span>├── rust-toolchain
-<span class="linenos">42</span>├── tools
-<span class="linenos">43</span>│   ├── kflash.py
-<span class="linenos">44</span>│   ├── LICENSE
-<span class="linenos">45</span>│   ├── package.json
-<span class="linenos">46</span>│   ├── README.rst
-<span class="linenos">47</span>│   └── setup.py
-<span class="linenos">48</span>└── user
-<span class="linenos">49</span>   ├── build.py(新增：使用 build.py 构建应用使得它们占用的物理地址区间不相交)
-<span class="linenos">50</span>   ├── Cargo.toml
-<span class="linenos">51</span>   ├── Makefile(修改：使用 build.py 构建应用)
-<span class="linenos">52</span>   └── src
-<span class="linenos">53</span>      ├── bin(修改：换成第三章测例)
-<span class="linenos">54</span>      │   ├── 00power_3.rs
-<span class="linenos">55</span>      │   ├── 01power_5.rs
-<span class="linenos">56</span>      │   ├── 02power_7.rs
-<span class="linenos">57</span>      │   └── 03sleep.rs
-<span class="linenos">58</span>      ├── console.rs
-<span class="linenos">59</span>      ├── lang_items.rs
-<span class="linenos">60</span>      ├── lib.rs
-<span class="linenos">61</span>      ├── linker.ld
-<span class="linenos">62</span>      └── syscall.rs
+<span class="linenos">25</span>│       ├── sync
+<span class="linenos">26</span>│       │   ├── mod.rs
+<span class="linenos">27</span>│       │   └── up.rs
+<span class="linenos">28</span>│       ├── syscall(修改：新增若干 syscall)
+<span class="linenos">29</span>│       │   ├── fs.rs
+<span class="linenos">30</span>│       │   ├── mod.rs
+<span class="linenos">31</span>│       │   └── process.rs
+<span class="linenos">32</span>│       ├── task(新增：task 子模块，主要负责任务管理)
+<span class="linenos">33</span>│       │   ├── context.rs(引入 Task 上下文 TaskContext)
+<span class="linenos">34</span>│       │   ├── mod.rs(全局任务管理器和提供给其他模块的接口)
+<span class="linenos">35</span>│       │   ├── switch.rs(将任务切换的汇编代码解释为 Rust 接口 __switch)
+<span class="linenos">36</span>│       │   ├── switch.S(任务切换的汇编代码)
+<span class="linenos">37</span>│       │   └── task.rs(任务控制块 TaskControlBlock 和任务状态 TaskStatus 的定义)
+<span class="linenos">38</span>│       ├── timer.rs(新增：计时器相关)
+<span class="linenos">39</span>│       └── trap
+<span class="linenos">40</span>│           ├── context.rs
+<span class="linenos">41</span>│           ├── mod.rs(修改：时钟中断相应处理)
+<span class="linenos">42</span>│           └── trap.S
+<span class="linenos">43</span>├── README.md
+<span class="linenos">44</span>├── rust-toolchain
+<span class="linenos">45</span>├── tools
+<span class="linenos">46</span>│   ├── kflash.py
+<span class="linenos">47</span>│   ├── LICENSE
+<span class="linenos">48</span>│   ├── package.json
+<span class="linenos">49</span>│   ├── README.rst
+<span class="linenos">50</span>│   └── setup.py
+<span class="linenos">51</span>└── user
+<span class="linenos">52</span>    ├── build.py(新增：使用 build.py 构建应用使得它们占用的物理地址区间不相交)
+<span class="linenos">53</span>    ├── Cargo.toml
+<span class="linenos">54</span>    ├── Makefile(修改：使用 build.py 构建应用)
+<span class="linenos">55</span>    └── src
+<span class="linenos">56</span>        ├── bin(修改：换成第三章测例)
+<span class="linenos">57</span>        │   ├── 00power_3.rs
+<span class="linenos">58</span>        │   ├── 01power_5.rs
+<span class="linenos">59</span>        │   ├── 02power_7.rs
+<span class="linenos">60</span>        │   └── 03sleep.rs
+<span class="linenos">61</span>        ├── console.rs
+<span class="linenos">62</span>        ├── lang_items.rs
+<span class="linenos">63</span>        ├── lib.rs
+<span class="linenos">64</span>        ├── linker.ld
+<span class="linenos">65</span>        └── syscall.rs
 </pre></div>
 </div>
 </section>
@@ -421,8 +396,8 @@ Test sleep OK!
 </ul>
 <p>这些实现上差异主要集中在对应用程序执行过程的管理、支持应用程序暂停的系统调用和主动切换应用程序所需的时钟中断机制的管理。</p>
 <p>对于第一个不同情况，需要对应用程序的地址空间布局进行调整，每个应用的地址空间都不相同，且不能重叠。这并不要修改应用程序本身，而是通过一个脚本 <code class="docutils literal notranslate"><span class="pre">build.py</span></code> 来针对每个应用程序修改链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> ，让编译器在编译不同应用时用到的 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 都不同，且有足够大的地址间隔。这样就可以让每个应用所在的内存空间是不同的。</p>
-<p>对于第二个不同情况，需要实现任务切换，这就需要在上一章的 <code class="docutils literal notranslate"><span class="pre">trap</span></code> 上下文切换的基础上，再加上一个 <code class="docutils literal notranslate"><span class="pre">task</span></code> 上下文切换，才能完成完整的任务切换。这里面的关键数据结构是表示应用执行上下文的 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 数据结构和具体完成上下文切换的汇编语言编写的 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数。一个应用的执行需要被操作系统管理起来，这是通过 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 数据结构来表示应用执行上下文的动态执行过程和状态（运行态、就绪态等）。而为了做好应用程序第一次执行的前期初始化准备， <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 数据结构的全局变量实例 <code class="docutils literal notranslate"><span class="pre">TASK_MANAGER</span></code> 描述了应用程序初始化所需的数据， 而对 <code class="docutils literal notranslate"><span class="pre">TASK_MANAGER</span></code> 的初始化赋值过程是实现这个准备的关键步骤。</p>
-<p>应用程序可以在用户态执行中主动暂停，这需要有新的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 的实现来支持；为了支持抢占应用执行的抢占式切换，还要添加对时钟中断的处理。有了时钟中断，就可以在确定时间间隔内打断应用的执行，并主动切换到另外一个应用，这部分主要是通过对 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 函数中进行扩展，来完成在时钟中断产生时可能进行的任务切换。  <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 数据结构的成员函数 <code class="docutils literal notranslate"><span class="pre">run_next_task</span></code> 来具体实现基于任务控制块的任务切换，并会具体调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数完成硬件相关部分的任务上下文切换。</p>
+<p>对于第二个不同情况，需要实现任务切换，这就需要在上一章的 Trap 上下文切换的基础上，再加上一个 Task 上下文切换，才能完成完整的任务切换。这里面的关键数据结构是表示应用执行上下文的 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 数据结构和具体完成上下文切换的汇编语言编写的 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数。一个应用的执行需要被操作系统管理起来，这是通过 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 数据结构来表示应用执行上下文的动态执行过程和状态（运行态、就绪态等）。而为了做好应用程序第一次执行的前期初始化准备， <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 数据结构的全局变量实例 <code class="docutils literal notranslate"><span class="pre">TASK_MANAGER</span></code> 描述了应用程序初始化所需的数据， 而对 <code class="docutils literal notranslate"><span class="pre">TASK_MANAGER</span></code> 的初始化赋值过程是实现这个准备的关键步骤。</p>
+<p>应用程序可以在用户态执行中主动暂停，这需要有新的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 的实现来支持；为了支持抢占应用执行的抢占式切换，还要添加对时钟中断的处理。有了时钟中断，就可以在确定时间间隔内打断应用的执行，并主动切换到另外一个应用，这部分主要是通过对 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 函数中进行扩展，来完成在时钟中断产生时可能进行的任务切换。 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 数据结构的成员函数 <code class="docutils literal notranslate"><span class="pre">run_next_task</span></code> 来具体实现基于任务控制块的任务切换，并会具体调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数完成硬件相关部分的任务上下文切换。</p>
 <p>如果理解了上面的数据结构和相关函数的关系和相互调用的情况，那么就比较容易理解本章改进的“锯齿螈”、“始初龙”和“腔骨龙”操作系统了。</p>
 <dl class="footnote brackets">
 <dt class="label" id="prionosuchus"><span class="brackets"><a class="fn-backref" href="#id5">1</a></span></dt>
