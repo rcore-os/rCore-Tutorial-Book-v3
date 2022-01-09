@@ -147,7 +147,7 @@
         // Change status to Ready
         task_inner.task_status = TaskStatus::Ready;
         drop(task_inner);
-        // ---- release current PCB
+        // ---- stop exclusively accessing current PCB
 
         // push back to ready queue.
         add_task(task);
@@ -258,8 +258,7 @@ fork 系统调用的实现
             trap_cx.kernel_sp = kernel_stack_top;
             // return
             task_control_block
-            // ---- release parent PCB automatically
-            // **** release children PCB automatically
+            // ---- stop exclusively accessing parent/children PCB automatically
         }
     }
 
@@ -316,7 +315,7 @@ fork 系统调用的实现
 
 在调用 ``syscall`` 进行系统调用分发并具体调用 ``sys_fork`` 之前， 第28行，``trap_handler`` 已经将当前进程 Trap 上下文中的 ``sepc`` 向后移动了 4 字节，使得它回到用户态之后，会从发出系统调用的 ``ecall`` 指令的下一条指令开始执行。之后当我们复制地址空间的时候，子进程地址空间 Trap 上下文的 ``sepc``  也是移动之后的值，我们无需再进行修改。
 
-父子进程回到用户态的瞬间都处于刚刚从一次系统调用返回的状态，但二者的返回值不同。第 8~11 行我们将子进程的 Trap 上下文中用来存放系统调用返回值的 a0 寄存器修改为 0 ；第33行，而父进程系统调用的返回值会在 ``trap_handler`` 中 ``syscall`` 返回之后再设置为 ``sys_fork`` 的返回值，这里我们返回子进程的 PID 。这就做到了父进程 ``fork`` 的返回值为子进程的 PID ，而子进程的返回值则为 0 。通过返回值是否为 0 可以区分父子进程。
+父子进程回到用户态的瞬间都处于刚刚从一次系统调用返回的状态，但二者的返回值不同。第 8~11 行我们将子进程的 Trap 上下文中用来存放系统调用返回值的 a0 寄存器修改为 0 ；第 33 行，而父进程系统调用的返回值会在 ``trap_handler`` 中 ``syscall`` 返回之后再设置为 ``sys_fork`` 的返回值，这里我们返回子进程的 PID 。这就做到了父进程 ``fork`` 的返回值为子进程的 PID ，而子进程的返回值则为 0 。通过返回值是否为 0 可以区分父子进程。
 
 另外，不要忘记在第 13 行，我们将生成的子进程通过 ``add_task`` 加入到任务管理器中。
 
@@ -339,8 +338,8 @@ exec 系统调用的实现
                 .unwrap()
                 .ppn();
 
-            // **** hold current PCB lock
-            let mut inner = self.acquire_inner_lock();
+            // **** access inner exclusively
+            let mut inner = self.inner_exclusive_access();
             // substitute memory_set
             inner.memory_set = memory_set;
             // update trap_cx ppn
@@ -350,11 +349,11 @@ exec 系统调用的实现
             *trap_cx = TrapContext::app_init_context(
                 entry_point,
                 user_sp,
-                KERNEL_SPACE.lock().token(),
+                KERNEL_SPACE.exclusive_access().token(),
                 self.kernel_stack.get_top(),
                 trap_handler as usize,
             );
-            // **** release current PCB lock
+            // **** stop exclusively accessing inner automatically
         }
     }
 
@@ -461,10 +460,10 @@ exec 系统调用的实现
     }
 
 
-shell程序-user_shell的输入机制
+shell程序 user_shell 的输入机制
 --------------------------------------------
 
-为了实现shell程序-user_shell的输入机制，我们需要实现 ``sys_read`` 系统调用使得应用能够取得用户的键盘输入。
+为了实现shell程序 ``user_shell`` 的输入机制，我们需要实现 ``sys_read`` 系统调用使得应用能够取得用户的键盘输入。
 
 .. code-block:: rust
 
@@ -589,13 +588,13 @@ shell程序-user_shell的输入机制
                 initproc_inner.children.push(child.clone());
             }
         }
-        // ++++++ release parent PCB
+        // ++++++ stop exclusively accessingparent PCB
 
         inner.children.clear();
         // deallocate user space
         inner.memory_set.recycle_data_pages();
         drop(inner);
-        // **** release current PCB
+        // **** stop exclusively accessingcurrent PCB
         // drop task manually to maintain rc correctly
         drop(task);
         // we do not have to save task context
@@ -634,15 +633,15 @@ shell程序-user_shell的输入机制
             .find(|p| {pid == -1 || pid as usize == p.getpid()})
             .is_none() {
             return -1;
-            // ---- release current PCB
+            // ---- stop exclusively accessing current PCB
         }
         let pair = inner.children
             .iter()
             .enumerate()
             .find(|(_, p)| {
-                // ++++ temporarily access child PCB lock exclusively
+                // ++++ temporarily access child PCB exclusively
                 p.inner_exclusive_access().is_zombie() && (pid == -1 || pid as usize == p.getpid())
-                // ++++ release child PCB
+                // ++++ stop exclusively accessing child PCB
             });
         if let Some((idx, _)) = pair {
             let child = inner.children.remove(idx);
@@ -651,13 +650,13 @@ shell程序-user_shell的输入机制
             let found_pid = child.getpid();
             // ++++ temporarily access child TCB exclusively
             let exit_code = child.inner_exclusive_access().exit_code;
-            // ++++ release child PCB
+            // ++++ stop exclusively accessing child PCB
             *translated_refmut(inner.memory_set.token(), exit_code_ptr) = exit_code;
             found_pid as isize
         } else {
             -2
         }
-        // ---- release current PCB lock automatically
+        // ---- stop exclusively accessing current PCB automatically
     }
 
     // user/src/lib.rs
@@ -672,7 +671,7 @@ shell程序-user_shell的输入机制
         }
     }
 
-``sys_waitpid`` 是一个立即返回的系统调用，它的返回值语义是：如果当前的进程不存在一个进程ID为pid（pid==-1或pid >0）的子进程，则返回 -1；如果存在一个进程ID为pid的僵尸子进程，则正常回收并返回子进程的id，并更新系统调用的退出码参数为 ``exit_code``  。这里还有一个 -2 的返回值，它的含义是子进程还没退出，通知用户库 ``user_lib`` （是实际发出系统调用的地方），这样用户库看到是 -2 后，就进一步调用 ``sys_yield`` 系统调用（第46行），让当前父进程进入等待状态。
+``sys_waitpid`` 是一个立即返回的系统调用，它的返回值语义是：如果当前的进程不存在一个进程 ID 为 pid（pid==-1 或 pid > 0）的子进程，则返回 -1；如果存在一个进程 ID 为 pid 的僵尸子进程，则正常回收并返回子进程的 pid，并更新系统调用的退出码参数为 ``exit_code``  。这里还有一个 -2 的返回值，它的含义是子进程还没退出，通知用户库 ``user_lib`` （是实际发出系统调用的地方），这样用户库看到是 -2 后，就进一步调用 ``sys_yield`` 系统调用（第46行），让当前父进程进入等待状态。
 
 注：在编写应用的开发者看来， 位于用户库 ``user_lib`` 中的 ``wait/waitpid`` 两个辅助函数都必定能够返回一个有意义的结果，要么是 -1，要么是一个正数 PID ，是不存在 -2 这种通过等待即可消除的中间结果的。让调用 ``wait/waitpid`` 两个辅助函数的进程等待正是在用户库 ``user_lib`` 中完成。
 
