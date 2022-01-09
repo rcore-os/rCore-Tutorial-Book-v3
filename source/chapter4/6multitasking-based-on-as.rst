@@ -363,7 +363,7 @@
     // os/src/task/task.rs
 
     pub struct TaskControlBlock {
-        pub task_cx_ptr: usize,
+        pub task_cx: TaskContext,
         pub task_status: TaskStatus,
         pub memory_set: MemorySet,
         pub trap_cx_ppn: PhysPageNum,
