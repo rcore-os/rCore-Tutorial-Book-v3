@@ -6,8 +6,8 @@
 
 为了更好实现进程管理，同时也使得操作系统整体架构更加灵活，能够满足后续的一些需求，我们需要重新设计一些数据结构包含的内容及接口。本节将按照如下顺序来进行介绍：
 
-- 基于应用名的应用链接：在编译阶段的链接过程中，生成包含多个应用和应用位置信息的link_app.S文件。
-- 基于应用名的加载器：根据应用名字来加载应用的ELF文件中代码段和数据段到内存中，为创建一个新进程做准备。
+- 基于应用名的应用链接：在编译阶段的链接过程中，生成包含多个应用和应用位置信息的 ``link_app.S`` 文件。
+- 基于应用名的加载器：根据应用名字来加载应用的 ELF 文件中代码段和数据段到内存中，为创建一个新进程做准备。
 - 进程标识符 ``PidHandle`` 以及内核栈 ``KernelStack`` ：进程控制块的重要组成部分。
 - 任务控制块 ``TaskControlBlock`` ：表示进程的核心数据结构。
 - 任务管理器 ``TaskManager`` ：管理进程集合的核心数据结构。
@@ -20,10 +20,9 @@
 基于应用名的应用链接
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
 在实现 ``exec`` 系统调用的时候，我们需要根据应用的名字而不仅仅是一个编号来获取应用的 ELF 格式数据。因此原有的链接和加载接口需要做出如下变更：
 
-在Rust编译&链接辅助文件 ``os/build.rs`` 中，会读取位于 ``user/src/bin`` 中应用程序对应的执行文件，并生成 ``link_app.S`` ，按顺序保存链接进来的每个应用的名字：
+在 Rust 编译&链接辅助程序 ``os/build.rs`` 中，会读取位于 ``user/src/bin`` 中应用程序对应的执行文件，并生成 ``link_app.S`` ，按顺序保存链接进来的每个应用的名字：
   
 .. code-block::
     :linenos:
@@ -308,7 +307,7 @@
     pub struct TaskControlBlockInner {
         pub trap_cx_ppn: PhysPageNum,
         pub base_size: usize,
-        pub task_cx_ptr: usize,
+        pub task_cx: TaskContext,
         pub task_status: TaskStatus,
         pub memory_set: MemorySet,
         pub parent: Option<Weak<TaskControlBlock>>,
@@ -325,7 +324,7 @@
 
 - ``trap_cx_ppn`` 指出了应用地址空间中的 Trap 上下文（详见第四章）被放在的物理页帧的物理页号。
 - ``base_size`` 的含义是：应用数据仅有可能出现在应用地址空间低于 ``base_size`` 字节的区域中。借助它我们可以清楚的知道应用有多少数据驻留在内存中。
-- ``task_cx_ptr`` 指出一个暂停的任务的任务上下文在内核地址空间（更确切的说是在自身内核栈）中的位置，用于任务切换。
+- ``task_cx`` 将暂停的任务的任务上下文保存在任务控制块中。
 - ``task_status`` 维护当前进程的执行状态。
 - ``memory_set`` 表示应用地址空间。
 - ``parent`` 指向当前进程的父进程（如果存在的话）。注意我们使用 ``Weak`` 而非 ``Arc`` 来包裹另一个任务控制块，因此这个智能指针将不会影响父进程的引用计数。
@@ -341,9 +340,6 @@
     // os/src/task/task.rs
 
     impl TaskControlBlockInner {
-        pub fn get_task_cx_ptr2(&self) -> *const usize {
-            &self.task_cx_ptr as *const usize
-        }
         pub fn get_trap_cx(&self) -> &'static mut TrapContext {
             self.trap_cx_ppn.get_mut()
         }
@@ -519,7 +515,7 @@
 任务调度的 idle 控制流
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
- ``Processor`` 有一个不同的 idle 控制流，它运行在这个CPU核的启动栈上，功能是尝试从任务管理器中选出一个任务来在当前CPU核上执行。在内核初始化完毕之后，会通过调用 ``run_tasks`` 函数来进入 idle 控制流：
+ ``Processor`` 有一个不同的 idle 控制流，它运行在这个 CPU 核的启动栈上，功能是尝试从任务管理器中选出一个任务来在当前 CPU 核上执行。在内核初始化完毕之后，会通过调用 ``run_tasks`` 函数来进入 idle 控制流：
 
 .. code-block:: rust
     :linenos:
@@ -535,17 +531,20 @@
                 let mut task_inner = task.inner_exclusive_access();
                 let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
                 task_inner.task_status = TaskStatus::Running;
+                // stop exclusively accessing coming task TCB manually
                 drop(task_inner);
-                // release coming task TCB manually
                 processor.current = Some(task);
-                // release processor manually
+                // stop exclusively accessing processor manually
                 drop(processor);
                 unsafe {
                     __switch(
                         idle_task_cx_ptr,
                         next_task_cx_ptr,
                     );
-    } } } }     
+                }
+            }
+        }
+    }    
 
     impl Processor {
         fn get_idle_task_cx_ptr(&mut self) -> *mut TaskContext {
@@ -556,9 +555,9 @@
 
 - 第 7 行得到 ``__switch`` 的第一个参数，也就是当前 idle 控制流的 task_cx_ptr，这调用了第 25 行的 ``Processor.get_idle_task_cx_ptr`` 方法。
 - 第 9~11 行需要先获取从任务管理器中取出对应的任务控制块，并获取任务块内部的 ``next_task_cx_ptr`` 作为 ``__switch`` 的第二个参数，然后修改任务的状态为 ``Running`` 。
-- 第 12 行需要手动释放老的任务控制块引用，这样才能划分出更加精确的临界区。如果依赖编译器在循环的末尾自动释放的话，相当于扩大了临界区，有可能会导致死锁。
-- 第 14 行我们修改当前 ``Processor`` 正在执行的任务为我们取出的任务。注意这里相当于 ``Arc<TaskControlBlock>`` 形式的任务从任务管理器流动到了处理器管理结构中。也就是说，在稳定的情况下，每个尚未结束的进程的任务控制块都只能被引用一次，要么在任务管理器中，要么则是在代表CPU处理器的 ``Processor`` 中。
-- 第 20 行我们调用 ``__switch`` 来从当前的 idle 控制流切换到接下来要执行的任务。
+- 第 13 行需要手动回收对即将执行任务的任务控制块的借用标记，使得后续我们仍可以访问该任务控制块。这里我们不能依赖编译器在 ``if let`` 块结尾时的自动回收，因为中间我们会在自动回收之前调用 ``__switch`` ，这将导致我们在实际上已经结束访问却没有进行回收的情况下切换到下一个任务，最终可能违反 ``UPSafeCell`` 的借用约定而使得内核报错退出。同理在第 16 行我们手动回收 ``PROCESSOR`` 的借用标记。
+- 第 14 行我们修改当前 ``Processor`` 正在执行的任务为我们取出的任务。注意这里相当于 ``Arc<TaskControlBlock>`` 形式的任务从任务管理器流动到了处理器管理结构中。也就是说，在稳定的情况下，每个尚未结束的进程的任务控制块都只能被引用一次，要么在任务管理器中，要么则是在代表 CPU 处理器的 ``Processor`` 中。
+- 第 18 行我们调用 ``__switch`` 来从当前的 idle 控制流切换到接下来要执行的任务。
 
 上面介绍了从 idle 控制流通过任务调度切换到某个任务开始执行的过程。而反过来，当一个应用用尽了内核本轮分配给它的时间片或者它主动调用 ``yield`` 系统调用交出 CPU 使用权之后，内核会调用 ``schedule`` 函数来切换到 idle 控制流并开启新一轮的任务调度。
 

@@ -157,8 +157,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
 <p>为了更好实现进程管理，同时也使得操作系统整体架构更加灵活，能够满足后续的一些需求，我们需要重新设计一些数据结构包含的内容及接口。本节将按照如下顺序来进行介绍：</p>
 <ul class="simple">
-<li><p>基于应用名的应用链接：在编译阶段的链接过程中，生成包含多个应用和应用位置信息的link_app.S文件。</p></li>
-<li><p>基于应用名的加载器：根据应用名字来加载应用的ELF文件中代码段和数据段到内存中，为创建一个新进程做准备。</p></li>
+<li><p>基于应用名的应用链接：在编译阶段的链接过程中，生成包含多个应用和应用位置信息的 <code class="docutils literal notranslate"><span class="pre">link_app.S</span></code> 文件。</p></li>
+<li><p>基于应用名的加载器：根据应用名字来加载应用的 ELF 文件中代码段和数据段到内存中，为创建一个新进程做准备。</p></li>
 <li><p>进程标识符 <code class="docutils literal notranslate"><span class="pre">PidHandle</span></code> 以及内核栈 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> ：进程控制块的重要组成部分。</p></li>
 <li><p>任务控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> ：表示进程的核心数据结构。</p></li>
 <li><p>任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> ：管理进程集合的核心数据结构。</p></li>
@@ -170,7 +170,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <section id="id4">
 <h3>基于应用名的应用链接<a class="headerlink" href="#id4" title="永久链接至标题"></a></h3>
 <p>在实现 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 系统调用的时候，我们需要根据应用的名字而不仅仅是一个编号来获取应用的 ELF 格式数据。因此原有的链接和加载接口需要做出如下变更：</p>
-<p>在Rust编译&amp;链接辅助文件 <code class="docutils literal notranslate"><span class="pre">os/build.rs</span></code> 中，会读取位于 <code class="docutils literal notranslate"><span class="pre">user/src/bin</span></code> 中应用程序对应的执行文件，并生成 <code class="docutils literal notranslate"><span class="pre">link_app.S</span></code> ，按顺序保存链接进来的每个应用的名字：</p>
+<p>在 Rust 编译&amp;链接辅助程序 <code class="docutils literal notranslate"><span class="pre">os/build.rs</span></code> 中，会读取位于 <code class="docutils literal notranslate"><span class="pre">user/src/bin</span></code> 中应用程序对应的执行文件，并生成 <code class="docutils literal notranslate"><span class="pre">link_app.S</span></code> ，按顺序保存链接进来的每个应用的名字：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>    // os/build.rs
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span>    for i in 0..apps.len() {
@@ -415,7 +415,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos">11</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos">12</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_cx_ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">13</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">base_size</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_cx_ptr</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">15</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">16</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">memory_set</span>: <span class="nc">MemorySet</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">17</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">parent</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Weak</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
@@ -433,7 +433,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">trap_cx_ppn</span></code> 指出了应用地址空间中的 Trap 上下文（详见第四章）被放在的物理页帧的物理页号。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">base_size</span></code> 的含义是：应用数据仅有可能出现在应用地址空间低于 <code class="docutils literal notranslate"><span class="pre">base_size</span></code> 字节的区域中。借助它我们可以清楚的知道应用有多少数据驻留在内存中。</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">task_cx_ptr</span></code> 指出一个暂停的任务的任务上下文在内核地址空间（更确切的说是在自身内核栈）中的位置，用于任务切换。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">task_cx</span></code> 将暂停的任务的任务上下文保存在任务控制块中。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">task_status</span></code> 维护当前进程的执行状态。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">memory_set</span></code> 表示应用地址空间。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">parent</span></code> 指向当前进程的父进程（如果存在的话）。注意我们使用 <code class="docutils literal notranslate"><span class="pre">Weak</span></code> 而非 <code class="docutils literal notranslate"><span class="pre">Arc</span></code> 来包裹另一个任务控制块，因此这个智能指针将不会影响父进程的引用计数。</p></li>
@@ -445,9 +445,6 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
 
 <span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_task_cx_ptr2</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">task_cx_ptr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_trap_cx</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">TrapContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">trap_cx_ppn</span><span class="p">.</span><span class="n">get_mut</span><span class="p">()</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
@@ -606,7 +603,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <section id="idle">
 <h3>任务调度的 idle 控制流<a class="headerlink" href="#idle" title="永久链接至标题"></a></h3>
 <blockquote>
-<div><p><code class="docutils literal notranslate"><span class="pre">Processor</span></code> 有一个不同的 idle 控制流，它运行在这个CPU核的启动栈上，功能是尝试从任务管理器中选出一个任务来在当前CPU核上执行。在内核初始化完毕之后，会通过调用 <code class="docutils literal notranslate"><span class="pre">run_tasks</span></code> 函数来进入 idle 控制流：</p>
+<div><p><code class="docutils literal notranslate"><span class="pre">Processor</span></code> 有一个不同的 idle 控制流，它运行在这个 CPU 核的启动栈上，功能是尝试从任务管理器中选出一个任务来在当前 CPU 核上执行。在内核初始化完毕之后，会通过调用 <code class="docutils literal notranslate"><span class="pre">run_tasks</span></code> 函数来进入 idle 控制流：</p>
 </div></blockquote>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/processor.rs</span>
 <span class="linenos"> 2</span>
@@ -619,31 +616,34 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos"> 9</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
 <span class="linenos">10</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">next_task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_cx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">;</span><span class="w"></span>
 <span class="linenos">11</span><span class="w">            </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Running</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">            </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">            </span><span class="c1">// release coming task TCB manually</span>
+<span class="linenos">12</span><span class="w">            </span><span class="c1">// stop exclusively accessing coming task TCB manually</span>
+<span class="linenos">13</span><span class="w">            </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">14</span><span class="w">            </span><span class="n">processor</span><span class="p">.</span><span class="n">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">            </span><span class="c1">// release processor manually</span>
+<span class="linenos">15</span><span class="w">            </span><span class="c1">// stop exclusively accessing processor manually</span>
 <span class="linenos">16</span><span class="w">            </span><span class="nb">drop</span><span class="p">(</span><span class="n">processor</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">17</span><span class="w">            </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos">18</span><span class="w">                </span><span class="n">__switch</span><span class="p">(</span><span class="w"></span>
 <span class="linenos">19</span><span class="w">                    </span><span class="n">idle_task_cx_ptr</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">20</span><span class="w">                    </span><span class="n">next_task_cx_ptr</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">21</span><span class="w">                </span><span class="p">);</span><span class="w"></span>
-<span class="linenos">22</span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">23</span>
-<span class="linenos">24</span><span class="k">impl</span><span class="w"> </span><span class="n">Processor</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">    </span><span class="k">fn</span> <span class="nf">get_idle_task_cx_ptr</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">        </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">idle_task_cx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">_</span><span class="w"></span>
-<span class="linenos">27</span><span class="p">}</span><span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">25</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">26</span>
+<span class="linenos">27</span><span class="k">impl</span><span class="w"> </span><span class="n">Processor</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">    </span><span class="k">fn</span> <span class="nf">get_idle_task_cx_ptr</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">        </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">idle_task_cx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">_</span><span class="w"></span>
+<span class="linenos">30</span><span class="p">}</span><span class="w">  </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>可以看到，调度功能的主体是 <code class="docutils literal notranslate"><span class="pre">run_tasks()</span></code> 。它循环调用 <code class="docutils literal notranslate"><span class="pre">fetch_task</span></code> 直到顺利从任务管理器中取出一个任务，随后便准备通过任务切换的方式来执行：</p>
 <ul class="simple">
 <li><p>第 7 行得到 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的第一个参数，也就是当前 idle 控制流的 task_cx_ptr，这调用了第 25 行的 <code class="docutils literal notranslate"><span class="pre">Processor.get_idle_task_cx_ptr</span></code> 方法。</p></li>
 <li><p>第 9~11 行需要先获取从任务管理器中取出对应的任务控制块，并获取任务块内部的 <code class="docutils literal notranslate"><span class="pre">next_task_cx_ptr</span></code> 作为 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的第二个参数，然后修改任务的状态为 <code class="docutils literal notranslate"><span class="pre">Running</span></code> 。</p></li>
-<li><p>第 12 行需要手动释放老的任务控制块引用，这样才能划分出更加精确的临界区。如果依赖编译器在循环的末尾自动释放的话，相当于扩大了临界区，有可能会导致死锁。</p></li>
-<li><p>第 14 行我们修改当前 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 正在执行的任务为我们取出的任务。注意这里相当于 <code class="docutils literal notranslate"><span class="pre">Arc&lt;TaskControlBlock&gt;</span></code> 形式的任务从任务管理器流动到了处理器管理结构中。也就是说，在稳定的情况下，每个尚未结束的进程的任务控制块都只能被引用一次，要么在任务管理器中，要么则是在代表CPU处理器的 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 中。</p></li>
-<li><p>第 20 行我们调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 来从当前的 idle 控制流切换到接下来要执行的任务。</p></li>
+<li><p>第 13 行需要手动回收对即将执行任务的任务控制块的借用标记，使得后续我们仍可以访问该任务控制块。这里我们不能依赖编译器在 <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">let</span></code> 块结尾时的自动回收，因为中间我们会在自动回收之前调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> ，这将导致我们在实际上已经结束访问却没有进行回收的情况下切换到下一个任务，最终可能违反 <code class="docutils literal notranslate"><span class="pre">UPSafeCell</span></code> 的借用约定而使得内核报错退出。同理在第 16 行我们手动回收 <code class="docutils literal notranslate"><span class="pre">PROCESSOR</span></code> 的借用标记。</p></li>
+<li><p>第 14 行我们修改当前 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 正在执行的任务为我们取出的任务。注意这里相当于 <code class="docutils literal notranslate"><span class="pre">Arc&lt;TaskControlBlock&gt;</span></code> 形式的任务从任务管理器流动到了处理器管理结构中。也就是说，在稳定的情况下，每个尚未结束的进程的任务控制块都只能被引用一次，要么在任务管理器中，要么则是在代表 CPU 处理器的 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 中。</p></li>
+<li><p>第 18 行我们调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 来从当前的 idle 控制流切换到接下来要执行的任务。</p></li>
 </ul>
 <p>上面介绍了从 idle 控制流通过任务调度切换到某个任务开始执行的过程。而反过来，当一个应用用尽了内核本轮分配给它的时间片或者它主动调用 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 系统调用交出 CPU 使用权之后，内核会调用 <code class="docutils literal notranslate"><span class="pre">schedule</span></code> 函数来切换到 idle 控制流并开启新一轮的任务调度。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/processor.rs</span>
