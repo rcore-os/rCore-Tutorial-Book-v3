@@ -588,13 +588,13 @@ shell程序 user_shell 的输入机制
                 initproc_inner.children.push(child.clone());
             }
         }
-        // ++++++ stop exclusively accessingparent PCB
+        // ++++++ stop exclusively accessing parent PCB
 
         inner.children.clear();
         // deallocate user space
         inner.memory_set.recycle_data_pages();
         drop(inner);
-        // **** stop exclusively accessingcurrent PCB
+        // **** stop exclusively accessing current PCB
         // drop task manually to maintain rc correctly
         drop(task);
         // we do not have to save task context
