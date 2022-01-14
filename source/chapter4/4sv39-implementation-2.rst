@@ -403,13 +403,16 @@
     
     **unsafe 真的就是“不安全”吗？**
 
-    下面是笔者关于 ``unsafe`` 一点可能不太正确的理解，不感兴趣的同学可以跳过。
+    下面是笔者关于 unsafe 一点较为深入的讨论，不感兴趣的同学可以跳过。
 
     当我们在 Rust 中使用 unsafe 的时候，并不仅仅是为了绕过编译器检查，更是为了告知编译器和其他看到这段代码的程序员：“ **我保证这样做是安全的** ” 。尽管，严格的 Rust 编译器暂时还不能确信这一点。从规范 Rust 代码编写的角度，我们需要尽可能绕过 unsafe ，因为如果 Rust 编译器或者一些已有的接口就可以提供安全性，我们当然倾向于利用它们让我们实现的功能仍然是安全的，可以避免一些无谓的心智负担；反之，就只能使用 unsafe ，同时最好说明如何保证这项功能是安全的。
 
-    这里简要从内存安全的角度来分析一下 ``PhysPageNum`` 的 ``get_*`` 系列方法的实现中 ``unsafe`` 的使用。为了方便解释，我们可以将 ``PhysPageNum`` 也看成一种 RAII 的风格，即它控制着一个物理页帧资源的访问。首先，这不会导致 use-after-free 的问题，因为在内核运行全期整块物理内存都是可以访问的，它不存在被释放后无法访问的可能性；其次，也不会导致并发冲突。注意这不是在 ``PhysPageNum`` 这一层解决的，而是 ``PhysPageNum`` 的使用层要保证任意两个线程不会同时对一个 ``PhysPageNum`` 进行操作。同学也应该可以感觉出这并不能算是一种好的设计，因为这种约束从代码层面是很难直接保证的，而是需要系统内部的某种一致性。虽然如此，由于目前的简单内核设计保证了系统内部的 **单线程执行** 的一致性，所以它对于我们这个简单内核而言算是很合适了。
+    这里简要从内存安全的角度来分析一下 ``PhysPageNum`` 的 ``get_*`` 系列方法的实现中 ``unsafe`` 的使用。首先需要指出的是，当需要访问一个物理页帧的时候，我们需要从它被绑定到的 ``FrameTracker`` 中获得其物理页号 ``PhysPageNum`` 随后再调用 ``get_*`` 系列方法才能访问物理页帧。因此， ``PhysPageNum`` 介于 ``FrameTracker`` 和物理页帧之间，也可以看做拥有部分物理页帧的所有权。由于 ``get_*`` 返回的是引用，我们可以尝试检查引用引发的常见问题：第一个问题是 use-after-free 的问题，即是否存在 ``get_*`` 返回的引用存在期间被引用的物理页帧已被回收的情形；第二个问题则是注意到 ``get_*`` 返回的是可变引用，那么就需要考虑对物理页帧的访问读写冲突的问题。
 
-.. chyyuu 上面一段提到了线程？？？
+    为了解决这些问题，我们在编写代码的时候需要额外当心。对于每一段 unsafe 代码，我们都需要认真考虑它会对其他无论是 unsafe 还是 safe 的代码造成的潜在影响。比如为了避免第一个问题，我们需要保证当完成物理页帧访问之后便立即回收掉 ``get_*`` 返回的引用，至少使它不能超出 ``FrameTracker`` 的生命周期；考虑第二个问题，目前每个 ``FrameTracker`` 仅会出现一次（在它所属的进程中），因此它只会出现在一个上下文中，也就不会产生冲突。但是当内核态打开中断，或是内核支持在单进程中存在多个线程，情况也许又会发生变化。
+
+    当编译器不能介入的时候，我们很难完美的解决这些问题。因此重新设计数据结构和接口，特别是考虑数据的所有权关系，将建模进行转换，使得 Rust 有能力检查我们的设计会是一种更明智的选择。这也可以说明为什么要尽量避免使用 unsafe 。事实上，我们目前 ``PhysPageNum::get_*`` 接口并非一个好的设计，如果同学有兴趣可以试着对设计进行改良，让 Rust 编译器帮助我们解决上述与引用相关的问题。
+    
 
 建立和拆除虚实地址映射关系
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -456,12 +459,30 @@
             }
             result
         }
+        fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+            let idxs = vpn.indexes();
+            let mut ppn = self.root_ppn;
+            let mut result: Option<&mut PageTableEntry> = None;
+            for i in 0..3 {
+                let pte = &mut ppn.get_pte_array()[idxs[i]];
+                if i == 2 {
+                    result = Some(pte);
+                    break;
+                }
+                if !pte.is_valid() {
+                    return None;
+                }
+                ppn = pte.ppn();
+            }
+            result
+        }
     }
 
 - ``VirtPageNum`` 的 ``indexes`` 可以取出虚拟页号的三级页索引，并按照从高到低的顺序返回。注意它里面包裹的 usize 可能有 :math:`27` 位，也有可能有 :math:`64-12=52` 位，但这里我们是用来在多级页表上进行遍历，因此只取出低 :math:`27` 位。
 - ``PageTable::find_pte_create`` 在多级页表找到一个虚拟页号对应的页表项的可变引用。如果在遍历的过程中发现有节点尚未创建则会新建一个节点。
 
   变量 ``ppn`` 表示当前节点的物理页号，最开始指向多级页表的根节点。随后每次循环通过 ``get_pte_array`` 将取出当前节点的页表项数组，并根据当前级页索引找到对应的页表项。如果当前节点是一个叶节点，那么直接返回这个页表项的可变引用；否则尝试向下走。走不下去的话就新建一个节点，更新作为下级节点指针的页表项，并将新分配的物理页帧移动到向量 ``frames`` 中方便后续的自动回收。注意在更新页表项的时候，不仅要更新物理页号，还要将标志位 V 置 1，不然硬件在查多级页表的时候，会认为这个页表项不合法，从而触发 Page Fault 而不能向下走。
+- ``PageTable::find_pte`` 与 ``find_pte_create`` 的不同在于当找不到合法叶子节点的时候不会新建叶子节点而是直接返回 ``None`` 即查找失败。因此，它不会尝试对页表本身进行修改，但是注意它返回的参数类型是页表项的可变引用，也即它允许我们修改页表项。从 ``find_pte`` 的实现还可以看出，即使找到的页表项不合法，还是会将其返回回去而不是返回 ``None`` 。这说明在目前的实现中，页表和页表项是相对解耦合的。
 
 于是， ``map/unmap`` 就非常容易实现了：
 
@@ -476,7 +497,7 @@
             *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
         }
         pub fn unmap(&mut self, vpn: VirtPageNum) {
-            let pte = self.find_pte_create(vpn).unwrap();
+            let pte = self.find_pte(vpn).unwrap();
             assert!(pte.is_valid(), "vpn {:?} is invalid before unmapping", vpn);
             *pte = PageTableEntry::empty();
         }
@@ -503,23 +524,6 @@
                 frames: Vec::new(),
             }
         }
-        fn find_pte(&self, vpn: VirtPageNum) -> Option<&PageTableEntry> {
-            let idxs = vpn.indexes();
-            let mut ppn = self.root_ppn;
-            let mut result: Option<&PageTableEntry> = None;
-            for i in 0..3 {
-                let pte = &ppn.get_pte_array()[idxs[i]];
-                if i == 2 {
-                    result = Some(pte);
-                    break;
-                }
-                if !pte.is_valid() {
-                    return None;
-                }
-                ppn = pte.ppn();
-            }
-            result
-        }
         pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
             self.find_pte(vpn)
                 .map(|pte| {pte.clone()})
@@ -527,10 +531,8 @@
     }
 
 - 第 5 行的 ``from_token`` 可以临时创建一个专用来手动查页表的 ``PageTable`` ，它仅有一个从传入的 ``satp`` token 中得到的多级页表根节点的物理页号，它的 ``frames`` 字段为空，也即不实际控制任何资源；
-- 第 11 行的 ``find_pte`` 和之前的 ``find_pte_create`` 不同之处在于它不会试图分配物理页帧。一旦在多级页表上遍历遇到空指针它就会直接返回 ``None`` 表示无法正确找到传入的虚拟页号对应的页表项；
-- 第 28 行的 ``translate`` 调用 ``find_pte`` 来实现，如果能够找到页表项，那么它会将页表项拷贝一份并返回，否则就返回一个 ``None`` 。
+- 第 11 行的 ``translate`` 调用 ``find_pte`` 来实现，如果能够找到页表项，那么它会将页表项拷贝一份并返回，否则就返回一个 ``None`` 。
 
-.. chyyuu 没有提到from_token的作用???
-
+之后，当遇到需要查一个特定页表（非当前正处在的地址空间的页表时），便可先通过 ``PageTable::from_token`` 新建一个页表，再调用它的 ``translate`` 方法查页表。
 
 小结一下，上一节和本节讲解了如何基于 RISC-V64 的 SV39 分页机制建立多级页表，并实现基于虚存地址空间的内存使用环境。这样，一旦启用分页机制，操作系统和应用都只能在虚拟地址空间中访问数据了，只是操作系统可以通过页表机制来限制应用访问的实际物理内存范围。这就要在后续小节中，进一步看看操作系统内核和应用程序是如何在虚拟地址空间中进行代码和数据访问的。
