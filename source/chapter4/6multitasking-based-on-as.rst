@@ -623,10 +623,13 @@
         }
         let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
         unsafe {
-            asm!("fence.i" :::: "volatile");
-            asm!("jr $0" 
-                :: "r"(restore_va), "{a0}"(trap_cx_ptr), "{a1}"(user_satp) 
-                :: "volatile"
+            asm!(
+                "fence.i",
+                "jr {restore_va}",
+                restore_va = in(reg) restore_va,
+                in("a0") trap_cx_ptr,
+                in("a1") user_satp,
+                options(noreturn)
             );
         }
         panic!("Unreachable in back_to_user!");
@@ -640,9 +643,7 @@
 - 第 18 行，展示了计算 ``__restore`` 虚地址的过程：由于 ``__alltraps`` 是对齐到地址空间跳板页面的起始地址 ``TRAMPOLINE`` 上的， 则 ``__restore`` 的虚拟地址只需在 ``TRAMPOLINE`` 基础上加上 ``__restore`` 相对于 ``__alltraps`` 的偏移量即可。这里 ``__alltraps`` 和 ``__restore`` 都是指编译器在链接时看到的内核内存布局中的地址。
 
 
-- 第 20 行，需要使用 ``fence.i`` 指令清空指令缓存 i-cache 。这是因为，在内核中进行的一些操作可能导致一些原先存放某个应用代码的物理页帧如今用来存放数据或者是其他应用的代码，i-cache 中可能还保存着该物理页帧的错误快照。因此我们直接将整个 i-cache 清空避免错误。
-
-- 第 21~25 行，使用 ``jr`` 指令完成了跳转到 ``__restore`` 的任务。  
+- 第 20-27 行，首先需要使用 ``fence.i`` 指令清空指令缓存 i-cache 。这是因为，在内核中进行的一些操作可能导致一些原先存放某个应用代码的物理页帧如今用来存放数据或者是其他应用的代码，i-cache 中可能还保存着该物理页帧的错误快照。因此我们直接将整个 i-cache 清空避免错误。接着使用 ``jr`` 指令完成了跳转到 ``__restore`` 的任务。  
 
 当每个应用第一次获得 CPU 使用权即将进入用户态执行的时候，它的内核栈顶放置着我们在 :ref:`内核加载应用的时候 <trap-return-intro>` 构造的一个任务上下文：
 
