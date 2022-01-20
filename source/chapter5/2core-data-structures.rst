@@ -549,7 +549,8 @@
     impl Processor {
         fn get_idle_task_cx_ptr(&mut self) -> *mut TaskContext {
             &mut self.idle_task_cx as *mut _
-    }  }
+        }  
+    }
 
 可以看到，调度功能的主体是 ``run_tasks()`` 。它循环调用 ``fetch_task`` 直到顺利从任务管理器中取出一个任务，随后便准备通过任务切换的方式来执行：
 
