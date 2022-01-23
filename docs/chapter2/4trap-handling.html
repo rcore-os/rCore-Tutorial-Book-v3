@@ -385,6 +385,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p class="admonition-title">注解</p>
 <p><strong>CSR 相关原子指令</strong></p>
 <p>RISC-V 中读写 CSR 的指令是一类能不会被打断地完成多个读写操作的指令。这种不会被打断地完成多个操作的指令被称为 <strong>原子指令</strong> (Atomic Instruction)。这里的 <strong>原子</strong> 的含义是“不可分割的最小个体”，也就是说指令的多个操作要么都不完成，要么全部完成，而不会处于某种中间状态。</p>
+<p>另外，RISC-V 架构中常规的数据处理和访存类指令只能操作通用寄存器而不能操作 CSR 。因此，当想要对 CSR 进行操作时，需要先使用读取 CSR 的指令将 CSR 读到一个通用寄存器中，而后操作该通用寄存器，最后再使用写入 CSR 的指令将该通用寄存器的值写入到 CSR 中。</p>
 </div>
 <p>当 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 返回之后会从调用 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 的下一条指令开始执行，也就是从栈上的 Trap 上下文恢复的 <code class="docutils literal notranslate"><span class="pre">__restore</span></code> ：</p>
 <div class="highlight-riscv notranslate" id="code-restore"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c"># os/src/trap/trap.S</span>
@@ -421,10 +422,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <ul class="simple">
-<li><p>第 8 行比较奇怪我们暂且不管，假设它从未发生，那么 sp 仍然指向内核栈的栈顶。</p></li>
-<li><p>第 11~24 行负责从内核栈顶的 Trap 上下文恢复通用寄存器和 CSR 。注意我们要先恢复 CSR 再恢复通用寄存器，这样我们使用的三个临时寄存器才能被正确恢复。</p></li>
-<li><p>在第 26 行之前，sp 指向保存了 Trap 上下文之后的内核栈栈顶， sscratch 指向用户栈栈顶。我们在第 26 行在内核栈上回收 Trap 上下文所占用的内存，回归进入 Trap 之前的内核栈栈顶。第 27 行，再次交换 sscratch 和 sp，现在 sp 重新指向用户栈栈顶，sscratch 也依然保存进入 Trap 之前的状态并指向内核栈栈顶。</p></li>
-<li><p>在应用程序控制流状态被还原之后，第 28 行我们使用 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 指令回到 U 特权级继续运行应用程序控制流。</p></li>
+<li><p>第 10 行比较奇怪我们暂且不管，假设它从未发生，那么 sp 仍然指向内核栈的栈顶。</p></li>
+<li><p>第 13~26 行负责从内核栈顶的 Trap 上下文恢复通用寄存器和 CSR 。注意我们要先恢复 CSR 再恢复通用寄存器，这样我们使用的三个临时寄存器才能被正确恢复。</p></li>
+<li><p>在第 28 行之前，sp 指向保存了 Trap 上下文之后的内核栈栈顶， sscratch 指向用户栈栈顶。我们在第 28 行在内核栈上回收 Trap 上下文所占用的内存，回归进入 Trap 之前的内核栈栈顶。第 30 行，再次交换 sscratch 和 sp，现在 sp 重新指向用户栈栈顶，sscratch 也依然保存进入 Trap 之前的状态并指向内核栈栈顶。</p></li>
+<li><p>在应用程序控制流状态被还原之后，第 31 行我们使用 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 指令回到 U 特权级继续运行应用程序控制流。</p></li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
