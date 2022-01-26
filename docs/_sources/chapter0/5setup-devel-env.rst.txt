@@ -16,11 +16,9 @@
 系统环境配置
 -------------------------------
 
-目前实验内容可支持在 Ubuntu18.04 / 20.04 + 操作系统、CentOS、openEuler等操作系统上进行操作。对于 Windows10/11 和 macOS 上的用户，可以使用 VMware Workstation 或 
-VirtualBox 等相关软件，通过虚拟机方式安装 Ubuntu18.04 / 20.04、CentOS、openEuler操作系统，并在上面进行实验。
+目前实验内容可支持在 Ubuntu18.04 / 20.04 + 操作系统、CentOS、openEuler等操作系统上进行操作。对于 Windows10/11 和 macOS 上的用户，可以使用 VMware Workstation 或 VirtualBox 等相关软件，通过虚拟机方式安装 Ubuntu18.04 / 20.04、CentOS、openEuler操作系统，并在上面进行实验。
 
-对于Windows10/11 的用户可以通过系统内置的 WSL2 虚拟机（请不要使用 WSL1）来安装 Ubuntu 18.04 / 20.04 。
-步骤如下：
+对于Windows10/11 的用户可以通过系统内置的 WSL2 虚拟机（请不要使用 WSL1）来安装 Ubuntu 18.04 / 20.04 。步骤如下：
 
 - 升级 Windows 10/11 到最新版（Windows 10 版本 18917 或以后的内部版本）。注意，如果
   不是 Windows 10/11 专业版，可能需要手动更新，在微软官网上下载。升级之后，
@@ -46,12 +44,7 @@ VirtualBox 等相关软件，通过虚拟机方式安装 Ubuntu18.04 / 20.04、C
 -  `下载 Linux 内核安装包 <https://docs.microsoft.com/zh-cn/windows/wsl/install-win10#step-4---download-the-linux-kernel-update-package>`_
 -  在微软商店（Microsoft Store）中搜索并安装 Ubuntu18.04 / 20.04。
 
-如果你打算使用 VMware 安装虚拟机的话，我们已经配置好了一个能直接运行 rCore-Tutorial-v3 的 
-Ubuntu18.04 镜像，它是一个 ``vmdk`` 格式的虚拟磁盘文件，只需要在 VMware 中新建一台虚拟机，
-在设置虚拟磁盘的时候选择它即可。`百度网盘链接 <https://pan.baidu.com/s/1JzKjWivy9GZKK8rc3WMJ0g>`_ （提取码 x5mf ）
-或者 `清华云盘链接 <https://cloud.tsinghua.edu.cn/d/a9b7b0a1b4724c3f9c66/>`_ 。
-已经创建好用户 oslab ，密码为一个空格。它已经安装了中文输入法和 Markdown 编辑器 Typora 还有作为 Rust 集成开发环境的 
-Visual Studio Code，能够更容易完成实验并撰写实验报告。
+如果你打算使用 VMware 安装虚拟机的话，我们已经配置好了一个能直接运行 rCore-Tutorial-v3 的 Ubuntu18.04 镜像，它是一个 ``vmdk`` 格式的虚拟磁盘文件，只需要在 VMware 中新建一台虚拟机，在设置虚拟磁盘的时候选择它即可。`百度网盘链接 <https://pan.baidu.com/s/1JzKjWivy9GZKK8rc3WMJ0g>`_ （提取码 x5mf ）或者 `清华云盘链接 <https://cloud.tsinghua.edu.cn/d/a9b7b0a1b4724c3f9c66/>`_ 。已经创建好用户 oslab ，密码为一个空格。它已经安装了中文输入法和 Markdown 编辑器 Typora 还有作为 Rust 集成开发环境的 Visual Studio Code，能够更容易完成实验并撰写实验报告。如果想要使用 VMWare 安装 openEuler 虚拟机的话，可以在 `openEuler官网 <https://repo.openeuler.org/openEuler-20.03-LTS-SP2/ISO/>`_ 下载 ISO 自行安装，接着需要参考网络上的一些教程配置网络和安装图形界面。
 
 .. _link-docker-env:
 
@@ -69,9 +62,7 @@ Visual Studio Code，能够更容易完成实验并撰写实验报告。
    4. 通过 ``ls`` 可以发现 ``/mnt`` 目录下的内容和 ``rCore-Tutorial-v3`` 目录下的内容完全相同，接下来就可以在这个环境下运行 tutorial 了。例如 ``cd os && make run`` 。    
 
 
-你也可以在 Windows10/11 或 macOS 原生系统或者其他 Linux 发行版上进行实验，基本上不会出现太大的问题。不过由于
-时间问题我们主要在 Ubuntu18.04 上进行了测试，后面的配置也都是基于它的。如果遇到了问题的话，请在本节的讨论区
-中留言，我们会尽量帮助解决。
+你也可以在 Windows10/11 或 macOS 原生系统或者其他 Linux 发行版上进行实验，基本上不会出现太大的问题。不过由于时间问题我们主要在 Ubuntu18.04 上进行了测试，后面的配置也都是基于它的。如果遇到了问题的话，请在本节的讨论区中留言，我们会尽量帮助解决。
 
 Rust 开发环境配置
 -------------------------------------------
@@ -84,8 +75,7 @@ Rust 开发环境配置
 
 如果通过官方的脚本下载失败了，可以在浏览器的地址栏中输入 `<https://sh.rustup.rs>`_ 来下载脚本，在本地运行即可。
 
-如果官方的脚本在运行时出现了网络速度较慢的问题，可选地可以通过修改 rustup 的镜像地址
-（修改为中国科学技术大学的镜像服务器）来加速：
+如果官方的脚本在运行时出现了网络速度较慢的问题，可选地可以通过修改 rustup 的镜像地址（修改为中国科学技术大学的镜像服务器）来加速：
 
 .. code-block:: bash
    
@@ -110,8 +100,7 @@ Rust 开发环境配置
    export http_proxy=http://127.0.0.1:1080
    export ftp_proxy=http://127.0.0.1:1080
 
-安装完成后，我们可以重新打开一个终端来让之前设置的环境变量生效。我们也可以手动将环境变量设置应用到当前终端，
-只需要输入以下命令：
+安装完成后，我们可以重新打开一个终端来让之前设置的环境变量生效。我们也可以手动将环境变量设置应用到当前终端，只需要输入以下命令：
 
 .. code-block:: bash
 
@@ -141,8 +130,7 @@ Rust 开发环境配置
    rustup default nightly
 
 
-我们最好把软件包管理器 cargo 所用的软件包镜像地址 crates.io 也换成中国科学技术大学的镜像服务器来加速三方库的下载。
-我们打开（如果没有就新建） ``~/.cargo/config`` 文件，并把内容修改为：
+我们最好把软件包管理器 cargo 所用的软件包镜像地址 crates.io 也换成中国科学技术大学的镜像服务器来加速三方库的下载。我们打开（如果没有就新建） ``~/.cargo/config`` 文件，并把内容修改为：
 
 .. code-block:: toml
 
@@ -172,8 +160,7 @@ Rust 开发环境配置
    rustup component add rust-src
 
 .. warning::
-   如果你换了另外一个rustc编译器（必须是nightly版的），需要重新安装上述rustc所需软件包。
-   rCore-Tutorial 仓库中的 ``Makefile`` 包含了这些工具的安装，如果你使用 ``make run`` 也可以不手动安装。
+   如果你换了另外一个rustc编译器（必须是nightly版的），需要重新安装上述rustc所需软件包。rCore-Tutorial 仓库中的 ``Makefile`` 包含了这些工具的安装，如果你使用 ``make run`` 也可以不手动安装。
 
 至于 Rust 开发环境，推荐 JetBrains Clion + Rust插件 或者 Visual Studio Code 搭配 rust-analyzer 和 RISC-V Support 插件。
 
@@ -186,8 +173,7 @@ Rust 开发环境配置
 Qemu 模拟器安装
 ----------------------------------------
 
-我们需要使用 Qemu 5.0.0 版本进行实验，而很多 Linux 发行版的软件包管理器默认软件源中的 Qemu 版本过低，因此
-我们需要从源码手动编译安装 Qemu 模拟器。
+我们需要使用 Qemu 5.0.0 版本进行实验，而很多 Linux 发行版的软件包管理器默认软件源中的 Qemu 版本过低，因此我们需要从源码手动编译安装 Qemu 模拟器。下面以 Ubuntu 18.04 平台上的安装流程为例进行说明：
 
 .. warning::
 
@@ -222,12 +208,9 @@ Qemu 模拟器安装
      ``libglib2.0-dev`` 包；
    - 出现 ``ERROR: pixman >= 0.21.8 not present`` 时，可以安装 ``libpixman-1-dev`` 包。
 
-   另外一些 Linux 发行版编译 Qemu 的依赖包可以从 `这里 <https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html#prerequisites>`_ 
-   找到。
+   另外一些 Linux 发行版编译 Qemu 的依赖包可以从 `这里 <https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html#prerequisites>`_ 找到。
 
-之后我们可以在同目录下 ``sudo make install`` 将 Qemu 安装到 ``/usr/local/bin`` 目录下，但这样经常会引起
-冲突。个人来说更习惯的做法是，编辑 ``~/.bashrc`` 文件（如果使用的是默认的 ``bash`` 终端），在文件的末尾加入
-几行：
+之后我们可以在同目录下 ``sudo make install`` 将 Qemu 安装到 ``/usr/local/bin`` 目录下，但这样经常会引起冲突。个人来说更习惯的做法是，编辑 ``~/.bashrc`` 文件（如果使用的是默认的 ``bash`` 终端），在文件的末尾加入几行：
 
 .. code-block:: bash
 
@@ -244,6 +227,8 @@ Qemu 模拟器安装
 
    qemu-system-riscv64 --version
    qemu-riscv64 --version
+
+若要在 openEuler 上安装 Qemu，首先需要从 openEuler 社区维护的 Qemu 的 `riscv分支 <https://gitee.com/src-openeuler/qemu/tree/riscv/>`_ 下载 Qemu 源码，并直接通过 rpmbuild 进行构建。
 
 K210 真机串口通信
 ------------------------------
@@ -266,6 +251,8 @@ GDB 调试支持
 - `CentOS 平台 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-centos6.tar.gz>`_
 
 解压后在 ``bin`` 目录下即可找到 ``riscv64-unknown-elf-gdb`` 以及另外一些常用工具 ``objcopy/objdump/readelf`` 等。
+
+在 openEuler 平台上，则需要 clone `riscv 工具链仓库 <https://github.com/riscv-collab/riscv-gnu-toolchain>`_ 并参考其说明手动构建。
 
 运行 rCore-Tutorial-v3
 ------------------------------------------------------------
