@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>I/O设备 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -42,7 +41,7 @@ var addUtterances = () => {
     script.setAttribute("label", "comments");
     script.setAttribute("crossorigin", "anonymous");
 
-    sections = document.querySelectorAll("div > section");
+    sections = document.querySelectorAll("div.section");
     if (sections !== null) {
         section = sections[sections.length-1];
         section.appendChild(script);
@@ -73,7 +72,7 @@ commentsRunWhenDOMLoaded(addUtterances);
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
@@ -122,7 +121,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 </li>
 </ul>
-<p class="caption"><span class="caption-text">附录</span></p>
+<p class="caption" role="heading"><span class="caption-text">附录</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../final-lab.html">综合练习</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 系统编程入门</a></li>
@@ -132,7 +131,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../appendix-e/index.html">附录 E：操作系统进一步介绍</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
 </ul>
-<p class="caption"><span class="caption-text">开发注记</span></p>
+<p class="caption" role="heading"><span class="caption-text">开发注记</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
@@ -164,17 +163,17 @@ commentsRunWhenDOMLoaded(addUtterances);
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="i-o">
+  <div class="section" id="i-o">
 <h1>I/O设备<a class="headerlink" href="#i-o" title="永久链接至标题"></a></h1>
-<section id="id1">
+<div class="section" id="id1">
 <h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题"></a></h2>
 <p>本节问首先简单介绍了一下I/O设备的发展，可以看到设备越来越复杂，越来越多样化；然后进一步介绍了主要的I/O传输方式，这在后续的驱动程序中都会用上；最后介绍了历史上出现的几种I/O设备抽象，从而可以理解设备驱动程序的编程基础所在。</p>
-</section>
-<section id="id2">
+</div>
+<div class="section" id="id2">
 <h2>I/O设备概述<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
 <p>I/O设备从早期相对比较简单的串口、键盘和磁盘等，逐步发展壮大，已经形成种类繁多，不同领域的各种类型的设备大家庭。而各种设备之间功能不一，性能差异巨大，难以统一地进行管理，这使得对应I/O设备的设备驱动程序成为了操作系统中最繁杂的部分。</p>
 <p>站在不同的角度会对I/O设备有不同的理解。在硬件工程师看来，I/O设备就是一堆芯片、电源和其他电路的组合；而软件程序员则主要关注I/O设备为软件提供的接口（interface），即硬件能够接收的命令、能够完成的功能以及能产生的各种响应或错误等。操作系统重点关注的是如何对I/O设备进行管理，而不是其内部的硬件工作原理。然而，对许多I/O设备进行编程还是不可避免地涉及到其内部的硬件细节。如果对I/O设备的发展过程进行深入分析，是可以找到I/O设备的共性特点，从而可以更好地通过操作系统来管理I/O设备。</p>
-<section id="id3">
+<div class="section" id="id3">
 <h3>I/O设备的发展<a class="headerlink" href="#id3" title="永久链接至标题"></a></h3>
 <p>计算机的发展历史可体现为计算机硬件中各个部件的复杂度和集成度的变化发展过程。而在I/O设备变化过程，除了外设硬件的多样性越来越广和集成度越来越高以外，与CPU进行交互的能力也越来越强。在计算机发展过程中，I/O设备先后出现了很多，也消亡了不少。</p>
 <p>现在I/O设备的种类繁多，我们可以从数据传输的特点来给I/O设备进行分类。早期的UNIX把I/O设备分为两类：块设备（block device）和字符设备（character device）。块设备（比如磁盘）把信息存储在固定大小的块中，每个块有独立的地址。块的大小一般在0.5KB至32KB不等。块设备的I/O传输以一个或多个完整的（连续的）块为单位。另一类I/O设备是字符设备，字符设备（如串口，键盘等）以单个字符为单位发送或接收一个字符流。字符设备不需要寻址，只需访问I/O设备提供的相关接口即可获得/发出字符信息流。</p>
@@ -195,22 +194,22 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p><strong>高吞吐量设备</strong></p>
 <p>某些高性能外设（SSD，网卡等）的性能在逐步提高，如果每次中断产生的I/O数据传输量少，那么I/O设备（如硬盘/SSD等）要在短期内传输大量数据就会频繁中断CPU，导致中断处理的总体开销很大，系统效率会降低。通过DMA（Direct Memory Access，直接内存访问）控制器（如Intel推出8237DMA控制器等），可以让外设在CPU没有访问内存的时间段中，以数据块的方式进行外设和内存之间的数据传输，且不需要CPU的干预。这样I/O设备的传输效率就大大提高了。CPU只需在开始传送前发出DMA指令，并在外设结束DMA操作后响应其发出的中断信息即可。</p>
-</section>
-</section>
-<section id="id5">
+</div>
+</div>
+<div class="section" id="id5">
 <h2>I/O传输方式<a class="headerlink" href="#id5" title="永久链接至标题"></a></h2>
 <p>在上述的I/O设备发展过程可以看到， CPU主要有三种方式可以与外设进行数据传输：Programmed I/O (简称PIO)、Interrupt、Direct Memory Access (简称DMA)。</p>
-<section id="programmed-i-o">
+<div class="section" id="programmed-i-o">
 <h3>Programmed I/O<a class="headerlink" href="#programmed-i-o" title="永久链接至标题"></a></h3>
 <p>PIO指CPU通过发出I/O指令的方式来进行数据传输。PIO方式可以进一步细分为基于Memory-mapped的PIO（简称MMIO）和Port-mapped的PIO（简称PMIO），MMIO是将I/O设备物理地址映射到内存地址空间，这样CPU就可以通过普通访存指令将数据送到I/O设备在主存上的位置，从而完成数据传输。</p>
 <p>对于PMIO，I/O设备有自己独立的地址空间，CPU若要访问I/O设备，则需要使用特殊的I/O指令，如x86处理器中的 <code class="docutils literal notranslate"><span class="pre">IN</span></code> 、<code class="docutils literal notranslate"><span class="pre">OUT</span></code> 指令。CPU直接使用I/O指令就可以访问到对应的设备。</p>
-</section>
-<section id="interrupt-based-i-o">
+</div>
+<div class="section" id="interrupt-based-i-o">
 <h3>Interrupt based I/O<a class="headerlink" href="#interrupt-based-i-o" title="永久链接至标题"></a></h3>
 <p>如果采用PIO方式让CPU来获取外设的执行结果，那么这样的I/O软件中有一个CPU读外设相关寄存器的循环，直到CPU收到可继续执行I/O操作的外设信息后，CPU才能进一步做其它事情。当外设(如串口)的处理速度远低于CPU的时候，将使CPU处于不必要的忙等的低效状态中。</p>
 <p>中断机制的出现，极大地缓解了CPU的负担。CPU可通过PIO方式来通知外设，只要I/O设备有了CPU需要的数据，便会发出中断请求信号。CPU发完通知后，就可以继续执行与I/O设备无关的其它事情。中断控制器会检查I/O设备是否准备好进行传输数据，并发出中断请求信号给CPU。当CPU检测到中断信号，CPU会打断当前执行，并处理I/O传输。</p>
-</section>
-<section id="direct-memory-access">
+</div>
+<div class="section" id="direct-memory-access">
 <h3>Direct Memory Access<a class="headerlink" href="#direct-memory-access" title="永久链接至标题"></a></h3>
 <p>如果外设每传一个字节都要产生一次中断，那系统执行效率还是很低。DMA技术是指I/O设备可以在没有CPU参与的情况下完成大块数据的传输，使得CPU从I/O任务中解脱出来，从而提高了系统的整体性能。在后面的小节中，我们会进一步介绍基于I/O控制器的轮询，中断等方式的设备驱动的设计与实现。</p>
 <blockquote>
@@ -221,11 +220,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>在后续讲解的virtio-blk, virtio-gpu等模拟设备中，就是通过DMA来传输数据的。</p>
 </div>
 </div></blockquote>
-</section>
-</section>
-<section id="id6">
+</div>
+</div>
+<div class="section" id="id6">
 <h2>I/O设备抽象<a class="headerlink" href="#id6" title="永久链接至标题"></a></h2>
-<section id="id7">
+<div class="section" id="id7">
 <h3>I/O接口的交互协议<a class="headerlink" href="#id7" title="永久链接至标题"></a></h3>
 <p>对于一个外设而言，它包含了两部分重要组成部分。第一部分是对外向系统其他部分展现的设备I/O接口（hardware I/O interface），这样操作系统才能通过接口来管理控制外设。所有设备都有自己的特定接口以及典型交互的协议。第二部分是对内的内部结构，包含了设备相关物理实现。由于外在接口的多样性，使得操作系统难以统一管理外设。</p>
 <p>如果我们不考虑具体的设备，而是站在一个高度抽象的角度来让软件管理设备，那么我们就不用太关注设备的内部结构，而重点考虑设备的接口如何进行简化。其实一个简化的抽象设备接口需要包括三部分：状态、命令、数据。软件可以读取并查看设备的当前状态，从而根据设备当前状态决定下一步的I/O访问请求；而软件是通过一系列的命令来要求设备完成某个具体的I/O访问请求；在完成一个I/O访问请求中，会涉及到将数据传给设备或从设备接收数据。CPU与设备间的I/O接口的交互协议如下所示：</p>
@@ -239,18 +238,18 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="n">DATA</span><span class="w"> </span><span class="o">=</span><span class="w">  </span><span class="n">data</span><span class="p">;</span><span class="w">          </span><span class="c1">// 把数据传给设备</span>
 <span class="n">COMMAND</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">command</span><span class="p">;</span><span class="w">     </span><span class="c1">// 发命令给设备</span>
 <span class="n">do_otherwork</span><span class="p">();</span><span class="w">        </span><span class="c1">// 做其它事情</span>
-<span class="o">..</span><span class="p">.</span><span class="w">                    </span><span class="c1">// I/O设备完成I/O操作，并产生中断</span>
-<span class="o">..</span><span class="p">.</span><span class="w">                    </span><span class="c1">// CPU执行被打断以响应中断</span>
+<span class="p">...</span><span class="w">                    </span><span class="c1">// I/O设备完成I/O操作，并产生中断</span>
+<span class="p">...</span><span class="w">                    </span><span class="c1">// CPU执行被打断以响应中断</span>
 <span class="n">trap_handler</span><span class="p">();</span><span class="w">        </span><span class="c1">// 执行中断处理例程中的相关I/O中断处理</span>
 <span class="n">restore_do_otherwork</span><span class="p">();</span><span class="c1">// 恢复CPU之前被打断的执行</span>
-<span class="o">..</span><span class="p">.</span><span class="w">                    </span><span class="c1">// 可继续进行I/O操作</span>
+<span class="p">...</span><span class="w">                    </span><span class="c1">// 可继续进行I/O操作</span>
 </pre></div>
 </div>
 <p>中断机制允许CPU的高速计算与外设的慢速I/O操作可以重叠（overlap），CPU不用花费时间等待外设执行的完成，这样就形成CPU与外设的并行执行，这是提高CPU利用率和系统效率的关键。</p>
 <p>站在软件的角度来看，为提高一大块数据传输效率引入的DMA机制并没有改变抽象设备接口的四个部分。仅仅是上面协议伪码中的 <code class="docutils literal notranslate"><span class="pre">data</span></code> 变成了  <code class="docutils literal notranslate"><span class="pre">data</span> <span class="pre">block</span></code> 。这样传输单个数据产生的中断频度会大大降低，从而进一步提高CPU利用率和系统效率。</p>
 <p>这里描述了站在软件角度上的抽象设备接口的交互协议。如果站在操作系统的角度，还需把这种设备抽象稍微再具体一点，从而能够在操作系统中实现对设备的管理。</p>
-</section>
-<section id="id8">
+</div>
+<div class="section" id="id8">
 <h3>基于文件的I/O设备抽象<a class="headerlink" href="#id8" title="永久链接至标题"></a></h3>
 <p>计算机专家为此进行了诸多的探索，希望能给I/O设备提供一个统一的抽象。首先是把本来专门针对存储类I/O设备的文件进行扩展，认为所有的I/O设备都是文件，这就是传统UNIX中常见的设备文件。所有的I/O设备按照文件的方式进行处理。你可以在Linux下执行如下命令，看到各种各样的设备文件：</p>
 <div class="highlight-Shell notranslate"><div class="highlight"><pre><span></span>$ ls /dev
@@ -260,8 +259,8 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 <p>这些设备按照文件的访问接口（即 <code class="docutils literal notranslate"><span class="pre">open/close/read/write</span></code> ）来进行处理。但由于各种设备的功能繁多，仅仅靠 <code class="docutils literal notranslate"><span class="pre">read/write</span></code> 这样的方式很难有效地与设备交互。于是UNIX的后续设计者提出了一个非常特别的系统调用 <code class="docutils literal notranslate"><span class="pre">ioctl</span></code> ，即 <code class="docutils literal notranslate"><span class="pre">input/output</span> <span class="pre">control</span></code> 的含义。它是一个专用于设备输入输出操作的系统调用,该调用传入一个跟设备有关的请求码，系统调用的功能完全取决于设备驱动程序对请求码的解读和处理。比如，CD-ROM驱动程序可以弹出光驱，于是操作系统就可以设定一个ioctl的请求码来对应这种操作。当应用程序发出带有CD-ROM设备文件描述符和 <strong>弹出光驱</strong> 请求码这两个参数的 <code class="docutils literal notranslate"><span class="pre">ioctl</span></code> 系统调用请求后，操作系统中的CD-ROM驱动程序会识别出这个请求码，并进行弹出光驱的I/O操作。</p>
 <p><code class="docutils literal notranslate"><span class="pre">ioctl</span></code> 这名字第一次出现在Unix第七版中，他在很多类unix系统（比如Linux、Mac OSX等）都有提供，不过不同系统的请求码对应的设备有所不同。Microsoft Windows在Win32 API里提供了相似的函数，叫做DeviceIoControl。</p>
 <p>表面上看，基于设备文件的设备管理得到了大部分通用操作系统的支持，且这种 <code class="docutils literal notranslate"><span class="pre">ioctl</span></code> 系统调用很灵活，但它的问题是太灵活了，请求码的定义无规律可循，文件的接口太面向用户应用，并没有挖掘出操作系统在进行I/O设备处理过程中的共性特征。所以文件这个抽象还不足覆盖到操作系统对设备进行管理的整个执行过程中。</p>
-</section>
-<section id="id9">
+</div>
+<div class="section" id="id9">
 <h3>基于流的I/O设备抽象<a class="headerlink" href="#id9" title="永久链接至标题"></a></h3>
 <p>在UNIX操作系统的发展的过程中，出现了网络等更加复杂的设备，也随之出现了 <code class="docutils literal notranslate"><span class="pre">流</span> <span class="pre">stream</span></code> 这样的面向I/O设备管理的抽象。Dennis M. Ritchie在1984年写了一个技术报告“A Stream Input-Output System”，详细介绍了基于流的I/O设备的抽象设计。现在看起来，是希望把UNIX中的管道（pipe）机制拓展到内核的设备驱动中。</p>
 <p>流是用户进程和设备或伪设备之间的全双工连接。它由几个线性连接的处理模块（module）组成，类似于一个shell程序中的管道（pipe），只是数据双向流动。流中的模块通过向邻居模块传递消息来进行通信。除了一些用于流量控制的常规变量，模块不需要访问其邻居模块的其他数据。此外，一个模块只为每个邻居提供一个入口点，即一个接受消息的例程。</p>
@@ -271,8 +270,8 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 <p>每个流处理模块由一对队列（queue）组成，每个方向一个队列。队列不仅包括数据队列本身，还包括两个例程和一些状态信息。一个是put例程，它由邻居模块调用以将消息放入数据队列中。另一个是服务（service）例程，被安排在有工作要做的时候执行。状态信息包括指向下游下一个队列的指针、各种标志以及指向队列实例化所需的附加状态信息的指针。</p>
 <img alt="../_images/stream-queue.png" class="align-center" id="stream-queue" src="../_images/stream-queue.png" />
 <p>虽然基于流的I/O设备抽象看起来很不错，但并没有在其它操作系统中推广开来。其中的一个原因是UNIX在当时还是一个曲高和寡的高端软件系统，运行在高端的工作站和服务器上，支持的外设有限。而Windows这样的操作系统与Intel的x86形成了wintel联盟，在个人计算机市场被广泛使用，并带动了而多媒体，GUI等相关外设的广泛发展，Windows操作系统并没有采用流的I/O设备抽象，而是针对每类设备定义了一套Device Driver API接口，提交给外设厂商，让外设厂商写好相关的驱动程序，并加入到Windows操作系统中。这种相对实用的做法再加上微软的号召力让各种外设得到了Windows操作系统的支持，但也埋下了标准不统一，容易包含bug的隐患。</p>
-</section>
-<section id="virtioi-o">
+</div>
+<div class="section" id="virtioi-o">
 <h3>基于virtio的I/O设备抽象<a class="headerlink" href="#virtioi-o" title="永久链接至标题"></a></h3>
 <p>对于操作系统如何有效管理I/O设备的相关探索还在继续，但环境已经有所变化。随着互联网和云计算的兴起，在数据中心的物理服务器上通过虚拟机技术（Virtual Machine Monitor， Hypervisor等），运行多个虚拟机（Virtual Machine），并在虚拟机中运行guest操作系统的模式成为一种主流。但当时存在多种虚拟机技术，如Xen、VMware、KVM等，要支持虚拟化x86、Power等不同的处理器和各种具体的外设，并都要求让以Linux为代表的guest OS能在其上高效的运行。这对于虚拟机和操作系统来说，实在是太繁琐和困难了。</p>
 <p>IBM资深工程师 Rusty Russell 在开发Lguest（Linux 内核中的的一个hypervisor（一种高效的虚拟计算机的系统软件）)时，深感写模拟计算机中的高效虚拟I/O设备的困难，且编写I/O设备的驱动程序繁杂且很难形成一种统一的表示。于是他经过仔细琢磨，提出了一组通用I/O设备的抽象 – virtio规范。虚拟机（VMM或Hypervisor）提供virtio设备的实现，virtio设备有着统一的virtio接口，guest操作系统只要能够实现这些通用的接口，就可以管理和控制各种virtio设备。而虚拟机与guest操作系统的virtio设备驱动程序间的通道是基于共享内存的异步访问方式来实现的，效率很高。虚拟机会进一步把相关的virtio设备的I/O操作转换成物理机上的物理外设的I/O操作。这就完成了整个I/O处理过程。</p>
@@ -284,9 +283,9 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 <p class="admonition-title">注解</p>
 <p>Rusty Russell工程师在2008年在“ACM SIGOPS Operating Systems Review”期刊上发表了一篇论文“virtio: towards a de-facto standard for virtual I/O devices”，提出了给虚拟环境（Virtual Machine）中的操作系统提供一套统一的设备抽象，这样操作系统针对每类设备只需写一种驱动程序就可以了，这极大降低了系统虚拟机（Virtual Machine Monitor）和Hypervisor，以及运行在它们提供的虚拟环境中的操作系统的开发成本，且可以显著提高I/O的执行效率。目前virtio已经有相应的规范，最新的virtio spec版本是v1.1。</p>
 </div>
-</section>
-</section>
-<section id="id10">
+</div>
+</div>
+<div class="section" id="id10">
 <h2>I/O执行模型<a class="headerlink" href="#id10" title="永久链接至标题"></a></h2>
 <p>从用户进程的角度看，用户进程是通过I/O相关的系统调用（简称I/O系统调用）来进行I/O操作的。在UNIX环境中，I/O系统调用有多种不同类型的执行模型。根据Richard Stevens的经典书籍“UNIX Network Programming Volume 1: The Sockets Networking ”的6.2节“I/O Models ”的介绍，大致可以分为五种I/O执行模型(I/O Execution Model，简称IO Model, IO模型)：</p>
 <ul class="simple">
@@ -311,7 +310,7 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 <li><p>同步：用户进程与操作系统（设备驱动）之间的操作是经过双方协调的，步调一致的</p></li>
 <li><p>异步：用户进程与操作系统（设备驱动）之间并不需要协调，都可以随意进行各自的操作</p></li>
 </ul>
-<section id="io-blocking-io">
+<div class="section" id="io-blocking-io">
 <h3>阻塞IO（blocking IO）<a class="headerlink" href="#io-blocking-io" title="永久链接至标题"></a></h3>
 <p>基于阻塞IO模型的文件读系统调用 – <code class="docutils literal notranslate"><span class="pre">read</span></code> 的执行过程是：</p>
 <ol class="arabic simple">
@@ -322,8 +321,8 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 </ol>
 <p>所以阻塞IO（blocking IO）的特点就是用户进程在I/O执行的两个阶段（等待数据和拷贝数据两个阶段）都是阻塞的。</p>
 <p>当然，如果正好用户进程所需数据位于内存中，那么内核会把数据从I/O缓冲区拷贝到用户进程的buffer中，并从内核态返回到用户态的进程， <code class="docutils literal notranslate"><span class="pre">read</span></code> 系统调用完成。这个由于I/O缓冲带了的优化结果不会让用户进程处于阻塞状态。</p>
-</section>
-<section id="io-non-blocking-io">
+</div>
+<div class="section" id="io-non-blocking-io">
 <h3>非阻塞IO（non-blocking IO）<a class="headerlink" href="#io-non-blocking-io" title="永久链接至标题"></a></h3>
 <p>基于非阻塞IO模型的文件读系统调用 – <code class="docutils literal notranslate"><span class="pre">read</span></code> 的执行过程是：</p>
 <ol class="arabic simple">
@@ -335,17 +334,17 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 </ol>
 <p>所以，在非阻塞式IO的特点是用户进程不会被内核阻塞，而是需要用户进程不断的主动询问内核所需数据准备好了没有。非阻塞系统调用相比于阻塞系统调用的的差异在于在被调用之后会立即返回。</p>
 <p>使用系统调用 <code class="docutils literal notranslate"><span class="pre">fcntl(</span> <span class="pre">fd,</span> <span class="pre">F_SETFL,</span> <span class="pre">O_NONBLOCK</span> <span class="pre">)</span></code> 可以将对某文件句柄 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 进行的读写访问设为非阻塞IO模型的读写访问。</p>
-</section>
-<section id="io-io-multiplexing">
+</div>
+<div class="section" id="io-io-multiplexing">
 <h3>多路复用IO（IO multiplexing）<a class="headerlink" href="#io-io-multiplexing" title="永久链接至标题"></a></h3>
 <p>IO multiplexing对应的I/O系统调用是 <code class="docutils literal notranslate"><span class="pre">select</span></code> 和 <code class="docutils literal notranslate"><span class="pre">epoll</span></code> 等，也称这种IO方式为事件驱动IO(event driven IO)。 <code class="docutils literal notranslate"><span class="pre">select</span></code> 和 <code class="docutils literal notranslate"><span class="pre">epoll</span></code> 的优势在于，采用单进程方式就可以同时处理多个文件或网络连接的I/O操作。其基本工作机制就是通过 <code class="docutils literal notranslate"><span class="pre">select</span></code> 或 <code class="docutils literal notranslate"><span class="pre">epoll</span></code> 系统调用来不断的轮询用户进程关注的所有文件句柄或socket，当某个文件句柄或socket有数据到达了，<code class="docutils literal notranslate"><span class="pre">select</span></code> 或 <code class="docutils literal notranslate"><span class="pre">epoll</span></code> 系统调用就会返回到用户进程，用户进程再调用 <code class="docutils literal notranslate"><span class="pre">read</span></code> 系统调用，让内核将数据从内核的I/O缓冲区拷贝到用户进程的buffer中。</p>
 <p>在多路复用IO模型中，对于用户进程关注的每一个文件句柄或socket，一般都设置成为non-blocking，只是用户进程是被 <code class="docutils literal notranslate"><span class="pre">select</span></code> 或 <code class="docutils literal notranslate"><span class="pre">epoll</span></code> 系统调用阻塞住了。<code class="docutils literal notranslate"><span class="pre">select/epoll</span></code> 的优势并不会导致单个文件或socket的I/O访问性能更好，而是在有很多个文件或socket的I/O访问情况下，其总体效率会高。</p>
-</section>
-<section id="io-signal-driven-i-o">
+</div>
+<div class="section" id="io-signal-driven-i-o">
 <h3>信号驱动IO（signal driven I/O）<a class="headerlink" href="#io-signal-driven-i-o" title="永久链接至标题"></a></h3>
 <p>当进程发出一个 <code class="docutils literal notranslate"><span class="pre">read</span></code> 系统调用时，会向内核注册一个信号处理函数，然后系统调用返回。进程不会被阻塞，而是继续执行。当内核中的IO数据就绪时，会发送一个信号给进程，进程便在信号处理函数中调用IO读取数据。此模型的特点是，采用了回调机制，这样开发和调试应用的难度加大。</p>
-</section>
-<section id="io-asynchronous-i-o">
+</div>
+<div class="section" id="io-asynchronous-i-o">
 <h3>异步IO（Asynchronous I/O）<a class="headerlink" href="#io-asynchronous-i-o" title="永久链接至标题"></a></h3>
 <p>用户进程发起 <code class="docutils literal notranslate"><span class="pre">read</span></code> 异步系统调用之后，立刻就可以开始去做其它的事。而另一方面，从内核的角度看，当它收到一个 <code class="docutils literal notranslate"><span class="pre">read</span></code> 异步系统调用之后，首先它会立刻返回，所以不会对用户进程产生任何阻塞情况。然后，kernel会等待数据准备完成，然后将数据拷贝到用户内存，当这一切都完成之后，kernel会通知用户进程，告诉它read操作完成了。</p>
 <div class="admonition note">
@@ -353,8 +352,8 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 <p><strong>Linux异步IO的历史</strong></p>
 <p>2003年，Suparna Bhattacharya提出了AIO在Linux kernel的设计方案，里面谈到了用Full async state machine模型来避免阻塞，把一系列的阻塞点用状态机来驱动，把用户态的buffer映射到内核来驱动，这个模型被应用到Linux kernel 2.4中。在出现io_uring 之前，虽然还出现了一系列的异步IO的探索（syslet、LCA、FSAIO、AIO-epoll等），但性能一般，实现和使用复杂，应该说Linux没有提供完善的异步IO(网络IO、磁盘IO)机制。io_uring 是由 Jens Axboe提供的异步 I/O 接口，io_uring围绕高效进行设计，采用一对共享内存ringbuffer用于应用和内核间通信，避免内存拷贝和系统调用。io_uring的实现于 2019 年 5 月合并到了 Linux kernel 5.1 中，现在已经在多个项目中被使用。</p>
 </div>
-</section>
-<section id="io">
+</div>
+<div class="section" id="io">
 <h3>五种IO执行模型对比<a class="headerlink" href="#io" title="永久链接至标题"></a></h3>
 <p>这里总结一下阻塞IO、非阻塞IO、同步IO、异步IO的特点：</p>
 <ul class="simple">
@@ -372,9 +371,9 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 <dd><p>Jeffrey Mogul and K. K. Ramakrishnan, Eliminating Receive Livelock in an Interrupt-driven Kernel, USENIX ATC 1996, San Diego, CA, January 1996</p>
 </dd>
 </dl>
-</section>
-</section>
-</section>
+</div>
+</div>
+</div>
 
 
            </div>

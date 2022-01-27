@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>任务切换 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -42,7 +41,7 @@ var addUtterances = () => {
     script.setAttribute("label", "comments");
     script.setAttribute("crossorigin", "anonymous");
 
-    sections = document.querySelectorAll("div > section");
+    sections = document.querySelectorAll("div.section");
     if (sections !== null) {
         section = sections[sections.length-1];
         section.appendChild(script);
@@ -73,7 +72,7 @@ commentsRunWhenDOMLoaded(addUtterances);
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
@@ -100,7 +99,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter8/index.html">第八章：并发</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter9/index.html">第九章：I/O设备管理</a></li>
 </ul>
-<p class="caption"><span class="caption-text">附录</span></p>
+<p class="caption" role="heading"><span class="caption-text">附录</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../final-lab.html">综合练习</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 系统编程入门</a></li>
@@ -110,7 +109,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../appendix-e/index.html">附录 E：操作系统进一步介绍</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
 </ul>
-<p class="caption"><span class="caption-text">开发注记</span></p>
+<p class="caption" role="heading"><span class="caption-text">开发注记</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
@@ -142,15 +141,15 @@ commentsRunWhenDOMLoaded(addUtterances);
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="id1">
+  <div class="section" id="id1">
 <h1>任务切换<a class="headerlink" href="#id1" title="永久链接至标题"></a></h1>
-<section id="id2">
+<div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
 <p>在上一节实现的二叠纪“锯齿螈”操作系统还是比较原始，一个应用会独占 CPU 直到它出错或主动退出。操作系统还是以程序的一次执行过程（从开始到结束）作为处理器切换程序的时间段。为了提高效率，我们需要引入新的操作系统概念 <strong>任务</strong> 、 <strong>任务切换</strong> 、<strong>任务上下文</strong> 。为此，我们需要实现从“螈”到“恐龙”的进化，实现“始初龙”操作系统。</p>
 <p>如果把应用程序执行的整个过程进行进一步分析，可以看到，当程序访问 I/O 外设或睡眠时，其实是不需要占用处理器的，于是我们可以把应用程序在不同时间段的执行过程分为两类，占用处理器执行有效任务的计算阶段和不必占用处理器的等待阶段。这些阶段就形成了一个我们熟悉的“暂停-继续…”组合的控制流或执行历史。从应用程序开始执行到结束的整个控制流就是应用程序的整个执行过程。</p>
 <p>本节的重点是操作系统的核心机制—— <strong>任务切换</strong> 。 任务切换支持的场景是：一个应用在运行途中便会主动或被动交出 CPU 的使用权，此时它只能暂停执行，等到内核重新给它分配处理器资源之后才能恢复并继续执行。有了任务切换的能力，“螈”级的操作系统才能跳出水坑，进入陆地，才有能力进化到“恐龙”级的操作系统。</p>
-</section>
-<section id="id3">
+</div>
+<div class="section" id="id3">
 <h2>任务的概念形成<a class="headerlink" href="#id3" title="永久链接至标题"></a></h2>
 <p>如果操作系统能够在某个应用程序处于等待阶段的时候，把处理器转给另外一个处于计算阶段的应用程序，那么只要转换的开销不大，那么处理器的执行效率就会大大提高。当然，这需要应用程序在运行途中能主动交出 CPU 的使用权，此时它处于等待阶段，等到操作系统让它再次执行后，那它就可以继续执行了。</p>
 <p id="term-task-switch"><span id="term-task"></span>到这里，我们就把应用程序的一次执行过程（也是一段控制流）称为一个 <strong>任务</strong> ，把应用执行过程中的一个时间片段上的执行片段或空闲片段称为 “ <strong>计算任务片</strong> ” 或“ <strong>空闲任务片</strong> ” 。但应用程序的所有任务片都完成后，应用程序的一次任务也就完成了。从一个程序的任务切换到另外一个程序的任务称为 <strong>任务切换</strong> 。为了确保切换后的任务能够正确继续执行，操作系统需要支持让任务的执行“暂停”和“继续”。</p>
@@ -160,8 +159,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p><strong>抽象与具体</strong></p>
 <p>注意：同学会在具体的操作系统设计实现过程中接触到一些抽象的概念，其实这些概念都是具体代码的结构和代码动态执行过程的文字表述而已。</p>
 </div>
-</section>
-<section id="id4">
+</div>
+<div class="section" id="id4">
 <h2>不同类型的上下文与切换<a class="headerlink" href="#id4" title="永久链接至标题"></a></h2>
 <p>在控制流切换过程中，我们需要结合硬件机制和软件实现来保存和恢复任务上下文。任务的一次切换涉及到被换出和即将被换入的两条控制流（分属两个应用的不同任务），通常它们都需要共同遵循某些约定来合作完成这一过程。在前两章，我们已经看到了两种上下文保存/恢复的实例。让我们再来回顾一下它们：</p>
 <ul class="simple">
@@ -169,8 +168,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>第二章“批处理系统”中第一次涉及到了某种异常（Trap）控制流，即两条控制流的特权级切换，需要保存和恢复 <a class="reference internal" href="../chapter2/4trap-handling.html#term-trap-context"><span class="std std-ref">系统调用（Trap）上下文</span></a> 。当时，为了让内核能够 <em>完全掌控</em> 应用的执行，且不会被应用破坏整个系统，我们必须利用硬件提供的特权级机制，让应用和内核运行在不同的特权级。应用运行在 U 特权级，它所被允许的操作进一步受限，处处被内核监督管理；而内核运行在 S 特权级，有能力处理应用执行过程中提出的请求或遇到的状况。</p></li>
 </ul>
 <p>应用程序与操作系统打交道的核心在于硬件提供的 Trap 机制，也就是在 U 特权级运行的应用控制流和在 S 特权级运行的 Trap 控制流（操作系统的陷入处理部分）之间的切换。Trap 控制流是在 Trap 触发的一瞬间生成的，它和原应用控制流有着很密切的联系，因为它几乎唯一的目标就是处理 Trap 并恢复到原应用控制流。而且，由于 Trap 机制对于应用来说几乎是透明的，所以基本上都是 Trap 控制流在“负重前行”。Trap 控制流需要把 Trap 上下文（即几乎所有的通用寄存器）保存在自己的内核栈上，因为在 Trap 处理过程中所有的通用寄存器都可能被用到。可以回看 <a class="reference internal" href="../chapter2/4trap-handling.html#trap-context-save-restore"><span class="std std-ref">Trap 上下文保存与恢复</span></a> 小节。</p>
-</section>
-<section id="term-task-switch-impl">
+</div>
+<div class="section" id="term-task-switch-impl">
 <span id="id5"></span><h2>任务切换的设计与实现<a class="headerlink" href="#term-task-switch-impl" title="永久链接至标题"></a></h2>
 <p>本节所讲的任务切换是第二章提及的 Trap 控制流切换之外的另一种异常控制流，都是描述两条控制流之间的切换，如果将它和 Trap 切换进行比较，会有如下异同：</p>
 <ul class="simple">
@@ -182,8 +181,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <img alt="../_images/task-context.png" src="../_images/task-context.png" />
 <p>当 Trap 控制流准备调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数使任务从运行状态进入暂停状态的时候，让我们考察一下它内核栈上的情况。如上图左侧所示，在准备调用 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数之前，内核栈上从栈底到栈顶分别是保存了应用执行状态的 Trap 上下文以及内核在对 Trap 处理的过程中留下的调用栈信息。由于之后还要恢复回来执行，我们必须保存 CPU 当前的某些寄存器，我们称它们为 <strong>任务上下文</strong> (Task Context)。我们会在稍后介绍里面需要包含哪些寄存器。至于上下文保存的位置，下一节在我们会介绍任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> ，在里面能找到一个数组 <code class="docutils literal notranslate"><span class="pre">tasks</span></code> ，其中的每一项都是一个任务控制块即 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> ，它负责保存一个任务的状态，而任务上下文 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 被保存在任务控制块中。在内核运行时我们会初始化 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 的全局实例 <code class="docutils literal notranslate"><span class="pre">TASK_MANAGER</span></code> ，因此所有任务上下文实际保存在在 <code class="docutils literal notranslate"><span class="pre">TASK_MANAGER</span></code> 中，从内存布局来看则是放在内核的全局数据 <code class="docutils literal notranslate"><span class="pre">.data</span></code> 段中。当我们将任务上下文保存完毕之后则转化为下图右侧的状态。当要从其他任务切换回来继续执行这个任务的时候，CPU 会读取同样的位置并从中恢复任务上下文。</p>
 <p>对于当前正在执行的任务的 Trap 控制流，我们用一个名为 <code class="docutils literal notranslate"><span class="pre">current_task_cx_ptr</span></code> 的变量来保存放置当前任务上下文的地址；而用 <code class="docutils literal notranslate"><span class="pre">next_task_cx_ptr</span></code> 的变量来保存放置下一个要执行任务的上下文的地址。利用 C 语言的引用来描述的话就是：</p>
-<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">TaskContext</span><span class="w"> </span><span class="o">*</span><span class="n">current_task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">tasks</span><span class="p">[</span><span class="n">current</span><span class="p">].</span><span class="n">task_cx</span><span class="p">;</span><span class="w"></span>
-<span class="n">TaskContext</span><span class="w"> </span><span class="o">*</span><span class="n">next_task_cx_ptr</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">tasks</span><span class="p">[</span><span class="n">next</span><span class="p">].</span><span class="n">task_cx</span><span class="p">;</span><span class="w"></span>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">TaskContext</span> <span class="o">*</span><span class="n">current_task_cx_ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">tasks</span><span class="p">[</span><span class="n">current</span><span class="p">].</span><span class="n">task_cx</span><span class="p">;</span>
+<span class="n">TaskContext</span> <span class="o">*</span><span class="n">next_task_cx_ptr</span>    <span class="o">=</span> <span class="o">&amp;</span><span class="n">tasks</span><span class="p">[</span><span class="n">next</span><span class="p">].</span><span class="n">task_cx</span><span class="p">;</span>
 </pre></div>
 </div>
 <p>接下来我们同样从栈上内容的角度来看 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的整体流程：</p>
@@ -197,78 +196,78 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>从结果来看，我们看到 A 控制流 和 B 控制流的状态发生了互换， A 在保存任务上下文之后进入暂停状态，而 B 则恢复了上下文并在 CPU 上继续执行。</p>
 <p>下面我们给出 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的实现：</p>
-<div class="highlight-riscv notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c"># os/src/task/switch.S</span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="nf">.altmacro</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="nf">.macro</span><span class="w"> </span><span class="nb">SAVE_SN</span><span class="w"> </span><span class="ni">n</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="no">s</span>\<span class="ni">n</span>,<span class="w"> </span>(\<span class="ni">n</span>+<span class="m">2</span>)*<span class="m">8</span>(<span class="na">a0</span>)<span class="w"></span>
-<span class="linenos"> 6</span><span class="nf">.endm</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="nf">.macro</span><span class="w"> </span><span class="nb">LOAD_SN</span><span class="w"> </span><span class="ni">n</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="no">s</span>\<span class="ni">n</span>,<span class="w"> </span>(\<span class="ni">n</span>+<span class="m">2</span>)*<span class="m">8</span>(<span class="na">a1</span>)<span class="w"></span>
-<span class="linenos"> 9</span><span class="nf">.endm</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="nf">.section</span><span class="w"> </span><span class="nf">.text</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="nf">.globl</span><span class="w"> </span><span class="nb">__switch</span><span class="w"></span>
-<span class="linenos">12</span><span class="nb">__switch:</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="c"># 阶段 [1]</span>
-<span class="linenos">14</span><span class="w">    </span><span class="c"># __switch(</span>
-<span class="linenos">15</span><span class="w">    </span><span class="c">#     current_task_cx_ptr: *mut TaskContext,</span>
-<span class="linenos">16</span><span class="w">    </span><span class="c">#     next_task_cx_ptr: *const TaskContext</span>
-<span class="linenos">17</span><span class="w">    </span><span class="c"># )</span>
-<span class="linenos">18</span><span class="w">    </span><span class="c"># 阶段 [2]</span>
-<span class="linenos">19</span><span class="w">    </span><span class="c"># save kernel stack of current task</span>
-<span class="linenos">20</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">8</span>(<span class="na">a0</span>)<span class="w"></span>
-<span class="linenos">21</span><span class="w">    </span><span class="c"># save ra &amp; s0~s11 of current execution</span>
-<span class="linenos">22</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">ra</span>,<span class="w"> </span><span class="m">0</span>(<span class="na">a0</span>)<span class="w"></span>
-<span class="linenos">23</span><span class="w">    </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="m">0</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">    </span><span class="nf">.rept</span><span class="w"> </span><span class="m">12</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">        </span><span class="nb">SAVE_SN</span><span class="w"> </span>%<span class="ni">n</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">        </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="ni">n</span><span class="w"> </span>+<span class="w"> </span><span class="m">1</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">    </span><span class="nf">.endr</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">    </span><span class="c"># 阶段 [3]</span>
-<span class="linenos">29</span><span class="w">    </span><span class="c"># restore ra &amp; s0~s11 of next execution</span>
-<span class="linenos">30</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">ra</span>,<span class="w"> </span><span class="m">0</span>(<span class="na">a1</span>)<span class="w"></span>
-<span class="linenos">31</span><span class="w">    </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="m">0</span><span class="w"></span>
-<span class="linenos">32</span><span class="w">    </span><span class="nf">.rept</span><span class="w"> </span><span class="m">12</span><span class="w"></span>
-<span class="linenos">33</span><span class="w">        </span><span class="nb">LOAD_SN</span><span class="w"> </span>%<span class="ni">n</span><span class="w"></span>
-<span class="linenos">34</span><span class="w">        </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="ni">n</span><span class="w"> </span>+<span class="w"> </span><span class="m">1</span><span class="w"></span>
-<span class="linenos">35</span><span class="w">    </span><span class="nf">.endr</span><span class="w"></span>
-<span class="linenos">36</span><span class="w">    </span><span class="c"># restore kernel stack of next task</span>
-<span class="linenos">37</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">8</span>(<span class="na">a1</span>)<span class="w"></span>
-<span class="linenos">38</span><span class="w">    </span><span class="c"># 阶段 [4]</span>
-<span class="linenos">39</span><span class="w">    </span><span class="nd">ret</span><span class="w"></span>
+<div class="highlight-riscv notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c"># os/src/task/switch.S</span>
+<span class="lineno"> 2 </span>
+<span class="lineno"> 3 </span><span class="nf">.altmacro</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="nf">.macro</span><span class="w"> </span><span class="nb">SAVE_SN</span><span class="w"> </span><span class="ni">n</span><span class="w"></span>
+<span class="lineno"> 5 </span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="no">s</span>\<span class="ni">n</span>,<span class="w"> </span>(\<span class="ni">n</span>+<span class="m">2</span>)*<span class="m">8</span>(<span class="na">a0</span>)<span class="w"></span>
+<span class="lineno"> 6 </span><span class="nf">.endm</span><span class="w"></span>
+<span class="lineno"> 7 </span><span class="nf">.macro</span><span class="w"> </span><span class="nb">LOAD_SN</span><span class="w"> </span><span class="ni">n</span><span class="w"></span>
+<span class="lineno"> 8 </span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="no">s</span>\<span class="ni">n</span>,<span class="w"> </span>(\<span class="ni">n</span>+<span class="m">2</span>)*<span class="m">8</span>(<span class="na">a1</span>)<span class="w"></span>
+<span class="lineno"> 9 </span><span class="nf">.endm</span><span class="w"></span>
+<span class="lineno">10 </span><span class="w">    </span><span class="nf">.section</span><span class="w"> </span><span class="nf">.text</span><span class="w"></span>
+<span class="lineno">11 </span><span class="w">    </span><span class="nf">.globl</span><span class="w"> </span><span class="nb">__switch</span><span class="w"></span>
+<span class="lineno">12 </span><span class="nb">__switch:</span><span class="w"></span>
+<span class="lineno">13 </span><span class="w">    </span><span class="c"># 阶段 [1]</span>
+<span class="lineno">14 </span><span class="w">    </span><span class="c"># __switch(</span>
+<span class="lineno">15 </span><span class="w">    </span><span class="c">#     current_task_cx_ptr: *mut TaskContext,</span>
+<span class="lineno">16 </span><span class="w">    </span><span class="c">#     next_task_cx_ptr: *const TaskContext</span>
+<span class="lineno">17 </span><span class="w">    </span><span class="c"># )</span>
+<span class="lineno">18 </span><span class="w">    </span><span class="c"># 阶段 [2]</span>
+<span class="lineno">19 </span><span class="w">    </span><span class="c"># save kernel stack of current task</span>
+<span class="lineno">20 </span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">8</span>(<span class="na">a0</span>)<span class="w"></span>
+<span class="lineno">21 </span><span class="w">    </span><span class="c"># save ra &amp; s0~s11 of current execution</span>
+<span class="lineno">22 </span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">ra</span>,<span class="w"> </span><span class="m">0</span>(<span class="na">a0</span>)<span class="w"></span>
+<span class="lineno">23 </span><span class="w">    </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="m">0</span><span class="w"></span>
+<span class="lineno">24 </span><span class="w">    </span><span class="nf">.rept</span><span class="w"> </span><span class="m">12</span><span class="w"></span>
+<span class="lineno">25 </span><span class="w">        </span><span class="nb">SAVE_SN</span><span class="w"> </span>%<span class="ni">n</span><span class="w"></span>
+<span class="lineno">26 </span><span class="w">        </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="ni">n</span><span class="w"> </span>+<span class="w"> </span><span class="m">1</span><span class="w"></span>
+<span class="lineno">27 </span><span class="w">    </span><span class="nf">.endr</span><span class="w"></span>
+<span class="lineno">28 </span><span class="w">    </span><span class="c"># 阶段 [3]</span>
+<span class="lineno">29 </span><span class="w">    </span><span class="c"># restore ra &amp; s0~s11 of next execution</span>
+<span class="lineno">30 </span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">ra</span>,<span class="w"> </span><span class="m">0</span>(<span class="na">a1</span>)<span class="w"></span>
+<span class="lineno">31 </span><span class="w">    </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="m">0</span><span class="w"></span>
+<span class="lineno">32 </span><span class="w">    </span><span class="nf">.rept</span><span class="w"> </span><span class="m">12</span><span class="w"></span>
+<span class="lineno">33 </span><span class="w">        </span><span class="nb">LOAD_SN</span><span class="w"> </span>%<span class="ni">n</span><span class="w"></span>
+<span class="lineno">34 </span><span class="w">        </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="ni">n</span><span class="w"> </span>+<span class="w"> </span><span class="m">1</span><span class="w"></span>
+<span class="lineno">35 </span><span class="w">    </span><span class="nf">.endr</span><span class="w"></span>
+<span class="lineno">36 </span><span class="w">    </span><span class="c"># restore kernel stack of next task</span>
+<span class="lineno">37 </span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">8</span>(<span class="na">a1</span>)<span class="w"></span>
+<span class="lineno">38 </span><span class="w">    </span><span class="c"># 阶段 [4]</span>
+<span class="lineno">39 </span><span class="w">    </span><span class="nd">ret</span><span class="w"></span>
 </pre></div>
 </div>
 <p>我们手写汇编代码来实现 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 。在阶段 [1] 可以看到它的函数原型中的两个参数分别是当前 A 任务上下文指针 <code class="docutils literal notranslate"><span class="pre">next_task_cx_ptr</span></code> 和即将被切换到的 B 任务上下文指针 <code class="docutils literal notranslate"><span class="pre">next_task_cx_ptr</span></code>  ，从 <a class="reference internal" href="../chapter1/old4understand-prog.html#term-calling-convention"><span class="std std-ref">RISC-V 调用规范</span></a> 可以知道它们分别通过寄存器 <code class="docutils literal notranslate"><span class="pre">a0/a1</span></code> 传入。阶段 [2] 体现在第 19~27 行，即根据 B 任务上下文保存的内容来恢复 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 寄存器、<code class="docutils literal notranslate"><span class="pre">s0~s11</span></code> 寄存器以及 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器。从中我们也能够看出 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 里面究竟包含哪些寄存器：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/task/context.rs</span>
-<span class="linenos">2</span>
-<span class="linenos">3</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">4</span><span class="w">    </span><span class="n">ra</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">5</span><span class="w">    </span><span class="n">sp</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">6</span><span class="w">    </span><span class="n">s</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">12</span><span class="p">],</span><span class="w"></span>
-<span class="linenos">7</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno">1 </span><span class="c1">// os/src/task/context.rs</span>
+<span class="lineno">2 </span>
+<span class="lineno">3 </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">4 </span><span class="w">    </span><span class="n">ra</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">5 </span><span class="w">    </span><span class="n">sp</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">6 </span><span class="w">    </span><span class="n">s</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">12</span><span class="p">],</span><span class="w"></span>
+<span class="lineno">7 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>保存 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 很重要，它记录了 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 函数返回之后应该跳转到哪里继续执行，从而在任务切换完成并 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 之后能到正确的位置。对于一般的函数而言，Rust/C 编译器会在函数的起始位置自动生成代码来保存 <code class="docutils literal notranslate"><span class="pre">s0~s11</span></code> 这些被调用者保存的寄存器。但 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 是一个用汇编代码写的特殊函数，它不会被 Rust/C 编译器处理，所以我们需要在 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 中手动编写保存 <code class="docutils literal notranslate"><span class="pre">s0~s11</span></code> 的汇编代码。 不用保存其它寄存器是因为：其它寄存器中，属于调用者保存的寄存器是由编译器在高级语言编写的调用函数中自动生成的代码来完成保存的；还有一些寄存器属于临时寄存器，不需要保存和恢复。</p>
 <p>我们会将这段汇编代码中的全局符号 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 解释为一个 Rust 函数：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/switch.rs</span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="fm">global_asm!</span><span class="p">(</span><span class="fm">include_str!</span><span class="p">(</span><span class="s">&quot;switch.S&quot;</span><span class="p">));</span><span class="w"></span>
-<span class="linenos"> 4</span>
-<span class="linenos"> 5</span><span class="k">use</span><span class="w"> </span><span class="k">super</span>::<span class="n">TaskContext</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 6</span>
-<span class="linenos"> 7</span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">__switch</span><span class="p">(</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">        </span><span class="n">current_task_cx_ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">        </span><span class="n">next_task_cx_ptr</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">TaskContext</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="p">);</span><span class="w"></span>
-<span class="linenos">12</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/task/switch.rs</span>
+<span class="lineno"> 2 </span>
+<span class="lineno"> 3 </span><span class="n">global_asm</span><span class="o">!</span><span class="p">(</span><span class="n">include_str</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;switch.S&quot;</span><span class="p">));</span><span class="w"></span>
+<span class="lineno"> 4 </span>
+<span class="lineno"> 5 </span><span class="k">use</span><span class="w"> </span><span class="k">super</span>::<span class="n">TaskContext</span><span class="p">;</span><span class="w"></span>
+<span class="lineno"> 6 </span>
+<span class="lineno"> 7 </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno"> 8 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">__switch</span><span class="p">(</span><span class="w"></span>
+<span class="lineno"> 9 </span><span class="w">        </span><span class="n">current_task_cx_ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">10 </span><span class="w">        </span><span class="n">next_task_cx_ptr</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">TaskContext</span><span class="w"></span>
+<span class="lineno">11 </span><span class="w">    </span><span class="p">);</span><span class="w"></span>
+<span class="lineno">12 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>我们会调用该函数来完成切换功能而不是直接跳转到符号 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的地址。因此在调用前后 Rust 编译器会自动帮助我们插入保存/恢复调用者保存寄存器的汇编代码。</p>
 <p>仔细观察的话可以发现 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 很像一个普通函数栈帧中的内容。正如之前所说， <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的实现除了换栈之外几乎就是一个普通函数，也能在这里得到体现。尽管如此，二者的内涵却有着很大的不同。</p>
 <p>同学可以自行对照注释看看图示中的后面几个阶段各是如何实现的。另外，当内核仅运行单个应用的时候，无论该任务主动/被动交出 CPU 资源最终都会交还给自己，这将导致传给 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 的两个参数相同，也就是某个 Trap 控制流自己切换到自己的情形，请同学对照图示思考目前的实现能否对它进行正确处理。</p>
-</section>
-</section>
+</div>
+</div>
 
 
            </div>
