@@ -2,7 +2,7 @@
 ==============================================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
 
    0intro
    1rust-dynamic-allocation   
@@ -11,6 +11,7 @@
    4sv39-implementation-2
    5kernel-app-spaces
    6multitasking-based-on-as
-   7exercise
+   7more-as
+   8exercise
 
 .. chyyuu 添加扩展阅读 虚拟内存超越物理内存，通过换页机制???  
