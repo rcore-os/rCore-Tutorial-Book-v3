@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>文件系统接口 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -42,7 +41,7 @@ var addUtterances = () => {
     script.setAttribute("label", "comments");
     script.setAttribute("crossorigin", "anonymous");
 
-    sections = document.querySelectorAll("div > section");
+    sections = document.querySelectorAll("div.section");
     if (sections !== null) {
         section = sections[sections.length-1];
         section.appendChild(script);
@@ -73,14 +72,14 @@ commentsRunWhenDOMLoaded(addUtterances);
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第六章：文件系统</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">文件系统接口</a><ul>
@@ -109,7 +108,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter8/index.html">第八章：并发</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter9/index.html">第九章：I/O设备管理</a></li>
 </ul>
-<p class="caption"><span class="caption-text">附录</span></p>
+<p class="caption" role="heading"><span class="caption-text">附录</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../final-lab.html">综合练习</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 系统编程入门</a></li>
@@ -119,7 +118,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../appendix-e/index.html">附录 E：操作系统进一步介绍</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
 </ul>
-<p class="caption"><span class="caption-text">开发注记</span></p>
+<p class="caption" role="heading"><span class="caption-text">开发注记</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
@@ -151,20 +150,20 @@ commentsRunWhenDOMLoaded(addUtterances);
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="id1">
+  <div class="section" id="id1">
 <h1>文件系统接口<a class="headerlink" href="#id1" title="永久链接至标题"></a></h1>
-<section id="id2">
+<div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
 <p>本节首先以Linux 上的常规文件和目录为例，站在访问文件的应用的角度，介绍文件中值得注意的地方及文件使用方法。由于 Linux 上的文件系统模型还是比较复杂，在内核实现中对它进行了很大程度的简化，我们会对简化的具体情形进行介绍。最后介绍内核上应用的开发者应该如何使用我们简化后的文件系统和一些相关知识。</p>
-</section>
-<section id="id3">
+</div>
+<div class="section" id="id3">
 <h2>文件和目录<a class="headerlink" href="#id3" title="永久链接至标题"></a></h2>
-<section id="id4">
+<div class="section" id="id4">
 <h3>常规文件<a class="headerlink" href="#id4" title="永久链接至标题"></a></h3>
 <p>在操作系统的用户看来，常规文件是保存在持久存储设备上的一个字节序列，每个常规文件都有一个 <strong>文件名</strong> (Filename) ，用户需要通过它来区分不同的常规文件。方便起见，在下面的描述中，“文件”有可能指的是常规文件、目录，也可能是之前提到的若干种进程可以读写的 标准输出、标准输入、管道等I/O 资源，请同学自行根据上下文判断取哪种含义。</p>
 <p>在 Linux 系统上， <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具可以获取文件的一些信息。下面以我们项目中的一个源代码文件 <code class="docutils literal notranslate"><span class="pre">os/src/main.rs</span></code> 为例：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> os/src/
-<span class="gp">$ </span>stat main.rs
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> os/src/
+<span class="gp">$</span> stat main.rs
 <span class="go">File: main.rs</span>
 <span class="go">Size: 940           Blocks: 8          IO Block: 4096   regular file</span>
 <span class="go">Device: 801h/2049d  Inode: 4975        Links: 1</span>
@@ -188,8 +187,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>Access/Modify 分别给出该文件的最近一次访问/最近一次修改时间。</p></li>
 </ul>
 <p>如果我们使用 <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具查看一个能在我们内核上执行的 ELF 可执行文件：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> user/target/riscv64gc-unknown-none-elf/release/
-<span class="gp">$ </span>stat user_shell
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> user/target/riscv64gc-unknown-none-elf/release/
+<span class="gp">$</span> stat user_shell
 <span class="go">File: user_shell</span>
 <span class="go">Size: 85712         Blocks: 168        IO Block: 4096   regular file</span>
 <span class="go">Device: 801h/2049d  Inode: 1460936     Links: 2</span>
@@ -202,12 +201,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>从中可以看出我们构建的应用体积大概在数十 KiB 量级。它的 Access 指出所有用户均可将其作为一个可执行文件在当前 OS 中加载并执行。然而这仅仅是能够通过权限检查而已，这个应用只有在我们自己的内核上才能真正被加载运行。</p>
 <p>用户常常通过文件的 <strong>拓展名</strong> (Filename extension) 来推断该文件的用途，如 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的拓展名是 <code class="docutils literal notranslate"><span class="pre">.rs</span></code> ，我们由此知道它是一个 Rust 源代码文件。但从内核的角度来看，它会将所有文件无差别的看成一个字节序列，文件内容的结构和含义则是交给对应的应用进行解析。</p>
-</section>
-<section id="id5">
+</div>
+<div class="section" id="id5">
 <h3>目录<a class="headerlink" href="#id5" title="永久链接至标题"></a></h3>
 <p>最早的文件系统仅仅通过文件名来区分文件，但是这会造成一些归档和管理上的困难。如今我们的使用习惯是将文件根据功能、属性的不同分类归档到不同层级的目录之下。这样我们就很容易逐级找到想要的文件。结合用户和用户组的概念，目录的存在也使得文件访问权限控制更加容易，只需要对于目录进行设置就可以间接设置用户/用户组对该目录下所有文件的访问权限，这使得操作系统能够更加安全的支持多用户情况下对不同文件的访问。</p>
 <p>同样可以通过 <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具获取目录的一些信息：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>stat os
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> stat os
 <span class="go">File: os</span>
 <span class="go">Size: 4096          Blocks: 8          IO Block: 4096   directory</span>
 <span class="go">Device: 801h/2049d  Inode: 4982        Links: 5</span>
@@ -238,15 +237,15 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p><strong>目录是否有必要存在</strong></p>
 <p>基于路径的索引难以并行或分布式化，因为我们总是需要查到一级目录的底层编号才能查到下一级，这是一个天然串行的过程。在一些性能需求极高的环境中，可以考虑弱化目录的权限控制职能，将目录树结构扁平化，将文件系统的磁盘布局变为类键值对存储。</p>
 </div>
-</section>
-<section id="id6">
+</div>
+<div class="section" id="id6">
 <h3>文件系统<a class="headerlink" href="#id6" title="永久链接至标题"></a></h3>
 <p>常规文件和目录都是实际保存在持久存储设备中的。持久存储设备仅支持以扇区（或块）为单位的随机读写，这和上面介绍的通过路径即可索引到文件并以字节流进行读写的用户视角有很大的不同。负责中间转换的便是 <strong>文件系统</strong> (File System) 。具体而言，文件系统负责将逻辑上的目录树结构（包括其中每个文件或目录的数据和其他信息）映射到持久存储设备上，决定设备上的每个扇区应存储哪些内容。反过来，文件系统也可以从持久存储设备还原出逻辑上的目录树结构。</p>
 <p>文件系统有很多种不同的实现，每一种都能将同一个逻辑上目录树结构转化为一个不同的持久存储设备上的扇区布局。最著名的文件系统有 Windows 上的 FAT/NTFS 和 Linux 上的 Ext3/Ext4/Btrfs 等。</p>
 <p>在一个计算机系统中，可以同时包含多个持久存储设备，它们上面的数据可能是以不同文件系统格式存储的。为了能够对它们进行统一管理，在内核中有一层 <strong>虚拟文件系统</strong> (VFS, Virtual File System) ，它规定了逻辑上目录树结构的通用格式及相关操作的抽象接口，只要不同的底层文件系统均实现虚拟文件系统要求的那些抽象接口，再加上 <strong>挂载</strong> (Mount) 等方式，这些持久存储设备上的不同文件系统便可以用一个统一的逻辑目录树结构一并进行管理。</p>
-</section>
-</section>
-<section id="fs-simplification">
+</div>
+</div>
+<div class="section" id="fs-simplification">
 <span id="id7"></span><h2>简化的文件与目录抽象<a class="headerlink" href="#fs-simplification" title="永久链接至标题"></a></h2>
 <p>我们的内核实现对于目录树结构进行了很大程度上的简化，这样做的目的是为了能够完整地展示文件系统的工作原理，但代码量又不至于太多。我们进行的简化如下：</p>
 <ul class="simple">
@@ -256,10 +255,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>不支持软硬链接。</p></li>
 <li><p>除了下面即将介绍的系统调用之外，其他的很多文件系统相关系统调用均未实现。</p></li>
 </ul>
-</section>
-<section id="id8">
+</div>
+<div class="section" id="id8">
 <h2>打开、关闭与读写文件的系统调用<a class="headerlink" href="#id8" title="永久链接至标题"></a></h2>
-<section id="sys-open">
+<div class="section" id="sys-open">
 <span id="id9"></span><h3>文件打开<a class="headerlink" href="#sys-open" title="永久链接至标题"></a></h3>
 <p>在读写一个常规文件之前，应用首先需要通过内核提供的 <code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 系统调用让该文件在进程的文件描述符表中占一项，并得到操作系统的返回值–文件描述符，即文件关联的表项在文件描述表中的索引值：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：打开一个常规文件，并返回可以访问它的文件描述符。</span>
@@ -311,8 +310,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 传给内核的参数只有待打开文件的文件名字符串的起始地址（和之前一样，我们需要保证该字符串以 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 结尾）还有标志位。由于每个通用寄存器为 64 位，我们需要先将 <code class="docutils literal notranslate"><span class="pre">u32</span></code> 的 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 转换为 <code class="docutils literal notranslate"><span class="pre">usize</span></code> 。</p>
-</section>
-<section id="sys-close">
+</div>
+<div class="section" id="sys-close">
 <span id="id10"></span><h3>文件关闭<a class="headerlink" href="#sys-close" title="永久链接至标题"></a></h3>
 <p>在打开文件，对文件完成了读写操作后，还需要关闭文件，这样才让进程释放杯这个文件所占用的内核资源。 <code class="docutils literal notranslate"><span class="pre">close</span></code> 的调用参数是文件描述符，但文件被关闭后，文件在内核中的资源会被释放，文件描述符会被回收。这样，进程就不能继续使用该文件描述符进行文件读写了。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：当前进程关闭一个文件。</span>
@@ -330,52 +329,52 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-</section>
-<section id="id11">
+</div>
+<div class="section" id="id11">
 <h3>文件的顺序读写<a class="headerlink" href="#id11" title="永久链接至标题"></a></h3>
 <p>在打开一个文件之后，我们就可以用之前的 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 两个系统调用来对它进行读写了。需要注意的是，常规文件的读写模式和之前介绍过的几种文件有所不同。标准输入输出和匿名管道都属于一种流式读写，而常规文件则是顺序读写和随机读写的结合。由于常规文件可以看成一段字节序列，我们应该能够随意读写它的任一段区间的数据，即随机读写。然而用户仅仅通过 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 两个系统调用不能做到这一点。</p>
 <p>事实上，进程为每个它打开的常规文件维护了一个偏移量，在刚打开时初始值一般为 0 字节。当 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的时候，将会从文件字节序列偏移量的位置开始 <strong>顺序</strong> 把数据读到应用缓冲区/从应用缓冲区写入数据。操作完成之后，偏移量向后移动读取/写入的实际字节数。这意味着，下次 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 将会从刚刚读取/写入之后的位置继续。如果仅使用 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的话，则只能从头到尾顺序对文件进行读写。当我们需要从头开始重新写入或读取的话，只能通过 <code class="docutils literal notranslate"><span class="pre">sys_close</span></code> 关闭并重新打开文件来将偏移量重置为 0。为了解决这种问题，有另一个系统调用 <code class="docutils literal notranslate"><span class="pre">sys_lseek</span></code> 可以调整进程打开的一个常规文件的偏移量，这样便能对文件进行随机读写。在本教程中并未实现这个系统调用，因为对于目前实验中的应用例子，顺序文件读写功能就已经足够满足需求了。顺带一提，在文件系统的底层实现中都是对文件进行随机读写的。</p>
 <p id="filetest-simple">下面我们从本章的测试用例 <code class="docutils literal notranslate"><span class="pre">filetest_simple</span></code> 来介绍文件系统接口的使用方法：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/filetest_simple.rs</span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="cp">#![no_std]</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="cp">#![no_main]</span><span class="w"></span>
-<span class="linenos"> 5</span>
-<span class="linenos"> 6</span><span class="cp">#[macro_use]</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 8</span>
-<span class="linenos"> 9</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="n">open</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="n">close</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="n">read</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="n">write</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="n">OpenFlags</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">15</span><span class="p">};</span><span class="w"></span>
-<span class="linenos">16</span>
-<span class="linenos">17</span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="linenos">18</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">test_str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Hello, world!&quot;</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">filea</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;filea</span><span class="se">\0</span><span class="s">&quot;</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="n">filea</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">CREATE</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">WRONLY</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">    </span><span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">test_str</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">());</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">26</span>
-<span class="linenos">27</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="n">filea</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">29</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">30</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">100</span><span class="p">];</span><span class="w"></span>
-<span class="linenos">31</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">read_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">32</span><span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">33</span>
-<span class="linenos">34</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">35</span><span class="w">        </span><span class="n">test_str</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">36</span><span class="w">        </span><span class="n">core</span>::<span class="kt">str</span>::<span class="n">from_utf8</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buffer</span><span class="p">[</span><span class="o">..</span><span class="n">read_len</span><span class="p">]).</span><span class="n">unwrap</span><span class="p">(),</span><span class="w"></span>
-<span class="linenos">37</span><span class="w">    </span><span class="p">);</span><span class="w"></span>
-<span class="linenos">38</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;file_test passed!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">39</span><span class="w">    </span><span class="mi">0</span><span class="w"></span>
-<span class="linenos">40</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// user/src/bin/filetest_simple.rs</span>
+<span class="lineno"> 2 </span>
+<span class="lineno"> 3 </span><span class="cp">#![no_std]</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="cp">#![no_main]</span><span class="w"></span>
+<span class="lineno"> 5 </span>
+<span class="lineno"> 6 </span><span class="cp">#[macro_use]</span><span class="w"></span>
+<span class="lineno"> 7 </span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span><span class="w"></span>
+<span class="lineno"> 8 </span>
+<span class="lineno"> 9 </span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span><span class="w"></span>
+<span class="lineno">10 </span><span class="w">    </span><span class="n">open</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">11 </span><span class="w">    </span><span class="n">close</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">12 </span><span class="w">    </span><span class="n">read</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">13 </span><span class="w">    </span><span class="n">write</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">14 </span><span class="w">    </span><span class="n">OpenFlags</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">15 </span><span class="p">};</span><span class="w"></span>
+<span class="lineno">16 </span>
+<span class="lineno">17 </span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="lineno">18 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="lineno">19 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">test_str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Hello, world!&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">20 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">filea</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;filea</span><span class="se">\0</span><span class="s">&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">21 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="n">filea</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">CREATE</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">WRONLY</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">22 </span><span class="w">    </span><span class="n">assert</span><span class="o">!</span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">23 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">24 </span><span class="w">    </span><span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">test_str</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">());</span><span class="w"></span>
+<span class="lineno">25 </span><span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">26 </span>
+<span class="lineno">27 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="n">filea</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">28 </span><span class="w">    </span><span class="n">assert</span><span class="o">!</span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">29 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">30 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">100</span><span class="p">];</span><span class="w"></span>
+<span class="lineno">31 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">read_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">32 </span><span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">33 </span>
+<span class="lineno">34 </span><span class="w">    </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="w"></span>
+<span class="lineno">35 </span><span class="w">        </span><span class="n">test_str</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">36 </span><span class="w">        </span><span class="n">core</span>::<span class="kt">str</span>::<span class="n">from_utf8</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buffer</span><span class="p">[..</span><span class="n">read_len</span><span class="p">]).</span><span class="n">unwrap</span><span class="p">(),</span><span class="w"></span>
+<span class="lineno">37 </span><span class="w">    </span><span class="p">);</span><span class="w"></span>
+<span class="lineno">38 </span><span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;file_test passed!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="lineno">39 </span><span class="w">    </span><span class="mi">0</span><span class="w"></span>
+<span class="lineno">40 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -383,9 +382,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>第 27~32 行，我们以只读 <em>RDONLY</em> 的方式将文件 <code class="docutils literal notranslate"><span class="pre">filea</span></code> 的内容读取到缓冲区 <code class="docutils literal notranslate"><span class="pre">buffer</span></code> 中。注意我们很清楚 <code class="docutils literal notranslate"><span class="pre">filea</span></code> 的总大小不超过缓冲区的大小，因此通过单次 <code class="docutils literal notranslate"><span class="pre">read</span></code> 即可将 <code class="docutils literal notranslate"><span class="pre">filea</span></code> 的内容全部读取出来。而更常见的情况是需要进行多次 <code class="docutils literal notranslate"><span class="pre">read</span></code> 直到它的返回值为 0 才能确认文件的内容已被读取完毕了。</p></li>
 <li><p>最后的第 34~38 行我们确认从 <code class="docutils literal notranslate"><span class="pre">filea</span></code> 读取到的内容和之前写入的一致，则测试通过。</p></li>
 </ul>
-</section>
-</section>
-</section>
+</div>
+</div>
+</div>
 
 
            </div>

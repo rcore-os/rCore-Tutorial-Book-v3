@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="zh-CN" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
-
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>在内核中接入 easy-fs &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -42,7 +41,7 @@ var addUtterances = () => {
     script.setAttribute("label", "comments");
     script.setAttribute("crossorigin", "anonymous");
 
-    sections = document.querySelectorAll("div > section");
+    sections = document.querySelectorAll("div.section");
     if (sections !== null) {
         section = sections[sections.length-1];
         section.appendChild(script);
@@ -73,14 +72,14 @@ commentsRunWhenDOMLoaded(addUtterances);
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Part1 - Just do it!</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Part1 - Just do it!</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程及进程管理</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">第六章：文件系统</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1fs-interface.html">文件系统接口</a></li>
@@ -112,7 +111,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../chapter8/index.html">第八章：并发</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter9/index.html">第九章：I/O设备管理</a></li>
 </ul>
-<p class="caption"><span class="caption-text">附录</span></p>
+<p class="caption" role="heading"><span class="caption-text">附录</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../final-lab.html">综合练习</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 系统编程入门</a></li>
@@ -122,7 +121,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l1"><a class="reference internal" href="../appendix-e/index.html">附录 E：操作系统进一步介绍</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
 </ul>
-<p class="caption"><span class="caption-text">开发注记</span></p>
+<p class="caption" role="heading"><span class="caption-text">开发注记</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
@@ -154,9 +153,9 @@ commentsRunWhenDOMLoaded(addUtterances);
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="easy-fs">
+  <div class="section" id="easy-fs">
 <h1>在内核中接入 easy-fs<a class="headerlink" href="#easy-fs" title="永久链接至标题"></a></h1>
-<section id="id1">
+<div class="section" id="id1">
 <h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题"></a></h2>
 <p>上节实现了 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 文件系统，并能在用户态来进行测试，但还没有放入到内核中来。本节我们介绍如何将 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 文件系统接入内核中从而在内核中支持常规文件和目录。为此，在操作系统内核中需要有对接 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 文件系统的各种结构，它们自下而上可以分成这样几个层次：</p>
 <ul class="simple">
@@ -166,8 +165,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>文件描述符层：常规文件对应的 <code class="docutils literal notranslate"><span class="pre">OSInode</span></code> 是文件的内核内部表示，因此需要为它实现 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait 从而能够可以将它放入到进程文件描述符表中并通过 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 系统调用进行读写。</p></li>
 <li><p>系统调用层：由于引入了常规文件这种文件类型，导致一些系统调用以及相关的内核机制需要进行一定的修改。</p></li>
 </ul>
-</section>
-<section id="id2">
+</div>
+<div class="section" id="id2">
 <h2>文件简介<a class="headerlink" href="#id2" title="永久链接至标题"></a></h2>
 <p>应用程序看到并被操作系统管理的 <strong>文件</strong> (File) 就是一系列的字节组合。操作系统不关心文件内容，只关心如何对文件按字节流进行读写的机制，这就意味着任何程序可以读写任何文件（即字节流），对文件具体内容的解析是应用程序的任务，操作系统对此不做任何干涉。例如，一个Rust编译器可以读取一个C语言源程序并进行编译，操作系统并并不会阻止这样的事情发生。</p>
 <p>有了文件这样的抽象后，操作系统内核就可把能读写并持久存储的数据按文件来进行管理，并把文件分配给进程，让进程以很简洁的统一抽象接口 <code class="docutils literal notranslate"><span class="pre">File</span></code> 来读写数据：</p>
@@ -188,15 +187,15 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">    </span><span class="n">token</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
 <span class="w">    </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"></span>
 <span class="w">    </span><span class="n">len</span>: <span class="kt">usize</span>
-<span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Vec</span><span class="o">&lt;&amp;&#39;</span><span class="nb">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Vec</span><span class="o">&lt;&amp;</span><span class="nb">&#39;static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">UserBuffer</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">buffers</span>: <span class="nb">Vec</span><span class="o">&lt;&amp;&#39;</span><span class="nb">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">buffers</span>: <span class="nb">Vec</span><span class="o">&lt;&amp;</span><span class="nb">&#39;static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 
 <span class="k">impl</span><span class="w"> </span><span class="n">UserBuffer</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">buffers</span>: <span class="nb">Vec</span><span class="o">&lt;&amp;&#39;</span><span class="nb">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">buffers</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">buffers</span>: <span class="nb">Vec</span><span class="o">&lt;&amp;</span><span class="nb">&#39;static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">buffers</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">len</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">total</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
@@ -209,8 +208,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>它只是将我们调用 <code class="docutils literal notranslate"><span class="pre">translated_byte_buffer</span></code> 获得的包含多个切片的 <code class="docutils literal notranslate"><span class="pre">Vec</span></code> 进一步包装起来，通过 <code class="docutils literal notranslate"><span class="pre">len</span></code> 方法可以得到缓冲区的长度。此外，我们还让它作为一个迭代器可以逐字节进行读写。有兴趣的同学可以参考类型 <code class="docutils literal notranslate"><span class="pre">UserBufferIterator</span></code> 还有 <code class="docutils literal notranslate"><span class="pre">IntoIterator</span></code> 和 <code class="docutils literal notranslate"><span class="pre">Iterator</span></code> 两个 Trait 的使用方法。</p>
-</section>
-<section id="id3">
+</div>
+<div class="section" id="id3">
 <h2>块设备驱动层<a class="headerlink" href="#id3" title="永久链接至标题"></a></h2>
 <p>在 <code class="docutils literal notranslate"><span class="pre">drivers</span></code> 子模块中的 <code class="docutils literal notranslate"><span class="pre">block/mod.rs</span></code> 中，我们可以找到内核访问的块设备实例 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/drivers/block/mod.rs</span>
@@ -222,27 +221,27 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="k">type</span> <span class="nc">BlockDeviceImpl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sdcard</span>::<span class="n">SDCardWrapper</span><span class="p">;</span><span class="w"></span>
 
 <span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">BLOCK_DEVICE</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">BlockDevice</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">BlockDeviceImpl</span>::<span class="n">new</span><span class="p">());</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">BLOCK_DEVICE</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">dyn</span><span class="w"> </span><span class="n">BlockDevice</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">BlockDeviceImpl</span>::<span class="n">new</span><span class="p">());</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>qemu 和 k210 平台上的块设备是不同的。在 qemu 上，我们使用 <code class="docutils literal notranslate"><span class="pre">VirtIOBlock</span></code> 访问 VirtIO 块设备；而在 k210 上，我们使用 <code class="docutils literal notranslate"><span class="pre">SDCardWrapper</span></code> 来访问插入 k210 开发板上真实的 microSD 卡，它们都实现了 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 要求的 <code class="docutils literal notranslate"><span class="pre">BlockDevice</span></code> Trait 。通过 <code class="docutils literal notranslate"><span class="pre">#[cfg(feature)]</span></code> 可以在编译的时候根据编译参数调整 <code class="docutils literal notranslate"><span class="pre">BlockDeviceImpl</span></code> 具体为哪个块设备，之后将它全局实例化为 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> ，使得内核的其他模块可以访问。</p>
-<section id="qemu">
+<div class="section" id="qemu">
 <h3>Qemu 模拟器平台<a class="headerlink" href="#qemu" title="永久链接至标题"></a></h3>
 <p>在启动 Qemu 模拟器的时候，我们可以配置参数来添加一块 VirtIO 块设备：</p>
-<div class="highlight-makefile notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c"># os/Makefile</span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="nv">FS_IMG</span> <span class="o">:=</span> ../user/target/<span class="k">$(</span>TARGET<span class="k">)</span>/<span class="k">$(</span>MODE<span class="k">)</span>/fs.img
-<span class="linenos"> 4</span>
-<span class="linenos"> 5</span><span class="nf">run-inner</span><span class="o">:</span> <span class="n">build</span>
-<span class="linenos"> 6</span><span class="cp">ifeq ($(BOARD),qemu)</span>
-<span class="linenos"> 7</span>    @qemu-system-riscv64 <span class="se">\</span>
-<span class="linenos"> 8</span>        -machine virt <span class="se">\</span>
-<span class="linenos"> 9</span>        -nographic <span class="se">\</span>
-<span class="linenos">10</span>        -bios <span class="k">$(</span>BOOTLOADER<span class="k">)</span> <span class="se">\</span>
-<span class="linenos">11</span>        -device loader,file<span class="o">=</span><span class="k">$(</span>KERNEL_BIN<span class="k">)</span>,addr<span class="o">=</span><span class="k">$(</span>KERNEL_ENTRY_PA<span class="k">)</span> <span class="se">\</span>
-<span class="hll"><span class="linenos">12</span>        -drive <span class="nv">file</span><span class="o">=</span><span class="k">$(</span>FS_IMG<span class="k">)</span>,if<span class="o">=</span>none,format<span class="o">=</span>raw,id<span class="o">=</span>x0 <span class="se">\</span>
-</span><span class="hll"><span class="linenos">13</span>        -device virtio-blk-device,drive<span class="o">=</span>x0,bus<span class="o">=</span>virtio-mmio-bus.0
+<div class="highlight-makefile notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c"># os/Makefile</span>
+<span class="lineno"> 2 </span>
+<span class="lineno"> 3 </span><span class="nv">FS_IMG</span> <span class="o">:=</span> ../user/target/<span class="k">$(</span>TARGET<span class="k">)</span>/<span class="k">$(</span>MODE<span class="k">)</span>/fs.img
+<span class="lineno"> 4 </span>
+<span class="lineno"> 5 </span><span class="nf">run-inner</span><span class="o">:</span> <span class="n">build</span>
+<span class="lineno"> 6 </span><span class="cp">ifeq ($(BOARD),qemu)</span>
+<span class="lineno"> 7 </span>    @qemu-system-riscv64 <span class="se">\</span>
+<span class="lineno"> 8 </span>        -machine virt <span class="se">\</span>
+<span class="lineno"> 9 </span>        -nographic <span class="se">\</span>
+<span class="lineno">10 </span>        -bios <span class="k">$(</span>BOOTLOADER<span class="k">)</span> <span class="se">\</span>
+<span class="lineno">11 </span>        -device loader,file<span class="o">=</span><span class="k">$(</span>KERNEL_BIN<span class="k">)</span>,addr<span class="o">=</span><span class="k">$(</span>KERNEL_ENTRY_PA<span class="k">)</span> <span class="se">\</span>
+<span class="lineno">12 </span><span class="hll">        -drive <span class="nv">file</span><span class="o">=</span><span class="k">$(</span>FS_IMG<span class="k">)</span>,if<span class="o">=</span>none,format<span class="o">=</span>raw,id<span class="o">=</span>x0 <span class="se">\</span>
+</span><span class="lineno">13 </span><span class="hll">        -device virtio-blk-device,drive<span class="o">=</span>x0,bus<span class="o">=</span>virtio-mmio-bus.0
 </span></pre></div>
 </div>
 <ul class="simple">
@@ -266,8 +265,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="sd">/// Without kernel stacks.</span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new_kernel</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;mapping memory-mapped registers&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="p">...</span><span class="w"></span>
+<span class="w">        </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;mapping memory-mapped registers&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">pair</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">MMIO</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">            </span><span class="n">memory_set</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">MapArea</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
 <span class="w">                </span><span class="p">(</span><span class="o">*</span><span class="n">pair</span><span class="p">).</span><span class="mf">0.</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
@@ -288,11 +287,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="k">use</span><span class="w"> </span><span class="n">virtio_drivers</span>::<span class="p">{</span><span class="n">VirtIOBlk</span><span class="p">,</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">};</span><span class="w"></span>
 <span class="k">const</span><span class="w"> </span><span class="n">VIRTIO0</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mh">0x10001000</span><span class="p">;</span><span class="w"></span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlock</span><span class="p">(</span><span class="n">Mutex</span><span class="o">&lt;</span><span class="n">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="nb">static</span><span class="o">&gt;&gt;</span><span class="p">);</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlock</span><span class="p">(</span><span class="n">Mutex</span><span class="o">&lt;</span><span class="n">VirtIOBlk</span><span class="o">&lt;</span><span class="nb">&#39;static</span><span class="o">&gt;&gt;</span><span class="p">);</span><span class="w"></span>
 
 <span class="k">impl</span><span class="w"> </span><span class="n">VirtIOBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">Self</span><span class="p">(</span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">VirtIOBlk</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
+<span class="w">        </span><span class="n">Self</span><span class="p">(</span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">VirtIOBlk</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
 <span class="w">            </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="n">VIRTIO0</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="w">        </span><span class="p">).</span><span class="n">unwrap</span><span class="p">()))</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
@@ -331,10 +330,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">virtio_dma_alloc</span><span class="p">(</span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ppn_base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PhysPageNum</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">pages</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="p">..</span><span class="n">pages</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">frame_alloc</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
 <span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ppn_base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">frame</span><span class="p">.</span><span class="n">ppn</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">ppn</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">ppn_base</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">ppn</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">ppn_base</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="n">QUEUE_FRAMES</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">push</span><span class="p">(</span><span class="n">frame</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="n">ppn_base</span><span class="p">.</span><span class="n">into</span><span class="p">()</span><span class="w"></span>
@@ -343,7 +342,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">virtio_dma_dealloc</span><span class="p">(</span><span class="n">pa</span>: <span class="nc">PhysAddr</span><span class="p">,</span><span class="w"> </span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ppn_base</span>: <span class="nc">PhysPageNum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pa</span><span class="p">.</span><span class="n">into</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">pages</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="p">..</span><span class="n">pages</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="n">frame_dealloc</span><span class="p">(</span><span class="n">ppn_base</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="n">ppn_base</span><span class="p">.</span><span class="n">step</span><span class="p">();</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
@@ -366,8 +365,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p><code class="docutils literal notranslate"><span class="pre">virtio_dma_alloc/dealloc</span></code> 需要分配/回收数个 <em>连续</em> 的物理页帧，而我们的 <code class="docutils literal notranslate"><span class="pre">frame_alloc</span></code> 是逐个分配，严格来说并不保证分配的连续性。幸运的是，这个过程只会发生在内核初始化阶段，因此能够保证连续性。</p></li>
 <li><p>在 <code class="docutils literal notranslate"><span class="pre">virtio_dma_alloc</span></code> 中通过 <code class="docutils literal notranslate"><span class="pre">frame_alloc</span></code> 得到的那些物理页帧 <code class="docutils literal notranslate"><span class="pre">FrameTracker</span></code> 都会被保存在全局的向量 <code class="docutils literal notranslate"><span class="pre">QUEUE_FRAMES</span></code> 以延长它们的生命周期，避免提前被回收。</p></li>
 </ul>
-</section>
-<section id="k210">
+</div>
+<div class="section" id="k210">
 <h3>K210 真实硬件平台<a class="headerlink" href="#k210" title="永久链接至标题"></a></h3>
 <p>在 K210 开发板上，我们可以插入 microSD 卡并将其作为块设备。相比 VirtIO 块设备来说，想要将 microSD 驱动起来是一件比较困难的事情。microSD 自身的通信规范比较复杂，且还需考虑在 K210 中microSD挂在 <strong>串行外设接口</strong> (SPI, Serial Peripheral Interface) 总线上的情况。此外还需要正确设置 GPIO 的管脚映射并调整各锁相环的频率。实际上，在一块小小的芯片中除了 K210 CPU 之外，还集成了很多不同种类的外设和控制模块，它们内在的关联比较紧密，不能像 VirtIO 设备那样容易地从系统中独立出来。</p>
 <p>好在目前 Rust 嵌入式的生态正高速发展，针对 K210 平台也有比较成熟的封装了各类外设接口的库可以用来开发上层应用。但是其功能往往分散为多个 crate ，在使用的时候需要开发者根据需求自行进行组装。这属于 Rust 的特点之一，和 C 语言提供一个一站式的板级开发包风格有很大的不同。在开发的时候，笔者就从社区中选择了一些 crate 并进行了微量修改最终变成 <code class="docutils literal notranslate"><span class="pre">k210-hal/k210-pac/k210-soc</span></code> 三个能够运行在 S 特权级（它们的原身仅支持运行在 M 特权级）的 crate ，它们可以更加便捷的实现 microSD 的驱动。关于 microSD 的驱动 <code class="docutils literal notranslate"><span class="pre">SDCardWrapper</span></code> 的实现，有兴趣的同学可以参考 <code class="docutils literal notranslate"><span class="pre">os/src/drivers/block/sdcard.rs</span></code> 。</p>
@@ -405,9 +404,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">];</span><span class="w"></span>
 </pre></div>
 </div>
-</section>
-</section>
-<section id="id5">
+</div>
+</div>
+<div class="section" id="id5">
 <h2>内核索引节点层<a class="headerlink" href="#id5" title="永久链接至标题"></a></h2>
 <p>在本章的第一小节我们介绍过，站在用户的角度看来，在一个进程中可以使用多种不同的标志来打开一个文件，这会影响到打开的这个文件可以用何种方式被访问。此外，在连续调用 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 读写一个文件的时候，我们知道进程中也存在着一个文件读写的当前偏移量，它也随着文件读写的进行而被不断更新。这些用户视角中的文件系统抽象特征需要内核来实现，与进程有很大的关系，而 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 文件系统不必涉及这些与进程结合紧密的属性。因此，我们需要将 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 提供的 <code class="docutils literal notranslate"><span class="pre">Inode</span></code> 加上上述信息，进一步封装为 OS 中的索引节点 <code class="docutils literal notranslate"><span class="pre">OSInode</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/inode.rs</span>
@@ -429,7 +428,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">        </span><span class="n">writable</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
 <span class="w">        </span><span class="n">inode</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
 <span class="w">    </span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">            </span><span class="n">readable</span><span class="p">,</span><span class="w"></span>
 <span class="w">            </span><span class="n">writable</span><span class="p">,</span><span class="w"></span>
 <span class="w">            </span><span class="n">inner</span>: <span class="nc">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">OSInodeInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -442,8 +441,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">OSInode</span></code> 就表示进程中一个被打开的常规文件或目录。 <code class="docutils literal notranslate"><span class="pre">readable/writable</span></code> 分别表明该文件是否允许通过 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 进行读写。至于在 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 期间被维护偏移量 <code class="docutils literal notranslate"><span class="pre">offset</span></code> 和它在 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">Inode</span></code> 则加上一把互斥锁丢到 <code class="docutils literal notranslate"><span class="pre">OSInodeInner</span></code> 中。这在提供内部可变性的同时，也可以简单应对多个进程同时读写一个文件的情况。</p>
-</section>
-<section id="id6">
+</div>
+<div class="section" id="id6">
 <h2>文件描述符层<a class="headerlink" href="#id6" title="永久链接至标题"></a></h2>
 <p>一个进程可以访问的多个文件，所以在操作系统中需要有一个管理进程访问的多个文件的结构，这就是 <strong>文件描述符表</strong> (File Descriptor Table) ，其中的每个 <strong>文件描述符</strong> (File Descriptor) 代表了一个特定读写属性的I/O资源。</p>
 <p>为简化操作系统设计实现，可以让每个进程都带有一个线性的 <strong>文件描述符表</strong> ，记录该进程请求内核打开并读写的那些文件集合。而 <strong>文件描述符</strong> (File Descriptor) 则是一个非负整数，表示文件描述符表中一个打开的 <strong>文件描述符</strong> 所处的位置（可理解为数组下标）。进程通过文件描述符，可以在自身的文件描述符表中找到对应的文件记录信息，从而也就找到了对应的文件，并对文件进行读写。当打开（ <code class="docutils literal notranslate"><span class="pre">open</span></code> ）或创建（ <code class="docutils literal notranslate"><span class="pre">create</span></code> ） 一个文件的时候，如果顺利，内核会返回给应用刚刚打开或创建的文件对应的文件描述符；而当应用想关闭（ <code class="docutils literal notranslate"><span class="pre">close</span></code> ）一个文件的时候，也需要向内核提供对应的文件描述符，以完成对应文件相关资源的回收操作。</p>
@@ -471,7 +470,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">total_write_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="k">usize</span><span class="p">;</span><span class="w"></span>
 <span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">slice</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">buf</span><span class="p">.</span><span class="n">buffers</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">write_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">inode</span><span class="p">.</span><span class="n">write_at</span><span class="p">(</span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">slice</span><span class="p">);</span><span class="w"></span>
-<span class="w">            </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">write_size</span><span class="p">,</span><span class="w"> </span><span class="n">slice</span><span class="p">.</span><span class="n">len</span><span class="p">());</span><span class="w"></span>
+<span class="w">            </span><span class="n">assert_eq</span><span class="o">!</span><span class="p">(</span><span class="n">write_size</span><span class="p">,</span><span class="w"> </span><span class="n">slice</span><span class="p">.</span><span class="n">len</span><span class="p">());</span><span class="w"></span>
 <span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">write_size</span><span class="p">;</span><span class="w"></span>
 <span class="w">            </span><span class="n">total_write_size</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">write_size</span><span class="p">;</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
@@ -481,23 +480,23 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>本章我们为 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait 新增了 <code class="docutils literal notranslate"><span class="pre">readable/writable</span></code> 两个抽象接口从而在 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的时候进行简单的访问权限检查。 <code class="docutils literal notranslate"><span class="pre">read/write</span></code> 的实现也比较简单，只需遍历 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> 中的每个缓冲区片段，调用 <code class="docutils literal notranslate"><span class="pre">Inode</span></code> 写好的 <code class="docutils literal notranslate"><span class="pre">read/write_at</span></code> 接口就好了。注意 <code class="docutils literal notranslate"><span class="pre">read/write_at</span></code> 的起始位置是在 <code class="docutils literal notranslate"><span class="pre">OSInode</span></code> 中维护的 <code class="docutils literal notranslate"><span class="pre">offset</span></code> ，这个 <code class="docutils literal notranslate"><span class="pre">offset</span></code> 也随着遍历的进行被持续更新。在 <code class="docutils literal notranslate"><span class="pre">read/write</span></code> 的全程需要获取 <code class="docutils literal notranslate"><span class="pre">OSInode</span></code> 的互斥锁，保证两个进程无法同时访问同个文件。</p>
-</section>
-<section id="id7">
+</div>
+<div class="section" id="id7">
 <h2>文件描述符表<a class="headerlink" href="#id7" title="永久链接至标题"></a></h2>
 <p>为了支持进程对文件的管理，我们需要在进程控制块中加入文件描述符表的相应字段：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/task.rs</span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_cx_ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">base_size</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_cx_ptr</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">memory_set</span>: <span class="nc">MemorySet</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">parent</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Weak</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">children</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
-<span class="hll"><span class="linenos">12</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">fd_table</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-</span><span class="linenos">13</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/task/task.rs</span>
+<span class="lineno"> 2 </span>
+<span class="lineno"> 3 </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_cx_ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span><span class="w"></span>
+<span class="lineno"> 5 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">base_size</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="lineno"> 6 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_cx_ptr</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="lineno"> 7 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span><span class="p">,</span><span class="w"></span>
+<span class="lineno"> 8 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">memory_set</span>: <span class="nc">MemorySet</span><span class="p">,</span><span class="w"></span>
+<span class="lineno"> 9 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">parent</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Weak</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">10 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">children</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">11 </span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
+<span class="lineno">12 </span><span class="hll"><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">fd_table</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">dyn</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+</span><span class="lineno">13 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>可以看到 <code class="docutils literal notranslate"><span class="pre">fd_table</span></code> 的类型包含多层嵌套，我们从外到里分别说明：</p>
@@ -513,8 +512,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>在编程语言中， <strong>多态</strong> (Polymorphism) 指的是在同一段代码中可以隐含多种不同类型的特征。在 Rust 中主要通过泛型和 Trait 来实现多态。</p>
 <p>泛型是一种 <strong>编译期多态</strong> (Static Polymorphism)，在编译一个泛型函数的时候，编译器会对于所有可能用到的类型进行实例化并对应生成一个版本的汇编代码，在编译期就能知道选取哪个版本并确定函数地址，这可能会导致生成的二进制文件体积较大；而 Trait 对象（也即上面提到的 <code class="docutils literal notranslate"><span class="pre">dyn</span></code> 语法）是一种 <strong>运行时多态</strong> (Dynamic Polymorphism)，需要在运行时查一种类似于 C++ 中的 <strong>虚表</strong> (Virtual Table) 才能找到实际类型对于抽象接口实现的函数地址并进行调用，这样会带来一定的运行时开销，但是更省空间且灵活。</p>
 </div>
-</section>
-<section id="id8">
+</div>
+<div class="section" id="id8">
 <h2>应用访问文件的内核机制实现<a class="headerlink" href="#id8" title="永久链接至标题"></a></h2>
 <p>应用程序在访问文件之前，首先需要完成对文件系统的初始化和加载。这可以通过操作系统来完成，也可以让应用程序发出文件系统相关的系统调用（如 <a href="#id9"><span class="problematic" id="id10">``</span></a>mount``等）来完成。我们这里的选择是让操作系统直接完成。</p>
 <p>应用程序如果要基于文件进行I/O访问，大致就会涉及如下一些系统调用：</p>
@@ -524,7 +523,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p>读文件 – sys_read：进程可以基于文件描述符来读文件内容到相应内存中。</p></li>
 <li><p>写文件 – sys_write：进程可以基于文件描述符来把相应内存内容写到文件中。</p></li>
 </ul>
-<section id="id11">
+<div class="section" id="id11">
 <h3>文件系统初始化<a class="headerlink" href="#id11" title="永久链接至标题"></a></h3>
 <p>在上一小节我们介绍过，为了使用 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 提供的抽象和服务，我们需要进行一些初始化操作才能成功将 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 接入到我们的内核中。按照前面总结的步骤：</p>
 <ol class="arabic simple">
@@ -547,16 +546,16 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/inode.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">list_apps</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;/**** APPS ****&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;/**** APPS ****&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">ROOT_INODE</span><span class="p">.</span><span class="n">ls</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">app</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">app</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;**************/&quot;</span><span class="p">)</span><span class="w"></span>
+<span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;**************/&quot;</span><span class="p">)</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-</section>
-<section id="id12">
+</div>
+<div class="section" id="id12">
 <h3>打开与关闭文件<a class="headerlink" href="#id12" title="永久链接至标题"></a></h3>
 <p>我们需要在内核中也定义一份打开文件的标志 <code class="docutils literal notranslate"><span class="pre">OpenFlags</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/inode.rs</span>
@@ -577,7 +576,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">read_write</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="p">(</span><span class="kt">bool</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">is_empty</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">            </span><span class="p">(</span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">)</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="bp">Self</span>::<span class="n">WRONLY</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">Self</span>::<span class="n">WRONLY</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">            </span><span class="p">(</span><span class="kc">false</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">)</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">            </span><span class="p">(</span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">)</span><span class="w"></span>
@@ -667,35 +666,35 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-</section>
-<section id="id13">
+</div>
+<div class="section" id="id13">
 <h3>基于文件来加载并执行应用<a class="headerlink" href="#id13" title="永久链接至标题"></a></h3>
 <p>在有了文件系统支持之后，我们在 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 所需的应用的 ELF 文件格式的数据就不再需要通过应用加载器从内核的数据段获取，而是从文件系统中获取，这样内核与应用的代码/数据就解耦了：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exec</span><span class="p">(</span><span class="n">path</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">args</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_str</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">args_vec</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">arg_str_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">translated_ref</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">arg_str_ptr</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">            </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">        </span><span class="n">args_vec</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">translated_str</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">arg_str_ptr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">));</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="hll"><span class="linenos">15</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">app_inode</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open_file</span><span class="p">(</span><span class="n">path</span><span class="p">.</span><span class="n">as_str</span><span class="p">(),</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">16</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">all_data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">app_inode</span><span class="p">.</span><span class="n">read_all</span><span class="p">();</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">17</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">18</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">argc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args_vec</span><span class="p">.</span><span class="n">len</span><span class="p">();</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">19</span><span class="w">        </span><span class="n">task</span><span class="p">.</span><span class="n">exec</span><span class="p">(</span><span class="n">all_data</span><span class="p">.</span><span class="n">as_slice</span><span class="p">(),</span><span class="w"> </span><span class="n">args_vec</span><span class="p">);</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">20</span><span class="w">        </span><span class="c1">// return argc because cx.x[10] will be covered with it later</span>
-</span><span class="hll"><span class="linenos">21</span><span class="w">        </span><span class="n">argc</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">22</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">23</span><span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">24</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-</span><span class="linenos">25</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="lineno"> 1 </span><span class="c1">// os/src/syscall/process.rs</span>
+<span class="lineno"> 2 </span>
+<span class="lineno"> 3 </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exec</span><span class="p">(</span><span class="n">path</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">args</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="lineno"> 4 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span><span class="w"></span>
+<span class="lineno"> 5 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_str</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">);</span><span class="w"></span>
+<span class="lineno"> 6 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">args_vec</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="lineno"> 7 </span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno"> 8 </span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">arg_str_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">translated_ref</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">);</span><span class="w"></span>
+<span class="lineno"> 9 </span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">arg_str_ptr</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="lineno">10 </span><span class="w">            </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="lineno">11 </span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">12 </span><span class="w">        </span><span class="n">args_vec</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">translated_str</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">arg_str_ptr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">));</span><span class="w"></span>
+<span class="lineno">13 </span><span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">14 </span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="lineno">15 </span><span class="hll"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">app_inode</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open_file</span><span class="p">(</span><span class="n">path</span><span class="p">.</span><span class="n">as_str</span><span class="p">(),</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+</span><span class="lineno">16 </span><span class="hll"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">all_data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">app_inode</span><span class="p">.</span><span class="n">read_all</span><span class="p">();</span><span class="w"></span>
+</span><span class="lineno">17 </span><span class="hll"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+</span><span class="lineno">18 </span><span class="hll"><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">argc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args_vec</span><span class="p">.</span><span class="n">len</span><span class="p">();</span><span class="w"></span>
+</span><span class="lineno">19 </span><span class="hll"><span class="w">        </span><span class="n">task</span><span class="p">.</span><span class="n">exec</span><span class="p">(</span><span class="n">all_data</span><span class="p">.</span><span class="n">as_slice</span><span class="p">(),</span><span class="w"> </span><span class="n">args_vec</span><span class="p">);</span><span class="w"></span>
+</span><span class="lineno">20 </span><span class="hll"><span class="w">        </span><span class="c1">// return argc because cx.x[10] will be covered with it later</span>
+</span><span class="lineno">21 </span><span class="hll"><span class="w">        </span><span class="n">argc</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
+</span><span class="lineno">22 </span><span class="hll"><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+</span><span class="lineno">23 </span><span class="hll"><span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
+</span><span class="lineno">24 </span><span class="hll"><span class="w">    </span><span class="p">}</span><span class="w"></span>
+</span><span class="lineno">25 </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>注意上面代码片段中的高亮部分。当执行获取应用的 ELF 数据的操作时，首先调用 <code class="docutils literal notranslate"><span class="pre">open_file</span></code> 函数，以只读的方式在内核中打开应用文件并获取它对应的 <code class="docutils literal notranslate"><span class="pre">OSInode</span></code> 。接下来可以通过 <code class="docutils literal notranslate"><span class="pre">OSInode::read_all</span></code> 将该文件的数据全部读到一个向量 <code class="docutils literal notranslate"><span class="pre">all_data</span></code> 中：</p>
@@ -712,7 +711,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">                </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
 <span class="w">            </span><span class="p">}</span><span class="w"></span>
 <span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">len</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="n">v</span><span class="p">.</span><span class="n">extend_from_slice</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buffer</span><span class="p">[</span><span class="o">..</span><span class="n">len</span><span class="p">]);</span><span class="w"></span>
+<span class="w">            </span><span class="n">v</span><span class="p">.</span><span class="n">extend_from_slice</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buffer</span><span class="p">[..</span><span class="n">len</span><span class="p">]);</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
 <span class="w">        </span><span class="n">v</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"></span>
@@ -732,8 +731,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-</section>
-<section id="id14">
+</div>
+<div class="section" id="id14">
 <h3>读写文件<a class="headerlink" href="#id14" title="永久链接至标题"></a></h3>
 <p>基于文件抽象接口和文件描述符表，我们可以按照无结构的字节流在处理基本的文件读写，这样可以让文件读写系统调用 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 变得更加具有普适性，为后续支持把管道等抽象为文件打下了基础：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
@@ -748,7 +747,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">file</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
 <span class="w">        </span><span class="c1">// release current task TCB manually to avoid multi-borrow</span>
-<span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="n">file</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="w"></span>
 <span class="w">            </span><span class="n">UserBuffer</span>::<span class="n">new</span><span class="p">(</span><span class="n">translated_byte_buffer</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">))</span><span class="w"></span>
 <span class="w">        </span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
@@ -767,7 +766,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">file</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
 <span class="w">        </span><span class="c1">// release current task TCB manually to avoid multi-borrow</span>
-<span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="n">file</span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="w"></span>
 <span class="w">            </span><span class="n">UserBuffer</span>::<span class="n">new</span><span class="p">(</span><span class="n">translated_byte_buffer</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">))</span><span class="w"></span>
 <span class="w">        </span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
@@ -778,9 +777,9 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 <p>操作系统都是通过文件描述符在当前进程的文件描述符表中找到某个文件，无需关心文件具体的类型，只要知道它一定实现了 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait 的 <code class="docutils literal notranslate"><span class="pre">read/write</span></code> 方法即可。Trait 对象提供的运行时多态能力会在运行的时候帮助我们定位到符合实际类型的 <code class="docutils literal notranslate"><span class="pre">read/write</span></code> 方法。</p>
-</section>
-</section>
-</section>
+</div>
+</div>
+</div>
 
 
            </div>
