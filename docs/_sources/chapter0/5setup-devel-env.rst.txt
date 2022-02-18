@@ -8,7 +8,7 @@
 本节我们将完成环境配置并成功运行 rCore-Tutorial-v3 。整个流程分为下面几个部分：
 
 - 系统环境配置
-- Rust 开发环境配置
+- C/Rust 开发环境配置
 - Qemu 模拟器安装
 - 其他工具安装
 - 运行 rCore-Tutorial-v3
@@ -76,6 +76,18 @@
 - `Debian for RV64的D1哪吒开发板系统镜像 <http://www.perfxlab.cn:8080/rvboards/RVBoards_D1_Debian_img_v0.6.1/RVBoards_D1_Debian_img_v0.6.1.zip>`_
 
 注：后续的配置主要基于Linux for x86-64系统环境，如果同学采用Linux for RV64环境，需要自己配置。不过在同学比较熟悉的情况下，配置方法类似且更加简单。可能存在的主要问题是，面向Linux for RV64的相关软件包可能不全，这样需要同学从源码直接编译出缺失的软件包。
+
+C 开发环境配置
+-------------------------------------------
+
+在实验或练习过程中，也会涉及部分基于C语言的开发，可以安装基本的本机开发环境和交叉开发环境。下面是以Ubuntu 20.04为例，需要安装的C 开发环境涉及的软件：
+
+.. code-block:: bash
+
+   $ sudo apt-get update && sudo apt-get upgrade
+   $ sudo apt-get install git build-essential gdb-multiarch qemu-system-misc gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu
+
+注：上述软件不是Rust开发环境所必须的。
 
 Rust 开发环境配置
 -------------------------------------------
