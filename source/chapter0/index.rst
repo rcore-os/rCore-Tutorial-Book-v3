@@ -13,4 +13,5 @@
    4os-features
    5setup-devel-env
    6hardware
+   7exercise
 
