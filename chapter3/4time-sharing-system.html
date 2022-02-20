@@ -1,0 +1,542 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>分时多任务系统与抢占式调度 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/my_style.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script kind="utterances">
+
+    var commentsRunWhenDOMLoaded = cb => {
+    if (document.readyState != 'loading') {
+        cb()
+    } else if (document.addEventListener) {
+        document.addEventListener('DOMContentLoaded', cb)
+    } else {
+        document.attachEvent('onreadystatechange', function() {
+        if (document.readyState == 'complete') cb()
+        })
+    }
+}
+
+var addUtterances = () => {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = "https://utteranc.es/client.js";
+    script.async = "async";
+
+    script.setAttribute("repo", "rcore-os/rCore-Tutorial-Book-v3");
+    script.setAttribute("issue-term", "pathname");
+    script.setAttribute("theme", "github-light");
+    script.setAttribute("label", "comments");
+    script.setAttribute("crossorigin", "anonymous");
+
+    sections = document.querySelectorAll("div.section");
+    if (sections !== null) {
+        section = sections[sections.length-1];
+        section.appendChild(script);
+    }
+}
+commentsRunWhenDOMLoaded(addUtterances);
+</script>
+        <script src="../_static/translations.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="练习" href="5exercise.html" />
+    <link rel="prev" title="多道程序与协作式调度" href="3multiprogramming.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="在文档中搜索" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Part1 - Just do it!</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第三章：多道程序与分时多任务</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1multi-loader.html">多道程序放置与加载</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2task-switching.html">任务切换</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3multiprogramming.html">多道程序与协作式调度</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">分时多任务系统与抢占式调度</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id4">分时多任务系统的背景</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5">时间片轮转调度</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#risc-v">RISC-V 架构中的中断</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">时钟中断与计时器</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id7">抢占式调度</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="5exercise.html">练习</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter6/index.html">第六章：文件系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：进程间通信与 I/O 重定向</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter8/index.html">第八章：并发</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter9/index.html">第九章：I/O设备管理</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">附录</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../final-lab.html">综合练习</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 系统编程入门</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-b/index.html">附录 B：常见工具的使用方法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-c/index.html">附录 C：深入机器模式：RustSBI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-d/index.html">附录 D：RISC-V相关信息</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-e/index.html">附录 E：操作系统进一步介绍</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">开发注记</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../log.html">更新日志</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">rCore-Tutorial-Book-v3</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">第三章：多道程序与分时多任务</a> &raquo;</li>
+        
+      <li>分时多任务系统与抢占式调度</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/chapter3/4time-sharing-system.rst.txt" rel="nofollow"> 查看页面源码</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="id1">
+<h1>分时多任务系统与抢占式调度<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<div class="section" id="id2">
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>上一节我们介绍了“始初龙”协作式操作系统，依靠应用程序之间的协作来完成任务调度和切换。本节的重点是操作系统对中断的处理和对应用程序的抢占，并设计实现更加公平和高效交互的三叠纪“腔骨龙” <a class="footnote-reference brackets" href="#coelophysis" id="id3">1</a> 抢占式操作系统。为此，我们需要对 <strong>任务</strong> 的概念进行进一步扩展和延伸：</p>
+<ul class="simple">
+<li><p>分时多任务：操作系统管理每个应用程序，以时间片为单位来分时占用处理器运行应用。</p></li>
+<li><p>时间片轮转调度：操作系统在一个程序用完其时间片后，就抢占当前程序并调用下一个程序执行，周而复始，形成对应用程序在任务级别上的时间片轮转调度。</p></li>
+</ul>
+<div class="section" id="id4">
+<h3>分时多任务系统的背景<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
+<p id="term-throughput">上一节我们介绍了多道程序，它是一种允许应用在等待外设时主动切换到其他应用来达到总体 CPU 利用率最高的设计。在多道程序盛行的时候，计算机应用的开发者和计算机管理者是两类人，开发者不能管理计算机，对于应用的运行过程没有太多控制权，而计算机管理者的目标是总体 CPU 利用率最高，可以换成一个等价的指标： <strong>吞吐量</strong> (Throughput) 。大概可以理解为在某个时间点将一组应用放进去，要求在一段固定的时间之内执行完毕的应用最多，或者是总进度百分比最大。因此，所有的应用和编写应用的程序员都有这样的共识：只要 CPU 一直在做实际的工作就好。</p>
+<p id="term-latency"><span id="term-interactive-application"></span><span id="term-background-application"></span>从现在的眼光来看，当时的应用更多是一种 <strong>后台应用</strong> (Background Application) ，在将它加入执行队列之后我们只需定期确认它的运行状态。而随着技术的发展，涌现了越来越多的 <strong>交互式应用</strong> (Interactive Application) ，它们要达成的一个重要目标就是提高用户（应用的使用者和开发者）操作的响应速度，减少 <strong>延迟</strong> （Latency），这样才能优化应用的使用体验和开发体验。对于这些应用而言，即使需要等待外设或某些事件，它们也不会倾向于主动 yield 交出 CPU 使用权，因为这样可能会带来无法接受的延迟。也就是说，应用之间更多的是互相竞争宝贵的硬件资源，而不是相互合作。</p>
+<p id="term-preemptive-scheduling"><span id="term-cooperative-scheduling"></span>如果应用自己很少 yield ，操作系统内核就要开始收回之前下放的权力，由它自己对 CPU 资源进行集中管理并合理分配给各应用，这就是内核需要提供的任务调度能力。我们可以将多道程序的调度机制分类成 <strong>协作式调度</strong> (Cooperative Scheduling) ，因为它的特征是：只要一个应用不主动 yield 交出 CPU 使用权，它就会一直执行下去。与之相对， <strong>抢占式调度</strong> (Preemptive Scheduling) 则是应用 <em>随时</em> 都有被内核切换出去的可能。</p>
+<p id="term-fairness"><span id="term-time-slice"></span>现代的任务调度算法基本都是抢占式的，它要求每个应用只能连续执行一段时间，然后内核就会将它强制性切换出去。一般将 <strong>时间片</strong> (Time Slice) 作为应用连续执行时长的度量单位，每个时间片可能在毫秒量级。调度算法需要考虑：每次在换出之前给一个应用多少时间片去执行，以及要换入哪个应用。可以从性能（主要是吞吐量和延迟两个指标）和 <strong>公平性</strong> (Fairness) 两个维度来评价调度算法，后者要求多个应用分到的时间片占比不应差距过大。</p>
+</div>
+<div class="section" id="id5">
+<h3>时间片轮转调度<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
+<p id="term-round-robin">简单起见，本书中我们使用 <strong>时间片轮转算法</strong> (RR, Round-Robin) 来对应用进行调度，只要对它进行少许拓展就能完全满足我们的需求。本章中我们仅需要最原始的 RR 算法，用文字描述的话就是维护一个任务队列，每次从队头取出一个应用执行一个时间片，然后把它丢到队尾，再继续从队头取出一个应用，以此类推直到所有的应用执行完毕。</p>
+<p>本节的代码可以在 <code class="docutils literal notranslate"><span class="pre">ch3</span></code> 分支上找到。</p>
+</div>
+</div>
+<div class="section" id="risc-v">
+<h2>RISC-V 架构中的中断<a class="headerlink" href="#risc-v" title="永久链接至标题">¶</a></h2>
+<p id="term-async"><span id="term-sync"></span><span id="term-interrupt"></span>时间片轮转调度的核心机制就在于计时。操作系统的计时功能是依靠硬件提供的时钟中断来实现的。在介绍时钟中断之前，我们先简单介绍一下中断。</p>
+<p>在 RISC-V 架构语境下， <strong>中断</strong> (Interrupt) 和我们第二章中介绍的异常（包括程序错误导致或执行 Trap 类指令如用于系统调用的 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> ）一样都是一种 Trap ，但是它们被触发的原因却是不同的。对于某个处理器核而言， 异常与当前 CPU 的指令执行是 <strong>同步</strong> (Synchronous) 的，异常被触发的原因一定能够追溯到某条指令的执行；而中断则 <strong>异步</strong> (Asynchronous) 于当前正在进行的指令，也就是说中断来自于哪个外设以及中断如何触发完全与处理器正在执行的当前指令无关。</p>
+<div class="admonition note" id="term-parallel">
+<p class="admonition-title">注解</p>
+<p><strong>从底层硬件的角度区分同步和异步</strong></p>
+<p>从底层硬件的角度可能更容易理解这里所提到的同步和异步。以一个处理器的五级流水线设计而言，里面含有取指、译码、算术、访存、寄存器等单元，都属于执行指令所需的硬件资源。那么假如某条指令的执行出现了问题，一定能被其中某个单元看到并反馈给流水线控制单元，从而它会在执行预定的下一条指令之前先进入异常处理流程。也就是说，异常在这些单元内部即可被发现并解决。</p>
+<p>而对于中断，可以理解为发起中断的是一套与处理器执行指令无关的电路（从时钟中断来看就是简单的计数和比较器），这套电路仅通过一根导线接入处理器。当外设想要触发中断的时候则输入一个高电平或正边沿，处理器会在每执行完一条指令之后检查一下这根线，看情况决定是继续执行接下来的指令还是进入中断处理流程。也就是说，大多数情况下，指令执行的相关硬件单元和可能发起中断的电路是完全独立 <strong>并行</strong> (Parallel) 运行的，它们中间只有一根导线相连。</p>
+</div>
+<p>在不考虑指令集拓展的情况下，RISC-V 架构中定义了如下中断：</p>
+<table class="colwidths-given docutils align-center" id="id8">
+<caption><span class="caption-text">RISC-V 中断一览表</span><a class="headerlink" href="#id8" title="永久链接至表格">¶</a></caption>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Interrupt</p></th>
+<th class="head"><p>Exception Code</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>1</p></td>
+<td><p>Supervisor software interrupt</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>3</p></td>
+<td><p>Machine software interrupt</p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>5</p></td>
+<td><p>Supervisor timer interrupt</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>7</p></td>
+<td><p>Machine timer interrupt</p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>9</p></td>
+<td><p>Supervisor external interrupt</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>11</p></td>
+<td><p>Machine external interrupt</p></td>
+</tr>
+</tbody>
+</table>
+<p>RISC-V 的中断可以分成三类：</p>
+<span id="term-timer-interrupt"></span><span id="term-software-interrupt"></span><ul class="simple" id="term-external-interrupt">
+<li><p><strong>软件中断</strong> (Software Interrupt)：由软件控制发出的中断</p></li>
+<li><p><strong>时钟中断</strong> (Timer Interrupt)：由时钟电路发出的中断</p></li>
+<li><p><strong>外部中断</strong> (External Interrupt)：由外设发出的中断</p></li>
+</ul>
+<p>另外，相比于异常，中断和特权级之间的联系更为紧密，可以看到这三种中断每一个都有 M/S 特权级两个版本。中断的特权级可以决定该中断是否会被屏蔽，以及需要 Trap 到 CPU 的哪个特权级进行处理。</p>
+<p>在判断中断是否会被屏蔽的时候，有以下规则：</p>
+<ul class="simple">
+<li><p>如果中断的特权级低于 CPU 当前的特权级，则该中断会被屏蔽，不会被处理；</p></li>
+<li><p>如果中断的特权级高于与 CPU 当前的特权级或相同，则需要通过相应的 CSR 判断该中断是否会被屏蔽。</p></li>
+</ul>
+<p>以内核所在的 S 特权级为例，中断屏蔽相应的 CSR 有 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 。<code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 的 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 为 S 特权级的中断使能，能够同时控制三种中断，如果将其清零则会将它们全部屏蔽。即使 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 置 1 ，还要看 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 这个 CSR，它的三个字段  <code class="docutils literal notranslate"><span class="pre">ssie/stie/seie</span></code> 分别控制 S 特权级的软件中断、时钟中断和外部中断的中断使能。比如对于 S 态时钟中断来说，如果 CPU 不高于 S 特权级，需要 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sie.stie</span></code> 均为 1 该中断才不会被屏蔽；如果 CPU 当前特权级高于 S 特权级，则该中断一定会被屏蔽。</p>
+<p>如果中断没有被屏蔽，那么接下来就需要软件进行处理，而具体到哪个特权级进行处理与一些中断代理 CSR 的设置有关。默认情况下，所有的中断都需要到 M 特权级处理。而通过软件设置这些中断代理 CSR 之后，就可以到低特权级处理，但是 Trap 到的特权级不能低于中断的特权级。事实上所有的中断/异常默认也都是到 M 特权级处理的。</p>
+<p>我们会在 <a class="reference internal" href="../appendix-c/index.html"><span class="doc">附录 C：深入机器模式：RustSBI</span></a> 中再深入介绍中断/异常代理。在本书中我们只需要了解：</p>
+<ul class="simple">
+<li><p>U 特权级的应用程序发出系统调用或产生错误异常都会跳转到 S 特权级的操作系统内核来处理；</p></li>
+<li><p>S 特权级的时钟/软件/外部中断产生后，都会跳转到 S 特权级的操作系统内核来处理。</p></li>
+</ul>
+<p>这里我们还需要对第二章介绍的系统调用和异常发生时的硬件机制做一下与中断相关的补充。默认情况下，当中断产生并进入某个特权级之后，在中断处理的过程中同特权级的中断都会被屏蔽。中断产生后，硬件会完成如下事务：</p>
+<ul class="simple">
+<li><p>当中断发生时，<code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 字段会被保存在 <code class="docutils literal notranslate"><span class="pre">sstatus.spie</span></code> 字段中，同时把 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 字段置零，这样软件在进行后续的中断处理过程中，所有 S 特权级的中断都会被屏蔽；</p></li>
+<li><p>当软件执行中断处理完毕后，会执行 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 指令返回到被中断打断的地方继续执行，硬件会把 <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 字段恢复为 <code class="docutils literal notranslate"><span class="pre">sstatus.spie</span></code> 字段内的值。</p></li>
+</ul>
+<p id="term-nested-interrupt">也就是说，如果不去手动设置 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> CSR ，在只考虑 S 特权级中断的情况下，是不会出现 <strong>嵌套中断</strong> (Nested Interrupt) 的。嵌套中断是指在处理一个中断的过程中再一次触发了中断。由于默认情况下，在软件开始响应中断前， 硬件会自动禁用所有同特权级中断，自然也就不会再次触发中断导致嵌套中断了。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>嵌套中断与嵌套 Trap</strong></p>
+<p>嵌套中断可以分为两部分：在处理一个中断的过程中又被同特权级/高特权级中断所打断。默认情况下硬件会避免同特权级再次发生，但高特权级中断则是不可避免的会再次发生。</p>
+<p>嵌套 Trap 则是指处理一个 Trap（可能是中断或异常）的过程中又再次发生 Trap ，嵌套中断是嵌套 Trap 的一个特例。在内核开发时我们需要仔细权衡哪些嵌套 Trap 应当被允许存在，哪些嵌套 Trap 又应该被禁止，这会关系到内核的执行模型。</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>RISC-V 架构的 U （用户态）特权级中断</strong></p>
+<p>目前，RISC-V 用户态中断作为代号 N 的一个指令集拓展而存在。有兴趣的同学可以阅读最新版的 RISC-V 特权级架构规范一探究竟。</p>
+</div>
+</div>
+<div class="section" id="id6">
+<h2>时钟中断与计时器<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
+<p>由于软件（特别是操作系统）需要一种计时机制，RISC-V 架构要求处理器要有一个内置时钟，其频率一般低于 CPU 主频。此外，还有一个计数器用来统计处理器自上电以来经过了多少个内置时钟的时钟周期。在 RISC-V 64 架构上，该计数器保存在一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 中，我们无需担心它的溢出问题，在内核运行全程可以认为它是一直递增的。</p>
+<p>另外一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的作用是：一旦计数器 <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 的值超过了 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code>，就会触发一次时钟中断。这使得我们可以方便的通过设置 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的值来决定下一次时钟中断何时触发。</p>
+<p>可惜的是，它们都是 M 特权级的 CSR ，而我们的内核处在 S 特权级，是不被允许直接访问它们的。好在运行在 M 特权级的 SEE （这里是RustSBI）已经预留了相应的接口，我们可以调用它们来间接实现计时器的控制：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/timer.rs</span>
+
+<span class="k">use</span><span class="w"> </span><span class="n">riscv</span>::<span class="n">register</span>::<span class="n">time</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_time</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">time</span>::<span class="n">read</span><span class="p">()</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">timer</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">get_time</span></code> 函数可以取得当前 <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 计数器的值；</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/sbi.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">const</span><span class="w"> </span><span class="n">SBI_SET_TIMER</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 4</span>
+<span class="linenos"> 5</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">set_timer</span><span class="p">(</span><span class="n">timer</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="n">sbi_call</span><span class="p">(</span><span class="n">SBI_SET_TIMER</span><span class="p">,</span><span class="w"> </span><span class="n">timer</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 8</span>
+<span class="linenos"> 9</span><span class="c1">// os/src/timer.rs</span>
+<span class="linenos">10</span>
+<span class="linenos">11</span><span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">config</span>::<span class="n">CLOCK_FREQ</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">12</span><span class="k">const</span><span class="w"> </span><span class="n">TICKS_PER_SEC</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">13</span>
+<span class="linenos">14</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">set_next_trigger</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="n">set_timer</span><span class="p">(</span><span class="n">get_time</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">CLOCK_FREQ</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">TICKS_PER_SEC</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">16</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<ul>
+<li><p>代码片段第 5 行， <code class="docutils literal notranslate"><span class="pre">sbi</span></code> 子模块有一个 <code class="docutils literal notranslate"><span class="pre">set_timer</span></code> 调用，是一个由 SEE 提供的标准 SBI 接口函数，它可以用来设置 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的值。</p></li>
+<li><p>代码片段第 14 行， <code class="docutils literal notranslate"><span class="pre">timer</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">set_next_trigger</span></code> 函数对 <code class="docutils literal notranslate"><span class="pre">set_timer</span></code> 进行了封装，它首先读取当前 <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 的值，然后计算出 10ms 之内计数器的增量，再将 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 设置为二者的和。这样，10ms 之后一个 S 特权级时钟中断就会被触发。</p>
+<p>至于增量的计算方式，常数 <code class="docutils literal notranslate"><span class="pre">CLOCK_FREQ</span></code> 是一个预先获取到的各平台不同的时钟频率，单位为赫兹，也就是一秒钟之内计数器的增量。它可以在 <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块中找到。<code class="docutils literal notranslate"><span class="pre">CLOCK_FREQ</span></code> 除以常数 <code class="docutils literal notranslate"><span class="pre">TICKS_PER_SEC</span></code> 即是下一次时钟中断的计数器增量值。</p>
+</li>
+</ul>
+<p>后面可能还有一些计时的操作，比如统计一个应用的运行时长，我们再设计一个函数：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/timer.rs</span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">MICRO_PER_SEC</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">1_000_000</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_time_us</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">time</span>::<span class="n">read</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">CLOCK_FREQ</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">MICRO_PER_SEC</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">timer</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">get_time_us</span></code> 以微秒为单位返回当前计数器的值，这让我们终于能对时间有一个具体概念了。实现原理就不再赘述。</p>
+<p>新增一个系统调用，方便应用获取当前的时间：</p>
+<div class="literal-block-wrapper docutils container" id="id9">
+<div class="code-block-caption"><span class="caption-text">第三章新增系统调用（二）</span><a class="headerlink" href="#id9" title="永久链接至代码">¶</a></div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：获取当前的时间，保存在 TimeVal 结构体 ts 中，_tz 在我们的实现中忽略</span>
+<span class="sd">/// 返回值：返回是否执行成功，成功则返回 0</span>
+<span class="sd">/// syscall ID：169</span>
+<span class="k">fn</span> <span class="nf">sys_get_time</span><span class="p">(</span><span class="n">ts</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TimeVal</span><span class="p">,</span><span class="w"> </span><span class="n">_tz</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#[repr(C)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TimeVal</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">sec</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">usec</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<p>它在内核中的实现只需调用 <code class="docutils literal notranslate"><span class="pre">get_time_us</span></code> 函数即可。</p>
+</div>
+<div class="section" id="id7">
+<h2>抢占式调度<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<p>有了时钟中断和计时器，抢占式调度就很容易实现了：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/trap/mod.rs</span>
+
+<span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">Trap</span>::<span class="n">Interrupt</span><span class="p">(</span><span class="n">Interrupt</span>::<span class="n">SupervisorTimer</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">set_next_trigger</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>我们只需在 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 函数下新增一个条件分支跳转，当发现触发了一个 S 特权级时钟中断的时候，首先重新设置一个 10ms 的计时器，然后调用上一小节提到的 <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 函数暂停当前应用并切换到下一个。</p>
+<p>为了避免 S 特权级时钟中断被屏蔽，我们需要在执行第一个应用之前进行一些初始化设置：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/main.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">rust_main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="n">clear_bss</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;[kernel] Hello, world!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="n">trap</span>::<span class="n">init</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="n">loader</span>::<span class="n">load_apps</span><span class="p">();</span><span class="w"></span>
+<span class="hll"><span class="linenos"> 9</span><span class="w">    </span><span class="n">trap</span>::<span class="n">enable_timer_interrupt</span><span class="p">();</span><span class="w"></span>
+</span><span class="hll"><span class="linenos">10</span><span class="w">    </span><span class="n">timer</span>::<span class="n">set_next_trigger</span><span class="p">();</span><span class="w"></span>
+</span><span class="linenos">11</span><span class="w">    </span><span class="n">task</span>::<span class="n">run_first_task</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unreachable in rust_main!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">13</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">14</span>
+<span class="linenos">15</span><span class="c1">// os/src/trap/mod.rs</span>
+<span class="linenos">16</span>
+<span class="linenos">17</span><span class="k">use</span><span class="w"> </span><span class="n">riscv</span>::<span class="n">register</span>::<span class="n">sie</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">18</span>
+<span class="linenos">19</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">enable_timer_interrupt</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">sie</span>::<span class="n">set_stimer</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">21</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>第 9 行设置了 <code class="docutils literal notranslate"><span class="pre">sie.stie</span></code> 使得 S 特权级时钟中断不会被屏蔽；</p></li>
+<li><p>第 10 行则是设置第一个 10ms 的计时器。</p></li>
+</ul>
+<p>这样，当一个应用运行了 10ms 之后，一个 S 特权级时钟中断就会被触发。由于应用运行在 U 特权级，且 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 寄存器被正确设置，该中断不会被屏蔽，而是跳转到 S 特权级内的我们的 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 里面进行处理，并顺利切换到下一个应用。这便是我们所期望的抢占式调度机制。从应用运行的结果也可以看出，三个 <code class="docutils literal notranslate"><span class="pre">power</span></code> 系列应用并没有进行 yield ，而是由内核负责公平分配它们执行的时间片。</p>
+<p>有同学可能会注意到，我们并没有将应用初始 Trap 上下文中的 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">SPIE</span></code> 位置为 1 。这将意味着 CPU 在用户态执行应用的时候 <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 的 <code class="docutils literal notranslate"><span class="pre">SIE</span></code> 为 0 ，根据定义来说，此时的 CPU 会屏蔽 S 态所有中断，自然也包括 S 特权级时钟中断。但是可以观察到我们的应用在用尽一个时间片之后能够正常被打断。这是因为当 CPU 在 U 态接收到一个 S 态时钟中断时会被抢占，这时无论 <code class="docutils literal notranslate"><span class="pre">SIE</span></code> 位是否被设置都会进入 Trap 处理流程。</p>
+<p>目前在等待某些事件的时候仍然需要 yield ，其中一个原因是为了节约 CPU 计算资源，另一个原因是当事件依赖于其他的应用的时候，由于只有一个 CPU ，当前应用的等待可能永远不会结束。这种情况下需要先将它切换出去，使得其他的应用到达它所期待的状态并满足事件的生成条件，再切换回来。</p>
+<p id="term-busy-loop">这里我们先通过 yield 来优化 <strong>轮询</strong> (Busy Loop) 过程带来的 CPU 资源浪费。在 <code class="docutils literal notranslate"><span class="pre">03sleep</span></code> 这个应用中：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/bin/03sleep.rs</span>
+
+<span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">current_timer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_time</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">wait_for</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_timer</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">3000</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="n">get_time</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">wait_for</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">yield_</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Test sleep OK!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="mi">0</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>它的功能是等待 3000ms 然后退出。可以看出，我们会在循环里面 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 来主动交出 CPU 而不是无意义的忙等。其实，现在的抢占式调度会在它循环 10ms 之后切换到其他应用，这样能让内核给其他应用分配更多的 CPU 资源并让它们更早运行结束。</p>
+<p>我们的“腔骨龙”协作式操作系统就算是实现完毕了。它支持把多个应用的代码和数据放置到内存中；并能够执行每个应用；在应用程序发出 <code class="docutils literal notranslate"><span class="pre">sys_yeild</span></code> 系统调用时，协作式地切换应用；并能通过时钟中断来实现抢占式调度并强行切换应用，从而提高了应用执行的灵活性、公平性和交互效率。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>内核代码执行是否会被中断打断？</strong></p>
+<p>目前为了简单起见，我们的内核不会被 S 特权级中断所打断，这是因为 CPU 在 S 特权级时， <code class="docutils literal notranslate"><span class="pre">sstatus.sie</span></code> 总为 0 。但这会造成内核对部分中断的响应不及时，因此一种较为合理的做法是允许内核在处理系统调用的时候被打断优先处理某些中断，这是一种允许 Trap 嵌套的设计。从第四章可以看到，我们目前的设计不允许 Trap 嵌套，当通过 Trap 进入内核再次遇到 Trap 的时候，内核会直接 panic 。</p>
+</div>
+<dl class="footnote brackets">
+<dt class="label" id="coelophysis"><span class="brackets"><a class="fn-backref" href="#id3">1</a></span></dt>
+<dd><p>腔骨龙（也称虚形龙）最早出现于三叠纪晚期，它体形纤细，善于奔跑，以小型动物为食。</p>
+</dd>
+</dl>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="5exercise.html" class="btn btn-neutral float-right" title="练习" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="3multiprogramming.html" class="btn btn-neutral float-left" title="多道程序与协作式调度" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; 版权所有 2020-2022, Yu Chen, Yifan Wu.
+
+    </p>
+  </div>
+    
+    
+    
+    利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    
+    由 <a href="https://readthedocs.org">Read the Docs</a>开发. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

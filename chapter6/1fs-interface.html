@@ -1,0 +1,530 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="zh-CN" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>文件系统接口 &mdash; rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/my_style.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script kind="utterances">
+
+    var commentsRunWhenDOMLoaded = cb => {
+    if (document.readyState != 'loading') {
+        cb()
+    } else if (document.addEventListener) {
+        document.addEventListener('DOMContentLoaded', cb)
+    } else {
+        document.attachEvent('onreadystatechange', function() {
+        if (document.readyState == 'complete') cb()
+        })
+    }
+}
+
+var addUtterances = () => {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = "https://utteranc.es/client.js";
+    script.async = "async";
+
+    script.setAttribute("repo", "rcore-os/rCore-Tutorial-Book-v3");
+    script.setAttribute("issue-term", "pathname");
+    script.setAttribute("theme", "github-light");
+    script.setAttribute("label", "comments");
+    script.setAttribute("crossorigin", "anonymous");
+
+    sections = document.querySelectorAll("div.section");
+    if (sections !== null) {
+        section = sections[sections.length-1];
+        section.appendChild(script);
+    }
+}
+commentsRunWhenDOMLoaded(addUtterances);
+</script>
+        <script src="../_static/translations.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="简易文件系统 easy-fs" href="2fs-implementation.html" />
+    <link rel="prev" title="引言" href="0intro.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> rCore-Tutorial-Book-v3
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="在文档中搜索" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Part1 - Just do it!</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter5/index.html">第五章：进程</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">第六章：文件系统</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">文件系统接口</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">文件和目录</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id4">常规文件</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5">目录</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6">文件系统</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#fs-simplification">简化的文件与目录抽象</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id8">打开、关闭与读写文件的系统调用</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#sys-open">文件打开</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sys-close">文件关闭</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id11">文件的顺序读写</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="2fs-implementation.html">简易文件系统 easy-fs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3using-easy-fs-in-kernel.html">在内核中接入 easy-fs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4exercise.html">练习</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter7/index.html">第七章：进程间通信与 I/O 重定向</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter8/index.html">第八章：并发</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chapter9/index.html">第九章：I/O设备管理</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">附录</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../final-lab.html">综合练习</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 系统编程入门</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-b/index.html">附录 B：常见工具的使用方法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-c/index.html">附录 C：深入机器模式：RustSBI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-d/index.html">附录 D：RISC-V相关信息</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-e/index.html">附录 E：操作系统进一步介绍</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../terminology.html">术语中英文对照表</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">开发注记</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../log.html">更新日志</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">rCore-Tutorial-Book-v3</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">第六章：文件系统</a> &raquo;</li>
+        
+      <li>文件系统接口</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/chapter6/1fs-interface.rst.txt" rel="nofollow"> 查看页面源码</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="id1">
+<h1>文件系统接口<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+<div class="section" id="id2">
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<p>本节首先以Linux 上的常规文件和目录为例，站在访问文件的应用的角度，介绍文件中值得注意的地方及文件使用方法。由于 Linux 上的文件系统模型还是比较复杂，在内核实现中对它进行了很大程度的简化，我们会对简化的具体情形进行介绍。最后介绍内核上应用的开发者应该如何使用我们简化后的文件系统和一些相关知识。</p>
+</div>
+<div class="section" id="id3">
+<h2>文件和目录<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<div class="section" id="id4">
+<h3>常规文件<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
+<p>在操作系统的用户看来，常规文件是保存在持久存储设备上的一个字节序列，每个常规文件都有一个 <strong>文件名</strong> (Filename) ，用户需要通过它来区分不同的常规文件。方便起见，在下面的描述中，“文件”有可能指的是常规文件、目录，也可能是之前提到的若干种进程可以读写的 标准输出、标准输入、管道等I/O 资源，请同学自行根据上下文判断取哪种含义。</p>
+<p>在 Linux 系统上， <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具可以获取文件的一些信息。下面以我们项目中的一个源代码文件 <code class="docutils literal notranslate"><span class="pre">os/src/main.rs</span></code> 为例：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> os/src/
+<span class="gp">$ </span>stat main.rs
+<span class="go">File: main.rs</span>
+<span class="go">Size: 940           Blocks: 8          IO Block: 4096   regular file</span>
+<span class="go">Device: 801h/2049d  Inode: 4975        Links: 1</span>
+<span class="go">Access: (0644/-rw-r--r--)  Uid: ( 1000/   oslab)   Gid: ( 1000/   oslab)</span>
+<span class="go">Access: 2021-02-28 23:32:50.289925450 +0800</span>
+<span class="go">Modify: 2021-02-28 23:32:50.133927136 +0800</span>
+<span class="go">Change: 2021-02-28 23:32:50.133927136 +0800</span>
+<span class="go">Birth: -</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具展示了 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的如下信息：</p>
+<ul class="simple">
+<li><p>File 表明它的文件名为 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 。</p></li>
+<li><p>Size 表明它的字节大小为 940 字节。</p></li>
+<li><p>Blocks 表明它占据 8 个 <strong>块</strong> (Block) 来存储。在文件系统中，文件的数据以块为单位进行存储。在 IO Block 可以看出，在 Linux操作系统中的Ext4文件系统的每个块的大小为 4096 字节。</p></li>
+<li><p>regular file 表明这个文件是一个常规文件。事实上，其他类型的文件也可以通过文件名来进行访问。</p></li>
+<li><p>当文件是一个特殊文件（如块设备文件或者字符设备文件）的时候，Device 将指出该特殊文件的 major/minor ID 。对于一个常规文件，我们无需关心它。</p></li>
+<li><p>Inode 表示文件的底层编号。在文件系统的底层实现中，并不是直接通过文件名来索引文件，而是首先需要将文件名转化为文件的底层编号，再根据这个编号去索引文件。目前我们无需关心这一信息。</p></li>
+<li><p>Links 给出文件的硬链接数。同一个文件系统中如果两个文件（目录也是文件）具有相同的inode号码，那么就称它们是“硬链接”关系。这样links的值其实是一个文件的不同文件名的数量。（本章的练习需要你在文件系统中实现硬链接！）</p></li>
+<li><p>Uid 给出该文件的所属的用户 ID ， Gid 给出该文件所属的用户组 ID 。Access 的其中一种表示是一个长度为 10 的字符串（这里是 <code class="docutils literal notranslate"><span class="pre">-rw-r--r--</span></code> ），其中第 1 位给出该文件的类型，这个文件是一个常规文件，因此这第 1 位为 <code class="docutils literal notranslate"><span class="pre">-</span></code> 。后面的 9 位可以分为三组，分别表示该文件的所有者/在该文件所属的用户组内的其他用户以及剩下的所有用户能够读取/写入/将该文件作为一个可执行文件来执行。</p></li>
+<li><p>Access/Modify 分别给出该文件的最近一次访问/最近一次修改时间。</p></li>
+</ul>
+<p>如果我们使用 <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具查看一个能在我们内核上执行的 ELF 可执行文件：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> user/target/riscv64gc-unknown-none-elf/release/
+<span class="gp">$ </span>stat user_shell
+<span class="go">File: user_shell</span>
+<span class="go">Size: 85712         Blocks: 168        IO Block: 4096   regular file</span>
+<span class="go">Device: 801h/2049d  Inode: 1460936     Links: 2</span>
+<span class="go">Access: (0755/-rwxr-xr-x)  Uid: ( 1000/   oslab)   Gid: ( 1000/   oslab)</span>
+<span class="go">Access: 2021-03-01 11:21:34.785309066 +0800</span>
+<span class="go">Modify: 2021-03-01 11:21:32.829332116 +0800</span>
+<span class="go">Change: 2021-03-01 11:21:32.833332069 +0800</span>
+<span class="go">Birth: -</span>
+</pre></div>
+</div>
+<p>从中可以看出我们构建的应用体积大概在数十 KiB 量级。它的 Access 指出所有用户均可将其作为一个可执行文件在当前 OS 中加载并执行。然而这仅仅是能够通过权限检查而已，这个应用只有在我们自己的内核上才能真正被加载运行。</p>
+<p>用户常常通过文件的 <strong>拓展名</strong> (Filename extension) 来推断该文件的用途，如 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的拓展名是 <code class="docutils literal notranslate"><span class="pre">.rs</span></code> ，我们由此知道它是一个 Rust 源代码文件。但从内核的角度来看，它会将所有文件无差别的看成一个字节序列，文件内容的结构和含义则是交给对应的应用进行解析。</p>
+</div>
+<div class="section" id="id5">
+<h3>目录<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
+<p>最早的文件系统仅仅通过文件名来区分文件，但是这会造成一些归档和管理上的困难。如今我们的使用习惯是将文件根据功能、属性的不同分类归档到不同层级的目录之下。这样我们就很容易逐级找到想要的文件。结合用户和用户组的概念，目录的存在也使得文件访问权限控制更加容易，只需要对于目录进行设置就可以间接设置用户/用户组对该目录下所有文件的访问权限，这使得操作系统能够更加安全的支持多用户情况下对不同文件的访问。</p>
+<p>同样可以通过 <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具获取目录的一些信息：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>stat os
+<span class="go">File: os</span>
+<span class="go">Size: 4096          Blocks: 8          IO Block: 4096   directory</span>
+<span class="go">Device: 801h/2049d  Inode: 4982        Links: 5</span>
+<span class="go">Access: (0755/drwxr-xr-x)  Uid: ( 1000/   oslab)   Gid: ( 1000/   oslab)</span>
+<span class="go">Access: 2021-02-28 23:32:50.133927136 +0800</span>
+<span class="go">Modify: 2021-02-28 23:32:50.129927180 +0800</span>
+<span class="go">Change: 2021-02-28 23:32:50.129927180 +0800</span>
+<span class="go">Birth: -</span>
+</pre></div>
+</div>
+<p>directory 表明 <code class="docutils literal notranslate"><span class="pre">os</span></code> 是一个目录，从 Access 字符串的首位 <code class="docutils literal notranslate"><span class="pre">d</span></code> 也可以看出这一点。对于目录而言， Access 的 <code class="docutils literal notranslate"><span class="pre">rwx</span></code> 含义有所不同：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">r</span></code> 表示是否允许获取该目录下有哪些文件和子目录；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">w</span></code> 表示是否允许在该目录下创建/删除文件和子目录；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">x</span></code> 表示是否允许“通过”该目录。</p></li>
+</ul>
+<p>Blocks 给出 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录也占用 8 个块进行存储。实际上目录也可以看作一种文件，它也有属于自己的底层编号，它的内容中保存着若干 <strong>目录项</strong> (Dirent, Directory Entry) ，可以看成一组映射，根据它下面的文件名或子目录名能够查到文件和子目录在文件系统中的底层编号，即 Inode 编号。但是与常规文件不同的是，用户无法 <strong>直接</strong> 修改目录的内容，只能通过创建/删除它下面的文件或子目录才能间接做到这一点。</p>
+<p>有了目录之后，我们就可以将所有的文件和目录组织为一种被称为 <strong>目录树</strong> (Directory Tree) 的有根树结构（不考虑软链接）。树中的每个节点都是一个文件或目录，一个目录下面的所有的文件和子目录都是它的孩子。可以看出所有的文件都是目录树的叶子节点。目录树的根节点也是一个目录，它被称为 <strong>根目录</strong> (Root Directory)。目录树中的每个目录和文件都可以用它的 <strong>绝对路径</strong> (Absolute Path) 来进行索引和定位。绝对路径是目录树上的根节点到待索引的目录和文件所在的节点之间自上而下的路径。此路径上的所有节点(文件或目录)两两之间加上路径分隔符拼接就可得到绝对路径名。例如，在 Linux 上，根目录的绝对路径是 <code class="docutils literal notranslate"><span class="pre">/</span></code> ，路径分隔符也是 <code class="docutils literal notranslate"><span class="pre">/</span></code> ，因此：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的绝对路径是 <code class="docutils literal notranslate"><span class="pre">/home/oslab/workspace/v3/rCore-Tutorial-v3/os/src/main.rs</span></code> ；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">os</span></code> 目录的绝对路径则是 <code class="docutils literal notranslate"><span class="pre">/home/oslab/workspace/v3/rCore-Tutorial-v3/os/</span></code> 。</p></li>
+</ul>
+<p>上面的绝对路径因具体环境而异。
+一般情况下，绝对路径都很长，用起来颇为不便。而且，在日常使用中，我们通常固定在一个工作目录下而不会频繁切换目录。因此更为常用的是 <strong>相对路径</strong> (Relative Path) 而非绝对路径。每个进程都会记录自己当前所在的工作目录（Current Working Directory, CWD），当它在索引文件或目录的时候，如果传给它的路径并未以 <code class="docutils literal notranslate"><span class="pre">/</span></code> 开头，则会被内核认为是一个相对于进程当前工作目录的相对路径。这个路径会被拼接在进程当前路径的后面组成一个绝对路径，实际索引的是这个绝对路径对应的文件或目录。其中， <code class="docutils literal notranslate"><span class="pre">./</span></code> 表示当前目录，而 <code class="docutils literal notranslate"><span class="pre">../</span></code> 表示当前目录的父目录，这在通过相对路径进行索引的时候非常实用。在使用终端的时候，执行 <code class="docutils literal notranslate"><span class="pre">pwd</span></code> 命令可以打印终端进程当前所在的目录，而通过 <code class="docutils literal notranslate"><span class="pre">cd</span></code> 可以切换终端进程的工作目录。</p>
+<p>一旦引入目录之后，我们就不再单纯的通过文件名来索引文件，而是通过路径（绝对或相对）进行索引。在文件系统的底层实现中，也是对应的先将路径转化为一个文件或目录的底层编号，然后再通过这个编号具体索引文件或目录。将路径转化为底层编号的过程是逐级进行的，对于绝对路径的情况，需要从根目录出发，每次根据当前目录底层编号获取到它的内容，根据下一级子目录的目录名查到该子目录的底层编号，然后从该子目录继续向下遍历，依此类推。在这个过程目录的权限控制位将会起到保护作用，阻止无权限用户进行访问。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>目录是否有必要存在</strong></p>
+<p>基于路径的索引难以并行或分布式化，因为我们总是需要查到一级目录的底层编号才能查到下一级，这是一个天然串行的过程。在一些性能需求极高的环境中，可以考虑弱化目录的权限控制职能，将目录树结构扁平化，将文件系统的磁盘布局变为类键值对存储。</p>
+</div>
+</div>
+<div class="section" id="id6">
+<h3>文件系统<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h3>
+<p>常规文件和目录都是实际保存在持久存储设备中的。持久存储设备仅支持以扇区（或块）为单位的随机读写，这和上面介绍的通过路径即可索引到文件并以字节流进行读写的用户视角有很大的不同。负责中间转换的便是 <strong>文件系统</strong> (File System) 。具体而言，文件系统负责将逻辑上的目录树结构（包括其中每个文件或目录的数据和其他信息）映射到持久存储设备上，决定设备上的每个扇区应存储哪些内容。反过来，文件系统也可以从持久存储设备还原出逻辑上的目录树结构。</p>
+<p>文件系统有很多种不同的实现，每一种都能将同一个逻辑上目录树结构转化为一个不同的持久存储设备上的扇区布局。最著名的文件系统有 Windows 上的 FAT/NTFS 和 Linux 上的 Ext3/Ext4/Btrfs 等。</p>
+<p>在一个计算机系统中，可以同时包含多个持久存储设备，它们上面的数据可能是以不同文件系统格式存储的。为了能够对它们进行统一管理，在内核中有一层 <strong>虚拟文件系统</strong> (VFS, Virtual File System) ，它规定了逻辑上目录树结构的通用格式及相关操作的抽象接口，只要不同的底层文件系统均实现虚拟文件系统要求的那些抽象接口，再加上 <strong>挂载</strong> (Mount) 等方式，这些持久存储设备上的不同文件系统便可以用一个统一的逻辑目录树结构一并进行管理。</p>
+</div>
+</div>
+<div class="section" id="fs-simplification">
+<span id="id7"></span><h2>简化的文件与目录抽象<a class="headerlink" href="#fs-simplification" title="永久链接至标题">¶</a></h2>
+<p>我们的内核实现对于目录树结构进行了很大程度上的简化，这样做的目的是为了能够完整地展示文件系统的工作原理，但代码量又不至于太多。我们进行的简化如下：</p>
+<ul class="simple">
+<li><p>扁平化：仅存在根目录 <code class="docutils literal notranslate"><span class="pre">/</span></code> 一个目录，剩下所有的文件都放在根目录内。在索引一个文件的时候，我们直接使用文件的文件名而不是它含有 <code class="docutils literal notranslate"><span class="pre">/</span></code> 的绝对路径。</p></li>
+<li><p>权限控制：我们不设置用户和用户组概念，全程只有单用户。同时根目录和其他文件也都没有权限控制位，即完全不限制文件的访问方式，不会区分文件是否可执行。</p></li>
+<li><p>不记录文件访问/修改的任何时间戳。</p></li>
+<li><p>不支持软硬链接。</p></li>
+<li><p>除了下面即将介绍的系统调用之外，其他的很多文件系统相关系统调用均未实现。</p></li>
+</ul>
+</div>
+<div class="section" id="id8">
+<h2>打开、关闭与读写文件的系统调用<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h2>
+<div class="section" id="sys-open">
+<span id="id9"></span><h3>文件打开<a class="headerlink" href="#sys-open" title="永久链接至标题">¶</a></h3>
+<p>在读写一个常规文件之前，应用首先需要通过内核提供的 <code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 系统调用让该文件在进程的文件描述符表中占一项，并得到操作系统的返回值–文件描述符，即文件关联的表项在文件描述表中的索引值：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：打开一个常规文件，并返回可以访问它的文件描述符。</span>
+<span class="sd">/// 参数：path 描述要打开的文件的文件名（简单起见，文件系统不需要支持目录，所有的文件都放在根目录 / 下），</span>
+<span class="sd">/// flags 描述打开文件的标志，具体含义下面给出。</span>
+<span class="sd">/// dirfd 和 mode 仅用于保证兼容性，忽略</span>
+<span class="sd">/// 返回值：如果出现了错误则返回 -1，否则返回打开常规文件的文件描述符。可能的错误原因是：文件不存在。</span>
+<span class="sd">/// syscall ID：56</span>
+<span class="k">fn</span> <span class="nf">sys_openat</span><span class="p">(</span><span class="n">dirfd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">path</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">mode</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span>
+</pre></div>
+</div>
+<p>目前我们的内核支持以下几种标志（多种不同标志可能共存）：</p>
+<ul class="simple">
+<li><p>如果 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 为 0，则表示以只读模式 <em>RDONLY</em> 打开；</p></li>
+<li><p>如果 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 第 0 位被设置（0x001），表示以只写模式 <em>WRONLY</em> 打开；</p></li>
+<li><p>如果 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 第 1 位被设置（0x002），表示既可读又可写 <em>RDWR</em> ；</p></li>
+<li><p>如果 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 第 9 位被设置（0x200），表示允许创建文件 <em>CREATE</em> ，在找不到该文件的时候应创建文件；如果该文件已经存在则应该将该文件的大小归零；</p></li>
+<li><p>如果 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 第 10 位被设置（0x400），则在打开文件的时候应该清空文件的内容并将该文件的大小归零，也即 <em>TRUNC</em> 。</p></li>
+</ul>
+<p>注意 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 里面的权限设置只能控制进程对本次打开的文件的访问。一般情况下，在打开文件的时候首先需要经过文件系统的权限检查，比如一个文件自身不允许写入，那么进程自然也就不能以 <em>WRONLY</em> 或 <em>RDWR</em> 标志打开文件。但在我们简化版的文件系统中文件不进行权限设置，这一步就可以绕过。</p>
+<p>在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中，我们将该系统调用封装为 <code class="docutils literal notranslate"><span class="pre">open</span></code> 接口：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
+
+<span class="n">bitflags</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">OpenFlags</span>: <span class="kt">u32</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">RDONLY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">WRONLY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">RDWR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">CREATE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">9</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">TRUNC</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">open</span><span class="p">(</span><span class="n">path</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="nc">OpenFlags</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">sys_openat</span><span class="p">(</span><span class="n">AT_FDCWD</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span><span class="p">.</span><span class="n">bits</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDWR</span><span class="p">.</span><span class="n">bits</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>借助 <code class="docutils literal notranslate"><span class="pre">bitflags!</span></code> 宏我们将一个 <code class="docutils literal notranslate"><span class="pre">u32</span></code> 的 flags 包装为一个 <code class="docutils literal notranslate"><span class="pre">OpenFlags</span></code> 结构体更易使用，它的 <code class="docutils literal notranslate"><span class="pre">bits</span></code> 字段可以将自身转回 <code class="docutils literal notranslate"><span class="pre">u32</span></code> ，它也会被传给 <code class="docutils literal notranslate"><span class="pre">sys_open</span></code>。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="w">   </span><span class="c1">// user/src/syscall.rs</span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_OPENAT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">56</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_openat</span><span class="p">(</span><span class="n">dirfd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">path</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">mode</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">syscall6</span><span class="p">(</span><span class="w"></span>
+<span class="w">        </span><span class="n">SYSCALL_OPENAT</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">dirfd</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">mode</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">]</span><span class="w"></span>
+<span class="w">    </span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 传给内核的参数只有待打开文件的文件名字符串的起始地址（和之前一样，我们需要保证该字符串以 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 结尾）还有标志位。由于每个通用寄存器为 64 位，我们需要先将 <code class="docutils literal notranslate"><span class="pre">u32</span></code> 的 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 转换为 <code class="docutils literal notranslate"><span class="pre">usize</span></code> 。</p>
+</div>
+<div class="section" id="sys-close">
+<span id="id10"></span><h3>文件关闭<a class="headerlink" href="#sys-close" title="永久链接至标题">¶</a></h3>
+<p>在打开文件，对文件完成了读写操作后，还需要关闭文件，这样才让进程释放杯这个文件所占用的内核资源。 <code class="docutils literal notranslate"><span class="pre">close</span></code> 的调用参数是文件描述符，但文件被关闭后，文件在内核中的资源会被释放，文件描述符会被回收。这样，进程就不能继续使用该文件描述符进行文件读写了。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：当前进程关闭一个文件。</span>
+<span class="sd">/// 参数：fd 表示要关闭的文件的文件描述符。</span>
+<span class="sd">/// 返回值：如果成功关闭则返回 0 ，否则返回 -1 。可能的出错原因：传入的文件描述符并不对应一个打开的文件。</span>
+
+<span class="c1">// usr/src/lib.rs</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">close</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_close</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+
+<span class="c1">// user/src/syscall.rs</span>
+<span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_CLOSE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">57</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_close</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_CLOSE</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id11">
+<h3>文件的顺序读写<a class="headerlink" href="#id11" title="永久链接至标题">¶</a></h3>
+<p>在打开一个文件之后，我们就可以用之前的 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 两个系统调用来对它进行读写了。需要注意的是，常规文件的读写模式和之前介绍过的几种文件有所不同。标准输入输出和匿名管道都属于一种流式读写，而常规文件则是顺序读写和随机读写的结合。由于常规文件可以看成一段字节序列，我们应该能够随意读写它的任一段区间的数据，即随机读写。然而用户仅仅通过 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 两个系统调用不能做到这一点。</p>
+<p>事实上，进程为每个它打开的常规文件维护了一个偏移量，在刚打开时初始值一般为 0 字节。当 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的时候，将会从文件字节序列偏移量的位置开始 <strong>顺序</strong> 把数据读到应用缓冲区/从应用缓冲区写入数据。操作完成之后，偏移量向后移动读取/写入的实际字节数。这意味着，下次 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 将会从刚刚读取/写入之后的位置继续。如果仅使用 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的话，则只能从头到尾顺序对文件进行读写。当我们需要从头开始重新写入或读取的话，只能通过 <code class="docutils literal notranslate"><span class="pre">sys_close</span></code> 关闭并重新打开文件来将偏移量重置为 0。为了解决这种问题，有另一个系统调用 <code class="docutils literal notranslate"><span class="pre">sys_lseek</span></code> 可以调整进程打开的一个常规文件的偏移量，这样便能对文件进行随机读写。在本教程中并未实现这个系统调用，因为对于目前实验中的应用例子，顺序文件读写功能就已经足够满足需求了。顺带一提，在文件系统的底层实现中都是对文件进行随机读写的。</p>
+<p id="filetest-simple">下面我们从本章的测试用例 <code class="docutils literal notranslate"><span class="pre">filetest_simple</span></code> 来介绍文件系统接口的使用方法：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/filetest_simple.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="cp">#![no_std]</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="cp">#![no_main]</span><span class="w"></span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="cp">#[macro_use]</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 8</span>
+<span class="linenos"> 9</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">    </span><span class="n">open</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">    </span><span class="n">close</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="n">read</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="n">write</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="n">OpenFlags</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">15</span><span class="p">};</span><span class="w"></span>
+<span class="linenos">16</span>
+<span class="linenos">17</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos">18</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">test_str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Hello, world!&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">filea</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;filea</span><span class="se">\0</span><span class="s">&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="n">filea</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">CREATE</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">WRONLY</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">    </span><span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">test_str</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">());</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">26</span>
+<span class="linenos">27</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="n">filea</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">100</span><span class="p">];</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">read_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">33</span>
+<span class="linenos">34</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="w"></span>
+<span class="linenos">35</span><span class="w">        </span><span class="n">test_str</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">36</span><span class="w">        </span><span class="n">core</span>::<span class="kt">str</span>::<span class="n">from_utf8</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buffer</span><span class="p">[</span><span class="o">..</span><span class="n">read_len</span><span class="p">]).</span><span class="n">unwrap</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">37</span><span class="w">    </span><span class="p">);</span><span class="w"></span>
+<span class="linenos">38</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;file_test passed!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">39</span><span class="w">    </span><span class="mi">0</span><span class="w"></span>
+<span class="linenos">40</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>第 20~25 行，我们打开文件 <code class="docutils literal notranslate"><span class="pre">filea</span></code> ，向其中写入字符串 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 而后关闭文件。这里需要注意的是我们需要为字符串字面量手动加上 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 作为结尾。在打开文件时 <em>CREATE</em> 标志使得如果 <code class="docutils literal notranslate"><span class="pre">filea</span></code> 原本不存在，文件系统会自动创建一个同名文件，如果已经存在的话则会清空它的内容。而 <em>WRONLY</em> 使得此次只能写入该文件而不能读取。</p></li>
+<li><p>第 27~32 行，我们以只读 <em>RDONLY</em> 的方式将文件 <code class="docutils literal notranslate"><span class="pre">filea</span></code> 的内容读取到缓冲区 <code class="docutils literal notranslate"><span class="pre">buffer</span></code> 中。注意我们很清楚 <code class="docutils literal notranslate"><span class="pre">filea</span></code> 的总大小不超过缓冲区的大小，因此通过单次 <code class="docutils literal notranslate"><span class="pre">read</span></code> 即可将 <code class="docutils literal notranslate"><span class="pre">filea</span></code> 的内容全部读取出来。而更常见的情况是需要进行多次 <code class="docutils literal notranslate"><span class="pre">read</span></code> 直到它的返回值为 0 才能确认文件的内容已被读取完毕了。</p></li>
+<li><p>最后的第 34~38 行我们确认从 <code class="docutils literal notranslate"><span class="pre">filea</span></code> 读取到的内容和之前写入的一致，则测试通过。</p></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="2fs-implementation.html" class="btn btn-neutral float-right" title="简易文件系统 easy-fs" accesskey="n" rel="next">下一页 <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="0intro.html" class="btn btn-neutral float-left" title="引言" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> 上一页</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; 版权所有 2020-2022, Yu Chen, Yifan Wu.
+
+    </p>
+  </div>
+    
+    
+    
+    利用 <a href="https://www.sphinx-doc.org/">Sphinx</a> 构建，使用了 
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">主题</a>
+    
+    由 <a href="https://readthedocs.org">Read the Docs</a>开发. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
