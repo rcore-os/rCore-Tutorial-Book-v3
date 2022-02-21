@@ -1,0 +1,29 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, dev]
+
+jobs:
+  deploy-doc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: "3.8.10"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: build doc
+        run: make html
+
+      - name: create .nojekyll
+        run: touch build/html/.nojekyll
+
+      - name: Push to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/html
