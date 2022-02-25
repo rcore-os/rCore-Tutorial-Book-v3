@@ -131,8 +131,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="1app-ee-platform.html">应用程序执行环境与平台支持</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">移除标准库依赖</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id2">本节导读</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#println">移除 println! 宏</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#panic-handler">提供语义项 panic_handler</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#println">移除 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#panic-handler">提供panic_handler功能应对致命错误</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#main">移除 main 函数</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id4">分析被移除标准库的程序</a></li>
 </ul>
@@ -252,8 +252,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 </div>
 <div class="section" id="println">
-<h2>移除 println! 宏<a class="headerlink" href="#println" title="永久链接至标题">¶</a></h2>
-<p>println! 宏所在的 Rust 标准库 std 需要通过系统调用获得操作系统的服务，而如果要构建运行在裸机上的操作系统，就不能再依赖标准库了。所以我们第一步要尝试移除 println! 宏及其所在的标准库。我们首先在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录下新建 <code class="docutils literal notranslate"><span class="pre">.cargo</span></code> 目录，并在这个目录下创建 <code class="docutils literal notranslate"><span class="pre">config</span></code> 文件，并在里面输入如下内容：</p>
+<h2>移除 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏<a class="headerlink" href="#println" title="永久链接至标题">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏所在的 Rust 标准库 std 需要通过系统调用获得操作系统的服务，而如果要构建运行在裸机上的操作系统，就不能再依赖标准库了。所以我们第一步要尝试移除 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏及其所在的标准库。我们首先在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录下新建 <code class="docutils literal notranslate"><span class="pre">.cargo</span></code> 目录，并在这个目录下创建 <code class="docutils literal notranslate"><span class="pre">config</span></code> 文件，并在里面输入如下内容：</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/.cargo/config</span>
 <span class="k">[build]</span>
 <span class="n">target</span> <span class="o">=</span> <span class="s">&quot;riscv64gc-unknown-none-elf&quot;</span>
@@ -281,7 +281,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 </div>
-<p>我们之前提到过， println! 宏是由标准库 std 提供的，且会使用到一个名为 write 的系统调用。现在我们的代码功能还不足以自己实现一个 println! 宏。由于程序使用了系统调用，但不能在核心库 core 中找到它，所以我们目前先通过将 println! 宏注释掉，来暂时绕过这个问题。</p>
+<p>我们之前提到过， <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏是由标准库 std 提供的，且会使用到一个名为 write 的系统调用。现在我们的代码功能还不足以自己实现一个 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏。由于程序使用了系统调用，但不能在核心库 core 中找到它，所以我们目前先通过将 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏注释掉，来暂时绕过这个问题。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>Rust Tips: Rust std 库和 core 库</strong></p>
@@ -292,7 +292,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 </div>
 <div class="section" id="panic-handler">
-<h2>提供语义项 panic_handler<a class="headerlink" href="#panic-handler" title="永久链接至标题">¶</a></h2>
+<h2>提供panic_handler功能应对致命错误<a class="headerlink" href="#panic-handler" title="永久链接至标题">¶</a></h2>
 <div class="admonition error">
 <p class="admonition-title">错误</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build
@@ -301,14 +301,14 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 </div>
-<p>在使用 Rust 编写应用程序的时候，我们常常在遇到了一些无法恢复的致命错误，导致程序无法继续向下运行。这时手动或自动调用 panic! 宏来打印出错的位置，让我们能够意识到它的存在，并进行一些后续处理。panic! 宏最典型的应用场景包括断言宏 assert! 失败或者对 <code class="docutils literal notranslate"><span class="pre">Option::None/Result::Err</span></code> 进行 <code class="docutils literal notranslate"><span class="pre">unwrap</span></code> 操作。</p>
-<p>在标准库 std 中提供了 panic 的处理函数 <code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code>，其大致功能是打印出错位置和原因并杀死当前应用。但 panic 的处理在核心库 core 中并没有提供，因此我们需要自己先实现一个简陋的 panic 处理函数，这样才能支持“三叶虫”操作系统的编译通过。</p>
+<p>在使用 Rust 编写应用程序的时候，我们常常在遇到了一些无法恢复的致命错误（panic），导致程序无法继续向下运行。这时手动或自动调用 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏来打印出错的位置，让我们能够意识到它的存在，并进行一些后续处理。 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏最典型的应用场景包括断言宏 <code class="docutils literal notranslate"><span class="pre">assert!</span></code> 失败或者对 <code class="docutils literal notranslate"><span class="pre">Option::None/Result::Err</span></code> 进行 <code class="docutils literal notranslate"><span class="pre">unwrap</span></code> 操作。所以Rust编译器在编译程序时，从安全性考虑，需要有 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏的具体实现。</p>
+<p>在标准库 std 中提供了关于 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏的具体实现，其大致功能是打印出错位置和原因并杀死当前应用。但我们要实现的操作系统是不能使用还需依赖操作系统的标准库std，而更底层的核心库 core 中只有一个 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏的空壳，并没有提供 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏的精简实现。因此我们需要自己先实现一个简陋的 panic 处理函数，这样才能支持“三叶虫”操作系统的编译通过。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p><strong>Rust Tips：语义项 lang_items</strong></p>
-<p>为了满足编译器和运行时库的灵活性，Rust 编译器内部的某些功能并不仅仅硬编码在语言内部来实现，而是以一种可插入的形式在库中提供，而且可以定制。标准库或第三方库只需要通过某种方式（在方法前面加上一个标记，如 <code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code> ，即可）告诉编译器它实现了编译器内部的哪些功能，编译器就会采用库提供的方法来替换它内部对应的功能。</p>
+<p><strong>#[panic_handler]</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code> 是一种编译指导属性，用于标记核心库core中的 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏要对接的函数（该函数实现对致命错误的具体处理）。该编译指导属性所标记的函数需要具有 <code class="docutils literal notranslate"><span class="pre">fn(&amp;PanicInfo)</span> <span class="pre">-&gt;</span> <span class="pre">!</span></code> 函数签名，函数可通过 <code class="docutils literal notranslate"><span class="pre">PanicInfo</span></code> 数据结构获取致命错误的相关信息。这样Rust编译器就可以把核心库core中的 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏与 <code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code> 指向的panic函数实现合并在一起，使得no_std程序具有类似std库的应对致命错误的功能。</p>
 </div>
-<p>我们创建一个新的子模块 <code class="docutils literal notranslate"><span class="pre">lang_items.rs</span></code> 保存这些语义项，在里面提供 panic 处理函数的实现并通过标记通知编译器采用我们的实现：</p>
+<p>我们创建一个新的子模块 <code class="docutils literal notranslate"><span class="pre">lang_items.rs</span></code> 实现panic函数，并通过 <code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code> 属性通知编译器用panic函数来对接 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/lang_items.rs</span>
 <span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">panic</span>::<span class="n">PanicInfo</span><span class="p">;</span><span class="w"></span>
 
@@ -354,7 +354,7 @@ error: requires `start` lang_item
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>本小节我们固然脱离了标准库，通过了编译器的检验，但也是伤筋动骨，将原有的很多功能弱化甚至直接删除，看起来距离在 RV64GC 平台上打印 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 相去甚远了（我们甚至连 println! 和 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数都删除了）。不要着急，接下来我们会以自己的方式来重塑这些基本功能，并最终完成我们的目标。</p>
+<p>本小节我们固然脱离了标准库，通过了编译器的检验，但也是伤筋动骨，将原有的很多功能弱化甚至直接删除，看起来距离在 RV64GC 平台上打印 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 相去甚远了（我们甚至连 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 和 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数都删除了）。不要着急，接下来我们会以自己的方式来重塑这些基本功能，并最终完成我们的目标。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>Rust Tips：Rust 模块化编程</strong></p>
