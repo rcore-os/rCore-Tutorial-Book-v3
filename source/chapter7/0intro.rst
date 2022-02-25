@@ -55,7 +55,7 @@
 
    $ git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
    $ cd rCore-Tutorial-v3
-   $ git checkout ch6
+   $ git checkout ch7
 
 在 qemu 模拟器上运行本章代码：
 
