@@ -14,6 +14,7 @@
    5support-func-call
    6print-and-shutdown-based-on-sbi
    7exercise
+   8answer
 
 
 .. chyyuu 在后面介绍一些操作系统的大致架构，作为理论知识的扩展???
