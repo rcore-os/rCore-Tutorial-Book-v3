@@ -309,7 +309,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p><strong>#[panic_handler]</strong></p>
 <p><code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code> 是一种编译指导属性，用于标记核心库core中的 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏要对接的函数（该函数实现对致命错误的具体处理）。该编译指导属性所标记的函数需要具有 <code class="docutils literal notranslate"><span class="pre">fn(&amp;PanicInfo)</span> <span class="pre">-&gt;</span> <span class="pre">!</span></code> 函数签名，函数可通过 <code class="docutils literal notranslate"><span class="pre">PanicInfo</span></code> 数据结构获取致命错误的相关信息。这样Rust编译器就可以把核心库core中的 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏与 <code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code> 指向的panic函数实现合并在一起，使得no_std程序具有类似std库的应对致命错误的功能。</p>
 </div>
-<p>我们创建一个新的子模块 <code class="docutils literal notranslate"><span class="pre">lang_items.rs</span></code> 实现panic函数，并通过 <code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code> 属性通知编译器用panic函数来对接 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏：</p>
+<p>我们创建一个新的子模块 <code class="docutils literal notranslate"><span class="pre">lang_items.rs</span></code> 实现panic函数，并通过 <code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code> 属性通知编译器用panic函数来对接 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏。为了将该子模块添加到项目中，我们还需要在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的 <code class="docutils literal notranslate"><span class="pre">#![no_std]</span></code> 的下方加上 <code class="docutils literal notranslate"><span class="pre">mod</span> <span class="pre">lang_items;</span></code> ，相关知识可参考 <a class="reference internal" href="#rust-modular-programming"><span class="std std-ref">Rust 模块编程</span></a> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/lang_items.rs</span>
 <span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">panic</span>::<span class="n">PanicInfo</span><span class="p">;</span><span class="w"></span>
 
@@ -356,7 +356,7 @@ error: requires `start` lang_item
 </pre></div>
 </div>
 <p>本小节我们固然脱离了标准库，通过了编译器的检验，但也是伤筋动骨，将原有的很多功能弱化甚至直接删除，看起来距离在 RV64GC 平台上打印 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 相去甚远了（我们甚至连 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 和 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数都删除了）。不要着急，接下来我们会以自己的方式来重塑这些基本功能，并最终完成我们的目标。</p>
-<div class="admonition note">
+<div class="admonition note" id="rust-modular-programming">
 <p class="admonition-title">注解</p>
 <p><strong>Rust Tips：Rust 模块化编程</strong></p>
 <p>将一个软件工程项目划分为多个子模块分别进行实现是一种被广泛应用的编程技巧，它有助于促进复用代码，并显著提升代码的可读性和可维护性。因此，众多编程语言均对模块化编程提供了支持，Rust 语言也不例外。</p>
