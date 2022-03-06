@@ -48,6 +48,81 @@
 
 
 2. `***` 实现一个linux应用程序B，能打印出调用栈链信息。（用C或Rust编程）
+
+    以使用 GCC 编译的 C 语言程序为例，使用编译参数 ``-fno-omit-frame-pointer`` 的情况下，会保存栈帧指针 ``fp`` 。
+
+    ``fp`` 指向的栈位置的负偏移量处保存了两个值：
+
+    * ``-8(fp)`` 是保存的 ``ra``
+    * ``-16(fp)`` 是保存的上一个 ``fp``
+
+    .. TODO：这个规范在哪里？
+
+    因此我们可以像链表一样，从当前的 ``fp`` 寄存器的值开始，每次找到上一个 ``fp`` ，逐帧恢复我们的调用栈：
+
+    .. code-block:: c
+
+       #include <inttypes.h>
+       #include <stdint.h>
+       #include <stdio.h>
+
+       // Compile with -fno-omit-frame-pointer
+       void print_stack_trace_fp_chain() {
+           printf("=== Stack trace from fp chain ===\n");
+
+           uintptr_t *fp;
+           asm("mv %0, fp" : "=r"(fp) : : );
+
+           // When should this stop?
+           while (fp) {
+               printf("Return address: 0x%016" PRIxPTR "\n", fp[-1]);
+               printf("Old stack pointer: 0x%016" PRIxPTR "\n", fp[-2]);
+               printf("\n");
+
+               fp = (uintptr_t *) fp[-2];
+           }
+           printf("=== End ===\n\n");
+       }
+
+    但是这里会遇到一个问题，因为我们的标准库并没有保存栈帧指针，所以找到调用栈到标准的库时候会打破我们对栈帧格式的假设，出现异常。
+
+    我们也可以不做关于栈帧保存方式的假设，而是明确让编译器告诉我们每个指令处的调用栈如何恢复。在编译的时候加入 ``-funwind-tables`` 会开启这个功能，将调用栈恢复的信息存入可执行文件中。
+
+    有一个叫做 `libunwind <https://www.nongnu.org/libunwind>`_ 的库可以帮我们读取这些信息生成调用栈信息，而且它可以正确发现某些栈帧不知道怎么恢复，避免异常退出。
+
+    正确安装 libunwind 之后，我们也可以用这样的方式生成调用栈信息：
+
+    .. code-block:: c
+
+       #include <inttypes.h>
+       #include <stdint.h>
+       #include <stdio.h>
+
+       #define UNW_LOCAL_ONLY
+       #include <libunwind.h>
+
+       // Compile with -funwind-tables -lunwind
+       void print_stack_trace_libunwind() {
+           printf("=== Stack trace from libunwind ===\n");
+
+           unw_cursor_t cursor; unw_context_t uc;
+           unw_word_t pc, sp;
+
+           unw_getcontext(&uc);
+           unw_init_local(&cursor, &uc);
+
+           while (unw_step(&cursor) > 0) {
+               unw_get_reg(&cursor, UNW_REG_IP, &pc);
+               unw_get_reg(&cursor, UNW_REG_SP, &sp);
+
+               printf("Program counter: 0x%016" PRIxPTR "\n", (uintptr_t) pc);
+               printf("Stack pointer: 0x%016" PRIxPTR "\n", (uintptr_t) sp);
+               printf("\n");
+           }
+           printf("=== End ===\n\n");
+       }
+
+
 3. `**` 实现一个基于rcore/ucore tutorial的应用程序C，用sleep系统调用睡眠5秒（in rcore/ucore tutorial v3: Branch ch1）
 
 注： 尝试用GDB等调试工具和输出字符串的等方式来调试上述程序，能设置断点，单步执行和显示变量，理解汇编代码和源程序之间的对应关系。
