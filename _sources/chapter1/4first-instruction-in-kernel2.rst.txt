@@ -215,7 +215,7 @@
         -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80200000 \
         -s -S
 
-``-s`` 可以使 Qemu 监听本地 TCP 端口 1234 等待 GDB 客户端连接，而 ``-S`` 可以使 Qemu 在收到 GDB 的请求后再开始运行。因此，Qemu 暂时没有任何输出。
+``-s`` 可以使 Qemu 监听本地 TCP 端口 1234 等待 GDB 客户端连接，而 ``-S`` 可以使 Qemu 在收到 GDB 的请求后再开始运行。因此，Qemu 暂时没有任何输出。注意，如果不想通过 GDB 对于 Qemu 进行调试而是直接运行 Qemu 的话，则要删掉最后一行的 ``-s -S`` 。
 
 打开另一个终端，启动一个 GDB 客户端连接到 Qemu ：
 
