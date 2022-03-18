@@ -144,6 +144,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l3"><a class="reference internal" href="#rcore-tutorial-v3">运行 rCore-Tutorial-v3</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#id10">在 Qemu 平台上运行</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id11">在 K210 平台上运行</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#q-a">Q &amp; A</a></li>
 </ul>
 </li>
 </ul>
@@ -498,6 +499,41 @@ sudo apt install python3-serial
 <p>之后，可以按下 <code class="docutils literal notranslate"><span class="pre">Ctrl+]</span></code> 来退出串口终端。</p>
 <p>由于教程的 ch1~ch5 分支还没有文件系统，在 K210 上运行这些分支无需 MicroSD 卡也不需要进行文件系统镜像烧写工作，直接切换到 <cite>os</cite> 目录下 <cite>make run BOARD=k210</cite> 即可。</p>
 <p>到这里，恭喜你完成了实验环境的配置，可以开始阅读教程的正文部分了！</p>
+</div>
+<div class="section" id="q-a">
+<h3>Q &amp; A<a class="headerlink" href="#q-a" title="永久链接至标题">¶</a></h3>
+<p>当代码跑不起来的时候，可以尝试：</p>
+<ul class="simple">
+<li><p>分支是否与 rCore-Tutorial-v3 原版仓库（而非 fork 出来的仓库）的对应分支同步。如不同步的话考虑通过 <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span></code> 进行更新。注：这是因为 Rust 的版本更迭较快，如不及时更新的话曾经能正常运行的代码也会无法运行。</p></li>
+<li><p>项目根目录下的 <code class="docutils literal notranslate"><span class="pre">rust-toolchain</span></code> 非常重要，它代表整个项目采用的 Rust 工具链版本。请务必保持其与原版仓库对应分支一致。</p></li>
+<li><p>项目根目录下是否存在放置 RustSBI 的 <code class="docutils literal notranslate"><span class="pre">bootloader/</span></code> 目录。如不存在的话可从原版仓库的各分支上获取。</p></li>
+<li><p>通过 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">clean</span></code> 或者 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">clean</span></code> 删除 <code class="docutils literal notranslate"><span class="pre">os</span></code> 或 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下的构建产物，并重新 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 。注：出现这样的问题通常说明框架的构建脚本存在 bug，可以提 issue。</p></li>
+</ul>
+<p>如果怀疑遇到了网络问题，可以检查：</p>
+<ul>
+<li><p>请按照本节说明进行 Rust 安装和 crates.io 镜像配置。通常情况下能够解决 Rust 工具链更新和下载已发布到 crates.io 上库的问题。</p></li>
+<li><p>如果发现在试图从 github 上下载下述几个库的时候卡死，可以修改 <code class="docutils literal notranslate"><span class="pre">os</span></code> 和 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下的 <code class="docutils literal notranslate"><span class="pre">Cargo.toml</span></code> 替换为 gitee 上的镜像。例如，将：</p>
+<blockquote>
+<div><div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="n">riscv</span> <span class="o">=</span> <span class="p">{</span> <span class="n">git</span> <span class="o">=</span> <span class="s">&quot;https://github.com/rcore-os/riscv&quot;</span><span class="p">,</span> <span class="n">features</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;inline-asm&quot;</span><span class="p">]</span> <span class="p">}</span>
+<span class="n">virtio-drivers</span> <span class="o">=</span> <span class="p">{</span> <span class="n">git</span> <span class="o">=</span> <span class="s">&quot;https://github.com/rcore-os/virtio-drivers&quot;</span> <span class="p">}</span>
+<span class="n">k210-pac</span> <span class="o">=</span> <span class="p">{</span> <span class="n">git</span> <span class="o">=</span> <span class="s">&quot;https://github.com/wyfcyx/k210-pac&quot;</span> <span class="p">}</span>
+<span class="n">k210-hal</span> <span class="o">=</span> <span class="p">{</span> <span class="n">git</span> <span class="o">=</span> <span class="s">&quot;https://github.com/wyfcyx/k210-hal&quot;</span> <span class="p">}</span>
+<span class="n">k210-soc</span> <span class="o">=</span> <span class="p">{</span> <span class="n">git</span> <span class="o">=</span> <span class="s">&quot;https://github.com/wyfcyx/k210-soc&quot;</span> <span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>替换为：</p>
+<blockquote>
+<div><div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="n">riscv</span> <span class="o">=</span> <span class="p">{</span> <span class="n">git</span> <span class="o">=</span> <span class="s">&quot;https://gitee.com/rcore-os/riscv&quot;</span><span class="p">,</span> <span class="n">features</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;inline-asm&quot;</span><span class="p">]</span> <span class="p">}</span>
+<span class="n">virtio-drivers</span> <span class="o">=</span> <span class="p">{</span> <span class="n">git</span> <span class="o">=</span> <span class="s">&quot;https://gitee.com/rcore-os/virtio-drivers&quot;</span> <span class="p">}</span>
+<span class="n">k210-pac</span> <span class="o">=</span> <span class="p">{</span> <span class="n">git</span> <span class="o">=</span> <span class="s">&quot;https://gitee.com/shinbokuow/k210-pac&quot;</span> <span class="p">}</span>
+<span class="n">k210-hal</span> <span class="o">=</span> <span class="p">{</span> <span class="n">git</span> <span class="o">=</span> <span class="s">&quot;https://gitee.com/shinbokuow/k210-hal&quot;</span> <span class="p">}</span>
+<span class="n">k210-soc</span> <span class="o">=</span> <span class="p">{</span> <span class="n">git</span> <span class="o">=</span> <span class="s">&quot;https://gitee.com/shinbokuow/k210-soc&quot;</span> <span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+</ul>
 </div>
 </div>
 </div>
