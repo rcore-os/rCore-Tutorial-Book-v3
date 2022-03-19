@@ -345,6 +345,6 @@ Q & A
 
       riscv = { git = "https://gitee.com/rcore-os/riscv", features = ["inline-asm"] }
       virtio-drivers = { git = "https://gitee.com/rcore-os/virtio-drivers" }
-      k210-pac = { git = "https://gitee.com/shinbokuow/k210-pac" }
-      k210-hal = { git = "https://gitee.com/shinbokuow/k210-hal" }
-      k210-soc = { git = "https://gitee.com/shinbokuow/k210-soc" }
+      k210-pac = { git = "https://gitee.com/wyfcyx/k210-pac" }
+      k210-hal = { git = "https://gitee.com/wyfcyx/k210-hal" }
+      k210-soc = { git = "https://gitee.com/wyfcyx/k210-soc" }
