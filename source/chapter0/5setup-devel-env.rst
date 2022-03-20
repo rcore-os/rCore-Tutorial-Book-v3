@@ -315,3 +315,36 @@ GDB 调试支持
 由于教程的 ch1~ch5 分支还没有文件系统，在 K210 上运行这些分支无需 MicroSD 卡也不需要进行文件系统镜像烧写工作，直接切换到 `os` 目录下 `make run BOARD=k210` 即可。
 
 到这里，恭喜你完成了实验环境的配置，可以开始阅读教程的正文部分了！
+
+Q & A
+----------------------------------------------------------------
+
+当代码跑不起来的时候，可以尝试：
+
+- 分支是否与 rCore-Tutorial-v3 原版仓库（而非 fork 出来的仓库）的对应分支同步。如不同步的话考虑通过 ``git pull`` 进行更新。注：这是因为 Rust 的版本更迭较快，如不及时更新的话曾经能正常运行的代码也会无法运行。
+- 项目根目录下的 ``rust-toolchain`` 非常重要，它代表整个项目采用的 Rust 工具链版本。请务必保持其与原版仓库对应分支一致。
+- 项目根目录下是否存在放置 RustSBI 的 ``bootloader/`` 目录。如不存在的话可从原版仓库的各分支上获取。
+- 通过 ``make clean`` 或者 ``cargo clean`` 删除 ``os`` 或 ``user`` 目录下的构建产物，并重新 ``make run`` 。注：出现这样的问题通常说明框架的构建脚本存在 bug，可以提 issue。
+
+如果怀疑遇到了网络问题，可以检查：
+
+- 请按照本节说明进行 Rust 安装和 crates.io 镜像配置。通常情况下能够解决 Rust 工具链更新和下载已发布到 crates.io 上库的问题。
+- 如果发现在试图从 github 上下载下述几个库的时候卡死，可以修改 ``os`` 和 ``user`` 目录下的 ``Cargo.toml`` 替换为 gitee 上的镜像。例如，将：
+  
+   .. code-block:: toml
+
+      riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }
+      virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers" }
+      k210-pac = { git = "https://github.com/wyfcyx/k210-pac" }
+      k210-hal = { git = "https://github.com/wyfcyx/k210-hal" }
+      k210-soc = { git = "https://github.com/wyfcyx/k210-soc" }
+   
+  替换为：
+
+   .. code-block:: toml
+
+      riscv = { git = "https://gitee.com/rcore-os/riscv", features = ["inline-asm"] }
+      virtio-drivers = { git = "https://gitee.com/rcore-os/virtio-drivers" }
+      k210-pac = { git = "https://gitee.com/wyfcyx/k210-pac" }
+      k210-hal = { git = "https://gitee.com/wyfcyx/k210-hal" }
+      k210-soc = { git = "https://gitee.com/wyfcyx/k210-soc" }

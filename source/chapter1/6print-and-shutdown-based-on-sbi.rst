@@ -47,7 +47,7 @@
 .. code-block:: rust
 
     // os/src/sbi.rs
-    #![allow(unused)]
+    #![allow(unused)] // 此行请放在该文件最开头
     const SBI_SET_TIMER: usize = 0;
     const SBI_CONSOLE_PUTCHAR: usize = 1;
     const SBI_CONSOLE_GETCHAR: usize = 2;
