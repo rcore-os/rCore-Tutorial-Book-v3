@@ -48,6 +48,81 @@
 
 
 2. `***` 实现一个linux应用程序B，能打印出调用栈链信息。（用C或Rust编程）
+
+    以使用 GCC 编译的 C 语言程序为例，使用编译参数 ``-fno-omit-frame-pointer`` 的情况下，会保存栈帧指针 ``fp`` 。
+
+    ``fp`` 指向的栈位置的负偏移量处保存了两个值：
+
+    * ``-8(fp)`` 是保存的 ``ra``
+    * ``-16(fp)`` 是保存的上一个 ``fp``
+
+    .. TODO：这个规范在哪里？
+
+    因此我们可以像链表一样，从当前的 ``fp`` 寄存器的值开始，每次找到上一个 ``fp`` ，逐帧恢复我们的调用栈：
+
+    .. code-block:: c
+
+       #include <inttypes.h>
+       #include <stdint.h>
+       #include <stdio.h>
+
+       // Compile with -fno-omit-frame-pointer
+       void print_stack_trace_fp_chain() {
+           printf("=== Stack trace from fp chain ===\n");
+
+           uintptr_t *fp;
+           asm("mv %0, fp" : "=r"(fp) : : );
+
+           // When should this stop?
+           while (fp) {
+               printf("Return address: 0x%016" PRIxPTR "\n", fp[-1]);
+               printf("Old stack pointer: 0x%016" PRIxPTR "\n", fp[-2]);
+               printf("\n");
+
+               fp = (uintptr_t *) fp[-2];
+           }
+           printf("=== End ===\n\n");
+       }
+
+    但是这里会遇到一个问题，因为我们的标准库并没有保存栈帧指针，所以找到调用栈到标准的库时候会打破我们对栈帧格式的假设，出现异常。
+
+    我们也可以不做关于栈帧保存方式的假设，而是明确让编译器告诉我们每个指令处的调用栈如何恢复。在编译的时候加入 ``-funwind-tables`` 会开启这个功能，将调用栈恢复的信息存入可执行文件中。
+
+    有一个叫做 `libunwind <https://www.nongnu.org/libunwind>`_ 的库可以帮我们读取这些信息生成调用栈信息，而且它可以正确发现某些栈帧不知道怎么恢复，避免异常退出。
+
+    正确安装 libunwind 之后，我们也可以用这样的方式生成调用栈信息：
+
+    .. code-block:: c
+
+       #include <inttypes.h>
+       #include <stdint.h>
+       #include <stdio.h>
+
+       #define UNW_LOCAL_ONLY
+       #include <libunwind.h>
+
+       // Compile with -funwind-tables -lunwind
+       void print_stack_trace_libunwind() {
+           printf("=== Stack trace from libunwind ===\n");
+
+           unw_cursor_t cursor; unw_context_t uc;
+           unw_word_t pc, sp;
+
+           unw_getcontext(&uc);
+           unw_init_local(&cursor, &uc);
+
+           while (unw_step(&cursor) > 0) {
+               unw_get_reg(&cursor, UNW_REG_IP, &pc);
+               unw_get_reg(&cursor, UNW_REG_SP, &sp);
+
+               printf("Program counter: 0x%016" PRIxPTR "\n", (uintptr_t) pc);
+               printf("Stack pointer: 0x%016" PRIxPTR "\n", (uintptr_t) sp);
+               printf("\n");
+           }
+           printf("=== End ===\n\n");
+       }
+
+
 3. `**` 实现一个基于rcore/ucore tutorial的应用程序C，用sleep系统调用睡眠5秒（in rcore/ucore tutorial v3: Branch ch1）
 
 注： 尝试用GDB等调试工具和输出字符串的等方式来调试上述程序，能设置断点，单步执行和显示变量，理解汇编代码和源程序之间的对应关系。
@@ -96,7 +171,11 @@
 8. `**` 为了让应用程序能在计算机上执行，操作系统与编译器之间需要达成哪些协议？
 9.  `**` 请简要说明从QEMU模拟的RISC-V计算机加电开始运行到执行应用程序的第一条指令这个阶段的执行过程。
 10. `**` 为何应用程序员编写应用时不需要建立栈空间和指定地址空间？
+11. `***` 现代的很多编译器生成的代码，默认情况下不再严格保存/恢复栈帧指针。在这个情况下，我们只要编译器提供足够的信息，也可以完成对调用栈的恢复。（题目剩余部分省略）
 
+    * 首先，我们当前的 ``pc`` 在 ``flip`` 函数的开头，这是我们正在运行的函数。返回给调用者处的地址在 ``ra`` 寄存器里，是 ``0x10742`` 。因为我们还没有开始操作栈指针，所以调用处的 ``sp`` 与我们相同，都是 ``0x40007f1310`` 。
+    * ``0x10742`` 在 ``flap`` 函数内。根据 ``flap`` 函数的开头可知，这个函数的栈帧大小是 16 个字节，所以调用者处的栈指针应该是 ``sp + 16 = 0x40007f1320``。调用 ``flap`` 的调用者返回地址保存在栈上 ``8(sp)`` ，可以读出来是 ``0x10750`` ，还在 ``flap`` 函数内。
+    * 依次类推，只要能理解已知地址对应的函数代码，就可以完成恢复操作。
 
 实验练习
 -------------------------------
