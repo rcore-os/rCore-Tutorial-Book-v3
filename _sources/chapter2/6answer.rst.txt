@@ -12,6 +12,78 @@
 编程题
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. `***` 实现一个裸机应用程序A，能打印调用栈。
+
+   以 rCore tutorial ch2 代码为例，在编译选项中我们已经让编译器对所有函数调用都保存栈指针（参考 ``os/.cargo/config`` ），因此我们可以直接从 `fp` 寄存器追溯调用栈：
+
+   .. code-block:: rust
+      :caption: ``os/src/stack_trace.rs``
+
+      use core::{arch::asm, ptr};
+
+      pub unsafe fn print_stack_trace() -> () {
+          let mut fp: *const usize;
+          asm!("mv {}, fp", out(reg) fp);
+
+          println!("== Begin stack trace ==");
+          while fp != ptr::null() {
+              let saved_ra = *fp.sub(1);
+              let saved_fp = *fp.sub(2);
+
+              println!("0x{:016x}, fp = 0x{:016x}", saved_ra, saved_fp);
+
+              fp = saved_fp as *const usize;
+          }
+          println!("== End stack trace ==");
+      }
+
+   之后我们将其加入 ``main.rs`` 作为一个子模块：
+
+   .. code-block:: rust
+      :caption: 加入 ``os/src/main.rs``
+      :emphasize-lines: 4
+
+      // ...
+      mod syscall;
+      mod trap;
+      mod stack_trace;
+      // ...
+
+   作为一个示例，我们可以将打印调用栈的代码加入 panic handler 中，在每次 panic 的时候打印调用栈：
+
+   .. code-block:: rust
+      :caption: ``os/lang_items.rs``
+      :emphasize-lines: 3,9
+
+      use crate::sbi::shutdown;
+      use core::panic::PanicInfo;
+      use crate::stack_trace::print_stack_trace;
+
+      #[panic_handler]
+      fn panic(info: &PanicInfo) -> ! {
+          // ...
+
+          unsafe { print_stack_trace(); }
+
+          shutdown()
+      }
+
+   现在，panic 的时候输入的信息变成了这样：
+
+   .. code-block::
+
+      Panicked at src/batch.rs:68 All applications completed!
+      == Begin stack trace ==
+      0x0000000080200e12, fp = 0x0000000080205cf0
+      0x0000000080201bfa, fp = 0x0000000080205dd0
+      0x0000000080200308, fp = 0x0000000080205e00
+      0x0000000080201228, fp = 0x0000000080205e60
+      0x00000000802005b4, fp = 0x0000000080205ef0
+      0x0000000080200424, fp = 0x0000000000000000
+      == End stack trace ==
+
+   这里打印的两个数字，第一个是栈帧上保存的返回地址，第二个是保存的上一个 frame pointer。
+
+
 2. `**` 扩展内核，实现新系统调用get_taskinfo，能显示当前task的id和task name；实现一个裸机应用程序B，能访问get_taskinfo系统调用。
 3. `**` 扩展内核，能够统计多个应用的执行过程中系统调用编号和访问此系统调用的次数。
 4. `**` 扩展内核，能够统计每个应用执行后的完成时间。

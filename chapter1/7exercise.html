@@ -140,10 +140,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l4"><a class="reference internal" href="#id4">问答题</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">实验练习</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#id6">实践作业</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id10">问答作业</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id11">实验练习的提交报告要求</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">实验练习</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id7">实践作业</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id11">问答作业</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id12">实验练习的提交报告要求</a></li>
 </ul>
 </li>
 </ul>
@@ -261,7 +261,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id4">
 <h3>问答题<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
-<ol class="arabic simple">
+<ol class="arabic">
 <li><p><cite>*</cite> 应用程序在执行过程中，会占用哪些计算机资源？</p></li>
 <li><p><cite>*</cite> 请用相关工具软件分析并给出应用程序A的代码段/数据段/堆/栈的地址空间范围。</p></li>
 <li><p><cite>*</cite> 请用分析并给出应用程序C的代码段/数据段/堆/栈的地址空间范围。</p></li>
@@ -272,14 +272,76 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p><cite>**</cite> 为了让应用程序能在计算机上执行，操作系统与编译器之间需要达成哪些协议？</p></li>
 <li><p><cite>**</cite> 请简要说明从QEMU模拟的RISC-V计算机加电开始运行到执行应用程序的第一条指令这个阶段的执行过程。</p></li>
 <li><p><cite>**</cite> 为何应用程序员编写应用时不需要建立栈空间和指定地址空间？</p></li>
+<li><p><cite>***</cite> 现代的很多编译器生成的代码，默认情况下不再严格保存/恢复栈帧指针。在这个情况下，我们只要编译器提供足够的信息，也可以完成对调用栈的恢复。</p>
+<p>我们可以手动阅读汇编代码和栈上的数据，体验一下这个过程。例如，对如下两个互相递归调用的函数：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">void</span> <span class="n">flip</span><span class="p">(</span><span class="n">unsigned</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">((</span><span class="n">n</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">flip</span><span class="p">(</span><span class="n">n</span> <span class="o">&gt;&gt;</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">((</span><span class="n">n</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">flap</span><span class="p">(</span><span class="n">n</span> <span class="o">&gt;&gt;</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="n">void</span> <span class="n">flap</span><span class="p">(</span><span class="n">unsigned</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">((</span><span class="n">n</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">flip</span><span class="p">(</span><span class="n">n</span> <span class="o">&gt;&gt;</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">((</span><span class="n">n</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">flap</span><span class="p">(</span><span class="n">n</span> <span class="o">&gt;&gt;</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>在某种编译环境下，编译器产生的代码不包括保存和恢复栈帧指针 <code class="docutils literal notranslate"><span class="pre">fp</span></code> 的代码。以下是 GDB 输出的本次运行的时候，这两个函数所在的地址和对应地址指令的反汇编，为了方便阅读节选了重要的控制流和栈操作（省略部分不含栈操作）：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">gdb</span><span class="p">)</span> <span class="n">disassemble</span> <span class="n">flap</span>
+<span class="n">Dump</span> <span class="n">of</span> <span class="n">assembler</span> <span class="n">code</span> <span class="k">for</span> <span class="n">function</span> <span class="n">flap</span><span class="p">:</span>
+   <span class="mh">0x0000000000010730</span> <span class="o">&lt;+</span><span class="mi">0</span><span class="o">&gt;</span><span class="p">:</span>     <span class="n">addi</span>    <span class="n">sp</span><span class="p">,</span><span class="n">sp</span><span class="p">,</span><span class="o">-</span><span class="mi">16</span>    <span class="o">//</span> <span class="n">唯一入口</span>
+   <span class="mh">0x0000000000010732</span> <span class="o">&lt;+</span><span class="mi">2</span><span class="o">&gt;</span><span class="p">:</span>     <span class="n">sd</span>      <span class="n">ra</span><span class="p">,</span><span class="mi">8</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+   <span class="o">...</span>
+   <span class="mh">0x0000000000010742</span> <span class="o">&lt;+</span><span class="mi">18</span><span class="o">&gt;</span><span class="p">:</span>    <span class="n">ld</span>      <span class="n">ra</span><span class="p">,</span><span class="mi">8</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+   <span class="mh">0x0000000000010744</span> <span class="o">&lt;+</span><span class="mi">20</span><span class="o">&gt;</span><span class="p">:</span>    <span class="n">addi</span>    <span class="n">sp</span><span class="p">,</span><span class="n">sp</span><span class="p">,</span><span class="mi">16</span>
+   <span class="mh">0x0000000000010746</span> <span class="o">&lt;+</span><span class="mi">22</span><span class="o">&gt;</span><span class="p">:</span>    <span class="n">ret</span>                  <span class="o">//</span> <span class="n">唯一出口</span>
+   <span class="o">...</span>
+   <span class="mh">0x0000000000010750</span> <span class="o">&lt;+</span><span class="mi">32</span><span class="o">&gt;</span><span class="p">:</span>    <span class="n">j</span>       <span class="mh">0x10742</span> <span class="o">&lt;</span><span class="n">flap</span><span class="o">+</span><span class="mi">18</span><span class="o">&gt;</span>
+
+<span class="p">(</span><span class="n">gdb</span><span class="p">)</span> <span class="n">disassemble</span> <span class="n">flip</span>
+<span class="n">Dump</span> <span class="n">of</span> <span class="n">assembler</span> <span class="n">code</span> <span class="k">for</span> <span class="n">function</span> <span class="n">flip</span><span class="p">:</span>
+   <span class="mh">0x0000000000010752</span> <span class="o">&lt;+</span><span class="mi">0</span><span class="o">&gt;</span><span class="p">:</span>     <span class="n">addi</span>    <span class="n">sp</span><span class="p">,</span><span class="n">sp</span><span class="p">,</span><span class="o">-</span><span class="mi">16</span>    <span class="o">//</span> <span class="n">唯一入口</span>
+   <span class="mh">0x0000000000010754</span> <span class="o">&lt;+</span><span class="mi">2</span><span class="o">&gt;</span><span class="p">:</span>     <span class="n">sd</span>      <span class="n">ra</span><span class="p">,</span><span class="mi">8</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+   <span class="o">...</span>
+   <span class="mh">0x0000000000010764</span> <span class="o">&lt;+</span><span class="mi">18</span><span class="o">&gt;</span><span class="p">:</span>    <span class="n">ld</span>      <span class="n">ra</span><span class="p">,</span><span class="mi">8</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+   <span class="mh">0x0000000000010766</span> <span class="o">&lt;+</span><span class="mi">20</span><span class="o">&gt;</span><span class="p">:</span>    <span class="n">addi</span>    <span class="n">sp</span><span class="p">,</span><span class="n">sp</span><span class="p">,</span><span class="mi">16</span>
+   <span class="mh">0x0000000000010768</span> <span class="o">&lt;+</span><span class="mi">22</span><span class="o">&gt;</span><span class="p">:</span>    <span class="n">ret</span>                  <span class="o">//</span> <span class="n">唯一出口</span>
+   <span class="o">...</span>
+   <span class="mh">0x0000000000010772</span> <span class="o">&lt;+</span><span class="mi">32</span><span class="o">&gt;</span><span class="p">:</span>    <span class="n">j</span>       <span class="mh">0x10764</span> <span class="o">&lt;</span><span class="n">flip</span><span class="o">+</span><span class="mi">18</span><span class="o">&gt;</span>
+<span class="n">End</span> <span class="n">of</span> <span class="n">assembler</span> <span class="n">dump</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>启动这个程序，在运行的时候的某个状态将其打断。此时的 <code class="docutils literal notranslate"><span class="pre">pc</span></code>, <code class="docutils literal notranslate"><span class="pre">sp</span></code>, <code class="docutils literal notranslate"><span class="pre">ra</span></code> 寄存器的值如下所示。此外，下面还给出了栈顶的部分内容。（为阅读方便，栈上的一些未初始化的垃圾数据用 <code class="docutils literal notranslate"><span class="pre">???</span></code> 代替。）</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>(gdb) p $pc
+$1 = (void (*)()) 0x10752 &lt;flip&gt;
+
+(gdb) p $sp
+$2 = (void *) 0x40007f1310
+
+(gdb) p $ra
+$3 = (void (*)()) 0x10742 &lt;flap+18&gt;
+
+(gdb) x/6a $sp
+0x40007f1310:   ???     0x10750 &lt;flap+32&gt;
+0x40007f1320:   ???     0x10772 &lt;flip+32&gt;
+0x40007f1330:   ???     0x10764 &lt;flip+18&gt;
+</pre></div>
+</div>
+<p>根据给出这些信息，调试器可以如何复原出最顶层的几个调用栈信息？假设调试器可以理解编译器生成的汇编代码 <a class="footnote-reference brackets" href="#dwarf" id="id5">1</a> 。</p>
+</li>
 </ol>
 </div>
 </div>
-<div class="section" id="id5">
-<h2>实验练习<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
-<p>实验练习包括实践作业和问答作业两部分。</p>
 <div class="section" id="id6">
-<h3>实践作业<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h3>
+<h2>实验练习<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
+<p>实验练习包括实践作业和问答作业两部分。</p>
+<div class="section" id="id7">
+<h3>实践作业<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h3>
 <div class="section" id="log">
 <h4>彩色化 LOG<a class="headerlink" href="#log" title="永久链接至标题">¶</a></h4>
 <p>lab1 的工作使得我们从硬件世界跳入了软件世界，当看到自己的小 os 可以在裸机硬件上输出 <code class="docutils literal notranslate"><span class="pre">hello</span> <span class="pre">world</span></code> 是不是很高兴呢？但是为了后续的一步开发，更好的调试环境也是必不可少的，第一章的练习要求大家实现更加炫酷的彩色log。</p>
@@ -293,8 +355,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>以下内容仅为推荐实现，不是练习要求，有时间和兴趣的同学可以尝试。</p>
 </div>
 <p>我们推荐实现如下几个等级的输出，输出优先级依次降低：</p>
-<table class="docutils align-center" id="id12">
-<caption><span class="caption-text">log 等级推荐</span><a class="headerlink" href="#id12" title="永久链接至表格">¶</a></caption>
+<table class="docutils align-center" id="id14">
+<caption><span class="caption-text">log 等级推荐</span><a class="headerlink" href="#id14" title="永久链接至表格">¶</a></caption>
 <colgroup>
 <col style="width: 33%" />
 <col style="width: 33%" />
@@ -344,8 +406,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>在以后，我们还可以在 log 信息中增加线程、CPU等信息（只是一个推荐，不做要求），这些信息将极大的方便你的代码调试。</p>
 </div>
-<div class="section" id="id7">
-<h4>实验要求<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h4>
+<div class="section" id="id8">
+<h4>实验要求<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h4>
 <ul>
 <li><p>实现分支：ch1</p></li>
 <li><p>完成实验指导书中的内容并在裸机上实现 <code class="docutils literal notranslate"><span class="pre">hello</span> <span class="pre">world</span></code> 输出。</p></li>
@@ -359,8 +421,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 <p>challenge: 支持多核，实现多个核的 boot。</p>
 </div>
-<div class="section" id="id8">
-<h4>实验检查<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h4>
+<div class="section" id="id9">
+<h4>实验检查<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h4>
 <ul class="simple">
 <li><p>实验目录要求(Rust)</p></li>
 </ul>
@@ -397,8 +459,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 </div>
 </div>
-<div class="section" id="id10">
-<h3>问答作业<a class="headerlink" href="#id10" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id11">
+<h3>问答作业<a class="headerlink" href="#id11" title="永久链接至标题">¶</a></h3>
 <ol class="arabic simple">
 <li><p>请学习 gdb 调试工具的使用(这对后续调试很重要)，并通过 gdb 简单跟踪从机器加电到跳转到 0x80200000 的简单过程。只需要描述重要的跳转即可，只需要描述在 qemu 上的情况。</p></li>
 <li><p>tips:</p></li>
@@ -425,14 +487,19 @@ commentsRunWhenDOMLoaded(addUtterances);
 </ul>
 </div></blockquote>
 </div>
-<div class="section" id="id11">
-<h3>实验练习的提交报告要求<a class="headerlink" href="#id11" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id12">
+<h3>实验练习的提交报告要求<a class="headerlink" href="#id12" title="永久链接至标题">¶</a></h3>
 <ul class="simple">
 <li><p>简单总结本次实验你编程的内容。（控制在5行以内，不要贴代码）</p></li>
 <li><p>由于彩色输出不好自动测试，请附正确运行后的截图。</p></li>
 <li><p>完成问答问题。</p></li>
 <li><p>(optional) 你对本次实验设计及难度/工作量的看法，以及有哪些需要改进的地方，欢迎畅所欲言。</p></li>
 </ul>
+<dl class="footnote brackets">
+<dt class="label" id="dwarf"><span class="brackets"><a class="fn-backref" href="#id5">1</a></span></dt>
+<dd><p>对编译器如何向调试器提供生成的代码的信息，有兴趣可以参阅 <a class="reference external" href="https://dwarfstd.org">DWARF 规范</a></p>
+</dd>
+</dl>
 </div>
 </div>
 </div>

@@ -282,7 +282,73 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 </li>
-<li><p><cite>***</cite> 实现一个linux应用程序B，能打印出调用栈链信息。（用C或Rust编程）</p></li>
+<li><p><cite>***</cite> 实现一个linux应用程序B，能打印出调用栈链信息。（用C或Rust编程）</p>
+<blockquote>
+<div><p>以使用 GCC 编译的 C 语言程序为例，使用编译参数 <code class="docutils literal notranslate"><span class="pre">-fno-omit-frame-pointer</span></code> 的情况下，会保存栈帧指针 <code class="docutils literal notranslate"><span class="pre">fp</span></code> 。</p>
+<p><code class="docutils literal notranslate"><span class="pre">fp</span></code> 指向的栈位置的负偏移量处保存了两个值：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-8(fp)</span></code> 是保存的 <code class="docutils literal notranslate"><span class="pre">ra</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-16(fp)</span></code> 是保存的上一个 <code class="docutils literal notranslate"><span class="pre">fp</span></code></p></li>
+</ul>
+<p>因此我们可以像链表一样，从当前的 <code class="docutils literal notranslate"><span class="pre">fp</span></code> 寄存器的值开始，每次找到上一个 <code class="docutils literal notranslate"><span class="pre">fp</span></code> ，逐帧恢复我们的调用栈：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;inttypes.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdint.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+
+<span class="c1">// Compile with -fno-omit-frame-pointer</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">print_stack_trace_fp_chain</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;=== Stack trace from fp chain ===</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="kt">uintptr_t</span><span class="w"> </span><span class="o">*</span><span class="n">fp</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">asm</span><span class="p">(</span><span class="s">&quot;mv %0, fp&quot;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s">&quot;=r&quot;</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="c1">// When should this stop?</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">fp</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Return address: 0x%016&quot;</span><span class="w"> </span><span class="n">PRIxPTR</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">fp</span><span class="p">[</span><span class="mi">-1</span><span class="p">]);</span><span class="w"></span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Old stack pointer: 0x%016&quot;</span><span class="w"> </span><span class="n">PRIxPTR</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">fp</span><span class="p">[</span><span class="mi">-2</span><span class="p">]);</span><span class="w"></span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">        </span><span class="n">fp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">fp</span><span class="p">[</span><span class="mi">-2</span><span class="p">];</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;=== End ===</span><span class="se">\n\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>但是这里会遇到一个问题，因为我们的标准库并没有保存栈帧指针，所以找到调用栈到标准的库时候会打破我们对栈帧格式的假设，出现异常。</p>
+<p>我们也可以不做关于栈帧保存方式的假设，而是明确让编译器告诉我们每个指令处的调用栈如何恢复。在编译的时候加入 <code class="docutils literal notranslate"><span class="pre">-funwind-tables</span></code> 会开启这个功能，将调用栈恢复的信息存入可执行文件中。</p>
+<p>有一个叫做 <a class="reference external" href="https://www.nongnu.org/libunwind">libunwind</a> 的库可以帮我们读取这些信息生成调用栈信息，而且它可以正确发现某些栈帧不知道怎么恢复，避免异常退出。</p>
+<p>正确安装 libunwind 之后，我们也可以用这样的方式生成调用栈信息：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;inttypes.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdint.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+
+<span class="cp">#define UNW_LOCAL_ONLY</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;libunwind.h&gt;</span><span class="cp"></span>
+
+<span class="c1">// Compile with -funwind-tables -lunwind</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">print_stack_trace_libunwind</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;=== Stack trace from libunwind ===</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">unw_cursor_t</span><span class="w"> </span><span class="n">cursor</span><span class="p">;</span><span class="w"> </span><span class="n">unw_context_t</span><span class="w"> </span><span class="n">uc</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="n">unw_word_t</span><span class="w"> </span><span class="n">pc</span><span class="p">,</span><span class="w"> </span><span class="n">sp</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">unw_getcontext</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uc</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">unw_init_local</span><span class="p">(</span><span class="o">&amp;</span><span class="n">cursor</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">uc</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">unw_step</span><span class="p">(</span><span class="o">&amp;</span><span class="n">cursor</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">unw_get_reg</span><span class="p">(</span><span class="o">&amp;</span><span class="n">cursor</span><span class="p">,</span><span class="w"> </span><span class="n">UNW_REG_IP</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">pc</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">unw_get_reg</span><span class="p">(</span><span class="o">&amp;</span><span class="n">cursor</span><span class="p">,</span><span class="w"> </span><span class="n">UNW_REG_SP</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sp</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Program counter: 0x%016&quot;</span><span class="w"> </span><span class="n">PRIxPTR</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="w"> </span><span class="n">pc</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Stack pointer: 0x%016&quot;</span><span class="w"> </span><span class="n">PRIxPTR</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="w"> </span><span class="n">sp</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;=== End ===</span><span class="se">\n\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</div></blockquote>
+</li>
 <li><p><cite>**</cite> 实现一个基于rcore/ucore tutorial的应用程序C，用sleep系统调用睡眠5秒（in rcore/ucore tutorial v3: Branch ch1）</p></li>
 </ol>
 <p>注： 尝试用GDB等调试工具和输出字符串的等方式来调试上述程序，能设置断点，单步执行和显示变量，理解汇编代码和源程序之间的对应关系。</p>
@@ -328,6 +394,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p><cite>**</cite> 为了让应用程序能在计算机上执行，操作系统与编译器之间需要达成哪些协议？</p></li>
 <li><p><cite>**</cite> 请简要说明从QEMU模拟的RISC-V计算机加电开始运行到执行应用程序的第一条指令这个阶段的执行过程。</p></li>
 <li><p><cite>**</cite> 为何应用程序员编写应用时不需要建立栈空间和指定地址空间？</p></li>
+<li><p><cite>***</cite> 现代的很多编译器生成的代码，默认情况下不再严格保存/恢复栈帧指针。在这个情况下，我们只要编译器提供足够的信息，也可以完成对调用栈的恢复。（题目剩余部分省略）</p>
+<ul class="simple">
+<li><p>首先，我们当前的 <code class="docutils literal notranslate"><span class="pre">pc</span></code> 在 <code class="docutils literal notranslate"><span class="pre">flip</span></code> 函数的开头，这是我们正在运行的函数。返回给调用者处的地址在 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 寄存器里，是 <code class="docutils literal notranslate"><span class="pre">0x10742</span></code> 。因为我们还没有开始操作栈指针，所以调用处的 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 与我们相同，都是 <code class="docutils literal notranslate"><span class="pre">0x40007f1310</span></code> 。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">0x10742</span></code> 在 <code class="docutils literal notranslate"><span class="pre">flap</span></code> 函数内。根据 <code class="docutils literal notranslate"><span class="pre">flap</span></code> 函数的开头可知，这个函数的栈帧大小是 16 个字节，所以调用者处的栈指针应该是 <code class="docutils literal notranslate"><span class="pre">sp</span> <span class="pre">+</span> <span class="pre">16</span> <span class="pre">=</span> <span class="pre">0x40007f1320</span></code>。调用 <code class="docutils literal notranslate"><span class="pre">flap</span></code> 的调用者返回地址保存在栈上 <code class="docutils literal notranslate"><span class="pre">8(sp)</span></code> ，可以读出来是 <code class="docutils literal notranslate"><span class="pre">0x10750</span></code> ，还在 <code class="docutils literal notranslate"><span class="pre">flap</span></code> 函数内。</p></li>
+<li><p>依次类推，只要能理解已知地址对应的函数代码，就可以完成恢复操作。</p></li>
+</ul>
+</li>
 </ol>
 </div>
 </div>

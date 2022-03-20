@@ -248,8 +248,74 @@ commentsRunWhenDOMLoaded(addUtterances);
 <h2>课后练习<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
 <div class="section" id="id3">
 <h3>编程题<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<ol class="arabic simple">
-<li><p><cite>***</cite> 实现一个裸机应用程序A，能打印调用栈。</p></li>
+<ol class="arabic">
+<li><p><cite>***</cite> 实现一个裸机应用程序A，能打印调用栈。</p>
+<p>以 rCore tutorial ch2 代码为例，在编译选项中我们已经让编译器对所有函数调用都保存栈指针（参考 <code class="docutils literal notranslate"><span class="pre">os/.cargo/config</span></code> ），因此我们可以直接从 <cite>fp</cite> 寄存器追溯调用栈：</p>
+<div class="literal-block-wrapper docutils container" id="id7">
+<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">os/src/stack_trace.rs</span></code></span><a class="headerlink" href="#id7" title="永久链接至代码">¶</a></div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="p">{</span><span class="n">arch</span>::<span class="n">asm</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span><span class="p">};</span><span class="w"></span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">print_stack_trace</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">fp</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="fm">asm!</span><span class="p">(</span><span class="s">&quot;mv {}, fp&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">out</span><span class="p">(</span><span class="n">reg</span><span class="p">)</span><span class="w"> </span><span class="n">fp</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;== Begin stack trace ==&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="n">fp</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">ptr</span>::<span class="n">null</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">saved_ra</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">fp</span><span class="p">.</span><span class="n">sub</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">saved_fp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">fp</span><span class="p">.</span><span class="n">sub</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;0x{:016x}, fp = 0x{:016x}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">saved_ra</span><span class="p">,</span><span class="w"> </span><span class="n">saved_fp</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">        </span><span class="n">fp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">saved_fp</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;== End stack trace ==&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<p>之后我们将其加入 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 作为一个子模块：</p>
+<div class="literal-block-wrapper docutils container" id="id8">
+<div class="code-block-caption"><span class="caption-text">加入 <code class="docutils literal notranslate"><span class="pre">os/src/main.rs</span></code></span><a class="headerlink" href="#id8" title="永久链接至代码">¶</a></div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="k">mod</span> <span class="nn">syscall</span><span class="p">;</span><span class="w"></span>
+<span class="k">mod</span> <span class="nn">trap</span><span class="p">;</span><span class="w"></span>
+<span class="hll"><span class="k">mod</span> <span class="nn">stack_trace</span><span class="p">;</span><span class="w"></span>
+</span><span class="c1">// ...</span>
+</pre></div>
+</div>
+</div>
+<p>作为一个示例，我们可以将打印调用栈的代码加入 panic handler 中，在每次 panic 的时候打印调用栈：</p>
+<div class="literal-block-wrapper docutils container" id="id9">
+<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">os/lang_items.rs</span></code></span><a class="headerlink" href="#id9" title="永久链接至代码">¶</a></div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">sbi</span>::<span class="n">shutdown</span><span class="p">;</span><span class="w"></span>
+<span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">panic</span>::<span class="n">PanicInfo</span><span class="p">;</span><span class="w"></span>
+<span class="hll"><span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">stack_trace</span>::<span class="n">print_stack_trace</span><span class="p">;</span><span class="w"></span>
+</span>
+<span class="cp">#[panic_handler]</span><span class="w"></span>
+<span class="k">fn</span> <span class="nf">panic</span><span class="p">(</span><span class="n">info</span>: <span class="kp">&amp;</span><span class="nc">PanicInfo</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// ...</span>
+
+<span class="hll"><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">print_stack_trace</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+</span>
+<span class="w">    </span><span class="n">shutdown</span><span class="p">()</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<p>现在，panic 的时候输入的信息变成了这样：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Panicked at src/batch.rs:68 All applications completed!
+== Begin stack trace ==
+0x0000000080200e12, fp = 0x0000000080205cf0
+0x0000000080201bfa, fp = 0x0000000080205dd0
+0x0000000080200308, fp = 0x0000000080205e00
+0x0000000080201228, fp = 0x0000000080205e60
+0x00000000802005b4, fp = 0x0000000080205ef0
+0x0000000080200424, fp = 0x0000000000000000
+== End stack trace ==
+</pre></div>
+</div>
+<p>这里打印的两个数字，第一个是栈帧上保存的返回地址，第二个是保存的上一个 frame pointer。</p>
+</li>
 <li><p><cite>**</cite> 扩展内核，实现新系统调用get_taskinfo，能显示当前task的id和task name；实现一个裸机应用程序B，能访问get_taskinfo系统调用。</p></li>
 <li><p><cite>**</cite> 扩展内核，能够统计多个应用的执行过程中系统调用编号和访问此系统调用的次数。</p></li>
 <li><p><cite>**</cite> 扩展内核，能够统计每个应用执行后的完成时间。</p></li>
