@@ -9,6 +9,7 @@
    2pipe
    3cmdargs-and-redirection
    4exercise
+   5answer
 
 .. chyyuu 
    有团队协作能力的“迅猛龙”操作系统。
