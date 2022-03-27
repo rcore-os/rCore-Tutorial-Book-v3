@@ -71,3 +71,15 @@
     用户程序可以任意修改栈指针，将其指向任意位置，而内核在运行的时候总希望在某一个合法的栈上，所以需要用分开的两个栈。
 
     此外，利用后面的章节的知识可以保护内核和用户栈，让用户无法读写内核栈上的内容，保证安全。
+
+15. `***` （以下答案以 Linux 5.17 为准）
+
+    1. ``arch/riscv/kernel/entry.S`` 里的 ``handle_exception`` ； ``arch/riscv/kernel/head.S`` 里的 ``setup_trap_vector``
+    2. ``arch/riscv/kernel/entry.S`` 里的 ``__switch_to``
+    3. ``TrapContext`` 对应 ``pt_regs`` ； ``TaskContext`` 对应 ``task_struct`` （在 ``task_struct`` 中也包含一些其它的和调度相关的信息）
+    4. ``tp`` 指向当前被打断的任务的 ``task_struct`` （参见 ``arch/riscv/include/asm/current.h`` 里的宏 ``current`` ）； ``sscratch`` 是 ``0``
+    5. ``sscratch`` 指向当前正在运行的任务的 ``task_struct`` ，这样设计可以用来区分异常来自用户态还是内核态。
+    6. 所有通用寄存器， ``sstatus``, ``sepc``, ``scause``
+    7. 内核栈底； ``arch/riscv/include/asm/processor.h`` 里的 ``task_pt_regs`` 宏
+    8. ``arch/riscv/kernel/syscall_table.c`` 里的 ``sys_call_table`` 作为跳转表，根据系统调用编号调用。
+    9. 从保存的 ``pt_regs`` 中读保存的 ``a0`` 到 ``a7`` 到机器寄存器里，这样系统调用实现的 C 函数就会作为参数接收到这些值，返回值是将返回的 ``a0`` 写入保存的 ``pt_regs`` ，然后切换回用户态的代码负责将其“恢复”到 ``a0``
