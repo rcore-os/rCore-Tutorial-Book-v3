@@ -260,7 +260,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id4">
 <h3>问答题<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
-<ol class="arabic simple">
+<ol class="arabic">
 <li><p><cite>*</cite> 协作式调度与抢占式调度的区别是什么？</p></li>
 <li><p><cite>*</cite> 中断、异常和系统调用有何异同之处？</p></li>
 <li><p><cite>*</cite> RISC-V支持哪些中断/异常？</p></li>
@@ -275,6 +275,42 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li><p><cite>*</cite> 上下文切换为什么需要用汇编语言实现？</p></li>
 <li><p><cite>*</cite> 有哪些可能的时机导致任务切换？</p></li>
 <li><p><cite>**</cite> 在设计任务控制块时，为何采用分离的内核栈和用户栈，而不用一个栈？</p></li>
+<li><p><cite>***</cite> 我们已经在 rCore 里实现了不少操作系统的基本功能：特权级、上下文切换、系统调用……为了让大家对相关代码更熟悉，我们来以另一个操作系统为例，比较一下功能的实现。看看换一段代码，你还认不认识操作系统。</p>
+<p>阅读 Linux 源代码，特别是 <code class="docutils literal notranslate"><span class="pre">riscv</span></code> 架构相关的代码，回答以下问题：</p>
+<ol class="arabic simple">
+<li><p>Linux 正常运行的时候， <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 指向哪个函数？是哪段代码设置的 <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 的值？</p></li>
+<li><p>Linux 里进行上下文切换的函数叫什么？（对应 rCore 的 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> ）</p></li>
+<li><p>Linux 里，和 rCore 中的 <code class="docutils literal notranslate"><span class="pre">TrapContext</span></code> 和 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 这两个类型大致对应的结构体叫什么？</p></li>
+<li><p>Linux 在内核态运行的时候， <code class="docutils literal notranslate"><span class="pre">tp</span></code> 寄存器的值有什么含义？ <code class="docutils literal notranslate"><span class="pre">sscratch</span></code> 的值是什么？</p></li>
+<li><p>Linux 在用户态运行的时候， <code class="docutils literal notranslate"><span class="pre">sscratch</span></code> 的值有什么含义？</p></li>
+<li><p>Linux 在切换到内核态的时候，保存了和用户态程序相关的什么状态？</p></li>
+<li><p>Linux 在内核态的时候，被打断的用户态程序的寄存器值存在哪里？在 C 代码里如何访问？</p></li>
+<li><p>Linux 是如何根据系统调用编号找到对应的函数的？（对应 rCore 的 <code class="docutils literal notranslate"><span class="pre">syscall::syscall()</span></code> 函数的功能）</p></li>
+<li><p>Linux 用户程序调用 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 的参数是怎么传给系统调用的实现的？系统调用的返回值是怎样返回给用户态的？</p></li>
+</ol>
+<p>阅读代码的时候，可以重点关注一下如下几个文件，尤其是第一个 <code class="docutils literal notranslate"><span class="pre">entry.S</span></code> ，当然也可能会需要读到其它代码：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">arch/riscv/kernel/entry.S</span></code> （与 rCore 的 <code class="docutils literal notranslate"><span class="pre">switch.S</span></code> 对比）</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arch/riscv/include/asm/current.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arch/riscv/include/asm/processor.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arch/riscv/include/asm/switch_to.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arch/riscv/kernel/process.c</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arch/riscv/kernel/syscall_table.c</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arch/riscv/kernel/traps.c</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">include/linux/sched.h</span></code></p></li>
+</ul>
+<p>此外，推荐使用 <a class="reference external" href="https://elixir.bootlin.com">https://elixir.bootlin.com</a> 阅读 Linux 源码，方便查找各个函数、类型、变量的定义及引用情况。</p>
+<p>一些提示：</p>
+<ul>
+<li><p>Linux 支持各种架构，查找架构相关的代码的时候，请认准文件名中的 <code class="docutils literal notranslate"><span class="pre">arch/riscv</span></code> 。</p></li>
+<li><p>为了同时兼容 RV32 和 RV64，Linux 在汇编代码中用了几个宏定义。例如， <code class="docutils literal notranslate"><span class="pre">REG_L</span></code> 在 RV32 上是 <code class="docutils literal notranslate"><span class="pre">lw</span></code> ，而在 RV64 上是 <code class="docutils literal notranslate"><span class="pre">ld</span></code> 。同理， <code class="docutils literal notranslate"><span class="pre">REG_S</span></code> 在 RV32 上是 <code class="docutils literal notranslate"><span class="pre">sw</span></code> ，而在 RV64 上是 <code class="docutils literal notranslate"><span class="pre">sd</span></code> 。</p></li>
+<li><p>如果看到 <code class="docutils literal notranslate"><span class="pre">#ifdef</span> <span class="pre">CONFIG_</span></code> 相关的预处理指令，是 Linux 根据编译时的配置启用不同的代码。一般阅读代码时，要么比较容易判断出这些宏有没有被定义，要么其实无关紧要。比如，Linux 内核确实应该和 rCore 一样，是在 S-mode 运行的，所以 <code class="docutils literal notranslate"><span class="pre">CONFIG_RISCV_M_MODE</span></code> 应该是没有启用的。</p></li>
+<li><p>汇编代码中可能会看到有些 <code class="docutils literal notranslate"><span class="pre">TASK_</span></code> 和 <cite>PT_</cite> 开头的常量，找不到定义。这些常量并没有直接写在源码里，而是自动生成的。</p>
+<p>在汇编语言中需要用到的很多 <code class="docutils literal notranslate"><span class="pre">struct</span></code> 里偏移量的常量定义可以在 <code class="docutils literal notranslate"><span class="pre">arch/riscv/kernel/asm-offsets.c</span></code> 文件里找到。其中， <code class="docutils literal notranslate"><span class="pre">OFFSET(NAME,</span> <span class="pre">struct_name,</span> <span class="pre">field)</span></code> 指的是 <code class="docutils literal notranslate"><span class="pre">NAME</span></code> 的值定义为 <code class="docutils literal notranslate"><span class="pre">field</span></code> 这一项在 <code class="docutils literal notranslate"><span class="pre">struct_name</span></code> 结构体里，距离结构体开头的偏移量。最终这些代码会生成 <code class="docutils literal notranslate"><span class="pre">asm/asm-offsets.h</span></code> 供汇编代码使用。</p>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">#include</span> <span class="pre">&lt;asm/unistd.h&gt;</span></code> 在 <code class="docutils literal notranslate"><span class="pre">arch/riscv/include/uapi/asm/unistd.h</span></code> ， <code class="docutils literal notranslate"><span class="pre">#include</span> <span class="pre">&lt;asm-generic/unistd.h&gt;</span></code> 在 <code class="docutils literal notranslate"><span class="pre">include/uapi/asm-generic/unistd.h</span></code> 。</p></li>
+</ul>
+</li>
 </ol>
 </div>
 </div>

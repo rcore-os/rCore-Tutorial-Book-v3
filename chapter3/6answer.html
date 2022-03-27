@@ -299,6 +299,19 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>用户程序可以任意修改栈指针，将其指向任意位置，而内核在运行的时候总希望在某一个合法的栈上，所以需要用分开的两个栈。</p>
 <p>此外，利用后面的章节的知识可以保护内核和用户栈，让用户无法读写内核栈上的内容，保证安全。</p>
 </li>
+<li><p><cite>***</cite> （以下答案以 Linux 5.17 为准）</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">arch/riscv/kernel/entry.S</span></code> 里的 <code class="docutils literal notranslate"><span class="pre">handle_exception</span></code> ； <code class="docutils literal notranslate"><span class="pre">arch/riscv/kernel/head.S</span></code> 里的 <code class="docutils literal notranslate"><span class="pre">setup_trap_vector</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arch/riscv/kernel/entry.S</span></code> 里的 <code class="docutils literal notranslate"><span class="pre">__switch_to</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TrapContext</span></code> 对应 <code class="docutils literal notranslate"><span class="pre">pt_regs</span></code> ； <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 对应 <code class="docutils literal notranslate"><span class="pre">task_struct</span></code> （在 <code class="docutils literal notranslate"><span class="pre">task_struct</span></code> 中也包含一些其它的和调度相关的信息）</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tp</span></code> 指向当前被打断的任务的 <code class="docutils literal notranslate"><span class="pre">task_struct</span></code> （参见 <code class="docutils literal notranslate"><span class="pre">arch/riscv/include/asm/current.h</span></code> 里的宏 <code class="docutils literal notranslate"><span class="pre">current</span></code> ）； <code class="docutils literal notranslate"><span class="pre">sscratch</span></code> 是 <code class="docutils literal notranslate"><span class="pre">0</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sscratch</span></code> 指向当前正在运行的任务的 <code class="docutils literal notranslate"><span class="pre">task_struct</span></code> ，这样设计可以用来区分异常来自用户态还是内核态。</p></li>
+<li><p>所有通用寄存器， <code class="docutils literal notranslate"><span class="pre">sstatus</span></code>, <code class="docutils literal notranslate"><span class="pre">sepc</span></code>, <code class="docutils literal notranslate"><span class="pre">scause</span></code></p></li>
+<li><p>内核栈底； <code class="docutils literal notranslate"><span class="pre">arch/riscv/include/asm/processor.h</span></code> 里的 <code class="docutils literal notranslate"><span class="pre">task_pt_regs</span></code> 宏</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">arch/riscv/kernel/syscall_table.c</span></code> 里的 <code class="docutils literal notranslate"><span class="pre">sys_call_table</span></code> 作为跳转表，根据系统调用编号调用。</p></li>
+<li><p>从保存的 <code class="docutils literal notranslate"><span class="pre">pt_regs</span></code> 中读保存的 <code class="docutils literal notranslate"><span class="pre">a0</span></code> 到 <code class="docutils literal notranslate"><span class="pre">a7</span></code> 到机器寄存器里，这样系统调用实现的 C 函数就会作为参数接收到这些值，返回值是将返回的 <code class="docutils literal notranslate"><span class="pre">a0</span></code> 写入保存的 <code class="docutils literal notranslate"><span class="pre">pt_regs</span></code> ，然后切换回用户态的代码负责将其“恢复”到 <code class="docutils literal notranslate"><span class="pre">a0</span></code></p></li>
+</ol>
+</li>
 </ol>
 </div>
 </div>

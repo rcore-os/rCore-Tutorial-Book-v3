@@ -35,6 +35,42 @@
 12. `*` 上下文切换为什么需要用汇编语言实现？
 13. `*` 有哪些可能的时机导致任务切换？
 14. `**` 在设计任务控制块时，为何采用分离的内核栈和用户栈，而不用一个栈？
+15. `***` 我们已经在 rCore 里实现了不少操作系统的基本功能：特权级、上下文切换、系统调用……为了让大家对相关代码更熟悉，我们来以另一个操作系统为例，比较一下功能的实现。看看换一段代码，你还认不认识操作系统。
+
+    阅读 Linux 源代码，特别是 ``riscv`` 架构相关的代码，回答以下问题：
+
+    1. Linux 正常运行的时候， ``stvec`` 指向哪个函数？是哪段代码设置的 ``stvec`` 的值？
+    2. Linux 里进行上下文切换的函数叫什么？（对应 rCore 的 ``__switch`` ）
+    3. Linux 里，和 rCore 中的 ``TrapContext`` 和 ``TaskContext`` 这两个类型大致对应的结构体叫什么？
+    4. Linux 在内核态运行的时候， ``tp`` 寄存器的值有什么含义？ ``sscratch`` 的值是什么？
+    5. Linux 在用户态运行的时候， ``sscratch`` 的值有什么含义？
+    6. Linux 在切换到内核态的时候，保存了和用户态程序相关的什么状态？
+    7. Linux 在内核态的时候，被打断的用户态程序的寄存器值存在哪里？在 C 代码里如何访问？
+    8. Linux 是如何根据系统调用编号找到对应的函数的？（对应 rCore 的 ``syscall::syscall()`` 函数的功能）
+    9. Linux 用户程序调用 ``ecall`` 的参数是怎么传给系统调用的实现的？系统调用的返回值是怎样返回给用户态的？
+
+    阅读代码的时候，可以重点关注一下如下几个文件，尤其是第一个 ``entry.S`` ，当然也可能会需要读到其它代码：
+
+    * ``arch/riscv/kernel/entry.S`` （与 rCore 的 ``switch.S`` 对比）
+    * ``arch/riscv/include/asm/current.h``
+    * ``arch/riscv/include/asm/processor.h``
+    * ``arch/riscv/include/asm/switch_to.h``
+    * ``arch/riscv/kernel/process.c``
+    * ``arch/riscv/kernel/syscall_table.c``
+    * ``arch/riscv/kernel/traps.c``
+    * ``include/linux/sched.h``
+
+    此外，推荐使用 https://elixir.bootlin.com 阅读 Linux 源码，方便查找各个函数、类型、变量的定义及引用情况。
+
+    一些提示：
+
+    * Linux 支持各种架构，查找架构相关的代码的时候，请认准文件名中的 ``arch/riscv`` 。
+    * 为了同时兼容 RV32 和 RV64，Linux 在汇编代码中用了几个宏定义。例如， ``REG_L`` 在 RV32 上是 ``lw`` ，而在 RV64 上是 ``ld`` 。同理， ``REG_S`` 在 RV32 上是 ``sw`` ，而在 RV64 上是 ``sd`` 。
+    * 如果看到 ``#ifdef CONFIG_`` 相关的预处理指令，是 Linux 根据编译时的配置启用不同的代码。一般阅读代码时，要么比较容易判断出这些宏有没有被定义，要么其实无关紧要。比如，Linux 内核确实应该和 rCore 一样，是在 S-mode 运行的，所以 ``CONFIG_RISCV_M_MODE`` 应该是没有启用的。
+    * 汇编代码中可能会看到有些 ``TASK_`` 和 `PT_` 开头的常量，找不到定义。这些常量并没有直接写在源码里，而是自动生成的。
+
+      在汇编语言中需要用到的很多 ``struct`` 里偏移量的常量定义可以在 ``arch/riscv/kernel/asm-offsets.c`` 文件里找到。其中， ``OFFSET(NAME, struct_name, field)`` 指的是 ``NAME`` 的值定义为 ``field`` 这一项在 ``struct_name`` 结构体里，距离结构体开头的偏移量。最终这些代码会生成 ``asm/asm-offsets.h`` 供汇编代码使用。
+    * ``#include <asm/unistd.h>`` 在 ``arch/riscv/include/uapi/asm/unistd.h`` ， ``#include <asm-generic/unistd.h>`` 在 ``include/uapi/asm-generic/unistd.h`` 。
 
 .. chyyuu：任务与进程，类似青蛙生长过程中的蝌蚪与青蛙的区别与联系。
 
