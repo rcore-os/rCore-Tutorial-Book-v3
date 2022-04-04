@@ -141,10 +141,9 @@ Blocks 给出 ``os`` 目录也占用 8 个块进行存储。实际上目录也�
     /// 功能：打开一个常规文件，并返回可以访问它的文件描述符。
     /// 参数：path 描述要打开的文件的文件名（简单起见，文件系统不需要支持目录，所有的文件都放在根目录 / 下），
     /// flags 描述打开文件的标志，具体含义下面给出。
-    /// dirfd 和 mode 仅用于保证兼容性，忽略
     /// 返回值：如果出现了错误则返回 -1，否则返回打开常规文件的文件描述符。可能的错误原因是：文件不存在。
     /// syscall ID：56
-    fn sys_openat(dirfd: usize, path: &str, flags: u32, mode: u32) -> isize
+    fn sys_open(path: &str, flags: u32) -> isize
 
 目前我们的内核支持以下几种标志（多种不同标志可能共存）：
 
@@ -173,21 +172,19 @@ Blocks 给出 ``os`` 目录也占用 8 个块进行存储。实际上目录也�
     }
 
     pub fn open(path: &str, flags: OpenFlags) -> isize {
-        sys_openat(AT_FDCWD as usize, path, flags.bits, OpenFlags::RDWR.bits)
+        sys_open(path, flags.bits)
     }
 
 借助 ``bitflags!`` 宏我们将一个 ``u32`` 的 flags 包装为一个 ``OpenFlags`` 结构体更易使用，它的 ``bits`` 字段可以将自身转回 ``u32`` ，它也会被传给 ``sys_open``。
 
 .. code-block:: rust
 
-       // user/src/syscall.rs
+    // user/src/syscall.rs
 
-    const SYSCALL_OPENAT: usize = 56;
+    const SYSCALL_OPEN: usize = 56;
 
-    pub fn sys_openat(dirfd: usize, path: &str, flags: u32, mode: u32) -> isize {
-        syscall6(
-            SYSCALL_OPENAT, [dirfd, path.as_ptr() as usize, flags as usize, mode as usize, 0, 0]
-        )
+    pub fn sys_open(path: &str, flags: u32) -> isize {
+        syscall(SYSCALL_OPEN, [path.as_ptr() as usize, flags as usize, 0])
     }
 
 
