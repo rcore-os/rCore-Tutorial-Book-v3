@@ -194,7 +194,7 @@
    │       │   └── page_table.rs
    │       ├── sbi.rs
    │       ├── syscall
-   │       │   ├── fs.rs(修改：新增 sys_open/sys_dup)
+   │       │   ├── fs.rs(修改：新增 sys_open)
    │       │   ├── mod.rs
    │       │   └── process.rs(修改：sys_exec 改为从文件系统中加载 ELF，并支持命令行参数)
    │       ├── task
@@ -225,11 +225,11 @@
       ├── Makefile
       └── src
          ├── bin
-         │   ├── cat_filea.rs(新增)
+         │   ├── cat_filea.rs(新增：显示文件filea的内容)
          │   ├── cmdline_args.rs(新增)
          │   ├── exit.rs
          │   ├── fantastic_text.rs
-         │   ├── filetest_simple.rs(新增：简单文件系统测例)
+         │   ├── filetest_simple.rs(新增：创建文件filea并读取它的内容 )
          │   ├── forktest2.rs
          │   ├── forktest.rs
          │   ├── forktest_simple.rs
@@ -243,14 +243,14 @@
          │   ├── sleep.rs
          │   ├── sleep_simple.rs
          │   ├── stack_overflow.rs
-         │   ├── user_shell.rs(修改：支持命令行参数解析和输入/输出重定向)
+         │   ├── user_shell.rs
          │   ├── usertests.rs
          │   └── yield.rs
          ├── console.rs
          ├── lang_items.rs
          ├── lib.rs(修改：支持命令行参数解析)
          ├── linker.ld
-         └── syscall.rs(修改：新增 sys_open 和 sys_dup)
+         └── syscall.rs(修改：新增 sys_open)
 
 
 本章代码导读
