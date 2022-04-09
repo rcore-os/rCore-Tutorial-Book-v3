@@ -594,29 +594,18 @@ K210 真实硬件平台
 
 .. code-block:: rust
     :linenos:
-    :emphasize-lines: 15-24
+    :emphasize-lines: 6-9
 
     // os/src/syscall/process.rs
 
-    pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
+    pub fn sys_exec(path: *const u8) -> isize {
         let token = current_user_token();
         let path = translated_str(token, path);
-        let mut args_vec: Vec<String> = Vec::new();
-        loop {
-            let arg_str_ptr = *translated_ref(token, args);
-            if arg_str_ptr == 0 {
-                break;
-            }
-            args_vec.push(translated_str(token, arg_str_ptr as *const u8));
-            unsafe { args = args.add(1); }
-        }
         if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
             let all_data = app_inode.read_all();
             let task = current_task().unwrap();
-            let argc = args_vec.len();
-            task.exec(all_data.as_slice(), args_vec);
-            // return argc because cx.x[10] will be covered with it later
-            argc as isize
+            task.exec(all_data.as_slice());
+            0
         } else {
             -1
         }
@@ -665,7 +654,7 @@ K210 真实硬件平台
 读写文件
 +++++++++++++++++++++++++++++++++++++++++++++++
 
-基于文件抽象接口和文件描述符表，我们可以按照无结构的字节流在处理基本的文件读写，这样可以让文件读写系统调用 ``sys_read/write`` 变得更加具有普适性，为后续支持把管道等抽象为文件打下了基础：
+基于文件抽象接口和文件描述符表，我们可以按照无结构的字节流来处理基本的文件读写，这样可以让文件读写系统调用 ``sys_read/write`` 变得更加具有普适性，为后续支持把管道等抽象为文件打下了基础：
 
 .. code-block:: rust
 
