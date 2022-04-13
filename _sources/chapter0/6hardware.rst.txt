@@ -47,7 +47,7 @@ K210 的内存是由 CPU 和 KPU 共享使用的，如果想要 CPU 能够使用
 .. code-block:: c
 
     sysctl_pll_enable(SYSCTL_PLL1);
-    syscyl_clock_enable(SYSCTL_CLOCK_PLL1);
+    sysctl_clock_enable(SYSCTL_CLOCK_PLL1);
 
 K210 的频率
 --------------------------------------------
