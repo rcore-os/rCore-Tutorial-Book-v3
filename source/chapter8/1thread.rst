@@ -119,7 +119,7 @@
 
 	struct TaskContext {
 	    // 15 u64
-	    x1: u64,  //ra: return addres，即当前正在执行线程的当前指令指针(PC)
+	    x1: u64,  //ra: return address，即当前正在执行线程的当前指令指针(PC)
 	    x2: u64,  //sp
 	    x8: u64,  //s0,fp
 	    x9: u64,  //s1
@@ -127,7 +127,7 @@
 	    x19: u64,
 	    ...
 	    x27: u64,
-	    nx1: u64, //new return addres, 即下一个要执行线程的当前指令指针(PC)
+	    nx1: u64, //new return address, 即下一个要执行线程的当前指令指针(PC)
 	}
 
 
