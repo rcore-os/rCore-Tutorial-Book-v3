@@ -356,8 +356,8 @@
      - Page Offset
      - :ref:`实现 SV39 多级页表机制（上） <term-page-offset>`
    * - 类型转换
-     - Type Convertion
-     - :ref:`实现 SV39 多级页表机制（上） <term-type-convertion>`
+     - Type Conversion
+     - :ref:`实现 SV39 多级页表机制（上） <term-type-conversion>`
    * - 字典树
      - Trie
      - :ref:`实现 SV39 多级页表机制（上） <term-trie>`

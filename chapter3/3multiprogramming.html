@@ -575,7 +575,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <p>这里我们取出即将最先执行的编号为 0 的应用的任务上下文指针 <code class="docutils literal notranslate"><span class="pre">next_task_cx_ptr</span></code> 并希望能够切换过去。注意 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 有两个参数分别表示当前应用和即将切换到的应用的任务上下文指针，其第一个参数存在的意义是记录当前应用的任务上下文被保存在哪里，也就是当前应用内核栈的栈顶，这样之后才能继续执行该应用。但在 <code class="docutils literal notranslate"><span class="pre">run_first_task</span></code> 的时候，我们并没有执行任何应用， <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 前半部分的保存仅仅是在启动栈上保存了一些之后不会用到的数据，自然也无需记录启动栈栈顶的位置。</p>
 <p>因此，我们显式在启动栈上分配了一个名为 <code class="docutils literal notranslate"><span class="pre">_unused</span></code> 的任务上下文，并将它的地址作为第一个参数传给 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> ，这样保存一些寄存器之后的启动栈栈顶的位置将会保存在此变量中。然而无论是此变量还是启动栈我们之后均不会涉及到，一旦应用开始运行，我们就开始在应用的用户栈和内核栈之间开始切换了。这里声明此变量的意义仅仅是为了避免覆盖到其他数据。</p>
-<p>我们的“始初龙”协作式操作系统就算是实现完毕了。它支持把多个应用的代码和数据放置到内存中；并能够执行每个应用；在应用程序发出 <code class="docutils literal notranslate"><span class="pre">sys_yeild</span></code> 系统调用时，能切换应用，从而让 CPU 尽可能忙于每个应用的计算任务，提高了任务调度的灵活性和 CPU 的使用效率。但“始初龙”协作式操作系统中任务调度的主动权在于应用程序的“自觉性”上，操作系统自身缺少强制的任务调度的手段，下一节我们将开始改进这方面的问题。</p>
+<p>我们的“始初龙”协作式操作系统就算是实现完毕了。它支持把多个应用的代码和数据放置到内存中；并能够执行每个应用；在应用程序发出 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 系统调用时，能切换应用，从而让 CPU 尽可能忙于每个应用的计算任务，提高了任务调度的灵活性和 CPU 的使用效率。但“始初龙”协作式操作系统中任务调度的主动权在于应用程序的“自觉性”上，操作系统自身缺少强制的任务调度的手段，下一节我们将开始改进这方面的问题。</p>
 <dl class="footnote brackets">
 <dt class="label" id="eoraptor"><span class="brackets">1</span><span class="fn-backref">(<a href="#id3">1</a>,<a href="#id4">2</a>)</span></dt>
 <dd><p>始初龙（也称始盗龙）是后三叠纪时期的两足食肉动物，也是目前所知最早的恐龙，它们只有一米长，却代表着恐龙的黎明。</p>
