@@ -23,55 +23,55 @@
 
 在QEMU模拟的RISC-V计算机和K210物理硬件上存在虚拟/物理串口设备，开发者可通过QEMU的串口命令行界面或特定串口通信工具软件来对虚拟/物理串口设备进行输入/输出操作。由于RustSBI直接管理了串口设备，并给操作系统提供了基于串口收发字符的两个SBI接口，从而使得操作系统可以很简单地通过这两个SBI接口，完成输出或输入字符串的工作。
 
+.. ！！！下面的内容移到了chapter6: section3
+.. 文件的抽象接口 ``File trait`` 
+.. -------------------------------------------
 
-文件的抽象接口 ``File trait`` 
--------------------------------------------
+.. 文件被操作系统来进行管理，并提供给应用程序使用。虽然文件可代表很多种不同类型的I/O 资源，但是在进程看来，所有文件的访问都可以通过一个很简洁的统一抽象接口 ``File`` 来进行：
 
-文件被操作系统来进行管理，并提供给应用程序使用。虽然文件可代表很多种不同类型的I/O 资源，但是在进程看来，所有文件的访问都可以通过一个很简洁的统一抽象接口 ``File`` 来进行：
+.. .. code-block:: rust
 
-.. code-block:: rust
+..     // os/src/fs/mod.rs
 
-    // os/src/fs/mod.rs
+..     pub trait File : Send + Sync {
+..         fn read(&self, buf: UserBuffer) -> usize;
+..         fn write(&self, buf: UserBuffer) -> usize;
+..     }
 
-    pub trait File : Send + Sync {
-        fn read(&self, buf: UserBuffer) -> usize;
-        fn write(&self, buf: UserBuffer) -> usize;
-    }
+.. 这个接口在内存和I/O资源之间建立了数据交换的通道。其中 ``UserBuffer`` 是我们在 ``mm`` 子模块中定义的应用地址空间中的一段缓冲区（即内存）的抽象。它的具体实现在本质上其实只是一个 ``&[u8]`` ，位于应用地址空间中，内核无法直接通过用户地址空间的虚拟地址来访问，因此需要进行封装。然而，在理解抽象接口 ``File`` 的各方法时，我们仍可以将 ``UserBuffer`` 看成一个 ``&[u8]`` 切片，它是一个同时给出了缓冲区起始地址和长度的胖指针。
 
-这个接口在内存和I/O资源之间建立了数据交换的通道。其中 ``UserBuffer`` 是我们在 ``mm`` 子模块中定义的应用地址空间中的一段缓冲区（即内存）的抽象。它的具体实现在本质上其实只是一个 ``&[u8]`` ，位于应用地址空间中，内核无法直接通过用户地址空间的虚拟地址来访问，因此需要进行封装。然而，在理解抽象接口 ``File`` 的各方法时，我们仍可以将 ``UserBuffer`` 看成一个 ``&[u8]`` 切片，它是一个同时给出了缓冲区起始地址和长度的胖指针。
+.. ``read`` 指的是从文件（即I/O资源）中读取数据放到缓冲区中，最多将缓冲区填满（即读取缓冲区的长度那么多字节），并返回实际读取的字节数；而 ``write`` 指的是将缓冲区中的数据写入文件，最多将缓冲区中的数据全部写入，并返回直接写入的字节数。至于 ``read`` 和 ``write`` 的实现则与文件具体是哪种类型有关，它决定了数据如何被读取和写入。
 
-``read`` 指的是从文件（即I/O资源）中读取数据放到缓冲区中，最多将缓冲区填满（即读取缓冲区的长度那么多字节），并返回实际读取的字节数；而 ``write`` 指的是将缓冲区中的数据写入文件，最多将缓冲区中的数据全部写入，并返回直接写入的字节数。至于 ``read`` 和 ``write`` 的实现则与文件具体是哪种类型有关，它决定了数据如何被读取和写入。
+.. 回过头来再看一下用户缓冲区的抽象 ``UserBuffer`` ，它的声明如下：
 
-回过头来再看一下用户缓冲区的抽象 ``UserBuffer`` ，它的声明如下：
+.. .. code-block:: rust
 
-.. code-block:: rust
+..     // os/src/mm/page_table.rs
 
-    // os/src/mm/page_table.rs
+..     pub fn translated_byte_buffer(
+..         token: usize,
+..         ptr: *const u8,
+..         len: usize
+..     ) -> Vec<&'static mut [u8]>;
 
-    pub fn translated_byte_buffer(
-        token: usize,
-        ptr: *const u8,
-        len: usize
-    ) -> Vec<&'static mut [u8]>;
+..     pub struct UserBuffer {
+..         pub buffers: Vec<&'static mut [u8]>,
+..     }
 
-    pub struct UserBuffer {
-        pub buffers: Vec<&'static mut [u8]>,
-    }
+..     impl UserBuffer {
+..         pub fn new(buffers: Vec<&'static mut [u8]>) -> Self {
+..             Self { buffers }
+..         }
+..         pub fn len(&self) -> usize {
+..             let mut total: usize = 0;
+..             for b in self.buffers.iter() {
+..                 total += b.len();
+..             }
+..             total
+..         }
+..     }
 
-    impl UserBuffer {
-        pub fn new(buffers: Vec<&'static mut [u8]>) -> Self {
-            Self { buffers }
-        }
-        pub fn len(&self) -> usize {
-            let mut total: usize = 0;
-            for b in self.buffers.iter() {
-                total += b.len();
-            }
-            total
-        }
-    }
-
-它只是将我们调用 ``translated_byte_buffer`` 获得的包含多个切片的 ``Vec`` 进一步包装起来，通过 ``len`` 方法可以得到缓冲区的长度。此外，我们还让它作为一个迭代器可以逐字节进行读写。有兴趣的同学可以参考类型 ``UserBufferIterator`` 还有 ``IntoIterator`` 和 ``Iterator`` 两个 Trait 的使用方法。
+.. 它只是将我们调用 ``translated_byte_buffer`` 获得的包含多个切片的 ``Vec`` 进一步包装起来，通过 ``len`` 方法可以得到缓冲区的长度。此外，我们还让它作为一个迭代器可以逐字节进行读写。有兴趣的同学可以参考类型 ``UserBufferIterator`` 还有 ``IntoIterator`` 和 ``Iterator`` 两个 Trait 的使用方法。
 
 标准输入/输出对 ``File trait`` 的实现
 ----------------------------------------------------------------
