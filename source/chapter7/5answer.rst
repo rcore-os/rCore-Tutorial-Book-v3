@@ -94,7 +94,7 @@
               // wait until the parent signals that the data is ready
               // WARNING: this is not the correct way to synchronize processes
               // on SMP systems due to memory orders, but this implementation
-              // is choosen here specifically for ease of understanding
+              // is chosen here specifically for ease of understanding
             }
             printf("%s", shm + 1);
           } else {

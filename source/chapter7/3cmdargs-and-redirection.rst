@@ -327,7 +327,7 @@ sys_exec 将命令行参数压入用户栈
         assert!(argc == 2);
         let fd = open(argv[1], OpenFlags::RDONLY);
         if fd == -1 {
-            panic!("Error occured when opening file");
+            panic!("Error occurred when opening file");
         }
         let fd = fd as usize;
         let mut buf = [0u8; 16];

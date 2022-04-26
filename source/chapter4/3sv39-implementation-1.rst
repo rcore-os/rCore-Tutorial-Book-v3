@@ -84,9 +84,9 @@ SV39 多级页表的硬件机制
     #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
     pub struct VirtPageNum(pub usize);
 
-.. _term-type-convertion:
+.. _term-type-conversion:
 
-上面分别给出了物理地址、虚拟地址、物理页号、虚拟页号的 Rust 类型声明，它们都是 Rust 的元组式结构体，可以看成 usize 的一种简单包装。我们刻意将它们各自抽象出不同的类型而不是都使用与RISC-V 64硬件直接对应的 usize 基本类型，就是为了在 Rust 编译器的帮助下，通过多种方便且安全的 **类型转换** (Type Convertion) 来构建页表。
+上面分别给出了物理地址、虚拟地址、物理页号、虚拟页号的 Rust 类型声明，它们都是 Rust 的元组式结构体，可以看成 usize 的一种简单包装。我们刻意将它们各自抽象出不同的类型而不是都使用与RISC-V 64硬件直接对应的 usize 基本类型，就是为了在 Rust 编译器的帮助下，通过多种方便且安全的 **类型转换** (Type Conversion) 来构建页表。
 
 首先，这些类型本身可以和 usize 之间互相转换，以物理地址 ``PhysAddr`` 为例，我们需要：
 
