@@ -191,7 +191,7 @@
    │       │   ├── heap_allocator.rs
    │       │   ├── memory_set.rs(修改：在创建地址空间的时候插入 MMIO 虚拟页面)
    │       │   ├── mod.rs
-   │       │   └── page_table.rs
+   │       │   └── page_table.rs(新增：应用地址空间的缓冲区抽象 UserBuffer 及其迭代器实现)
    │       ├── sbi.rs
    │       ├── syscall
    │       │   ├── fs.rs(修改：新增 sys_open)
