@@ -143,8 +143,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="1file-descriptor.html">基于文件的标准输入/输出</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2pipe.html">管道</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3cmdargs-and-redirection.html">命令行参数与标准 I/O 重定向</a></li>
-<li class="toctree-l2"><a class="reference internal" href="4exercise.html">练习</a></li>
-<li class="toctree-l2"><a class="reference internal" href="5answer.html">练习参考答案</a></li>
+<li class="toctree-l2"><a class="reference internal" href="4signal.html">信号</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter8/index.html">第八章：并发</a></li>
@@ -243,7 +242,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>其实在 <strong>UNIX</strong> 的早期发展历史中，也碰到了同样的问题，每个程序专注在完成一件事情上，但缺少把多个程序联合在一起完成复杂功能的机制。直到1975年UNIX v6中引入了让人眼前一亮的创新机制– <strong>I/O重定向</strong> 与 <strong>管道（pipe）</strong> 。基于这两种机制，操作系统在不用改变应用程序的情况下，可以将一个程序的输出重新定向到另外一个程序的输入中，这样程序之间就可以进行任意的连接，并组合出各种灵活的复杂功能。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p>管道（pipe）可能是 Unix 中最引人注目的发明</p>
+<p>管道（pipe）可能是 UNIX 中最引人注目的发明</p>
 <p>管道的概念来自贝尔实验室的Douglas McIlroy，他在1964年写的一份内部文件中，提出了把多个程序“像花园水管一样”串连并拧在一起的想法，这样数据就可以在不同程序中流动。大约在1972年下半年，Ken Thompson在听了Douglas McIlroy关于管道的唠叨后，灵机一动，迅速把管道机制实现在UNIX中。管道是一种由操作系统提供的机制，它将一个程序的输出连接到另一个程序的输入。可以通过在shell程序中使用 “|” 符号来轻松访问和操作管道。管道是 UNIX 最重要的贡献之一，通过管道可以把功能单一的小程序灵活地组合起来实现各种复杂的功能，从而让UNIX的简单功能哲学（一次把一件事情做好）和复杂系统能力（通过基于管道的排列组合形成复杂能力）有机地融合在一起。</p>
 </div>
 <p>本章我们将引入新操作系统概念 – <strong>管道</strong> ，并进行实现，以支持进程间的I/O重定向功能，即让一个进程的输出成为另外一个进程的输入，从而让进程间能够有效地合作起来。除了键盘和屏幕这样的 <strong>标准</strong> 输入和 <strong>标准</strong> 输出之外，管道其实也可以看成是一种特殊的输入和输出，而前面讲解的 <strong>文件系统</strong> 中的对持久化存储数据的抽象 <strong>文件(file)</strong> 也是一种存储设备的输入和输出。所以，我们可以把这三种输入输出都统一在 <strong>文件(file)</strong>  这个抽象之中。这也体现了在 UNIX 操作系统中“ <strong>一切皆文件</strong> ” (Everything is a file) 的重要设计哲学。</p>
@@ -256,7 +255,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>为了让应用能够基于 <strong>文件</strong> 这个抽象接口对不同I/O设备或I/O资源进行操作，我们就需要对 <strong>进程</strong> 这个概念进行扩展，让它能够管理 <strong>文件</strong> 这种抽象资源和接口。为了实现 <strong>一切皆文件(Everything is a file)</strong>  的UNIX设计思想，之前的进程控制块中有一个 <strong>文件描述符表</strong> ，在表中保存着多个 <strong>文件</strong> 记录信息。每个文件描述符是一个非负的索引值，即对应文件记录信息的条目在文件描述符表中的索引。这个阶段的文件还仅仅是指磁盘上的数据存储。我们要对文件范围进行扩充，从数据存储扩大到外设、管道这样的物理和虚拟资源。</p>
 <p>为了统一表示 <strong>标准</strong> 输入、 <strong>标准</strong> 输出、管道和数据存储等，我们把支持 <code class="docutils literal notranslate"><span class="pre">File</span> <span class="pre">trait</span></code> 定义的接口的结构都称为文件。这样只要 <strong>标准</strong> 输入、 <strong>标准</strong> 输出、管道也基于统一的 <code class="docutils literal notranslate"><span class="pre">File</span> <span class="pre">trait</span></code> 接口实现自己的打开、关闭和读写等文件操作，就可以让进程来对自己进行管理了。从用户的角度来看，应用访问文件将很简单，它不太需要关注文件的具体细节，只需通过文件描述符，就可以对 <strong>文件</strong> 进行读写，从而完成接收键盘输入，向屏幕输出，两个进程之间进行数据传输的操作，以及对存储设备上的数据进行读写。</p>
 <p>仅仅实现文件的统一抽象和支持进程间通信的管道机制，还不够灵活。因为这需要两个进程之间相互“知道”它们要通信，即它们不能独立存在。我们可以进一步扩展进动态程管理的机制，来实现独立应用之间的I/O重定向，从而可以让独立的应用之间能够灵活组合完成复杂功能。具体而言，这需要扩展与应用程序执行相关的 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 系统调用，加入对程序运行参数的支持，并进一步改进了对shell程序自身的实现，加入对重定向符号 <code class="docutils literal notranslate"><span class="pre">&gt;</span></code> 、 <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> 的识别和处理。这样我们也可以像UNIX中的shell程序一样，基于文件机制和管道机制实现灵活的I/O重定位功能，更加灵活地把独立的应用程序组合在一起实现复杂功能。</p>
-<p>简而言之，本章我们首先建立基于文件的统一I/O抽象，将标准输入/标准输出的访问改造为基于文件描述符，然后同样基于文件描述符实现一种父子进程之间的通信机制——管道，从而实现灵活的进程间通信，并基于文件抽象和管道支持不同的独立进程之间的动态组合，来实现复杂功能，这样就构成了具有团队协作能力的白垩纪“迅猛龙” <a class="footnote-reference brackets" href="#velociraptor" id="id3">1</a> 操作系统。</p>
+<p>仅仅有支持数据传递的管道机制还不够便捷，进程间也需要更快捷的通知机制。而且操作系统也不仅仅是被动地接受来自进程的系统调用，它也需要有主动让进程响应它发出的通知的需求。这些都推动了一种 <code class="docutils literal notranslate"><span class="pre">信号（Signal）</span></code> 的事件通知机制的诞生。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p>信号(Signal)可能是 UNIX 中最早实现的内核通知进程的机制</p>
+<p>信号从 UNIX 的第一版本就已经存在了，由于其设计实现的细节和边界条件较多，容易出错，所以经历了许多次设计开发的迭代。在早期设计中，UNIX通过不同的系统调用来设置对不同类型信号的捕获；在UNIX第二版，出现了让用户给进程发信号的 <code class="docutils literal notranslate"><span class="pre">kill</span></code> 命令；在UNIX第四版，进一步简化了系统调用设计，可通过一个系统调用来设置对所有信号的捕获；发展到UNIX第七版，信号的设计模型还是不够可靠，会出现信号可能丢失的情况。在后续的BSD UNIX 4.3版和UNIX SVR3中，增加了可靠信号机制，而且BSD UNIX还扩展了 SIGUSR1 和 SIGUSR2 信号，目的是将其用于进程间传递特定事件，但BSD和SVF3二者并不兼容。直到POSIX.1标准的提出，才对可靠信号相关的系统调用和语义进行了标准化。</p>
+</div>
+<p>简而言之，本章我们首先建立基于文件的统一I/O抽象，将标准输入/标准输出的访问改造为基于文件描述符，然后同样基于文件描述符实现一种父子进程之间的通信机制——管道，从而实现灵活的进程间通信，并基于文件抽象和管道支持不同的独立进程之间的动态组合，来实现复杂功能。而且通过实现信号机制，进程和操作系统可以主动发出信号来异步地通知相关事件给其它进程。这样就构成了具有团队协作能力的白垩纪“迅猛龙” <a class="footnote-reference brackets" href="#velociraptor" id="id3">1</a> 操作系统。</p>
 </div>
 <div class="section" id="id4">
 <h2>实践体验<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
