@@ -281,6 +281,13 @@ GDB 调试支持
 
 在其他缺少预编译 riscv64 gcc 工具链的 Linux x86-64 平台（如 openEuler 操作系统、龙蜥操作系统等）上，则需要 clone `riscv 工具链仓库 <https://github.com/riscv-collab/riscv-gnu-toolchain>`_ 并参考其说明手动构建。
 
+出于某些原因，我们全程使用 ``release`` 模式进行构建。为了正常进行调试，请确认各项目（如 ``os`` , ``user`` 和 ``easy-fs`` ）的 ``Cargo.toml`` 中包含如下配置：
+
+.. code-block:: toml
+
+   [profile.release]
+   debug = true
+
 此外，参考 ``os/Makefile`` ，还可以先打开一个终端页面 ``make gdbserver`` 启动 Qemu ，此后另开一个终端页面在同目录下 ``make gdbclient`` 将 GDB 客户端连接到 Qemu 进行调试。我们推荐使用 `gdb-dashboard <https://github.com/cyrus-and/gdb-dashboard>`_ 插件，可以大大提升调试体验。在本节的评论区已有同学提供了基于各种 IDE 的调试方法，也可参考。
 
 运行 rCore-Tutorial-v3
