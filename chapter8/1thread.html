@@ -142,8 +142,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l4"><a class="reference internal" href="#id5">线程的结构与执行状态</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id6">线程管理运行时初始化</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#id7">线程创建</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id8">线程切换</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#id11">开始执行</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id12">线程切换</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id15">开始执行</a></li>
 </ul>
 </li>
 </ul>
@@ -426,9 +426,17 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="id7">
 <h3>线程创建<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h3>
 <p>但应用要创建一个线程时，会调用 <cite>runtime.spawn</cite> 函数。这个函数主要完成的功能是：</p>
-<ul class="simple">
+<ul>
 <li><p>第4~12行，在线程向量中查找一个状态为 <cite>Available</cite> 的空闲线程控制块；</p></li>
-<li><p>第14~20行，把当前线程和找到的空闲线程的状态进行交换，设置 <cite>runtime`的 `current</cite> 设置为这个新线程控制块；</p></li>
+<li><p>第14~20行，初始化该空闲线程的线程控制块；</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><a href="#id8"><span class="problematic" id="id9">`</span></a>x1`寄存器：老的返回地址 – <a href="#id10"><span class="problematic" id="id11">`</span></a>guard`函数地址</p></li>
+<li><p><cite>nx1`寄存器：新的返回地址 – 输入参数 `f</cite> 函数地址</p></li>
+<li><p><cite>x2</cite> 寄存器：新的栈地址 –  available.stack+size</p></li>
+</ul>
+</div></blockquote>
+</li>
 </ul>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Runtime</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">        </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">spawn</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">f</span>: <span class="nc">fn</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -475,12 +483,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 </pre></div>
 </div>
 </div>
-<div class="section" id="id8">
-<h3>线程切换<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id12">
+<h3>线程切换<a class="headerlink" href="#id12" title="永久链接至标题">¶</a></h3>
 <p>当应用要切换线程时，会调用 <cite>yield_task</cite> 函数，通过 <cite>runtime.t_yield</cite> 函数来完成具体的切换过程。<cite>runtime.t_yield</cite> 这个函数主要完成的功能是：</p>
 <ul class="simple">
 <li><p>第4~12行，在线程向量中查找一个状态为 <cite>Ready</cite> 的线程控制块；</p></li>
-<li><p>第14~20行，把当前运行的线程和找到的就绪线程的状态进行交换，把 <cite>runtime</cite> 的 <cite>current</cite> 设置为这个新线程控制块的id；</p></li>
+<li><p>第14~20行， 把当前运行的线程的状态改为 <cite>Ready</cite> ，把新就绪线程的状态改为 <cite>Running</cite> ，，把 <cite>runtime</cite> 的 <cite>current</cite> 设置为这个新线程控制块的id；</p></li>
 <li><p>第23行，调用汇编代码写的函数 <cite>switch</cite> ，完成两个线程的栈和上下文的切换；</p></li>
 </ul>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Runtime</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -556,10 +564,10 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos">29</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>这里需要注意两个细节。第一个是寄存器集合的保存数量。在保存通用寄存器集合时，并没有保存所有的通用寄存器，其原因是根据RISC-V的函数调用约定，有一部分寄存器是有调用函数 <cite>Caller</cite> 来保存的，所以就不需要被调用函数 <cite>switch</cite> 来保存了。第二个是当前指令指针(PC)的切换。在具体切换过程中，是基于函数返回地址来进行切换的。即首先把 <cite>switch</cite> 的函数返回地址 <cite>ra</cite> (即 <cite>x1</cite> )寄存器保存在 <cite>TaskContext</cite> 中，在此函数的倒数第二步，恢复切换后要执行线程的函数返回地址，即 <cite>ra</cite> 寄存器到 <cite>t0</cite> 寄存器，然后调用 <a href="#id9"><span class="problematic" id="id10">`</span></a>jr t0 ` 即完成了函数的返回。</p>
+<p>这里需要注意两个细节。第一个是寄存器集合的保存数量。在保存通用寄存器集合时，并没有保存所有的通用寄存器，其原因是根据RISC-V的函数调用约定，有一部分寄存器是有调用函数 <cite>Caller</cite> 来保存的，所以就不需要被调用函数 <cite>switch</cite> 来保存了。第二个是当前指令指针(PC)的切换。在具体切换过程中，是基于函数返回地址来进行切换的。即首先把 <cite>switch</cite> 的函数返回地址 <cite>ra</cite> (即 <cite>x1</cite> )寄存器保存在 <cite>TaskContext</cite> 中，在此函数的倒数第二步，恢复切换后要执行线程的函数返回地址，即 <cite>ra</cite> 寄存器到 <cite>t0</cite> 寄存器，然后调用 <a href="#id13"><span class="problematic" id="id14">`</span></a>jr t0 ` 即完成了函数的返回。</p>
 </div>
-<div class="section" id="id11">
-<h3>开始执行<a class="headerlink" href="#id11" title="永久链接至标题">¶</a></h3>
+<div class="section" id="id15">
+<h3>开始执行<a class="headerlink" href="#id15" title="永久链接至标题">¶</a></h3>
 <p>有了上述线程管理运行时的各种功能支持，就可以开始线程的正常执行了。假设完成了线程管理运行时初始化，并创建了几个线程。当执行 <cite>runtime.run()</cite>  函数，通过 <cite>函数时，将切换线程管理运行时所在的应用主线程到另外一个处于 `Ready</cite> 状态的线程，让那个线程开始执行。当所有的线程都执行完毕后，会回到  <cite>runtime.run()</cite>  函数，通过 <cite>std::process::exit(0)</cite> 来退出该应用进程，整个应用的运行就结束了。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Runtime</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">       </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">run</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -574,12 +582,12 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos">11</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>注：本节的内容参考了Carl Fredrik Samson设计实现的 “Green Threads Example” <a class="footnote-reference brackets" href="#explain-green-thread" id="id12">1</a> <a class="footnote-reference brackets" href="#code-green-thread" id="id13">2</a> ，并把代码移植到了Linux for RISC-V64上。</p>
+<p>注：本节的内容参考了Carl Fredrik Samson设计实现的 “Green Threads Example” <a class="footnote-reference brackets" href="#explain-green-thread" id="id16">1</a> <a class="footnote-reference brackets" href="#code-green-thread" id="id17">2</a> ，并把代码移植到了Linux for RISC-V64上。</p>
 <dl class="footnote brackets">
-<dt class="label" id="explain-green-thread"><span class="brackets"><a class="fn-backref" href="#id12">1</a></span></dt>
+<dt class="label" id="explain-green-thread"><span class="brackets"><a class="fn-backref" href="#id16">1</a></span></dt>
 <dd><p><a class="reference external" href="https://cfsamson.gitbook.io/green-threads-explained-in-200-lines-of-rust/">https://cfsamson.gitbook.io/green-threads-explained-in-200-lines-of-rust/</a></p>
 </dd>
-<dt class="label" id="code-green-thread"><span class="brackets"><a class="fn-backref" href="#id13">2</a></span></dt>
+<dt class="label" id="code-green-thread"><span class="brackets"><a class="fn-backref" href="#id17">2</a></span></dt>
 <dd><p><a class="reference external" href="https://github.com/cfsamson/example-greenthreads">https://github.com/cfsamson/example-greenthreads</a></p>
 </dd>
 </dl>
