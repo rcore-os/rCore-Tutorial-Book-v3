@@ -209,11 +209,11 @@
     :linenos:
   
     fn lock() {
-    	disableInterrupt(); //屏蔽中断的机器指令
+    	disable_Interrupt(); //屏蔽中断的机器指令
     }
     
     fn unlock() {
-    	enableInterrupt(); ////使能中断的机器指令
+    	enable_Interrupt(); ////使能中断的机器指令
     }
     
 这个方法的特点是简单。没有中断，线程可以确信它的代码会继续执行下去，不会被其他线程干扰。注：目前实现的操作系统内核就是在屏蔽中断的情况下执行的。
@@ -259,8 +259,12 @@ CAS原子指令和TAS原子指令
         actual
     }
 
-    fn lock(lock : *i32) {
-        while (CompareAndSwap(lock, 0, 1) == 1);
+    fn lock(mutex : *i32) {
+        while (CompareAndSwap(mutex, 0, 1) == 1);
+    }
+
+    fn unlock((mutex : *i32){
+    	*mutex = 0;
     }
 
 比较并交换原子指令的基本思路是检测ptr指向的实际值是否和expected相等；如果相等，更新ptr所指的值为new值；最后返回该内存地址之前指向的实际值。有了比较并交换指令，就可以实现对锁读写的原子操作了。在lock函数中，检查锁标志是否为0，如果是，原子地交换为1，从而获得锁。锁被持有时，竞争锁的线程会忙等在while循环中。
@@ -323,49 +327,40 @@ AMO 类的指令对内存中的操作数执行一个原子的读写操作，并�
 LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读取一个内存字，存入目标寄存器中，并留下这个字的保留记录。而如果SR指令的目标地址上存在保留
 记录，它就把字存入这个地址。如果存入成功，它向目标寄存器中写入 0，否则写入一个非 0 值，表示错误码。
 
-这里我们可以用LR/SC来实现TAS原子指令和CAS原子指令：
+这里我们可以用LR/SC来实现上面基于TAS原子指令或CAS原子指令的锁机制：
 
 .. code-block:: Asm
     :linenos:
 
     # RISC-V sequence for implementing a TAS  at (s1)
-	li t2, 1  
-	Try: lr  t1, s1 
-	     bne t1, x0, Try 
-	     sc  t0, s1, t2 
-	     bne t0, x0, Try 
+	li t2, 1                 # t2 <-- 1 
+ 	Try: lr  t1, s1          # t1 <-- mem[s1]  (load reserved)
+	     bne t1, x0, Try     # if t1 != 0, goto Try:
+	     sc  t0, s1, t2      # mem[s1] <-- t2  (store conditional)
+	     bne t0, x0, Try     # if t0 !=0 ('sc' Instr failed), goto Try:
 	Locked: 
-	     # critical section 
+	     ...                 # critical section 
 	Unlock: 
-	     sw x0,0(s1)
+	     sw x0,0(s1)         # mem[s1] <-- 0
 
 .. chyyuu https://inst.eecs.berkeley.edu/~cs61c/sp19/pdfs/lectures/lec20.pdf
+.. chyyuu    :##code-block:: Asm
+.. chyyuu    :linenos:
+
+    # Sample code for compare-and-swap function using LR/SC
+    # atomically {
+    #   if (M[a0] == a1)
+    #     M[a0] = a2;
+    # }     
+    Try: lr   t0, a0         #  t0 <-- mem[a0] (load reserved)
+         bne  t0, a1, fail   #  if t0 != a1, goto fail
+         sc   t0, a0, a2     #  mem[a0] <-- a2 (store conditional)     
+         bnez t0, Try      #  
 
 
-
-.. code-block:: Asm
-    :linenos:
-
-    	# Sample code for compare-and-swap function using LR/SC
-
-        # a0 holds address of memory location
-        # a1 holds expected value
-        # a2 holds desired value
-        # a0 holds return value, 0 if successful, !0 otherwise
-    cas:
-        lr.w t0, (a0)        # Load original value.
-        bne t0, a1, fail     # Doesn't match, so fail.
-        sc.w t0, a2, (a0)    # Try to update.
-        bnez t0, cas         # Retry if store-conditional failed.
-        li a0, 0             # Set return to success.
-        jr ra                # Return.
-    fail:
-        li a0, 1             # Set return to failure.
-        jr ra                # Return.
-
-
-.. chyyuu https://github.com/riscv/riscv-isa-manual/blob/master/src/a.tex
-
+.. chyyuu https://people.eecs.berkeley.edu/~krste/papers/EECS-2016-1.pdf Page48 （page 35 figure 4.1）
+.. chyyuu https://github.com/riscv/riscv-isa-manual/blob/master/src/a.tex 不够好
+.. chyyuu https://inst.eecs.berkeley.edu/~cs152/sp20/lectures/L22-Synch.pdf
 
 基于硬件实现的锁简洁有效，但在某些场景下会效率低下。比如两个线程运行在单处理器上，当一个线程持有锁时，被中断并切换到第二个线程。第二个线程想去获取锁，发现锁已经被前一个线程持有，导致它不得不自旋忙等，直到其时间片耗尽后，被中断并切换回第一个线程。如果有多个线程去竞争一个锁，那么浪费的时间片会更多。要想提高效率，减少不必要的处理器空转的资源浪费，就需要操作系统的帮忙了。
 
@@ -400,7 +395,7 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
 
 在有许多线程反复竞争一把锁的情况下，一个线程持有锁，但在释放锁之前被抢占，这时其他多个线程分别调用lock()，发现锁被抢占，然后执行线程切换让出CPU。这种方法引入了多次不必要的线程切换，仍然开销比较大。这时让拿不到锁的线程睡眠，就成为了一个更有效的手段了。
 
-考虑到目前的操作系统中有一个可以让线程睡眠的 ``sleep`` 系统调用，但这种系统调用只能让线程直接休眠（处于阻塞状态）一个固定的睡眠时间。但线程实际可以再次能测试锁的时间其实是不确定的。这两个时间很难彼此接近，导致引入不必要的切换或等待。所以，简单的采用 ``sleep`` 系统调用也是不合适的。
+目前的操作系统中有一个可以让线程睡眠的 ``sleep`` 系统调用，能让线程休眠（处于阻塞状态）一段时间。但由于另外一个线程释放锁的时间与休眠线程被唤醒时间一般都不相同，这会导致引入不必要的线程切换或等待。所以，简单的采用 ``sleep`` 系统调用也是不合适的。
 
 
 实现锁：mutex系统调用
@@ -410,7 +405,7 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
 使用mutex系统调用
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-既然上面的方法存在这样那样的开销，我们需要进一步思考一下，如何能够减少开销。一个自然的想法就是，让等待锁的线程睡眠，让释放锁的线程显式地唤醒等待锁的线程。如果有多个等待锁的线程，可以全部释放，让大家再次竞争锁；也可以只释放最早等待的那个线程。这就需要更多的操作系统支持，特别是需要一个等待队列来保存等待锁的线程。
+既然上面的方法存在这样那样的开销或问题，我们需要进一步思考一下，如何能够实现轻量的可睡眠锁。一个自然的想法就是，让等待锁的线程睡眠，让释放锁的线程显式地唤醒等待锁的线程。如果有多个等待锁的线程，可以全部释放，让大家再次竞争锁；也可以只释放最早等待的那个线程。这就需要更多的操作系统支持，特别是需要一个等待队列来保存等待锁的线程。
 
 我们先看看多线程应用程序如何使用mutex系统调用的：
 
