@@ -549,11 +549,11 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>导致多线程结果不确定的一个重要因素是操作系统随时有可能切换线程。如果操作系统在临界区执行时，无法进行线程调度和切换，就可以解决结果不确定的问题了。
 而操作系统能抢占式调度的一个前提是硬件中断机制，如时钟中断能确保操作系统按时获得对处理器的控制权。如果应用程序能够控制中断的打开/使能与关闭/屏蔽，那就能提供互斥解决方案了。代码如下：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">fn</span> <span class="nf">lock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">2</span><span class="w">    </span><span class="n">disableInterrupt</span><span class="p">();</span><span class="w"> </span><span class="c1">//屏蔽中断的机器指令</span>
+<span class="linenos">2</span><span class="w">    </span><span class="n">disable_Interrupt</span><span class="p">();</span><span class="w"> </span><span class="c1">//屏蔽中断的机器指令</span>
 <span class="linenos">3</span><span class="p">}</span><span class="w"></span>
 <span class="linenos">4</span>
 <span class="linenos">5</span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">6</span><span class="w">    </span><span class="n">enableInterrupt</span><span class="p">();</span><span class="w"> </span><span class="c1">////使能中断的机器指令</span>
+<span class="linenos">6</span><span class="w">    </span><span class="n">enable_Interrupt</span><span class="p">();</span><span class="w"> </span><span class="c1">////使能中断的机器指令</span>
 <span class="linenos">7</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
@@ -584,9 +584,13 @@ commentsRunWhenDOMLoaded(addUtterances);
 <span class="linenos"> 6</span><span class="w">    </span><span class="n">actual</span><span class="w"></span>
 <span class="linenos"> 7</span><span class="p">}</span><span class="w"></span>
 <span class="linenos"> 8</span>
-<span class="linenos"> 9</span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">lock</span><span class="w"> </span>: <span class="o">*</span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">CompareAndSwap</span><span class="p">(</span><span class="n">lock</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">mutex</span><span class="w"> </span>: <span class="o">*</span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">CompareAndSwap</span><span class="p">(</span><span class="n">mutex</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">11</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">12</span>
+<span class="linenos">13</span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">((</span><span class="n">mutex</span><span class="w"> </span>: <span class="o">*</span><span class="kt">i32</span><span class="p">){</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="o">*</span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">15</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>比较并交换原子指令的基本思路是检测ptr指向的实际值是否和expected相等；如果相等，更新ptr所指的值为new值；最后返回该内存地址之前指向的实际值。有了比较并交换指令，就可以实现对锁读写的原子操作了。在lock函数中，检查锁标志是否为0，如果是，原子地交换为1，从而获得锁。锁被持有时，竞争锁的线程会忙等在while循环中。</p>
@@ -627,35 +631,17 @@ commentsRunWhenDOMLoaded(addUtterances);
 <p>AMO 类的指令对内存中的操作数执行一个原子的读写操作，并将目标寄存器设置为操作前的内存值。 <strong>原子</strong> 在这里表示指令在执行内存读写之间的过程不会被打断，内存值也不会被其它处理器修改。
 LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读取一个内存字，存入目标寄存器中，并留下这个字的保留记录。而如果SR指令的目标地址上存在保留
 记录，它就把字存入这个地址。如果存入成功，它向目标寄存器中写入 0，否则写入一个非 0 值，表示错误码。</p>
-<p>这里我们可以用LR/SC来实现TAS原子指令和CAS原子指令：</p>
+<p>这里我们可以用LR/SC来实现上面基于TAS原子指令或CAS原子指令的锁机制：</p>
 <div class="highlight-Asm notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1"># RISC-V sequence for implementing a TAS  at (s1)</span>
-<span class="linenos"> 2</span>    <span class="nf">li</span> <span class="no">t2</span><span class="p">,</span> <span class="mi">1</span>
-<span class="linenos"> 3</span>    <span class="nl">Try:</span> <span class="nf">lr</span>  <span class="no">t1</span><span class="p">,</span> <span class="no">s1</span>
-<span class="linenos"> 4</span>         <span class="nf">bne</span> <span class="no">t1</span><span class="p">,</span> <span class="no">x0</span><span class="p">,</span> <span class="no">Try</span>
-<span class="linenos"> 5</span>         <span class="nf">sc</span>  <span class="no">t0</span><span class="p">,</span> <span class="no">s1</span><span class="p">,</span> <span class="no">t2</span>
-<span class="linenos"> 6</span>         <span class="nf">bne</span> <span class="no">t0</span><span class="p">,</span> <span class="no">x0</span><span class="p">,</span> <span class="no">Try</span>
+<span class="linenos"> 2</span>    <span class="nf">li</span> <span class="no">t2</span><span class="p">,</span> <span class="mi">1</span>                 <span class="c1"># t2 &lt;-- 1</span>
+<span class="linenos"> 3</span>    <span class="nl">Try:</span> <span class="nf">lr</span>  <span class="no">t1</span><span class="p">,</span> <span class="no">s1</span>          <span class="c1"># t1 &lt;-- mem[s1]  (load reserved)</span>
+<span class="linenos"> 4</span>         <span class="nf">bne</span> <span class="no">t1</span><span class="p">,</span> <span class="no">x0</span><span class="p">,</span> <span class="no">Try</span>     <span class="c1"># if t1 != 0, goto Try:</span>
+<span class="linenos"> 5</span>         <span class="nf">sc</span>  <span class="no">t0</span><span class="p">,</span> <span class="no">s1</span><span class="p">,</span> <span class="no">t2</span>      <span class="c1"># mem[s1] &lt;-- t2  (store conditional)</span>
+<span class="linenos"> 6</span>         <span class="nf">bne</span> <span class="no">t0</span><span class="p">,</span> <span class="no">x0</span><span class="p">,</span> <span class="no">Try</span>     <span class="c1"># if t0 !=0 (&#39;sc&#39; Instr failed), goto Try:</span>
 <span class="linenos"> 7</span>    <span class="nl">Locked:</span>
-<span class="linenos"> 8</span>         <span class="c1"># critical section</span>
+<span class="linenos"> 8</span>         <span class="na">...</span>                 <span class="c1"># critical section</span>
 <span class="linenos"> 9</span>    <span class="nl">Unlock:</span>
-<span class="linenos">10</span>         <span class="nf">sw</span> <span class="no">x0</span><span class="p">,</span><span class="mi">0</span><span class="p">(</span><span class="no">s1</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="highlight-Asm notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>    <span class="c1"># Sample code for compare-and-swap function using LR/SC</span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span>    <span class="c1"># a0 holds address of memory location</span>
-<span class="linenos"> 4</span>    <span class="c1"># a1 holds expected value</span>
-<span class="linenos"> 5</span>    <span class="c1"># a2 holds desired value</span>
-<span class="linenos"> 6</span>    <span class="c1"># a0 holds return value, 0 if successful, !0 otherwise</span>
-<span class="linenos"> 7</span><span class="nl">cas:</span>
-<span class="linenos"> 8</span>    <span class="nf">lr.w</span> <span class="no">t0</span><span class="p">,</span> <span class="p">(</span><span class="no">a0</span><span class="p">)</span>        <span class="c1"># Load original value.</span>
-<span class="linenos"> 9</span>    <span class="nf">bne</span> <span class="no">t0</span><span class="p">,</span> <span class="no">a1</span><span class="p">,</span> <span class="no">fail</span>     <span class="c1"># Doesn&#39;t match, so fail.</span>
-<span class="linenos">10</span>    <span class="nf">sc.w</span> <span class="no">t0</span><span class="p">,</span> <span class="no">a2</span><span class="p">,</span> <span class="p">(</span><span class="no">a0</span><span class="p">)</span>    <span class="c1"># Try to update.</span>
-<span class="linenos">11</span>    <span class="nf">bnez</span> <span class="no">t0</span><span class="p">,</span> <span class="no">cas</span>         <span class="c1"># Retry if store-conditional failed.</span>
-<span class="linenos">12</span>    <span class="nf">li</span> <span class="no">a0</span><span class="p">,</span> <span class="mi">0</span>             <span class="c1"># Set return to success.</span>
-<span class="linenos">13</span>    <span class="nf">jr</span> <span class="no">ra</span>                <span class="c1"># Return.</span>
-<span class="linenos">14</span><span class="nl">fail:</span>
-<span class="linenos">15</span>    <span class="nf">li</span> <span class="no">a0</span><span class="p">,</span> <span class="mi">1</span>             <span class="c1"># Set return to failure.</span>
-<span class="linenos">16</span>    <span class="nf">jr</span> <span class="no">ra</span>                <span class="c1"># Return.</span>
+<span class="linenos">10</span>         <span class="nf">sw</span> <span class="no">x0</span><span class="p">,</span><span class="mi">0</span><span class="p">(</span><span class="no">s1</span><span class="p">)</span>         <span class="c1"># mem[s1] &lt;-- 0</span>
 </pre></div>
 </div>
 <p>基于硬件实现的锁简洁有效，但在某些场景下会效率低下。比如两个线程运行在单处理器上，当一个线程持有锁时，被中断并切换到第二个线程。第二个线程想去获取锁，发现锁已经被前一个线程持有，导致它不得不自旋忙等，直到其时间片耗尽后，被中断并切换回第一个线程。如果有多个线程去竞争一个锁，那么浪费的时间片会更多。要想提高效率，减少不必要的处理器空转的资源浪费，就需要操作系统的帮忙了。</p>
@@ -682,13 +668,13 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
 </div>
 <p>当线程可以调用 <code class="docutils literal notranslate"><span class="pre">yield</span></code> 系统调用后，它就会主动放弃CPU，从运行（running）态变为就绪（ready）态，让其他线程运行。</p>
 <p>在有许多线程反复竞争一把锁的情况下，一个线程持有锁，但在释放锁之前被抢占，这时其他多个线程分别调用lock()，发现锁被抢占，然后执行线程切换让出CPU。这种方法引入了多次不必要的线程切换，仍然开销比较大。这时让拿不到锁的线程睡眠，就成为了一个更有效的手段了。</p>
-<p>考虑到目前的操作系统中有一个可以让线程睡眠的 <code class="docutils literal notranslate"><span class="pre">sleep</span></code> 系统调用，但这种系统调用只能让线程直接休眠（处于阻塞状态）一个固定的睡眠时间。但线程实际可以再次能测试锁的时间其实是不确定的。这两个时间很难彼此接近，导致引入不必要的切换或等待。所以，简单的采用 <code class="docutils literal notranslate"><span class="pre">sleep</span></code> 系统调用也是不合适的。</p>
+<p>目前的操作系统中有一个可以让线程睡眠的 <code class="docutils literal notranslate"><span class="pre">sleep</span></code> 系统调用，能让线程休眠（处于阻塞状态）一段时间。但由于另外一个线程释放锁的时间与休眠线程被唤醒时间一般都不相同，这会导致引入不必要的线程切换或等待。所以，简单的采用 <code class="docutils literal notranslate"><span class="pre">sleep</span></code> 系统调用也是不合适的。</p>
 </div>
 <div class="section" id="mutex">
 <h3>实现锁：mutex系统调用<a class="headerlink" href="#mutex" title="永久链接至标题">¶</a></h3>
 <div class="section" id="id9">
 <h4>使用mutex系统调用<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h4>
-<p>既然上面的方法存在这样那样的开销，我们需要进一步思考一下，如何能够减少开销。一个自然的想法就是，让等待锁的线程睡眠，让释放锁的线程显式地唤醒等待锁的线程。如果有多个等待锁的线程，可以全部释放，让大家再次竞争锁；也可以只释放最早等待的那个线程。这就需要更多的操作系统支持，特别是需要一个等待队列来保存等待锁的线程。</p>
+<p>既然上面的方法存在这样那样的开销或问题，我们需要进一步思考一下，如何能够实现轻量的可睡眠锁。一个自然的想法就是，让等待锁的线程睡眠，让释放锁的线程显式地唤醒等待锁的线程。如果有多个等待锁的线程，可以全部释放，让大家再次竞争锁；也可以只释放最早等待的那个线程。这就需要更多的操作系统支持，特别是需要一个等待队列来保存等待锁的线程。</p>
 <p>我们先看看多线程应用程序如何使用mutex系统调用的：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/race_adder_mutex_blocking.rs</span>
 <span class="linenos"> 2</span>
