@@ -9,7 +9,7 @@
 
 - 系统环境配置
 - C/Rust 开发环境配置
-- Qemu 模拟器安装
+- QEMU 模拟器安装
 - 其他工具安装
 - 运行 rCore-Tutorial-v3
 
@@ -31,7 +31,7 @@
      # 启用 Windows 功能：“适用于 Linux 的 Windows 子系统”
      >> dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
 
-     # 启用 Windows 功能：“已安装的虚拟机平台”
+     # 启用 Windows 功能：“已安装的系统虚拟机平台”
      >> dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
 
      # <Distro> 改为对应从微软应用商店安装的 Linux 版本名，比如：`wsl --set-version Ubuntu 2`
@@ -52,7 +52,7 @@
 
    **Docker 开发环境**
 
-   感谢 dinghao188 和张汉东老师帮忙配置好的 Docker 开发环境，进入 Docker 开发环境之后不需要任何软件工具链的安装和配置，可以直接将 tutorial 运行起来，目前应该仅支持将 tutorial 运行在 Qemu 模拟器上。
+   感谢 dinghao188 和张汉东老师帮忙配置好的 Docker 开发环境，进入 Docker 开发环境之后不需要任何软件工具链的安装和配置，可以直接将 tutorial 运行起来，目前应该仅支持将 tutorial 运行在 QEMU 模拟器上。
    
    使用方法如下（以 Ubuntu18.04 为例）：
 
@@ -87,7 +87,7 @@ C 开发环境配置
    $ sudo apt-get update && sudo apt-get upgrade
    $ sudo apt-get install git build-essential gdb-multiarch qemu-system-misc gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu
 
-注：上述软件不是Rust开发环境所必须的。
+注：上述软件不是Rust开发环境所必须的。且ubuntu 20.04的QEMU软件版本低，而本书实验需要安装7.0以上版本的QEMU。
 
 Rust 开发环境配置
 -------------------------------------------
@@ -141,10 +141,10 @@ Rust 开发环境配置
 
 .. code-block:: bash
 
-   rustc 1.46.0-nightly (7750c3d46 2020-06-26)
+   rustc 1.62.0-nightly (1f7fb6413 2022-04-10)
 
 .. warning::
-   目前用于操作系统实验开发的 rustc 编译器的版本不局限在 1.46.0 这样的数字上，你可以选择更新版本的 rustc 编译器。但注意只能用 rustc 的 nightly 版本。
+   目前用于操作系统实验开发的 rustc 编译器的版本不局限在 1.46.0 这样的数字上，你可以选择更新版本的 rustc 编译器。但注意只能用 rustc 的 nightly 类型的版本。
 
 
 可通过如下命令安装 rustc 的 nightly 版本，并把该版本设置为 rustc 的缺省版本。
@@ -195,17 +195,17 @@ Rust 开发环境配置
    * Visual Studio Code 是开源软件，不用付费就可使用。
    * 当然，采用 VIM，Emacs 等传统的编辑器也是没有问题的。
 
-Qemu 模拟器安装
+QEMU 模拟器安装
 ----------------------------------------
 
-我们需要使用 Qemu 5.0.0 版本进行实验，而很多 Linux 发行版的软件包管理器默认软件源中的 Qemu 版本过低，因此我们需要从源码手动编译安装 Qemu 模拟器。下面以 Ubuntu 18.04 平台上的安装流程为例进行说明：
+我们需要使用 QEMU 7.0 版本进行实验，而很多 Linux 发行版的软件包管理器默认软件源中的 QEMU 版本过低，因此我们需要从源码手动编译安装 QEMU 模拟器软件。下面以 Ubuntu 18.04/20.04 上的安装流程为例进行说明：
 
-.. warning::
+.. chyyuu warning::
 
-   注意，如果安装了 Qemu 6.0+ 版本，则目前需要将项目目录下的 bootloader（也即 RustSBI）更新为最新的 0.2.0-alpha.6 版本。它们目前可以在 ``chX-dev`` 分支中找到。
+   注意，如果安装了 QEMU 6.0+ 版本，则目前需要将项目目录下的 bootloader（也即 RustSBI）更新为最新的 0.2.0-alpha.6 版本。它们目前可以在 ``chX-dev`` 分支中找到。
 
 
-首先我们安装依赖包，获取 Qemu 源代码并手动编译：
+首先我们安装依赖包，获取 QEMU 源代码并手动编译：
 
 .. code-block:: bash
 
@@ -216,11 +216,11 @@ Qemu 模拟器安装
    # 下载源码包 
    # 如果下载速度过慢可以使用我们提供的百度网盘链接：https://pan.baidu.com/s/1z-iWIPjxjxbdFS2Qf-NKxQ
    # 提取码 8woe
-   wget https://download.qemu.org/qemu-5.0.0.tar.xz
+   wget https://download.qemu.org/qemu-7.0.0.tar.xz
    # 解压
-   tar xvJf qemu-5.0.0.tar.xz
+   tar xvJf qemu-7.0.0.tar.xz
    # 编译安装并配置 RISC-V 支持
-   cd qemu-5.0.0
+   cd qemu-7.0.0
    ./configure --target-list=riscv64-softmmu,riscv64-linux-user
    make -j$(nproc)
 
@@ -233,27 +233,27 @@ Qemu 模拟器安装
      ``libglib2.0-dev`` 包；
    - 出现 ``ERROR: pixman >= 0.21.8 not present`` 时，可以安装 ``libpixman-1-dev`` 包。
 
-   另外一些 Linux 发行版编译 Qemu 的依赖包可以从 `这里 <https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html#prerequisites>`_ 找到。
+   另外一些 Linux 发行版编译 QEMU 的依赖包可以从 `这里 <https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html#prerequisites>`_ 找到。
 
-之后我们可以在同目录下 ``sudo make install`` 将 Qemu 安装到 ``/usr/local/bin`` 目录下，但这样经常会引起冲突。个人来说更习惯的做法是，编辑 ``~/.bashrc`` 文件（如果使用的是默认的 ``bash`` 终端），在文件的末尾加入几行：
+之后我们可以在同目录下 ``sudo make install`` 将 QEMU 安装到 ``/usr/local/bin`` 目录下，但这样经常会引起冲突。个人来说更习惯的做法是，编辑 ``~/.bashrc`` 文件（如果使用的是默认的 ``bash`` 终端），在文件的末尾加入几行：
 
 .. code-block:: bash
 
-   # 请注意，qemu-5.0.0 的父目录可以随着你的实际安装位置灵活调整
-   export PATH=$PATH:$HOME/qemu-5.0.0
-   export PATH=$PATH:$HOME/qemu-5.0.0/riscv64-softmmu
-   export PATH=$PATH:$HOME/qemu-5.0.0/riscv64-linux-user
+   # 请注意，qemu-7.0.0 的父目录可以随着你的实际安装位置灵活调整
+   export PATH=$PATH:$HOME/qemu-7.0.0
+   export PATH=$PATH:$HOME/qemu-7.0.0/riscv64-softmmu
+   export PATH=$PATH:$HOME/qemu-7.0.0/riscv64-linux-user
 
 随后即可在当前终端 ``source ~/.bashrc`` 更新系统路径，或者直接重启一个新的终端。
 
-此时我们可以确认 Qemu 的版本：
+此时我们可以确认 QEMU 的版本：
 
 .. code-block:: bash
 
    qemu-system-riscv64 --version
    qemu-riscv64 --version
 
-在其他缺少预编译 QEMU with RV64 软件包的Linux x86-64 平台（如openEuler操作系统）上，首先需要从 openEuler 社区维护的 Qemu 的 `riscv分支 <https://gitee.com/src-openeuler/qemu/tree/riscv/>`_ 下载 QEMU 源码，并直接通过 rpmbuild 进行构建。
+在其他缺少预编译 QEMU with RV64 软件包的Linux x86-64 环境（如openEuler操作系统）上，首先需要从 openEuler 社区维护的 QEMU 的 `riscv分支 <https://gitee.com/src-openeuler/qemu/tree/riscv/>`_ 下载 QEMU 源码，并直接通过 rpmbuild 进行构建。
 
 K210 真机串口通信
 ------------------------------
@@ -268,18 +268,18 @@ K210 真机串口通信
 GDB 调试支持
 ------------------------------
 
-目前我们仅支持基于 Qemu 模拟器进行调试。在 ``os`` 目录下 ``make debug`` 可以调试我们的内核，这需要安装终端复用工具 ``tmux`` ，还需要基于 riscv64 平台的 gdb 调试器 ``riscv64-unknown-elf-gdb`` 。该调试器包含在 riscv64 gcc 工具链中，工具链的预编译版本可以在如下链接处下载：
+目前我们仅支持基于 QEMU 模拟器进行调试。在 ``os`` 目录下 ``make debug`` 可以调试我们的内核，这需要安装终端复用工具 ``tmux`` ，还需要支持 riscv64 指令集的 gdb 调试器 ``riscv64-unknown-elf-gdb`` 。该调试器包含在 riscv64 gcc 工具链中，工具链的预编译版本可以在如下链接处下载：
 
-- `Ubuntu 平台 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-ubuntu14.tar.gz>`_
-- `macOS 平台 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-apple-darwin.tar.gz>`_
-- `Windows 平台 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-w64-mingw32.zip>`_
-- `CentOS 平台 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-centos6.tar.gz>`_
+- `Ubuntu 环境 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-ubuntu14.tar.gz>`_
+- `macOS 环境 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-apple-darwin.tar.gz>`_
+- `Windows 环境 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-w64-mingw32.zip>`_
+- `CentOS 环境 <https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-8.3.0-2020.04.1-x86_64-linux-centos6.tar.gz>`_
 
 最新版的工具链可以在 `sifive 官方的 repo 中 <https://github.com/sifive/freedom-tools/releases>`_ 找到。
 
 解压后在 ``bin`` 目录下即可找到 ``riscv64-unknown-elf-gdb`` 以及另外一些常用工具 ``objcopy/objdump/readelf`` 等。
 
-在其他缺少预编译 riscv64 gcc 工具链的 Linux x86-64 平台（如 openEuler 操作系统、龙蜥操作系统等）上，则需要 clone `riscv 工具链仓库 <https://github.com/riscv-collab/riscv-gnu-toolchain>`_ 并参考其说明手动构建。
+在其他缺少预编译 riscv64 gcc 工具链的 Linux x86-64 环境（如 openEuler 操作系统、龙蜥操作系统等）上，则需要 clone `riscv 工具链仓库 <https://github.com/riscv-collab/riscv-gnu-toolchain>`_ 并参考其说明手动构建。
 
 出于某些原因，我们全程使用 ``release`` 模式进行构建。为了正常进行调试，请确认各项目（如 ``os`` , ``user`` 和 ``easy-fs`` ）的 ``Cargo.toml`` 中包含如下配置：
 
@@ -288,20 +288,20 @@ GDB 调试支持
    [profile.release]
    debug = true
 
-此外，参考 ``os/Makefile`` ，还可以先打开一个终端页面 ``make gdbserver`` 启动 Qemu ，此后另开一个终端页面在同目录下 ``make gdbclient`` 将 GDB 客户端连接到 Qemu 进行调试。我们推荐使用 `gdb-dashboard <https://github.com/cyrus-and/gdb-dashboard>`_ 插件，可以大大提升调试体验。在本节的评论区已有同学提供了基于各种 IDE 的调试方法，也可参考。
+此外，参考 ``os/Makefile`` ，还可以先打开一个终端页面 ``make gdbserver`` 启动 QEMU ，此后另开一个终端页面在同目录下 ``make gdbclient`` 将 GDB 客户端连接到 QEMU 进行调试。我们推荐使用 `gdb-dashboard <https://github.com/cyrus-and/gdb-dashboard>`_ 插件，可以大大提升调试体验。在本节的评论区已有同学提供了基于各种 IDE 的调试方法，也可参考。
 
 运行 rCore-Tutorial-v3
 ------------------------------------------------------------
 
-在 Qemu 平台上运行
+在 QEMU 模拟器上运行
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-如果是在 Qemu 平台上运行，只需在 ``os`` 目录下 ``make run`` 即可。在内核加载完毕之后，可以看到目前可以用的
+如果是在 QEMU 模拟器上运行，只需在 ``os`` 目录下 ``make run`` 即可。在内核加载完毕之后，可以看到目前可以用的
 应用程序。 ``usertests`` 打包了其中的很大一部分，所以我们可以运行它，只需输入在终端中输入它的名字即可。
 
 .. image:: qemu-final.gif
 
-之后，可以先按下 ``Ctrl+a`` （即：先按下 Ctrl 不松开，再按下小写字母 a 不放，随后同时将两个键松开） ，再按下 ``x`` 来退出 Qemu。
+之后，可以先按下 ``Ctrl+a`` （即：先按下 Ctrl 不松开，再按下小写字母 a 不放，随后同时将两个键松开） ，再按下 ``x`` 来退出 QEMU。
 
 在 K210 平台上运行
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
