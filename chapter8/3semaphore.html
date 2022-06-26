@@ -151,6 +151,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <li class="toctree-l2"><a class="reference internal" href="4condition-variable.html">条件变量机制</a></li>
 <li class="toctree-l2"><a class="reference internal" href="5concurrency-problem.html">并发中的问题</a></li>
 <li class="toctree-l2"><a class="reference internal" href="6exercise.html">练习</a></li>
+<li class="toctree-l2"><a class="reference internal" href="7answer.html">练习参考答案</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../chapter9/index.html">第九章：I/O设备管理</a></li>
@@ -321,7 +322,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 <div class="section" id="semaphore">
 <h3>使用semaphore系统调用<a class="headerlink" href="#semaphore" title="永久链接至标题">¶</a></h3>
 <p>我们通过例子来看看如何实际使用信号量。下面是面向应用程序对信号量系统调用的简单使用，可以看到对它的使用与上一节介绍的互斥锁系统调用类似。
-在这个例子中，主线程先创建了信号量初值为0的信号量SEM_SYNC，然后再创建两个线程 First和Second。线程First会先睡眠10ms，而当线程Second执行时，会由于执行信号量的P操作而等待睡眠；当线程First醒来后，会执行V操作，
+在这个例子中，主线程先创建了初值为0的信号量SEM_SYNC，然后再创建两个线程 First和Second。线程First会先睡眠10ms，而当线程Second执行时，会由于执行信号量的P操作而等待睡眠；当线程First醒来后，会执行V操作，
 从而能够唤醒线程Second。这样线程First和线程Second就形成了一种稳定的同步关系。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">const</span><span class="w"> </span><span class="n">SEM_SYNC</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">//信号量ID</span>
 <span class="linenos"> 2</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">first</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -362,8 +363,8 @@ commentsRunWhenDOMLoaded(addUtterances);
 </div>
 <div class="section" id="id5">
 <h3>实现semaphore系统调用<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
-<p>操作系统如何实现信号量系统调用呢？我们还是采用通常的分析做法：数据结构+方法，即首先考虑一下与此相关的核心数据结构，然后考虑与数据结构相关的相关函数/方法的实现。</p>
-<p>在线程的眼里，信号量 是一种每个线程能看到的共享资源，且在一个进程中，可以存在多个不同信号量资源，所以我们可以把所有的信号量资源放在一起让进程来管理，如下面代码第9行所示。这里需要注意的是： emaphore_list: Vec&lt;Option&lt;Arc&lt;Semaphore&gt;&gt;&gt; 表示的是信号量资源的列表。而 Semaphore 是信号量的内核数据结构，由信号量值和等待队列组成。操作系统需要显式地施加某种控制，来确定当一个线程执行P操作和V操作时，如何让线程睡眠或唤醒线程。在这里，P操作是由Semaphore的down方法实现，而V操作是由Semaphore的up方法实现。</p>
+<p>操作系统如何实现信号量系统调用呢？我们首先考虑一下与此相关的核心数据结构，然后考虑与数据结构相关的相关函数/方法的实现。</p>
+<p>在线程的眼里，信号量是一种每个线程能看到的共享资源，且可以存在多个不同信号量来合理使用不同的资源。所以我们可以把信号量也看成四一种资源，可放在一起让进程来管理，如下面代码第9行所示。这里需要注意的是： <code class="docutils literal notranslate"><span class="pre">semaphore_list:</span> <span class="pre">Vec&lt;Option&lt;Arc&lt;Semaphore&gt;&gt;&gt;</span></code> 表示的是信号量资源的列表。而 <code class="docutils literal notranslate"><span class="pre">Semaphore</span></code> 是信号量的内核数据结构，由信号量值和等待队列组成。操作系统需要显式地施加某种控制，来确定当一个线程执行P操作和V操作时，如何让线程睡眠或唤醒线程。在这里，P操作是由 <code class="docutils literal notranslate"><span class="pre">Semaphore</span></code> 的 <code class="docutils literal notranslate"><span class="pre">down</span></code> 方法实现，而V操作是由 <code class="docutils literal notranslate"><span class="pre">Semaphore</span></code> 的 <code class="docutils literal notranslate"><span class="pre">up</span></code> 方法实现。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">    </span><span class="c1">// immutable</span>
 <span class="linenos"> 3</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">pid</span>: <span class="nc">PidHandle</span><span class="p">,</span><span class="w"></span>
