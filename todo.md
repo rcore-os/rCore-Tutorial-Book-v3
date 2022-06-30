@@ -52,3 +52,7 @@
 - 内核允许中断
 - 轮询，中断，DMA方式的实际展示
 - 各种驱动的比较详细的分析
+
+## convert
+make epub //build epub book
+calibre // convert epub to docx
