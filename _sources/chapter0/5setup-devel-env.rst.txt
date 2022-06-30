@@ -13,8 +13,33 @@
 - 其他工具安装
 - 运行 rCore-Tutorial-v3
 
-系统环境配置
--------------------------------
+在线开发环境配置
+-------------------------------------------------
+
+Github Classroom方式进行在线OS 环境配置
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+注：这种方式目前主要用于 `2022年开源操作系统训练营 <https://learningos.github.io/rust-based-os-comp2022/>`_ 
+
+.. note::
+
+   **基于github classroom的在线开发方式**
+   
+   基于github classroom，可方便建立开发用的git repository，并可基于github的 codespace （在线版ubuntu +vscode）在线开发使用。整个开发环境仅仅需要一个网络浏览器。
+
+   1. 在网络浏览器中用自己的 github  id 登录 github.com
+   2. 接收 `第一个实验练习 setup-env-run-os1 的github classroom在线邀请 <https://classroom.github.com/a/hnoWuKGF>`_  ，根据提示一路选择OK即可。
+   3. 完成第二步后，你的第一个实验练习 setup-env-run-os1 的 github repository 会被自动建立好，点击此github repository的链接，就可看到你要完成的第一个实验了。
+   4. 在你的第一个实验练习的网页的中上部可以看到一个醒目的 `code`  绿色按钮，点击后，可以进一步看到  `codespace` 标签和醒目的 `create codesapce on main` 绿色按钮。请点击这个绿色按钮，就可以进入到在线的ubuntu +vscode环境中
+   5. 再按照下面的环境安装提示在vscode的 `console` 中安装配置开发环境：rustc，qemu等工具。注：也可在vscode的 `console` 中执行 ``make codespaces_setenv`` 来自动安装配置开发环境（执行``sudo``需要root权限，仅需要执行一次）。
+   6. **重要：** 在vscode的 `console` 中执行 `make setupclassroom_testX`  （该命令仅执行一次，X的范围为 1-8）配置githubclassroom 自动评分功能。
+   7. 然后就可以基于在线vscode进行开发、运行、提交等完整的实验过程了。
+
+   上述的3，4，5步不是必须的，你也可以仅仅基于 ``Github Classromm`` 生成git repository，并进行本地开发。
+
+
+本地操作系统开发环境配置
+-------------------------------------------------
 
 目前实验内容可支持在 `Ubuntu操作系统 <https://cdimage.ubuntu.com/releases/>`_ 、 `openEuler操作系统 <https://repo.openeuler.org/openEuler-20.03-LTS-SP2/ISO/>`_ 、 `龙蜥操作系统 <https://openanolis.cn/anolisos>`_ 等上面进行操作。对于 Windows10/11 和 macOS 上的用户，可以使用WSL2、VMware Workstation 或 VirtualBox 等相关软件，通过虚拟机方式安装 Ubuntu18.04 / 20.04、openEuler操作系统、龙蜥操作系统等，并在上面进行实验。
 
@@ -67,7 +92,7 @@
 你也可以在 Windows10/11 或 macOS 原生系统或者其他 Linux 发行版上进行实验，基本上不会出现太大的问题。不过由于时间问题我们主要在 Ubuntu18.04 on x86-64上进行了测试，后面的配置也都是基于它的。如果遇到了问题的话，请在本节的讨论区中留言，我们会尽量帮助解决。
 
 基于RISC-V硬件环境的配置
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 目前已经出现了可以在RISC-V 64（简称RV64）的硬件模拟环境（比如QEMU with RV64）和真实物理环境（如全志哪吒D1开发板、SiFive U740开发板）的Linux系统环境。但Linux RV64相对于Linux x86-64而言，虽然挺新颖的，但还不够成熟，已经适配和预编译好的应用软件包相对少一些，适合hacker进行尝试。如果同学有兴趣，我们也给出多种相应的硬件模拟环境和真实物理环境的Linux for RV64发行版，以便于这类同学进行实验：
 
@@ -78,7 +103,7 @@
 注：后续的配置主要基于Linux for x86-64系统环境，如果同学采用Linux for RV64环境，需要自己配置。不过在同学比较熟悉的情况下，配置方法类似且更加简单。可能存在的主要问题是，面向Linux for RV64的相关软件包可能不全，这样需要同学从源码直接编译出缺失的软件包。
 
 C 开发环境配置
--------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 在实验或练习过程中，也会涉及部分基于C语言的开发，可以安装基本的本机开发环境和交叉开发环境。下面是以Ubuntu 20.04为例，需要安装的C 开发环境涉及的软件：
 
@@ -90,7 +115,7 @@ C 开发环境配置
 注：上述软件不是Rust开发环境所必须的。且ubuntu 20.04的QEMU软件版本低，而本书实验需要安装7.0以上版本的QEMU。
 
 Rust 开发环境配置
--------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 首先安装 Rust 版本管理器 rustup 和 Rust 包管理器 cargo，这里我们用官方的安装脚本来安装：
 
@@ -196,7 +221,7 @@ Rust 开发环境配置
    * 当然，采用 VIM，Emacs 等传统的编辑器也是没有问题的。
 
 QEMU 模拟器安装
-----------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 我们需要使用 QEMU 7.0 版本进行实验，而很多 Linux 发行版的软件包管理器默认软件源中的 QEMU 版本过低，因此我们需要从源码手动编译安装 QEMU 模拟器软件。下面以 Ubuntu 18.04/20.04 上的安装流程为例进行说明：
 
@@ -212,7 +237,7 @@ QEMU 模拟器安装
    # 安装编译所需的依赖包
    sudo apt install autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
                  gawk build-essential bison flex texinfo gperf libtool patchutils bc \
-                 zlib1g-dev libexpat-dev pkg-config  libglib2.0-dev libpixman-1-dev git tmux python3 python3-pip
+                 zlib1g-dev libexpat-dev pkg-config  libglib2.0-dev libpixman-1-dev git tmux python3 python3-pip ninja-build
    # 下载源码包 
    # 如果下载速度过慢可以使用我们提供的百度网盘链接：https://pan.baidu.com/s/1z-iWIPjxjxbdFS2Qf-NKxQ
    # 提取码 8woe
@@ -256,7 +281,7 @@ QEMU 模拟器安装
 在其他缺少预编译 QEMU with RV64 软件包的Linux x86-64 环境（如openEuler操作系统）上，首先需要从 openEuler 社区维护的 QEMU 的 `riscv分支 <https://gitee.com/src-openeuler/qemu/tree/riscv/>`_ 下载 QEMU 源码，并直接通过 rpmbuild 进行构建。
 
 K210 真机串口通信
-------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 为了能在 K210 真机上运行 Tutorial，我们还需要安装基于 Python 的串口通信库和简易的串口终端。
 
@@ -266,7 +291,7 @@ K210 真机串口通信
    sudo apt install python3-serial
 
 GDB 调试支持
-------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 目前我们仅支持基于 QEMU 模拟器进行调试。在 ``os`` 目录下 ``make debug`` 可以调试我们的内核，这需要安装终端复用工具 ``tmux`` ，还需要支持 riscv64 指令集的 gdb 调试器 ``riscv64-unknown-elf-gdb`` 。该调试器包含在 riscv64 gcc 工具链中，工具链的预编译版本可以在如下链接处下载：
 
@@ -294,7 +319,7 @@ GDB 调试支持
 ------------------------------------------------------------
 
 在 QEMU 模拟器上运行
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 如果是在 QEMU 模拟器上运行，只需在 ``os`` 目录下 ``make run`` 即可。在内核加载完毕之后，可以看到目前可以用的
 应用程序。 ``usertests`` 打包了其中的很大一部分，所以我们可以运行它，只需输入在终端中输入它的名字即可。
@@ -304,7 +329,7 @@ GDB 调试支持
 之后，可以先按下 ``Ctrl+a`` （即：先按下 Ctrl 不松开，再按下小写字母 a 不放，随后同时将两个键松开） ，再按下 ``x`` 来退出 QEMU。
 
 在 K210 平台上运行
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 如果是在 K210 平台上运行则略显复杂。
 
