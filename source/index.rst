@@ -51,13 +51,13 @@ rCore-Tutorial-Book 第三版
 
 欢迎来到 rCore-Tutorial-Book 第三版！
 
+欢迎参加 `2022年开源操作系统训练营! <https://learningos.github.io/rust-based-os-comp2022/>`_
+
 .. note::
 
    :doc:`/log` 
 
-   项目/文档于 2022-01-02 更新，情况如下：
 
-   - 第一章更新完成，Rust 版本升级至 ``nightly-2022-01-01`` ， ``asm`` 和 ``global_asm`` 特性已稳定，相关的宏可在 ``core::arch`` 中找到。更新了作者和版权信息，版本暂定 ``3.6.0-alpha.1`` 。
 
 项目简介
 ---------------------
