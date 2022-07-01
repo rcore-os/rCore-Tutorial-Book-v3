@@ -223,7 +223,7 @@ Rust 开发环境配置
 QEMU 模拟器安装
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-我们需要使用 QEMU 7.0 版本进行实验，而很多 Linux 发行版的软件包管理器默认软件源中的 QEMU 版本过低，因此我们需要从源码手动编译安装 QEMU 模拟器软件。下面以 Ubuntu 18.04/20.04 上的安装流程为例进行说明：
+我们需要使用 QEMU 7.0 版本进行实验，低版本的 QEMU 可能导致框架代码不能正常运行。而很多 Linux 发行版的软件包管理器默认软件源中的 QEMU 版本过低，因此我们需要从源码手动编译安装 QEMU 模拟器软件。下面以 Ubuntu 18.04/20.04 上的安装流程为例进行说明：
 
 .. chyyuu warning::
 
@@ -239,8 +239,8 @@ QEMU 模拟器安装
                  gawk build-essential bison flex texinfo gperf libtool patchutils bc \
                  zlib1g-dev libexpat-dev pkg-config  libglib2.0-dev libpixman-1-dev git tmux python3 python3-pip ninja-build
    # 下载源码包 
-   # 如果下载速度过慢可以使用我们提供的百度网盘链接：https://pan.baidu.com/s/1z-iWIPjxjxbdFS2Qf-NKxQ
-   # 提取码 8woe
+   # 如果下载速度过慢可以使用我们提供的百度网盘链接：https://pan.baidu.com/s/1dykndFzY73nqkPL2QXs32Q 
+   # 提取码：jimc 
    wget https://download.qemu.org/qemu-7.0.0.tar.xz
    # 解压
    tar xvJf qemu-7.0.0.tar.xz
@@ -265,9 +265,7 @@ QEMU 模拟器安装
 .. code-block:: bash
 
    # 请注意，qemu-7.0.0 的父目录可以随着你的实际安装位置灵活调整
-   export PATH=$PATH:$HOME/qemu-7.0.0
-   export PATH=$PATH:$HOME/qemu-7.0.0/riscv64-softmmu
-   export PATH=$PATH:$HOME/qemu-7.0.0/riscv64-linux-user
+   export PATH=$PATH:/path/to/qemu-7.0.0/build
 
 随后即可在当前终端 ``source ~/.bashrc`` 更新系统路径，或者直接重启一个新的终端。
 
