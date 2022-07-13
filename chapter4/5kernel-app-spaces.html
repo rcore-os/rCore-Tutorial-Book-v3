@@ -4,11 +4,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="基于地址空间的分时多任务" href="6multitasking-based-on-as.html" /><link rel="prev" title="管理 SV39 多级页表" href="4sv39-implementation-2.html" />
 
-    <meta name="generator" content="sphinx-4.1.2, furo 2021.08.31"/>
+    <meta name="generator" content="sphinx-4.3.2, furo 2022.06.21"/>
         <title>内核与应用的地址空间 - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=c7c65a82b42f6b978e58466c1e9ef2509836d916" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=16fb25fabf47304eee183a5e9af80b1ba98259b1" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     <link rel="stylesheet" type="text/css" href="../_static/my_style.css" />
     
     
@@ -20,38 +20,38 @@
   --color-code-foreground: black;
   
   }
-  body[data-theme="dark"] {
-    --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  
-  }
-  @media (prefers-color-scheme: dark) {
-    body:not([data-theme="light"]) {
+  @media not print {
+    body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
   
     }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
   }
 </style></head>
   <body>
+    
     <script>
       document.body.dataset.theme = localStorage.getItem("theme") || "auto";
     </script>
     
+
 <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
   <symbol id="svg-toc" viewBox="0 0 24 24">
     <title>Contents</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path stroke="none" d="M0 0h24v24H0z" />
-      <line x1="4" y1="6" x2="20" y2="6" />
-      <line x1="10" y1="12" x2="20" y2="12" />
-      <line x1="6" y1="18" x2="20" y2="18" />
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
     </svg>
   </symbol>
   <symbol id="svg-menu" viewBox="0 0 24 24">
     <title>Menu</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
       <line x1="3" y1="12" x2="21" y2="12"></line>
       <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -60,14 +60,14 @@
   </symbol>
   <symbol id="svg-arrow-right" viewBox="0 0 24 24">
     <title>Expand</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
       <polyline points="9 18 15 12 9 6"></polyline>
     </svg>
   </symbol>
   <symbol id="svg-sun" viewBox="0 0 24 24">
     <title>Light mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
       <circle cx="12" cy="12" r="5"></circle>
       <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -82,7 +82,7 @@
   </symbol>
   <symbol id="svg-moon" viewBox="0 0 24 24">
     <title>Dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
       <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
@@ -90,7 +90,7 @@
   </symbol>
   <symbol id="svg-sun-half" viewBox="0 0 24 24">
     <title>Auto light/dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
       <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
       <circle cx="12" cy="12" r="9" />
@@ -357,13 +357,20 @@
 
 </div>
 </div>
+
       </div>
       
     </div>
   </aside>
   <div class="main">
     <div class="content">
-      <article role="main">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
         <div class="content-icon-container">
           <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
@@ -378,17 +385,18 @@
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
         </div>
-        <div class="section" id="id1">
-<h1>内核与应用的地址空间<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+        <article role="main">
+          <div class="section" id="id1">
+<h1>内核与应用的地址空间<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h1>
 <div class="section" id="id2">
-<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
 <p>页表 <code class="docutils literal notranslate"><span class="pre">PageTable</span></code> 只能以页为单位帮助我们维护一个虚拟内存到物理内存的地址转换关系，它本身对于计算机系统的整个虚拟/物理内存空间并没有一个全局的描述和掌控。操作系统通过对不同页表的管理，来完成对不同应用和操作系统自身所在的虚拟内存，以及虚拟内存与物理内存映射关系的全面管理。这种管理是建立在 <strong>地址空间</strong> 的抽象上，用来表明正在运行的应用或内核自身所在执行环境中的可访问的内存空间。本节
 我们就在内核中通过基于页表的各种数据结构实现地址空间的抽象，并介绍内核和应用的虚拟和物理地址空间中各需要包含哪些内容。</p>
 </div>
 <div class="section" id="id3">
-<h2>实现地址空间抽象<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<h2>实现地址空间抽象<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
 <div class="section" id="id4">
-<h3>逻辑段：一段连续地址的虚拟内存<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
+<h3>逻辑段：一段连续地址的虚拟内存<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
 <p>我们以逻辑段 <code class="docutils literal notranslate"><span class="pre">MapArea</span></code> 为单位描述一段连续地址的虚拟内存。所谓逻辑段，就是指地址区间中的一段实际可用（即 MMU 通过查多级页表可以正确完成地址转换）的地址连续的虚拟地址区间，该区间内包含的所有虚拟页面都以一种相同的方式映射到物理页帧，具有可读/可写/可执行等属性。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/memory_set.rs</span>
 
@@ -433,7 +441,7 @@
 </div>
 </div>
 <div class="section" id="id5">
-<h3>地址空间：一系列有关联的逻辑段<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
+<h3>地址空间：一系列有关联的逻辑段<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
 <p><strong>地址空间</strong> 是一系列有关联的不一定连续的逻辑段，这种关联一般是指这些逻辑段组成的虚拟内存空间与一个运行的程序（目前把一个运行的程序称为任务，后续会称为进程）绑定，即这个运行的程序对代码和数据的直接访问范围限制在它关联的虚拟地址空间之内。这样我们就有任务的地址空间，内核的地址空间等说法了。地址空间使用 <code class="docutils literal notranslate"><span class="pre">MemorySet</span></code> 类型来表示：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/memory_set.rs</span>
 
@@ -593,15 +601,15 @@
 </div>
 </div>
 <div class="section" id="id6">
-<h2>内核地址空间<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
+<h2>内核地址空间<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
 <p id="term-isolation">在本章之前，内核和应用代码的访存地址都被视为一个物理地址，并直接访问物理内存，而在分页模式开启之后，CPU先拿到虚存地址，需要通过 MMU 的地址转换变成物理地址，再交给 CPU 的访存单元去访问物理内存。地址空间抽象的重要意义在于 <strong>隔离</strong> (Isolation) ，当内核让应用执行前，内核需要控制 MMU 使用这个应用的多级页表进行地址转换。由于每个应用地址空间在创建的时候也顺带设置好了多级页表，使得只有那些存放了它的代码和数据的物理页帧能够通过该多级页表被映射到，这样它就只能访问自己的代码和数据而无法触及其他应用或内核的内容。</p>
 <p id="term-trampoline">启用分页模式下，内核代码的访存地址也会被视为一个虚拟地址并需要经过 MMU 的地址转换，因此我们也需要为内核对应构造一个地址空间，它除了仍然需要允许内核的各数据段能够被正常访问之后，还需要包含所有应用的内核栈以及一个 <strong>跳板</strong> (Trampoline) 。我们会在本章的最后一节再深入介绍跳板的机制。</p>
 <p>下图是软件看到的 64 位地址空间在 SV39 分页模式下实际可能通过 MMU 检查的最高 <span class="math notranslate nohighlight">\(256\text{GiB}\)</span> （之前在 <a class="reference internal" href="3sv39-implementation-1.html#high-and-low-256gib"><span class="std std-ref">这里</span></a> 中解释过最高和最低 <span class="math notranslate nohighlight">\(256\text{GiB}\)</span> 的问题）：</p>
-<a class="reference internal image-reference" href="../_images/kernel-as-high.png" id="kernel-as-high"><img alt="../_images/kernel-as-high.png" class="align-center" id="kernel-as-high" src="../_images/kernel-as-high.png" style="height: 400px;"/></a>
+<a class="reference internal image-reference" href="../_images/kernel-as-high.png" id="kernel-as-high"><img alt="../_images/kernel-as-high.png" class="align-center" id="kernel-as-high" src="../_images/kernel-as-high.png" style="height: 400px;" /></a>
 <p>可以看到，跳板放在最高的一个虚拟页面中。接下来则是从高到低放置每个应用的内核栈，内核栈的大小由 <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">KERNEL_STACK_SIZE</span></code> 给出。它们的映射方式为 <code class="docutils literal notranslate"><span class="pre">MapPermission</span></code> 中的 rw 两个标志位，意味着这个逻辑段仅允许 CPU 处于内核态访问，且只能读或写。</p>
 <p id="term-guard-page">注意相邻两个内核栈之间会预留一个 <strong>保护页面</strong> (Guard Page) ，它是内核地址空间中的空洞，多级页表中并不存在与它相关的映射。它的意义在于当内核栈空间不足（如调用层数过多或死递归）的时候，代码会尝试访问空洞区域内的虚拟地址，然而它无法在多级页表中找到映射，便会触发异常，此时控制权会交给内核 trap handler 函数进行异常处理。由于编译器会对访存顺序和局部变量在栈帧中的位置进行优化，我们难以确定一个已经溢出的栈帧中的哪些位置会先被访问，但总的来说，空洞区域被设置的越大，我们就能越早捕获到这一可能覆盖其他重要数据的错误异常。由于我们的内核非常简单且内核栈的大小设置比较宽裕，在当前的设计中我们仅将空洞区域的大小设置为单个页面。</p>
 <p>下面则给出了内核地址空间的低 <span class="math notranslate nohighlight">\(256\text{GiB}\)</span> 的布局：</p>
-<a class="reference internal image-reference" href="../_images/kernel-as-low.png"><img alt="../_images/kernel-as-low.png" class="align-center" src="../_images/kernel-as-low.png" style="height: 400px;"/></a>
+<a class="reference internal image-reference" href="../_images/kernel-as-low.png"><img alt="../_images/kernel-as-low.png" class="align-center" src="../_images/kernel-as-low.png" style="height: 400px;" /></a>
 <p>内核的四个逻辑段 <code class="docutils literal notranslate"><span class="pre">.text/.rodata/.data/.bss</span></code> 被恒等映射到物理内存，这使得我们在无需调整内核内存布局 <code class="docutils literal notranslate"><span class="pre">os/src/linker.ld</span></code> 的情况下就仍能象启用页表机制之前那样访问内核的各个段。注意我们借用页表机制对这些逻辑段的访问方式做出了限制，这都是为了在硬件的帮助下能够尽可能发现内核中的 bug ，在这里：</p>
 <ul class="simple">
 <li><p>四个逻辑段的 U 标志位均未被设置，使得 CPU 只能在处于 S 特权级（或以上）时访问它们；</p></li>
@@ -613,7 +621,7 @@
 <p>下面我们给出创建内核地址空间的方法 <code class="docutils literal notranslate"><span class="pre">new_kernel</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/mm/memory_set.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">extern</span><span class="w"> </span><span class="s">"C"</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 4</span><span class="w">    </span><span class="k">fn</span> <span class="nf">stext</span><span class="p">();</span><span class="w"></span>
 <span class="linenos"> 5</span><span class="w">    </span><span class="k">fn</span> <span class="nf">etext</span><span class="p">();</span><span class="w"></span>
 <span class="linenos"> 6</span><span class="w">    </span><span class="k">fn</span> <span class="nf">srodata</span><span class="p">();</span><span class="w"></span>
@@ -633,39 +641,39 @@
 <span class="linenos">20</span><span class="w">        </span><span class="c1">// map trampoline</span>
 <span class="linenos">21</span><span class="w">        </span><span class="n">memory_set</span><span class="p">.</span><span class="n">map_trampoline</span><span class="p">();</span><span class="w"></span>
 <span class="linenos">22</span><span class="w">        </span><span class="c1">// map kernel sections</span>
-<span class="linenos">23</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">".text [{:#x}, {:#x})"</span><span class="p">,</span><span class="w"> </span><span class="n">stext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">etext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">".rodata [{:#x}, {:#x})"</span><span class="p">,</span><span class="w"> </span><span class="n">srodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">erodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">".data [{:#x}, {:#x})"</span><span class="p">,</span><span class="w"> </span><span class="n">sdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">edata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">".bss [{:#x}, {:#x})"</span><span class="p">,</span><span class="w"> </span><span class="n">sbss_with_stack</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">ebss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">"mapping .text section"</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;.text [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">stext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">etext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;.rodata [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">srodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">erodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;.data [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">sdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">edata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;.bss [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">sbss_with_stack</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">ebss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;mapping .text section&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">28</span><span class="w">        </span><span class="n">memory_set</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">MapArea</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
 <span class="linenos">29</span><span class="w">            </span><span class="p">(</span><span class="n">stext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
 <span class="linenos">30</span><span class="w">            </span><span class="p">(</span><span class="n">etext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
 <span class="linenos">31</span><span class="w">            </span><span class="n">MapType</span>::<span class="n">Identical</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">32</span><span class="w">            </span><span class="n">MapPermission</span>::<span class="n">R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">MapPermission</span>::<span class="n">X</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">33</span><span class="w">        </span><span class="p">),</span><span class="w"> </span><span class="nb">None</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">34</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">"mapping .rodata section"</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">34</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;mapping .rodata section&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">35</span><span class="w">        </span><span class="n">memory_set</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">MapArea</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
 <span class="linenos">36</span><span class="w">            </span><span class="p">(</span><span class="n">srodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
 <span class="linenos">37</span><span class="w">            </span><span class="p">(</span><span class="n">erodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
 <span class="linenos">38</span><span class="w">            </span><span class="n">MapType</span>::<span class="n">Identical</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">39</span><span class="w">            </span><span class="n">MapPermission</span>::<span class="n">R</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">40</span><span class="w">        </span><span class="p">),</span><span class="w"> </span><span class="nb">None</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">41</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">"mapping .data section"</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">41</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;mapping .data section&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">42</span><span class="w">        </span><span class="n">memory_set</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">MapArea</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
 <span class="linenos">43</span><span class="w">            </span><span class="p">(</span><span class="n">sdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
 <span class="linenos">44</span><span class="w">            </span><span class="p">(</span><span class="n">edata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
 <span class="linenos">45</span><span class="w">            </span><span class="n">MapType</span>::<span class="n">Identical</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">46</span><span class="w">            </span><span class="n">MapPermission</span>::<span class="n">R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">MapPermission</span>::<span class="n">W</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">47</span><span class="w">        </span><span class="p">),</span><span class="w"> </span><span class="nb">None</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">48</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">"mapping .bss section"</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">48</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;mapping .bss section&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">49</span><span class="w">        </span><span class="n">memory_set</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">MapArea</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
 <span class="linenos">50</span><span class="w">            </span><span class="p">(</span><span class="n">sbss_with_stack</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
 <span class="linenos">51</span><span class="w">            </span><span class="p">(</span><span class="n">ebss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
 <span class="linenos">52</span><span class="w">            </span><span class="n">MapType</span>::<span class="n">Identical</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">53</span><span class="w">            </span><span class="n">MapPermission</span>::<span class="n">R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">MapPermission</span>::<span class="n">W</span><span class="p">,</span><span class="w"></span>
 <span class="linenos">54</span><span class="w">        </span><span class="p">),</span><span class="w"> </span><span class="nb">None</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">55</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">"mapping physical memory"</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">55</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;mapping physical memory&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">56</span><span class="w">        </span><span class="n">memory_set</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">MapArea</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
 <span class="linenos">57</span><span class="w">            </span><span class="p">(</span><span class="n">ekernel</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
 <span class="linenos">58</span><span class="w">            </span><span class="n">MEMORY_END</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
@@ -680,7 +688,7 @@
 <p><code class="docutils literal notranslate"><span class="pre">new_kernel</span></code> 将映射跳板和地址空间中最低 <span class="math notranslate nohighlight">\(256\text{GiB}\)</span> 中的内核逻辑段。第 3 行开始，我们从 <code class="docutils literal notranslate"><span class="pre">os/src/linker.ld</span></code> 中引用了很多表示各个段位置的符号，而后在 <code class="docutils literal notranslate"><span class="pre">new_kernel</span></code> 中，我们从低地址到高地址依次创建 5 个逻辑段并通过 <code class="docutils literal notranslate"><span class="pre">push</span></code> 方法将它们插入到内核地址空间中，上面我们已经详细介绍过这 5 个逻辑段。跳板是通过 <code class="docutils literal notranslate"><span class="pre">map_trampoline</span></code> 方法来映射的，我们也将在本章最后一节进行讲解。</p>
 </div>
 <div class="section" id="id7">
-<h2>应用地址空间<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<h2>应用地址空间<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h2>
 <p>现在我们来介绍如何创建应用的地址空间。在前面的章节中，我们直接将丢弃了所有符号信息的应用二进制镜像链接到内核，在初始化的时候内核仅需将他们加载到正确的初始物理地址就能使它们正确执行。但本章中，我们希望效仿内核地址空间的设计，同样借助页表机制使得应用地址空间的各个逻辑段也可以有不同的访问方式限制，这样可以提早检测出应用的错误并及时将其终止以最小化它对系统带来的恶劣影响。</p>
 <p>在第三章中，每个应用链接脚本中的起始地址被要求是不同的，这样它们的代码和数据存放的位置才不会产生冲突。但这是一种对于应用开发者很不方便的设计。现在，借助地址空间的抽象，我们终于可以让所有应用程序都使用同样的起始地址，这也意味着所有应用可以使用同一个链接脚本了：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="o">/*</span> <span class="n">user</span><span class="o">/</span><span class="n">src</span><span class="o">/</span><span class="n">linker</span><span class="o">.</span><span class="n">ld</span> <span class="o">*/</span>
@@ -717,18 +725,18 @@
 </div>
 <p>我们将起始地址 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 设置为 <span class="math notranslate nohighlight">\(\text{0x10000}\)</span> （我们这里并不设置为 <span class="math notranslate nohighlight">\(\text{0x0}\)</span> ，因为它一般代表空指针），显然它只能是一个地址空间中的虚拟地址而非物理地址。事实上由于我们将入口汇编代码段放在最低的地方，这也是整个应用的入口点。我们只需清楚这一事实即可，而无需像之前一样将其硬编码到代码中。此外，在 <code class="docutils literal notranslate"><span class="pre">.text</span></code> 和 <code class="docutils literal notranslate"><span class="pre">.rodata</span></code> 中间以及 <code class="docutils literal notranslate"><span class="pre">.rodata</span></code> 和 <code class="docutils literal notranslate"><span class="pre">.data</span></code> 中间我们进行了页面对齐，因为前后两个逻辑段的访问方式限制是不同的，由于我们只能以页为单位对这个限制进行设置，因此就只能将下一个逻辑段对齐到下一个页面开始放置。而 <code class="docutils literal notranslate"><span class="pre">.data</span></code> 和 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 两个逻辑段由于访问限制相同（可读写），它们中间则无需进行页面对齐。</p>
 <p>下图展示了应用地址空间的布局：</p>
-<a class="reference internal image-reference" href="../_images/app-as-full.png"><img alt="../_images/app-as-full.png" class="align-center" src="../_images/app-as-full.png" style="height: 400px;"/></a>
+<a class="reference internal image-reference" href="../_images/app-as-full.png"><img alt="../_images/app-as-full.png" class="align-center" src="../_images/app-as-full.png" style="height: 400px;" /></a>
 <p>左侧给出了应用地址空间最低 <span class="math notranslate nohighlight">\(256\text{GiB}\)</span> 的布局：从 <span class="math notranslate nohighlight">\(\text{0x10000}\)</span> 开始向高地址放置应用内存布局中的各个逻辑段，最后放置带有一个保护页面的用户栈。这些逻辑段都是以 <code class="docutils literal notranslate"><span class="pre">Framed</span></code> 方式映射到物理内存的，从访问方式上来说都加上了 U 标志位代表 CPU 可以在 U 特权级也就是执行应用代码的时候访问它们。右侧则给出了最高的 <span class="math notranslate nohighlight">\(256\text{GiB}\)</span> ，可以看出它只是和内核地址空间一样将跳板放置在最高页，还将 Trap 上下文放置在次高页中。这两个虚拟页面虽然位于应用地址空间，但是它们并不包含 U 标志位，事实上它们在地址空间切换的时候才会发挥作用，请同样参考本章的最后一节。</p>
 <p>在 <code class="docutils literal notranslate"><span class="pre">os/src/build.rs</span></code> 中，我们不再将丢弃了所有符号的应用二进制镜像链接进内核，因为在应用二进制镜像中，内存布局中各个逻辑段的置和访问限制等信息都被裁剪掉了。我们直接使用保存了逻辑段信息的 ELF 格式的应用可执行文件。这样 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 子模块的设计实现也变得精简：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/loader.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_num_app</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">"C"</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_num_app</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_num_app</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">(</span><span class="n">_num_app</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">read_volatile</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_app_data</span><span class="p">(</span><span class="n">app_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="o">'</span><span class="nb">static</span> <span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">"C"</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_num_app</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_app_data</span><span class="p">(</span><span class="n">app_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_num_app</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">num_app_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_num_app</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">num_app</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_num_app</span><span class="p">();</span><span class="w"></span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">app_start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -759,7 +767,7 @@
 <span class="linenos">11</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">elf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">xmas_elf</span>::<span class="n">ElfFile</span>::<span class="n">new</span><span class="p">(</span><span class="n">elf_data</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
 <span class="linenos">12</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">elf_header</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">elf</span><span class="p">.</span><span class="n">header</span><span class="p">;</span><span class="w"></span>
 <span class="linenos">13</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">magic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">elf_header</span><span class="p">.</span><span class="n">pt1</span><span class="p">.</span><span class="n">magic</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">magic</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mh">0x7f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x45</span><span class="p">,</span><span class="w"> </span><span class="mh">0x4c</span><span class="p">,</span><span class="w"> </span><span class="mh">0x46</span><span class="p">],</span><span class="w"> </span><span class="s">"invalid elf!"</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">magic</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mh">0x7f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x45</span><span class="p">,</span><span class="w"> </span><span class="mh">0x4c</span><span class="p">,</span><span class="w"> </span><span class="mh">0x46</span><span class="p">],</span><span class="w"> </span><span class="s">&quot;invalid elf!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">15</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">ph_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">elf_header</span><span class="p">.</span><span class="n">pt2</span><span class="p">.</span><span class="n">ph_count</span><span class="p">();</span><span class="w"></span>
 <span class="linenos">16</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">max_end_vpn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">VirtPageNum</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">17</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">ph_count</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -827,7 +835,8 @@
 </div>
 </div>
 
-      </article>
+        </article>
+      </div>
       <footer>
         
         <div class="related-pages">
@@ -852,19 +861,21 @@
               </div>
             </a>
         </div>
-
-        <div class="related-information">
-              Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
-            |
-            Built with <a href="https://www.sphinx-doc.org/">Sphinx</a>
-              and
-              <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
-              <a href="https://github.com/pradyunsg/furo">Furo theme</a>.
-            |
-            <a class="muted-link" href="../_sources/chapter4/5kernel-app-spaces.rst.txt"
-               rel="nofollow">
-              显示源代码
-            </a>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
         </div>
         
       </footer>
@@ -905,7 +916,7 @@
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/scripts/main.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
     <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {

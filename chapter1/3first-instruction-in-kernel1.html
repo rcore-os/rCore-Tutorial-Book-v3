@@ -4,11 +4,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="内核第一条指令（实践篇）" href="4first-instruction-in-kernel2.html" /><link rel="prev" title="移除标准库依赖" href="2remove-std.html" />
 
-    <meta name="generator" content="sphinx-4.1.2, furo 2021.08.31"/>
+    <meta name="generator" content="sphinx-4.3.2, furo 2022.06.21"/>
         <title>内核第一条指令（原理篇） - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=c7c65a82b42f6b978e58466c1e9ef2509836d916" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=16fb25fabf47304eee183a5e9af80b1ba98259b1" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     <link rel="stylesheet" type="text/css" href="../_static/my_style.css" />
     
     
@@ -20,38 +20,38 @@
   --color-code-foreground: black;
   
   }
-  body[data-theme="dark"] {
-    --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  
-  }
-  @media (prefers-color-scheme: dark) {
-    body:not([data-theme="light"]) {
+  @media not print {
+    body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
   
     }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
   }
 </style></head>
   <body>
+    
     <script>
       document.body.dataset.theme = localStorage.getItem("theme") || "auto";
     </script>
     
+
 <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
   <symbol id="svg-toc" viewBox="0 0 24 24">
     <title>Contents</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path stroke="none" d="M0 0h24v24H0z" />
-      <line x1="4" y1="6" x2="20" y2="6" />
-      <line x1="10" y1="12" x2="20" y2="12" />
-      <line x1="6" y1="18" x2="20" y2="18" />
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
     </svg>
   </symbol>
   <symbol id="svg-menu" viewBox="0 0 24 24">
     <title>Menu</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
       <line x1="3" y1="12" x2="21" y2="12"></line>
       <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -60,14 +60,14 @@
   </symbol>
   <symbol id="svg-arrow-right" viewBox="0 0 24 24">
     <title>Expand</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
       <polyline points="9 18 15 12 9 6"></polyline>
     </svg>
   </symbol>
   <symbol id="svg-sun" viewBox="0 0 24 24">
     <title>Light mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
       <circle cx="12" cy="12" r="5"></circle>
       <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -82,7 +82,7 @@
   </symbol>
   <symbol id="svg-moon" viewBox="0 0 24 24">
     <title>Dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
       <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
@@ -90,7 +90,7 @@
   </symbol>
   <symbol id="svg-sun-half" viewBox="0 0 24 24">
     <title>Auto light/dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
       <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
       <circle cx="12" cy="12" r="9" />
@@ -357,13 +357,20 @@
 
 </div>
 </div>
+
       </div>
       
     </div>
   </aside>
   <div class="main">
     <div class="content">
-      <article role="main">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
         <div class="content-icon-container">
           <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
@@ -378,16 +385,17 @@
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
         </div>
-        <div class="section" id="id1">
-<h1>内核第一条指令（原理篇）<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+        <article role="main">
+          <div class="section" id="id1">
+<h1>内核第一条指令（原理篇）<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h1>
 <div class="toctree-wrapper compound">
 </div>
 <div class="section" id="id2">
-<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
 <p>接下来两节我们将进行构建“三叶虫”操作系统的第二步，即将我们的内核正确对接到 Qemu 模拟器上，使得 Qemu 模拟器可以成功执行内核的第一条指令。本节我们将介绍一些相关基础知识。首先介绍计算机的各个硬件组成部分，特别是 CPU 和物理内存；其次介绍 Qemu 模拟器的抽象模型、使用方法以及启动流程，作为补充我们还介绍了一般计算机的启动流程；最后我们介绍程序内存布局和编译流程，特别是链接的相关知识。这些理论知识可以帮助我们更好的理解下一节的实践操作背后的动机和目的。</p>
 </div>
 <div class="section" id="id3">
-<h2>计算机组成基础<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<h2>计算机组成基础<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
 <p>当编写应用程序的时候，大多数情况下我们只需调用库函数即可在操作系统的支持下实现各项功能，而无需关心操作系统如何调度管理各类软硬件资源。操作系统提供了一些监控工具（如 Windows 上的任务管理器或 Linux 上的 <code class="docutils literal notranslate"><span class="pre">ps</span></code> 工具），这些工具可以帮助我们统计 CPU、内存、硬盘、网络等资源的占用情况，从而让我们大致上了解这些资源的使用情况，并帮助我们更好地开发或部署应用程序。然而，在实际编写操作系统的时候，我们就必须直面这些硬件资源，将它们管理起来并为应用程序提供高效易用的抽象。为此，我们必须增进对于这些硬件的了解。</p>
 <p>计算机主要由处理器（Processor，也即中央处理器，CPU，Central Processing Unit），物理内存和 I/O 外设三部分组成。在前八章我们主要用到 CPU 和物理内存。处理器的主要功能是从物理内存中读取指令、译码并执行，在此过程中还要与物理内存和 I/O 外设打交道。物理内存则是计算机体系结构中一个重要的组成部分。在存储方面，CPU 唯一能够直接访问的只有物理内存中的数据，它可以通过访存指令来达到这一目的。从 CPU 的视角看来，可以将物理内存看成一个大字节数组，而物理地址则对应于一个能够用来访问数组中某个元素的下标。与我们日常编程习惯不同的是，该下标通常不以 0 开头，而通常以一个常数，如 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头。简言之，CPU 可以通过物理地址来寻址，并 <strong>逐字节</strong> 地访问物理内存中保存的数据。</p>
 <p>值得一提的是，当 CPU 以多个字节（比如 2/4/8 或更多）为单位访问物理内存（事实上并不局限于物理内存，也包括I/O外设的数据空间）中的数据时，就有可能会引入端序（也称字节顺序）和内存地址对齐的问题。由于这并不是重点，我们在这里不展开说明，如读者有兴趣可以参考下面的补充说明。</p>
@@ -405,7 +413,7 @@
 </div>
 </div>
 <div class="section" id="qemu">
-<h2>了解 Qemu 模拟器<a class="headerlink" href="#qemu" title="永久链接至标题">¶</a></h2>
+<h2>了解 Qemu 模拟器<a class="headerlink" href="#qemu" title="永久链接至标题">#</a></h2>
 <p>我们编写的内核将主要在 Qemu 模拟器上运行来检验其正确性。这样做主要是为了方便快捷，只需在命令行输入一行命令即可让内核跑起来。为了让我们的内核能够正确对接到 Qemu 模拟器上，我们首先要对 Qemu 模拟器有一定的了解。在本书中，我们使用软件 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 来模拟一台 64 位 RISC-V 架构的计算机，它包含一个 CPU 、一条物理内存以及若干 I/O 外设。它的具体配置（比如 CPU 的核数或是物理内存的大小）均可由用户自由调整。作为模拟器，在宿主机看来它只是一个用户程序，因此上面提到的资源都是它利用宿主机（即 Qemu 运行所在的平台，如 Linux/Windows/macOS）提供给它的资源模拟出来的。取决于模拟的方式不同，在 Qemu 上有些模拟出来的资源性能很高，甚至接近宿主机上原生资源的性能；而另一些资源在模拟过程中的开销较大，于是它的性能相较原生资源的退化较为严重。</p>
 <p>接下来我们来看如何启动 Qemu 。从各章节代码中的 <code class="docutils literal notranslate"><span class="pre">os/Makefile</span></code> 可以看到，我们使用如下命令来启动 Qemu 并运行我们的内核：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="gp">$ </span>qemu-system-riscv64 <span class="se">\</span>
@@ -423,7 +431,7 @@
 <li><p>通过虚拟设备 <code class="docutils literal notranslate"><span class="pre">-device</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 属性可以在 Qemu 模拟器开机之前将一个宿主机上的文件载入到 Qemu 的物理内存的指定位置中， <code class="docutils literal notranslate"><span class="pre">file</span></code> 和 <code class="docutils literal notranslate"><span class="pre">addr</span></code> 属性分别可以设置待载入文件的路径以及将文件载入到的 Qemu 物理内存上的物理地址。注意这里我们载入的文件带有 <code class="docutils literal notranslate"><span class="pre">.bin</span></code> 后缀，它并不是上一节中我们移除标准库依赖后构建得到的内核可执行文件，而是还要进行加工处理得到内核镜像。我们后面再进行深入讨论。</p></li>
 </ul>
 <div class="section" id="id5">
-<h3>Qemu 启动流程<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
+<h3>Qemu 启动流程<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">virt</span></code> 平台上，物理内存的起始物理地址为 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，物理内存的默认大小为 128MiB ，它可以通过 <code class="docutils literal notranslate"><span class="pre">-m</span></code> 选项进行配置。在本书中，我们只会用到最低的 8MiB 物理内存，对应的物理地址区间为 <code class="docutils literal notranslate"><span class="pre">[0x80000000,0x80800000)</span></code> 。如果使用上面给出的命令启动 Qemu ，那么在 Qemu 开始执行任何指令之前，首先两个文件将被加载到 Qemu 的物理内存中：即作为 bootloader 的 <code class="docutils literal notranslate"><span class="pre">rustsbi-qemu.bin</span></code> 被加载到物理内存以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头的区域上，同时内核镜像 <code class="docutils literal notranslate"><span class="pre">os.bin</span></code> 被加载到以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 开头的区域上。</p>
 <p>为什么加载到这两个位置呢？这与 Qemu 模拟计算机加电启动后的运行流程有关。一般来说，计算机加电之后的启动流程可以分成若干个阶段，每个阶段均由一层软件负责，每一层软件的功能是进行它应当承担的初始化工作，并在此之后跳转到下一层软件的入口地址，也就是将计算机的控制权移交给了下一层软件。Qemu 模拟的启动流程则可以分为三个阶段：第一个阶段由固化在 Qemu 内的一小段汇编程序负责；第二个阶段由 bootloader 负责；第三个阶段则由内核镜像负责。</p>
 <ul class="simple">
@@ -446,13 +454,13 @@
 </div>
 </div>
 <div class="section" id="id6">
-<h2>程序内存布局与编译流程<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
+<h2>程序内存布局与编译流程<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
 <div class="section" id="id7">
-<h3>程序内存布局<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h3>
+<h3>程序内存布局<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
 <p id="term-memory-layout"><span id="term-section"></span>在我们将源代码编译为可执行文件之后，它就会变成一个看似充满了杂乱无章的字节的一个文件。但我们知道这些字节至少可以分成代码和数据两部分，在程序运行起来的时候它们的功能并不相同：代码部分由一条条可以被 CPU 解码并执行的指令组成，而数据部分只是被 CPU 视作可读写的内存空间。事实上我们还可以根据其功能进一步把两个部分划分为更小的单位： <strong>段</strong> (Section) 。不同的段会被编译器放置在内存不同的位置上，这构成了程序的 <strong>内存布局</strong> (Memory Layout)。一种典型的程序相对内存布局如下所示：</p>
 <div class="figure align-center" id="id9">
-<img alt="../_images/MemoryLayout.png" src="../_images/MemoryLayout.png"/>
-<p class="caption"><span class="caption-text">一种典型的程序相对内存布局</span><a class="headerlink" href="#id9" title="永久链接至图片">¶</a></p>
+<img alt="../_images/MemoryLayout.png" src="../_images/MemoryLayout.png" />
+<p class="caption"><span class="caption-text">一种典型的程序相对内存布局</span><a class="headerlink" href="#id9" title="永久链接至图片">#</a></p>
 </div>
 <p>在上图中可以看到，代码部分只有代码段 <code class="docutils literal notranslate"><span class="pre">.text</span></code> 一个段，存放程序的所有汇编代码。而数据部分则还可以继续细化：</p>
 <ul class="simple" id="term-heap">
@@ -474,7 +482,7 @@
 </div>
 </div>
 <div class="section" id="id8">
-<h3>编译流程<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h3>
+<h3>编译流程<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
 <p>从源代码得到可执行文件的编译流程可被细化为多个阶段（虽然输入一条命令便可将它们全部完成）：</p>
 <span id="term-linker"></span><span id="term-assembler"></span><span id="term-compiler"></span><ol class="arabic simple" id="term-object-file">
 <li><p><strong>编译器</strong> (Compiler) 将每个源文件从某门高级编程语言转化为汇编语言，注意此时源文件仍然是一个 ASCII 或其他编码的文本文件；</p></li>
@@ -486,8 +494,8 @@
 <li><p>第一件事情是将来自不同目标文件的段在目标内存布局中重新排布。如下图所示，在链接过程中，分别来自于目标文件 <code class="docutils literal notranslate"><span class="pre">1.o</span></code> 和 <code class="docutils literal notranslate"><span class="pre">2.o</span></code> 段被按照段的功能进行分类，相同功能的段被排在一起放在拼装后的目标文件 <code class="docutils literal notranslate"><span class="pre">output.o</span></code> 中。注意到，目标文件 <code class="docutils literal notranslate"><span class="pre">1.o</span></code> 和 <code class="docutils literal notranslate"><span class="pre">2.o</span></code> 的内存布局是存在冲突的，同一个地址在不同的内存布局中存放不同的内容。而在合并后的内存布局中，这些冲突被消除。</p></li>
 </ul>
 <div class="figure align-center" id="id10">
-<img alt="../_images/link-sections.png" src="../_images/link-sections.png"/>
-<p class="caption"><span class="caption-text">来自不同目标文件的段的重新排布</span><a class="headerlink" href="#id10" title="永久链接至图片">¶</a></p>
+<img alt="../_images/link-sections.png" src="../_images/link-sections.png" />
+<p class="caption"><span class="caption-text">来自不同目标文件的段的重新排布</span><a class="headerlink" href="#id10" title="永久链接至图片">#</a></p>
 </div>
 <ul>
 <li><p>第二件事情是将符号替换为具体地址。这里的符号指什么呢？我们知道，在我们进行模块化编程的时候，每个模块都会提供一些向其他模块公开的全局变量、函数等供其他模块访问，也会访问其他模块向它公开的内容。要访问一个变量或者调用一个函数，在源代码级别我们只需知道它们的名字即可，这些名字被我们称为符号。取决于符号来自于模块内部还是其他模块，我们还可以进一步将符号分成内部符号和外部符号。然而，在机器码级别（也即在目标文件或可执行文件中）我们并不是通过符号来找到索引我们想要访问的变量或函数，而是直接通过变量或函数的地址。例如，如果想调用一个函数，那么在指令的机器码中我们可以找到函数入口的绝对地址或者相对于当前 PC 的相对地址。</p>
@@ -505,7 +513,8 @@
 </div>
 </div>
 
-      </article>
+        </article>
+      </div>
       <footer>
         
         <div class="related-pages">
@@ -530,19 +539,21 @@
               </div>
             </a>
         </div>
-
-        <div class="related-information">
-              Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
-            |
-            Built with <a href="https://www.sphinx-doc.org/">Sphinx</a>
-              and
-              <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
-              <a href="https://github.com/pradyunsg/furo">Furo theme</a>.
-            |
-            <a class="muted-link" href="../_sources/chapter1/3first-instruction-in-kernel1.rst.txt"
-               rel="nofollow">
-              显示源代码
-            </a>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
         </div>
         
       </footer>
@@ -586,7 +597,7 @@
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/scripts/main.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
     <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {

@@ -4,11 +4,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="为内核支持函数调用" href="5support-func-call.html" /><link rel="prev" title="内核第一条指令（原理篇）" href="3first-instruction-in-kernel1.html" />
 
-    <meta name="generator" content="sphinx-4.1.2, furo 2021.08.31"/>
+    <meta name="generator" content="sphinx-4.3.2, furo 2022.06.21"/>
         <title>内核第一条指令（实践篇） - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=c7c65a82b42f6b978e58466c1e9ef2509836d916" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=16fb25fabf47304eee183a5e9af80b1ba98259b1" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     <link rel="stylesheet" type="text/css" href="../_static/my_style.css" />
     
     
@@ -20,38 +20,38 @@
   --color-code-foreground: black;
   
   }
-  body[data-theme="dark"] {
-    --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  
-  }
-  @media (prefers-color-scheme: dark) {
-    body:not([data-theme="light"]) {
+  @media not print {
+    body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
   
     }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
   }
 </style></head>
   <body>
+    
     <script>
       document.body.dataset.theme = localStorage.getItem("theme") || "auto";
     </script>
     
+
 <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
   <symbol id="svg-toc" viewBox="0 0 24 24">
     <title>Contents</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path stroke="none" d="M0 0h24v24H0z" />
-      <line x1="4" y1="6" x2="20" y2="6" />
-      <line x1="10" y1="12" x2="20" y2="12" />
-      <line x1="6" y1="18" x2="20" y2="18" />
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
     </svg>
   </symbol>
   <symbol id="svg-menu" viewBox="0 0 24 24">
     <title>Menu</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
       <line x1="3" y1="12" x2="21" y2="12"></line>
       <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -60,14 +60,14 @@
   </symbol>
   <symbol id="svg-arrow-right" viewBox="0 0 24 24">
     <title>Expand</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
       <polyline points="9 18 15 12 9 6"></polyline>
     </svg>
   </symbol>
   <symbol id="svg-sun" viewBox="0 0 24 24">
     <title>Light mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
       <circle cx="12" cy="12" r="5"></circle>
       <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -82,7 +82,7 @@
   </symbol>
   <symbol id="svg-moon" viewBox="0 0 24 24">
     <title>Dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
       <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
@@ -90,7 +90,7 @@
   </symbol>
   <symbol id="svg-sun-half" viewBox="0 0 24 24">
     <title>Auto light/dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
       <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
       <circle cx="12" cy="12" r="9" />
@@ -357,13 +357,20 @@
 
 </div>
 </div>
+
       </div>
       
     </div>
   </aside>
   <div class="main">
     <div class="content">
-      <article role="main">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
         <div class="content-icon-container">
           <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
@@ -378,17 +385,18 @@
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
         </div>
-        <div class="section" id="id1">
-<h1>内核第一条指令（实践篇）<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+        <article role="main">
+          <div class="section" id="id1">
+<h1>内核第一条指令（实践篇）<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h1>
 <div class="toctree-wrapper compound">
 </div>
 <div class="section" id="id2">
-<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
 <p>承接上一节，本节我们将实践在 Qemu 上执行内核第一条指令。首先我们编写内核第一条指令并嵌入到我们的内核项目中，接着指定内核的内存布局使得我们的内核可以正确对接到 Qemu 中。由于 Qemu 的文件加载功能过于简单，它不支持完整的可执行文件，因此我们从内核可执行文件中剥离多余的元数据得到内核镜像并提供给 Qemu 。最后，我们使用 GDB 来跟踪 Qemu 的整个启动流程并验证内核的第一条指令被正确执行。</p>
 <p>提示：在进入本节之前请参考 <a class="reference internal" href="../chapter0/5setup-devel-env.html"><span class="doc">实验环境配置</span></a> 安装配置 Rust 相关软件包和 GDB 调试工具。</p>
 </div>
 <div class="section" id="id3">
-<h2>编写内核第一条指令<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<h2>编写内核第一条指令<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
 <p>首先，我们需要编写进入内核后的第一条指令，这样更方便我们验证我们的内核镜像是否正确对接到 Qemu 上。</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span> <span class="c1"># os/src/entry.asm</span>
 <span class="linenos">2</span>     <span class="o">.</span><span class="n">section</span> <span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">entry</span>
@@ -406,21 +414,21 @@
 <span class="linenos">5</span><span class="k">mod</span> <span class="nn">lang_item</span><span class="p">;</span><span class="w"></span>
 <span class="linenos">6</span>
 <span class="linenos">7</span><span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">arch</span>::<span class="n">global_asm</span><span class="p">;</span><span class="w"></span>
-<span class="hll"><span class="linenos">8</span><span class="fm">global_asm!</span><span class="p">(</span><span class="fm">include_str!</span><span class="p">(</span><span class="s">"entry.asm"</span><span class="p">));</span><span class="w"></span>
+<span class="hll"><span class="linenos">8</span><span class="fm">global_asm!</span><span class="p">(</span><span class="fm">include_str!</span><span class="p">(</span><span class="s">&quot;entry.asm&quot;</span><span class="p">));</span><span class="w"></span>
 </span></pre></div>
 </div>
 <p>第 8 行，我们通过 <code class="docutils literal notranslate"><span class="pre">include_str!</span></code> 宏将同目录下的汇编代码 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 转化为字符串并通过 <code class="docutils literal notranslate"><span class="pre">global_asm!</span></code> 宏嵌入到代码中。可以看到，在经历了长时间的迭代之后， <code class="docutils literal notranslate"><span class="pre">global_asm!</span></code> 宏已被加入到 Rust 核心库 core 中。</p>
 </div>
 <div class="section" id="id4">
-<h2>调整内核的内存布局<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<h2>调整内核的内存布局<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
 <p id="term-linker-script">由于链接器默认的内存布局并不能符合我们的要求，实现与 Qemu 的正确对接，我们可以通过 <strong>链接脚本</strong> (Linker Script) 调整链接器的行为，使得最终生成的可执行文件的内存布局符合我们的预期。我们修改 Cargo 的配置文件来使用我们自己的链接脚本 <code class="docutils literal notranslate"><span class="pre">os/src/linker.ld</span></code> 而非使用默认的内存布局：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span> <span class="o">//</span> <span class="n">os</span><span class="o">/.</span><span class="n">cargo</span><span class="o">/</span><span class="n">config</span>
 <span class="linenos">2</span> <span class="p">[</span><span class="n">build</span><span class="p">]</span>
-<span class="linenos">3</span> <span class="n">target</span> <span class="o">=</span> <span class="s2">"riscv64gc-unknown-none-elf"</span>
+<span class="linenos">3</span> <span class="n">target</span> <span class="o">=</span> <span class="s2">&quot;riscv64gc-unknown-none-elf&quot;</span>
 <span class="linenos">4</span>
 <span class="hll"><span class="linenos">5</span> <span class="p">[</span><span class="n">target</span><span class="o">.</span><span class="n">riscv64gc</span><span class="o">-</span><span class="n">unknown</span><span class="o">-</span><span class="n">none</span><span class="o">-</span><span class="n">elf</span><span class="p">]</span>
 </span><span class="hll"><span class="linenos">6</span> <span class="n">rustflags</span> <span class="o">=</span> <span class="p">[</span>
-</span><span class="hll"><span class="linenos">7</span>     <span class="s2">"-Clink-arg=-Tsrc/linker.ld"</span><span class="p">,</span> <span class="s2">"-Cforce-frame-pointers=yes"</span>
+</span><span class="hll"><span class="linenos">7</span>     <span class="s2">&quot;-Clink-arg=-Tsrc/linker.ld&quot;</span><span class="p">,</span> <span class="s2">&quot;-Cforce-frame-pointers=yes&quot;</span>
 </span><span class="hll"><span class="linenos">8</span> <span class="p">]</span>
 </span></pre></div>
 </div>
@@ -507,11 +515,11 @@
 </div>
 </div>
 <div class="section" id="id5">
-<h2>手动加载内核可执行文件<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+<h2>手动加载内核可执行文件<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
 <p>上面得到的内核可执行文件完全符合我们对于内存布局的要求，但是我们不能将其直接提交给 Qemu ，因为它除了实际会被用到的代码和数据段之外还有一些多余的元数据，这些元数据无法被 Qemu 在加载文件时利用，且会使代码和数据段被加载到错误的位置。如下图所示：</p>
 <div class="figure align-center" id="id6">
-<img alt="../_images/load-into-qemu.png" src="../_images/load-into-qemu.png"/>
-<p class="caption"><span class="caption-text">丢弃元数据前后的内核可执行文件被加载到 Qemu 上的情形</span><a class="headerlink" href="#id6" title="永久链接至图片">¶</a></p>
+<img alt="../_images/load-into-qemu.png" src="../_images/load-into-qemu.png" />
+<p class="caption"><span class="caption-text">丢弃元数据前后的内核可执行文件被加载到 Qemu 上的情形</span><a class="headerlink" href="#id6" title="永久链接至图片">#</a></p>
 </div>
 <p>图中，红色的区域表示内核可执行文件中的元数据，深蓝色的区域表示各个段（包括代码段和数据段），而浅蓝色区域则表示内核被执行的第一条指令，它位于深蓝色区域的开头。图示的上半部分中，我们直接将内核可执行文件 <code class="docutils literal notranslate"><span class="pre">os</span></code> 加载到 Qemu 内存的 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处，由于内核可执行文件的开头是一段元数据，这会导致 Qemu 内存 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处无法找到内核第一条指令，也就意味着 RustSBI 无法正常将计算机控制权转交给内核。相反，图示的下半部分中，将元数据丢弃得到的内核镜像 <code class="docutils literal notranslate"><span class="pre">os.bin</span></code> 被加载到 Qemu 之后，则可以在 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处正确找到内核第一条指令。如果想要深入了解这些元数据的内容，可以参考 <a class="reference internal" href="../appendix-b/index.html"><span class="doc">附录 B：常见工具的使用方法</span></a> 。</p>
 <p id="content-binary-from-elf">使用如下命令可以丢弃内核可执行文件中的元数据得到内核镜像：</p>
@@ -532,7 +540,7 @@
 <p>可以看到，内核镜像的大小仅有 4 字节，这是因为它里面仅包含我们在 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 中编写的一条指令。一般情况下 RISC-V 架构的一条指令位宽即为 4 字节。而内核可执行文件由于包含了两部分元数据，其大小达到了 1016 字节。这些元数据能够帮助我们更加灵活地加载并使用可执行文件，比如在加载时完成一些重定位工作或者动态链接。不过由于 Qemu 的加载功能过于简单，我们只能将这些元数据丢弃再交给 Qemu 。从某种意义上可以理解为我们手动帮助 Qemu 完成了可执行文件的加载。</p>
 </div>
 <div class="section" id="gdb">
-<h2>基于 GDB 验证启动流程<a class="headerlink" href="#gdb" title="永久链接至标题">¶</a></h2>
+<h2>基于 GDB 验证启动流程<a class="headerlink" href="#gdb" title="永久链接至标题">#</a></h2>
 <p>在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录下通过以下命令启动 Qemu 并加载 RustSBI 和内核镜像：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="gp">$ </span>qemu-system-riscv64 <span class="se">\</span>
 <span class="linenos">2</span>    -machine virt <span class="se">\</span>
@@ -545,9 +553,9 @@
 <p><code class="docutils literal notranslate"><span class="pre">-s</span></code> 可以使 Qemu 监听本地 TCP 端口 1234 等待 GDB 客户端连接，而 <code class="docutils literal notranslate"><span class="pre">-S</span></code> 可以使 Qemu 在收到 GDB 的请求后再开始运行。因此，Qemu 暂时没有任何输出。注意，如果不想通过 GDB 对于 Qemu 进行调试而是直接运行 Qemu 的话，则要删掉最后一行的 <code class="docutils literal notranslate"><span class="pre">-s</span> <span class="pre">-S</span></code> 。</p>
 <p>打开另一个终端，启动一个 GDB 客户端连接到 Qemu ：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>riscv64-unknown-elf-gdb <span class="se">\</span>
-    -ex <span class="s1">'file target/riscv64gc-unknown-none-elf/release/os'</span> <span class="se">\</span>
-    -ex <span class="s1">'set arch riscv:rv64'</span> <span class="se">\</span>
-    -ex <span class="s1">'target remote localhost:1234'</span>
+    -ex <span class="s1">&#39;file target/riscv64gc-unknown-none-elf/release/os&#39;</span> <span class="se">\</span>
+    -ex <span class="s1">&#39;set arch riscv:rv64&#39;</span> <span class="se">\</span>
+    -ex <span class="s1">&#39;target remote localhost:1234&#39;</span>
 <span class="go">[GDB output]</span>
 <span class="go">0x0000000000001000 in ?? ()</span>
 </pre></div>
@@ -631,7 +639,8 @@
 </div>
 </div>
 
-      </article>
+        </article>
+      </div>
       <footer>
         
         <div class="related-pages">
@@ -656,19 +665,21 @@
               </div>
             </a>
         </div>
-
-        <div class="related-information">
-              Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
-            |
-            Built with <a href="https://www.sphinx-doc.org/">Sphinx</a>
-              and
-              <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
-              <a href="https://github.com/pradyunsg/furo">Furo theme</a>.
-            |
-            <a class="muted-link" href="../_sources/chapter1/4first-instruction-in-kernel2.rst.txt"
-               rel="nofollow">
-              显示源代码
-            </a>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
         </div>
         
       </footer>
@@ -706,7 +717,7 @@
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/scripts/main.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
     <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {

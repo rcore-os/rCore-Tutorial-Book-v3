@@ -4,11 +4,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="管理 SV39 多级页表" href="4sv39-implementation-2.html" /><link rel="prev" title="地址空间" href="2address-space.html" />
 
-    <meta name="generator" content="sphinx-4.1.2, furo 2021.08.31"/>
+    <meta name="generator" content="sphinx-4.3.2, furo 2022.06.21"/>
         <title>SV39 多级页表的硬件机制 - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=c7c65a82b42f6b978e58466c1e9ef2509836d916" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=16fb25fabf47304eee183a5e9af80b1ba98259b1" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     <link rel="stylesheet" type="text/css" href="../_static/my_style.css" />
     
     
@@ -20,38 +20,38 @@
   --color-code-foreground: black;
   
   }
-  body[data-theme="dark"] {
-    --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  
-  }
-  @media (prefers-color-scheme: dark) {
-    body:not([data-theme="light"]) {
+  @media not print {
+    body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
   
     }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
   }
 </style></head>
   <body>
+    
     <script>
       document.body.dataset.theme = localStorage.getItem("theme") || "auto";
     </script>
     
+
 <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
   <symbol id="svg-toc" viewBox="0 0 24 24">
     <title>Contents</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path stroke="none" d="M0 0h24v24H0z" />
-      <line x1="4" y1="6" x2="20" y2="6" />
-      <line x1="10" y1="12" x2="20" y2="12" />
-      <line x1="6" y1="18" x2="20" y2="18" />
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
     </svg>
   </symbol>
   <symbol id="svg-menu" viewBox="0 0 24 24">
     <title>Menu</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
       <line x1="3" y1="12" x2="21" y2="12"></line>
       <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -60,14 +60,14 @@
   </symbol>
   <symbol id="svg-arrow-right" viewBox="0 0 24 24">
     <title>Expand</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
       <polyline points="9 18 15 12 9 6"></polyline>
     </svg>
   </symbol>
   <symbol id="svg-sun" viewBox="0 0 24 24">
     <title>Light mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
       <circle cx="12" cy="12" r="5"></circle>
       <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -82,7 +82,7 @@
   </symbol>
   <symbol id="svg-moon" viewBox="0 0 24 24">
     <title>Dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
       <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
@@ -90,7 +90,7 @@
   </symbol>
   <symbol id="svg-sun-half" viewBox="0 0 24 24">
     <title>Auto light/dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
       <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
       <circle cx="12" cy="12" r="9" />
@@ -357,13 +357,20 @@
 
 </div>
 </div>
+
       </div>
       
     </div>
   </aside>
   <div class="main">
     <div class="content">
-      <article role="main">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
         <div class="content-icon-container">
           <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
@@ -378,22 +385,23 @@
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
         </div>
-        <div class="section" id="sv39">
-<h1>SV39 多级页表的硬件机制<a class="headerlink" href="#sv39" title="永久链接至标题">¶</a></h1>
+        <article role="main">
+          <div class="section" id="sv39">
+<h1>SV39 多级页表的硬件机制<a class="headerlink" href="#sv39" title="永久链接至标题">#</a></h1>
 <div class="section" id="id1">
-<h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h2>
+<h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h2>
 <p>在上一小节中我们已经简单介绍了分页的内存管理策略，现在我们尝试在 RISC-V 64 架构提供的 SV39 分页硬件机制的基础上完成内核中的软件对应实现。由于内容过多，我们将分成两个小节进行讲解。本节主要讲解在 RISC-V 64 架构下的虚拟地址与物理地址的访问属性（可读，可写，可执行等），组成结构（页号，帧号，偏移量等），访问的空间范围，硬件实现地址转换的多级页表访问过程等；以及如何用Rust语言来设计有类型的页表项。</p>
 </div>
 <div class="section" id="id2">
-<h2>虚拟地址和物理地址<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<h2>虚拟地址和物理地址<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
 <div class="section" id="csr">
-<h3>内存控制相关的CSR寄存器<a class="headerlink" href="#csr" title="永久链接至标题">¶</a></h3>
+<h3>内存控制相关的CSR寄存器<a class="headerlink" href="#csr" title="永久链接至标题">#</a></h3>
 <p>默认情况下 MMU 未被使能，此时无论 CPU 位于哪个特权级，访存的地址都会作为一个物理地址交给对应的内存控制单元来直接访问物理内存。我们可以通过修改 S 特权级的一个名为 <code class="docutils literal notranslate"><span class="pre">satp</span></code> 的 CSR 来启用分页模式，在这之后 S 和 U 特权级的访存地址会被视为一个虚拟地址，它需要经过 MMU 的地址转换变为一个物理地址，再通过它来访问物理内存；而 M 特权级的访存地址，我们可设定是内存的物理地址。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p>M 特权级的访存地址被视为一个物理地址还是一个需要经历和 S/U 特权级相同的地址转换的虚拟地址取决于硬件配置，在这里我们不会进一步探讨。</p>
 </div>
-<img alt="../_images/satp.png" id="satp-layout" src="../_images/satp.png"/>
+<img alt="../_images/satp.png" id="satp-layout" src="../_images/satp.png" />
 <p>上图是 RISC-V 64 架构下 <code class="docutils literal notranslate"><span class="pre">satp</span></code> 的字段分布，含义如下：</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">MODE</span></code> 控制 CPU 使用哪种页表实现；</p></li>
@@ -404,8 +412,8 @@
 <p>39 位的虚拟地址可以用来访问理论上最大 <span class="math notranslate nohighlight">\(512\text{GiB}\)</span> 的地址空间，而 56 位的物理地址在理论上甚至可以访问一块大小比这个地址空间的还高出几个数量级的物理内存。但是实际上无论是虚拟地址还是物理地址，真正有意义、能够通过 MMU 的地址转换或是 CPU 内存控制单元的检查的地址仅占其中的很小一部分，因此它们的理论容量上限在目前都没有实际意义。</p>
 </div>
 <div class="section" id="id3">
-<h3>地址格式与组成<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h3>
-<img alt="../_images/sv39-va-pa.png" src="../_images/sv39-va-pa.png"/>
+<h3>地址格式与组成<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h3>
+<img alt="../_images/sv39-va-pa.png" src="../_images/sv39-va-pa.png" />
 <p id="term-page-offset">我们采用分页管理，单个页面的大小设置为 <span class="math notranslate nohighlight">\(4\text{KiB}\)</span> ，每个虚拟页面和物理页帧都对齐到这个页面大小，也就是说虚拟/物理地址区间 <span class="math notranslate nohighlight">\([0,4\text{KiB})\)</span> 为第 <span class="math notranslate nohighlight">\(0\)</span> 个虚拟页面/物理页帧，而 <span class="math notranslate nohighlight">\([4\text{KiB},8\text{KiB})\)</span> 为第 <span class="math notranslate nohighlight">\(1\)</span> 个，以此类推。 <span class="math notranslate nohighlight">\(4\text{KiB}\)</span> 需要用 12 位字节地址来表示，因此虚拟地址和物理地址都被分成两部分：它们的低 12 位，即 <span class="math notranslate nohighlight">\([11:0]\)</span> 被称为 <strong>页内偏移</strong> (Page Offset) ，它描述一个地址指向的字节在它所在页面中的相对位置。而虚拟地址的高 27 位，即 <span class="math notranslate nohighlight">\([38:12]\)</span> 为它的虚拟页号 VPN，同理物理地址的高 44 位，即 <span class="math notranslate nohighlight">\([55:12]\)</span> 为它的物理页号 PPN，页号可以用来定位一个虚拟/物理地址属于哪一个虚拟页面/物理页帧。</p>
 <p>地址转换是以页为单位进行的，在地址转换的前后地址的页内偏移部分不变。可以认为 MMU 只是从虚拟地址中取出 27 位虚拟页号，在页表中查到其对应的物理页号（如果存在的话），最后将得到的44位的物理页号与虚拟地址的12位页内偏移依序拼接到一起就变成了56位的物理地址。</p>
 <div class="admonition note" id="high-and-low-256gib">
@@ -416,7 +424,7 @@
 </div>
 </div>
 <div class="section" id="id4">
-<h3>地址相关的数据结构抽象与类型定义<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
+<h3>地址相关的数据结构抽象与类型定义<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
 <p>正如本章第一小节所说，在分页内存管理中，地址转换的核心任务在于如何维护虚拟页号到物理页号的映射——也就是页表。不过在具体实现它之前，我们先将地址和页号的概念抽象为 Rust 中的类型，借助 Rust 的类型安全特性来确保它们被正确实现。</p>
 <p>首先是这些类型的定义：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/address.rs</span>
@@ -498,9 +506,9 @@
 </div>
 </div>
 <div class="section" id="id5">
-<h2>页表项的数据结构抽象与类型定义<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+<h2>页表项的数据结构抽象与类型定义<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
 <p>第一小节中我们提到，在页表中以虚拟页号作为索引不仅能够查到物理页号，还能查到一组保护位，它控制了应用对地址空间每个虚拟页面的访问权限。但实际上还有更多的标志位，物理页号和全部的标志位以某种固定的格式保存在一个结构体中，它被称为 <strong>页表项</strong> (PTE, Page Table Entry) ，是利用虚拟页号在页表中查到的结果。</p>
-<img alt="../_images/sv39-pte.png" src="../_images/sv39-pte.png"/>
+<img alt="../_images/sv39-pte.png" src="../_images/sv39-pte.png" />
 <p>上图为 SV39 分页模式下的页表项，其中 <span class="math notranslate nohighlight">\([53:10]\)</span> 这 <span class="math notranslate nohighlight">\(44\)</span> 位是物理页号，最低的 <span class="math notranslate nohighlight">\(8\)</span> 位 <span class="math notranslate nohighlight">\([7:0]\)</span> 则是标志位，它们的含义如下（请注意，为方便说明，下文我们用 <em>页表项的对应虚拟页面</em> 来表示索引到一个页表项的虚拟页号对应的虚拟页面）：</p>
 <ul class="simple">
 <li><p>V(Valid)：仅当位 V 为 1 时，页表项才是合法的；</p></li>
@@ -538,7 +546,7 @@
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/Cargo.toml</span>
 
 <span class="k">[dependencies]</span>
-<span class="n">bitflags</span> <span class="o">=</span> <span class="s">"1.2.1"</span>
+<span class="n">bitflags</span> <span class="o">=</span> <span class="s">&quot;1.2.1&quot;</span>
 </pre></div>
 </div>
 <p>接下来我们实现页表项 <code class="docutils literal notranslate"><span class="pre">PageTableEntry</span></code> ：</p>
@@ -588,18 +596,18 @@
 <p>这里相当于判断两个集合的交集是否为空集，部分说明了 <code class="docutils literal notranslate"><span class="pre">bitflags</span></code> crate 的使用方法。</p>
 </div>
 <div class="section" id="id6">
-<h2>多级页表<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
+<h2>多级页表<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
 <p>页表的一种最简单的实现是线性表，也就是按照地址从低到高、输入的虚拟页号从 <span class="math notranslate nohighlight">\(0\)</span> 开始递增的顺序依次在内存中（我们之前提到过页表的容量过大无法保存在 CPU 中）放置每个虚拟页号对应的页表项。由于每个页表项的大小是 <span class="math notranslate nohighlight">\(8\)</span> 字节，我们只要知道第一个页表项（对应虚拟页号 <span class="math notranslate nohighlight">\(0\)</span> ）被放在的物理地址 <span class="math notranslate nohighlight">\(\text{base_addr}\)</span> ，就能直接计算出每个输入的虚拟页号对应的页表项所在的位置。如下图所示：</p>
-<a class="reference internal image-reference" href="../_images/linear-table.png"><img alt="../_images/linear-table.png" class="align-center" src="../_images/linear-table.png" style="height: 400px;"/></a>
+<a class="reference internal image-reference" href="../_images/linear-table.png"><img alt="../_images/linear-table.png" class="align-center" src="../_images/linear-table.png" style="height: 400px;" /></a>
 <p>事实上，对于虚拟页号 <span class="math notranslate nohighlight">\(i\)</span> ，如果页表（每个应用都有一个页表，这里指其中某一个）的起始地址为 <span class="math notranslate nohighlight">\(\text{base_addr}\)</span> ，则这个虚拟页号对应的页表项可以在物理地址 <span class="math notranslate nohighlight">\(\text{base_addr}+8i\)</span> 处找到。这使得 MMU 的实现和内核的软件控制都变得非常简单。然而遗憾的是，这远远超出了我们的物理内存限制。由于虚拟页号有 <span class="math notranslate nohighlight">\(2^{27}\)</span> 种，每个虚拟页号对应一个 <span class="math notranslate nohighlight">\(8\)</span> 字节的页表项，则每个页表都需要消耗掉 <span class="math notranslate nohighlight">\(1\text{GiB}\)</span> 内存！应用的数据还需要保存在内存的其他位置，这就使得每个应用要吃掉 <span class="math notranslate nohighlight">\(1\text{GiB}\)</span> 以上的内存。作为对比，我们的 K210 开发板目前只有 <span class="math notranslate nohighlight">\(8\text{MiB}\)</span> 的内存，因此从空间占用角度来说，这种线性表实现是完全不可行的。</p>
 <p>线性表的问题在于：它保存了所有虚拟页号对应的页表项，但是高达 <span class="math notranslate nohighlight">\(512\text{GiB}\)</span> 的地址空间中真正会被应用使用到的只是其中极小的一个子集（本教程中的应用内存使用量约在数十~数百 <span class="math notranslate nohighlight">\(\text{KiB}\)</span> 量级），也就导致有意义并能在页表中查到实际的物理页号的虚拟页号在 <span class="math notranslate nohighlight">\(2^{27}\)</span> 中也只是很小的一部分。由此线性表的绝大部分空间其实都是被浪费掉的。</p>
 <p>那么如何进行优化呢？核心思想就在于 <strong>按需分配</strong> ，也就是说：有多少合法的虚拟页号，我们就维护一个多大的映射，并为此使用多大的内存用来保存映射。这是因为，每个应用的地址空间最开始都是空的，或者说所有的虚拟页号均不合法，那么这样的页表自然不需要占用任何内存， MMU 在地址转换的时候无需关心页表的内容而是将所有的虚拟页号均判为不合法即可。而在后面，内核已经决定好了一个应用的各逻辑段存放位置之后，它就需要负责从零开始以虚拟页面为单位来让该应用的地址空间的某些部分变得合法，反映在该应用的页表上也就是一对对映射顺次被插入进来，自然页表所占据的内存大小也就逐渐增加。</p>
 <p>这种 <strong>按需分配</strong> 思想在计算机科学中得到了广泛应用：为了方便接下来的说明，我们可以举一道数据结构的题目作为例子。设想我们要维护一个字符串的多重集，集合中所有的字符串的字符集均为 <span class="math notranslate nohighlight">\(\alpha=\{a,b,c\}\)</span> ，长度均为一个给定的常数 <span class="math notranslate nohighlight">\(n\)</span> 。该字符串集合一开始为空集。我们要支持两种操作，第一种是将一个字符串插入集合，第二种是查询一个字符串在当前的集合中出现了多少次。</p>
 <p id="term-trie">简单起见，假设 <span class="math notranslate nohighlight">\(n=3\)</span> 。那么我们可能会建立这样一颗 <strong>字典树</strong> (Trie) ：</p>
-<img alt="../_images/trie.png" src="../_images/trie.png"/>
+<img alt="../_images/trie.png" src="../_images/trie.png" />
 <p>字典树由若干个节点（图中用椭圆形来表示）组成，从逻辑上而言每个节点代表一个可能的字符串前缀。每个节点的存储内容都只有三个指针，对于蓝色的非叶节点来说，它的三个指针各自指向一个子节点；而对于绿色的叶子节点来说，它的三个指针不再指向任何节点，而是具体保存一种可能的长度为 <span class="math notranslate nohighlight">\(n\)</span> 的字符串的计数。这样，对于题目要求的两种操作，我们只需根据输入的字符串中的每个字符在字典树上自上而下对应走出一步，最终就能够找到字典树中维护的它的计数。之后我们可以将其直接返回或者加一。</p>
 <p>注意到如果某些字符串自始至终没有被插入，那么一些节点没有存在的必要。反过来说一些节点是由于我们插入了一个以它对应的字符串为前缀的字符串才被分配出来的。如下图所示：</p>
-<img alt="../_images/trie-1.png" src="../_images/trie-1.png"/>
+<img alt="../_images/trie-1.png" src="../_images/trie-1.png" />
 <p>一开始仅存在一个根节点。在我们插入字符串 <code class="docutils literal notranslate"><span class="pre">acb</span></code> 的过程中，我们只需要分配 <code class="docutils literal notranslate"><span class="pre">a</span></code> 和 <code class="docutils literal notranslate"><span class="pre">ac</span></code> 两个节点。注意 <code class="docutils literal notranslate"><span class="pre">ac</span></code> 是一个叶节点，它的 <code class="docutils literal notranslate"><span class="pre">b</span></code> 指针不再指向另外一个节点而是保存字符串 <code class="docutils literal notranslate"><span class="pre">acb</span></code> 的计数。此时我们无法访问到其他未分配的节点，如根节点的 <code class="docutils literal notranslate"><span class="pre">b/c</span></code> 或是 <code class="docutils literal notranslate"><span class="pre">a</span></code> 节点的 <code class="docutils literal notranslate"><span class="pre">a/b</span></code> 均为空指针。如果后续再插入一个字符串，那么 <strong>至多分配两个新节点</strong> ，因为如果走的路径上有节点已经存在，就无需重复分配了。这可以说明，字典树中节点的数目（或者说字典树消耗的内存）是随着插入字符串的数目逐渐线性增加的。</p>
 <p>同学可能很好奇，为何在这里要用相当一部分篇幅来介绍字典树呢？事实上 SV39 分页机制等价于一颗字典树。 <span class="math notranslate nohighlight">\(27\)</span> 位的虚拟页号可以看成一个长度 <span class="math notranslate nohighlight">\(n=3\)</span> 的字符串，字符集为 <span class="math notranslate nohighlight">\(\alpha=\{0,1,2,...,511\}\)</span> ，因为每一位字符都由 <span class="math notranslate nohighlight">\(9\)</span> 个比特组成。而我们也不再维护所谓字符串的计数，而是要找到字符串（虚拟页号）对应的页表项。因此，每个叶节点都需要保存 <span class="math notranslate nohighlight">\(512\)</span> 个 <span class="math notranslate nohighlight">\(8\)</span> 字节的页表项，一共正好 <span class="math notranslate nohighlight">\(4\text{KiB}\)</span> ，可以直接放在一个物理页帧内。而对于非叶节点来说，从功能上它只需要保存 <span class="math notranslate nohighlight">\(512\)</span> 个指向下级节点的指针即可，不过我们就像叶节点那样也保存 <span class="math notranslate nohighlight">\(512\)</span> 个页表项，这样所有的节点都可以被放在一个物理页帧内，它们的位置可以用一个物理页号来代替。当想从一个非叶节点向下走时，只需找到当前字符对应的页表项的物理页号字段，它就指向了下一级节点的位置，这样非叶节点中转的功能也就实现了。每个节点的内部是一个线性表，也就是将这个节点起始物理地址加上字符对应的偏移量就找到了指向下一级节点的页表项（对于非叶节点）或是能够直接用来地址转换的页表项（对于叶节点）。</p>
 <p id="term-page-index"><span id="term-multi-level-page-table"></span>这种页表实现被称为 <strong>多级页表</strong> (Multi-Level Page-Table) 。由于 SV39 中虚拟页号被分为三级 <strong>页索引</strong>
@@ -612,7 +620,7 @@
 </ul>
 <p>在这里我们给出 SV39 中的 <code class="docutils literal notranslate"><span class="pre">R/W/X</span></code> 组合的含义：</p>
 <blockquote>
-<div><a class="reference internal image-reference" href="../_images/pte-rwx.png"><img alt="../_images/pte-rwx.png" class="align-center" src="../_images/pte-rwx.png" style="height: 250px;"/></a>
+<div><a class="reference internal image-reference" href="../_images/pte-rwx.png"><img alt="../_images/pte-rwx.png" class="align-center" src="../_images/pte-rwx.png" style="height: 250px;" /></a>
 </div></blockquote>
 <div class="admonition note" id="term-huge-page">
 <p class="admonition-title">注解</p>
@@ -637,9 +645,9 @@
 </div>
 </div>
 <div class="section" id="id7">
-<h2>SV39 地址转换过程<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h2>
+<h2>SV39 地址转换过程<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h2>
 <p>接下来，我们给出 SV39 地址转换的全过程图示（来源于 MIT 6.828 课程）来结束多级页表原理的介绍：</p>
-<a class="reference internal image-reference" href="../_images/sv39-full.png"><img alt="../_images/sv39-full.png" class="align-center" src="../_images/sv39-full.png" style="height: 600px;"/></a>
+<a class="reference internal image-reference" href="../_images/sv39-full.png"><img alt="../_images/sv39-full.png" class="align-center" src="../_images/sv39-full.png" style="height: 600px;" /></a>
 <p>在 SV39 模式中我们采用三级页表，即将 27 位的虚拟页号分为三个等长的部分，第 26-18 位为三级索引   <span class="math notranslate nohighlight">\(\text{VPN}_2\)</span> ，第17-9 位为二级索引  <span class="math notranslate nohighlight">\(\text{VPN}_1\)</span> ，第 8-0 位为一级索引   <span class="math notranslate nohighlight">\(\text{VPN}_0\)</span> 。</p>
 <p>我们也将页表分为三级页表，二级页表，一级页表。每个页表都用 9 位索引的，因此有  <span class="math notranslate nohighlight">\(2^{9}=512\)</span> 个页表项，而每个页表项都是 8 字节，因此每个页表大小都为  <span class="math notranslate nohighlight">\(512\times 8=4\text{KiB}\)</span> 。正好是一个物理页的大小。我们可以把一个页表放到一个物理页中，并用一个物理页号来描述它。事实上，三级页表的每个页表项中的物理页号可描述一个二级页表；二级页表的每个页表项中的物理页号可描述一个一级页表；一级页表中的页表项内容则和我们刚才提到的页表项一样，其内容包含物理页号，即描述一个要映射到的物理页。</p>
 <p>具体来说，假设我们有虚拟地址  <span class="math notranslate nohighlight">\((\text{VPN}_2, \text{VPN}_1, \text{VPN}_0, \text{offset})\)</span> ：</p>
@@ -652,7 +660,7 @@
 </ul>
 <p>这样处理器通过这种多次转换，终于从虚拟页号找到了一级页表项，从而得出了物理页号和虚拟地址所对应的物理地址。刚才我们提到若页表项满足 <cite>R,W,X</cite> 都为 0，表明这个页表项指向下一级页表。在这里三级和二级页表项的 <cite>R,W,X</cite> 为 0 应该成立，因为它们指向了下一级页表。</p>
 <div class="section" id="tlb">
-<h3>快表（TLB）<a class="headerlink" href="#tlb" title="永久链接至标题">¶</a></h3>
+<h3>快表（TLB）<a class="headerlink" href="#tlb" title="永久链接至标题">#</a></h3>
 <p>我们知道，物理内存的访问速度要比 CPU 的运行速度慢很多。如果我们按照页表机制循规蹈矩的一步步走，将一个虚拟地址转化为物理地址需要访问 3 次物理内存，得到物理地址后还需要再访问一次物理内存，才能完成访存。这无疑很大程度上降低了系统执行效率。</p>
 <p>实践表明绝大部分应用程序的虚拟地址访问过程具有时间局部性和空间局部性的特点。因此，在 CPU 内部，我们使用MMU中的 <strong>快表（TLB, Translation Lookaside Buffer）</strong> 来作为虚拟页号到物理页号的映射的页表缓存。这部分知识在计算机组成原理课程中有所体现，当我们要进行一个地址转换时，会有很大可能对应的地址映射在近期已被完成过，所以我们可以先到 TLB 缓存里面去查一下，如果有的话我们就可以直接完成映射，而不用访问那么多次内存了。</p>
 <p>上面主要是对单个应用的多级页表进行了介绍。在一个多任务系统中，可能同时存在多个任务处于运行/就绪状态，它们各自的多级页表在内存中共存，那么 MMU 应该如何知道当前做地址转换的时候要查哪一个页表呢？回到 <a class="reference internal" href="#satp-layout"><span class="std std-ref">satp CSR 的布局</span></a> ，其中的 PPN 字段指的就是多级页表根节点所在的物理页号。因此，每个应用的地址空间就可以用包含了它多级页表根节点所在物理页号的 <code class="docutils literal notranslate"><span class="pre">satp</span></code> CSR 代表。在我们切换任务的时候， <code class="docutils literal notranslate"><span class="pre">satp</span></code> 也必须被同时切换。</p>
@@ -662,7 +670,8 @@
 </div>
 </div>
 
-      </article>
+        </article>
+      </div>
       <footer>
         
         <div class="related-pages">
@@ -687,19 +696,21 @@
               </div>
             </a>
         </div>
-
-        <div class="related-information">
-              Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
-            |
-            Built with <a href="https://www.sphinx-doc.org/">Sphinx</a>
-              and
-              <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
-              <a href="https://github.com/pradyunsg/furo">Furo theme</a>.
-            |
-            <a class="muted-link" href="../_sources/chapter4/3sv39-implementation-1.rst.txt"
-               rel="nofollow">
-              显示源代码
-            </a>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
         </div>
         
       </footer>
@@ -745,7 +756,7 @@
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/scripts/main.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
     <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {

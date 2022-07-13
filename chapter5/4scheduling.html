@@ -4,11 +4,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="练习" href="5exercise.html" /><link rel="prev" title="进程管理机制的设计实现" href="3implement-process-mechanism.html" />
 
-    <meta name="generator" content="sphinx-4.1.2, furo 2021.08.31"/>
+    <meta name="generator" content="sphinx-4.3.2, furo 2022.06.21"/>
         <title>进程调度 - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=c7c65a82b42f6b978e58466c1e9ef2509836d916" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=16fb25fabf47304eee183a5e9af80b1ba98259b1" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     <link rel="stylesheet" type="text/css" href="../_static/my_style.css" />
     
     
@@ -20,38 +20,38 @@
   --color-code-foreground: black;
   
   }
-  body[data-theme="dark"] {
-    --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  
-  }
-  @media (prefers-color-scheme: dark) {
-    body:not([data-theme="light"]) {
+  @media not print {
+    body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
   
     }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
   }
 </style></head>
   <body>
+    
     <script>
       document.body.dataset.theme = localStorage.getItem("theme") || "auto";
     </script>
     
+
 <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
   <symbol id="svg-toc" viewBox="0 0 24 24">
     <title>Contents</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path stroke="none" d="M0 0h24v24H0z" />
-      <line x1="4" y1="6" x2="20" y2="6" />
-      <line x1="10" y1="12" x2="20" y2="12" />
-      <line x1="6" y1="18" x2="20" y2="18" />
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
     </svg>
   </symbol>
   <symbol id="svg-menu" viewBox="0 0 24 24">
     <title>Menu</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
       <line x1="3" y1="12" x2="21" y2="12"></line>
       <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -60,14 +60,14 @@
   </symbol>
   <symbol id="svg-arrow-right" viewBox="0 0 24 24">
     <title>Expand</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
       <polyline points="9 18 15 12 9 6"></polyline>
     </svg>
   </symbol>
   <symbol id="svg-sun" viewBox="0 0 24 24">
     <title>Light mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
       <circle cx="12" cy="12" r="5"></circle>
       <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -82,7 +82,7 @@
   </symbol>
   <symbol id="svg-moon" viewBox="0 0 24 24">
     <title>Dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
       <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
@@ -90,7 +90,7 @@
   </symbol>
   <symbol id="svg-sun-half" viewBox="0 0 24 24">
     <title>Auto light/dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
       <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
       <circle cx="12" cy="12" r="9" />
@@ -357,13 +357,20 @@
 
 </div>
 </div>
+
       </div>
       
     </div>
   </aside>
   <div class="main">
     <div class="content">
-      <article role="main">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
         <div class="content-icon-container">
           <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
@@ -378,10 +385,11 @@
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
         </div>
-        <div class="section" id="id1">
-<h1>进程调度<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+        <article role="main">
+          <div class="section" id="id1">
+<h1>进程调度<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h1>
 <div class="section" id="id2">
-<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
 <p>计算机内存中可执行的程序个数大于处理器个数时，这些程序可通过共享处理器来完成各自的任务。而操作系统负责让它们能够高效合理地共享处理器资源，这就引入了调度（scheduling）这个概念。进程调度（也称处理器调度）是进程管理的重要组成部分。</p>
 <p>在计算机出现之前，调度这个概念就出现在人类的生活与工作环境中了，如在商店排队购买商品、汽车装配线调度、工厂作业车间调度等。调度的一般定义是：在一定的约束条件下，把有限的资源在时间上分配给若干个任务，以满足或优化一个或多个性能指标。对于计算机系统而言，就是在一台计算机中运行了多个进程，操作系统把有限的处理器在时间上分配给各个进程，以满足或优化进程执行的性能指标。</p>
 <p>所以本节要阐述的核心问题是： <strong>操作系统如何通过进程调度来提高进程和系统的性能</strong> 。我们可以把这个问题进一步细化为操作系统的一系列关键子问题：</p>
@@ -393,16 +401,16 @@
 </ul>
 </div>
 <div class="section" id="id3">
-<h2>回顾历史<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<h2>回顾历史<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
 <div class="section" id="id4">
-<h3>本章之前的操作系统实例<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h3>
+<h3>本章之前的操作系统实例<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
 <p>本章之前已经实现了多个操作系统实例，它们相对比较简单，重点体现各种操作系统核心知识点的设计与实现。对于 <strong>处理器调度</strong> 这个核心知识点，从面向批处理的“邓式鱼” 操作系统开始，就有非常简单的设计与实现。</p>
 <p>最早的“三叶虫”操作系统以库的形式支持单个裸机应用程序，单个应用程序独占整个计算机系统，这时还没有调度的必要性。在批处理系统中，需要支持多个程序运行，“邓式鱼” 操作系统把要执行的应用按名字排名的先后顺序，按一次加载一个应用的方式把应用放入内存中。当一个应用执行完毕后，再加载并执行下一个应用。这就是一种简单的“排名”调度策略。</p>
 <p>面向多道程序的“锯齿螈”操作系统可以把多个要执行的程序放到内存中，其调度策略与“邓式鱼” 操作系统一样，也是“排名”调度策略。当进化到“始初龙”操作系统后，我们把运行的程序称为任务，并且任务可以主动放弃处理器。操作系统会把各个任务放到一个调度队列中，从队列头选择一个任务执行。当任务主动放弃处理器或任务执行完毕后，操作系统从队列头选择下一个任务执行，并把主动放弃处理器的任务安置在队列尾。这是一种先来先服务的调度策略，实现起来非常简单。</p>
 <p>进一步进化的面向分时多任务的“腔骨龙”操作系统继承了始初龙”操作系统的调度策略和组织方式，也会把各个任务放到一个调度队列中，并从队列头选择一个任务执行。但它还考虑了应用间的公平性和系统的执行效率。为此，它给每个任务分配了一个固定的时间片。当正在执行的任务消耗完分配给它的时间片后，操作系统就可以通过时钟中断抢占正在执行的任务，把处理器分配给其他任务执行，而被抢占的任务将放置到队列尾。这是一种基于时间片的轮转调度策略。后续的支持地址空间的“头甲龙”操作系统和支持进程的“伤齿龙”操作系统都采用了这种轮转调度策略。</p>
 </div>
 <div class="section" id="id5">
-<h3>计算机发展历史中的调度<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h3>
+<h3>计算机发展历史中的调度<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
 <p>早期应用主要面向计算密集型的科学计算，用户对与计算机交互的需求还不强。在早期以纸带、卡片或磁带作为程序/数据输入的批处理系统时代，操作系统的调度很简单，只需依次加载并运行每一个作业（应用以作业的形式存在）即可。操作系统不需要考虑多用户，分时复用等情况，能让程序正常运行就很不错了。</p>
 <p>到了多道程序系统时代，内存中存在多个应用，而应用是属于不同用户的，处理器是用户都想占用的宝贵资源。操作系统需要尽量加快应用的执行，减少用户等待应用执行结果的时间，从而提高用户的满意度。这时的调度策略主要考虑如何尽可能地让处理器一直忙起来，减少完成应用的时间。</p>
 <p>随着用户对与计算机交互的需求越来越强烈，导致批处理任务（计算密集型应用）和交互任务（I/O密集型应用）都需要在计算机系统上执行。计算机科学家不得不花费更大心思在操作系统的调度上，以应对不同性能指标的任务要求。这一阶段的计算机系统还是以昂贵的大型机/小型机为主，服务的用户主要来源于科学计算和商业处理等科研机构和公司，他们希望把计算机系统的性能榨干，能及时与计算机进行交互，这样才对得起他们付出的大量金钱。</p>
@@ -413,10 +421,10 @@
 </div>
 </div>
 <div class="section" id="id6">
-<h2>批处理系统的调度<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h2>
+<h2>批处理系统的调度<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
 <p>在设计具体的调度策略之前，需要了解计算机系统和应用的运行环境，对应用的特点和它期望的性能指标也要清楚。我们先看看批处理系统下的应用的特点和约束条件。在批处理系统下，应用以科学计算为主，I/O操作较少，且I/O操作主要集中在应用开始和结束的一小段时间，应用的执行时间主要消耗在占用处理器进行计算上，且应用的大致执行时间一般可以预估到。</p>
 <div class="section" id="id7">
-<h3>约束条件<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h3>
+<h3>约束条件<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
 <p>批处理系统中的进程有如下一些约束/前提条件：</p>
 <ol class="arabic simple">
 <li><p>每个进程同时到达。</p></li>
@@ -431,17 +439,21 @@
 </ol>
 </div>
 <div class="section" id="id8">
-<h3>性能指标<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h3>
+<h3>性能指标<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
 <p>我们还需给出性能指标，用于衡量，比较和评价不同的调度策略。对于批处理系统中的一般应用而言，可以只有一个性能指标：周转时间（turn around time），即进程完成时间与进程到达时间的差值：</p>
-<div class="math-wrapper"><div class="math notranslate nohighlight">
-\[T_{周转时间} = T_{完成时间} − T_{到达时间}\]</div></div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[T_{周转时间} = T_{完成时间} − T_{到达时间}\]</div>
+</div>
 <p>由于前提条件1 明确指出所有进程在同一时间到达，那么 <span class="math notranslate nohighlight">\(T_{到达时间} = 0\)</span> ，因此 <span class="math notranslate nohighlight">\(T_{周转时间} = T_{完成时间}\)</span> 。除了总的周转时间，我们还需要关注平均周转时间这样的统计值：</p>
-<div class="math-wrapper"><div class="math notranslate nohighlight">
-\[T_{平均周转时间} =  T_{周转时间} / 就绪进程个数\]</div></div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[T_{平均周转时间} =  T_{周转时间} / 就绪进程个数\]</div>
+</div>
 <p>对于单个进程而言，平均周转时间是一个更值得关注的性能指标。</p>
 </div>
 <div class="section" id="id9">
-<h3>先来先服务<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h3>
+<h3>先来先服务<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
 <p>先来先服务（first-come first-severd，也称First-in first-out，先进先出）调度策略的基本思路就是按进程请求处理器的先后顺序来使用处理器。在具体实现上，操作系统首先会建立一个就绪调度队列（简称就绪队列）和一个等待队列（也称阻塞队列）。大致的调度过程如下：</p>
 <ul class="simple">
 <li><p>操作系统每次执行调度时，都是从就绪队列的队头取出一个进程来执行；</p></li>
@@ -455,7 +467,7 @@
 <p>操作系统不会主动打断进程的运行。</p>
 </div>
 <div class="section" id="id10">
-<h3>最短作业优先<a class="headerlink" href="#id10" title="永久链接至标题">¶</a></h3>
+<h3>最短作业优先<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
 <p>满足1~5的约束条件的执行环境太简化和理想化了，在实际系统中，每个应用的执行时间很可能不同，所以约束条件2“每个进程的执行时间相同”就不合适了。如果把约束条件2改为 “每个进程的执行时间不同”，那么在采用先来先服务调度策略的系统中，可能就会出现短进程不得不等长进程结束后才能运行的现象，导致短进程的等待时间太长，且系统的平均周转时间也变长了。</p>
 <p>假设有两个进程PA、PB，它们大致同时到达，但PA稍微快一点，进程PA执行时间为100，进程PB的执行时间为20。如果操作系统采用先来先服务的调度策略，进程的平均周转时间为：</p>
 <blockquote>
@@ -481,10 +493,10 @@
 </div>
 </div>
 <div class="section" id="id11">
-<h2>交互式系统的调度<a class="headerlink" href="#id11" title="永久链接至标题">¶</a></h2>
+<h2>交互式系统的调度<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h2>
 <p>交互式系统是指支持人机交互和各种I/O交互的计算机系统。可抢占任务执行的分时多任务操作系统对人机交互性和I/O及时响应更加友好，对进程特征的约束条件进一步放宽，进程的 <strong>可抢占特性</strong> 需要我们重新思考如何调度。</p>
 <div class="section" id="id12">
-<h3>约束条件<a class="headerlink" href="#id12" title="永久链接至标题">¶</a></h3>
+<h3>约束条件<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
 <p>交互式系统中的进程有如下一些约束/前提条件：</p>
 <ol class="arabic simple">
 <li><p>每个进程可不同时间到达。</p></li>
@@ -496,17 +508,21 @@
 <p>相对于批处理操作系统，约束条件4发生了变化，这意味着在进程执行过程中，操作系统不能忽视其I/O操作。约束条件5也发生了改变，即进程可以被操作系统随时打断和抢占。</p>
 </div>
 <div class="section" id="id13">
-<h3>性能指标<a class="headerlink" href="#id13" title="永久链接至标题">¶</a></h3>
+<h3>性能指标<a class="headerlink" href="#id13" title="永久链接至标题">#</a></h3>
 <p>操作系统支持任务/进程被抢占的一个重要目标是提高用户的交互性体验和减少I/O响应时间。用户希望计算机系统能及时响应他发出的I/O请求（如键盘、鼠标等），但平均周转时间这个性能指标不足以反映人机交互或I/O响应的性能。所以，我们需要定义新的性能指标 – 响应时间（response time）：</p>
-<div class="math-wrapper"><div class="math notranslate nohighlight">
-\[T_{响应时间} = T_{首次执行} - T_{到达时间}\]</div></div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[T_{响应时间} = T_{首次执行} - T_{到达时间}\]</div>
+</div>
 <p>而对应的平均响应时间是：</p>
-<div class="math-wrapper"><div class="math notranslate nohighlight">
-\[T_{平均响应时间} = T_{响应时间} / 就绪进程个数\]</div></div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[T_{平均响应时间} = T_{响应时间} / 就绪进程个数\]</div>
+</div>
 <p>例如，操作系统采用SJF调度策略（不支持抢占进程），有两个进程，PA在时间0到达，执行时间为100， PB在时间20到达，执行时间为20，那么PA的响应时间为0，PB为80，平均响应时间为 40 。</p>
 </div>
 <div class="section" id="stcf">
-<h3>最短完成时间优先（STCF）<a class="headerlink" href="#stcf" title="永久链接至标题">¶</a></h3>
+<h3>最短完成时间优先（STCF）<a class="headerlink" href="#stcf" title="永久链接至标题">#</a></h3>
 <p>由于约束条件5表示了操作系统允许抢占，那么我们就可以实现一种支持进程抢占的改进型SJF调度策略，即最短完成时间优先（Shortest Time to Complet First）调度策略。</p>
 <p>基于前述的例子，操作系统采用STCF调度策略，有两个进程，PA在时间0到达，执行时间为100， PB在时间20到达，执行时间为20，那么周转时间为</p>
 <blockquote>
@@ -517,7 +533,7 @@
 这就引入了新的问题：操作系统如何支持看重响应时间这一指标的应用程序？</p>
 </div>
 <div class="section" id="id14">
-<h3>基于时间片的轮转<a class="headerlink" href="#id14" title="永久链接至标题">¶</a></h3>
+<h3>基于时间片的轮转<a class="headerlink" href="#id14" title="永久链接至标题">#</a></h3>
 <p>如果操作系统分给每个运行的进程的运行时间是一个足够小的时间片（time slice，quantum），时间片一到，就抢占当前进程并切换到另外一个进程执行。这样进程以时间片为单位轮流占用处理器执行。对于交互式进程而言，就有比较大的机会在较短的时间内执行，从而有助于减少响应时间。这种调度策略称为轮转（Round-Robin，简称RR）调度，即基本思路就是从就绪队列头取出一个进程，让它运行一个时间片，然后把它放回到队列尾，再从队列头取下一个进程执行，周而复始。</p>
 <p>在具体实现上，需要考虑时间片的大小，一般时间片的大小会设置为时钟中断的时间间隔的整数倍。比如，时钟中断间隔为1ms，时间片可设置为10ms，两个用户发出了执行两个进程的请求，且两个进程大约同时到达，PA和PB的执行时间都为20s(即20,000ms)。如果采用轮转调度，那么进程的响应时间为:</p>
 <blockquote>
@@ -541,10 +557,10 @@
 </div>
 </div>
 <div class="section" id="id15">
-<h2>通用计算机系统的调度<a class="headerlink" href="#id15" title="永久链接至标题">¶</a></h2>
+<h2>通用计算机系统的调度<a class="headerlink" href="#id15" title="永久链接至标题">#</a></h2>
 <p>个人计算机和互联网的发展推动了计算机的广泛使用，并出现了新的特点，内存越来越大，各种I/O设备成为计算机系统的基本配置，一般用户经常和随时使用交互式应用（如字处理、上网等），驻留在内存中的应用越来越多，应用的启动时间和执行时间无法提前知道。而且很多情况下，处理器大部分时间处于空闲状态，在等待用户或其它各种外设的输入输出操作。</p>
 <div class="section" id="id16">
-<h3>约束条件<a class="headerlink" href="#id16" title="永久链接至标题">¶</a></h3>
+<h3>约束条件<a class="headerlink" href="#id16" title="永久链接至标题">#</a></h3>
 <p>这样，我们的约束条件也随之发生了新的变化：</p>
 <ol class="arabic simple">
 <li><p>每个进程可不同时间到达。</p></li>
@@ -556,17 +572,17 @@
 <p>可以看到，其中的第3点改变了，导致进程的特点也发生了变化。有些进程为I/O密集型的进程，大多数时间用于等待外设I/O操作的完成，需要进程能及时响应。有些进程是CPU密集型的，大部分时间占用处理器进行各种计算，不需要及时响应。还有一类混合型特点的进程，它在不同的执行阶段有I/O密集型或CPU密集型的特点。这使得我们的调度策略需要能够根据进程的动态运行状态进行调整，以应对各种复杂的情况。</p>
 </div>
 <div class="section" id="id17">
-<h3>性能指标<a class="headerlink" href="#id17" title="永久链接至标题">¶</a></h3>
+<h3>性能指标<a class="headerlink" href="#id17" title="永久链接至标题">#</a></h3>
 <p>如果把各个进程运行时间的公平性考虑也作为性能指标，那么我们就需要定义何为公平。我们先给出一个公平的描述性定义：在一个时间段内，操作系统对每个个处于就绪状态的进程均匀分配占用处理器的时间。</p>
 <p>这里需要注意，为了提高一个性能指标，可能会以牺牲其他性能指标作为代价。所以，调度策略需要综合考虑和权衡各个性能指标。在其中找到一个折衷或者平衡。</p>
 </div>
 <div class="section" id="id18">
-<h3>多级反馈队列调度<a class="headerlink" href="#id18" title="永久链接至标题">¶</a></h3>
+<h3>多级反馈队列调度<a class="headerlink" href="#id18" title="永久链接至标题">#</a></h3>
 <p>在无法提前知道进程执行时间的前提下，如何设计一个能同时减少响应时间和周转时间的调度策略是一个挑战。不过计算机科学家早就对此进行深入分析并提出了了解决方案。在1962年，MIT的计算机系教授Fernando Jose Corbato(1990年图灵奖获得者)首次提出多级反馈队列（Multi-level Feedback Queue，简称MLFQ）调度策略，并用于当时的CTSS（兼容时分共享系统）操作系统中。</p>
 <p>Corbato教授的思路很巧妙，用四个字来总结，就是 <strong>以史为鉴</strong> 。即根据进程过去一段的执行特征来预测其未来一段时间的执行情况，并以此假设为依据来动态设置进程的优先级，调度子系统选择优先级最高的进程执行。这里可以看出，进程有了优先级的属性，而且进程的优先级是可以根据过去行为的反馈来动态调整的，不同优先级的进程位于不同的就绪队列中。</p>
 <p>接下来，我们逐步深入分析多级反馈队列调度的设计思想。</p>
 <div class="section" id="id19">
-<h4>固定优先级的多级无反馈队列<a class="headerlink" href="#id19" title="永久链接至标题">¶</a></h4>
+<h4>固定优先级的多级无反馈队列<a class="headerlink" href="#id19" title="永久链接至标题">#</a></h4>
 <p>MLFQ调度策略的关键在于如何设置优先级。一旦设置进程的好优先级，MLFQ总是优先执行唯有高优先级就绪队列中的进程。对于挂在同一优先级就绪队列中的进程，采用轮转调度策略。</p>
 <p>先考虑简单情况下，如果我们提前知道某些进程是I/O密集型的，某些进程是CPU密集型的，那么我们可以给I/O密集型设置高优先级，而CPU密集型进程设置低优先级。这样就绪队列就变成了两个，一个包含I/O密集型进程的高优先级队列，一个是处理器密集型的低优先级队列。</p>
 <p>那我们如何调度呢？MLFQ调度策略是先查看高优先级队列中是否有就绪进程，如果有，就执行它，然后基于时间片进行轮转。由于位于此高优先级队列中的进程都是I/O密集型进程，所以它们很快就会处于阻塞状态，等待I/O设备的操作完成，这就会导致高优先级队列中没有就绪进程。</p>
@@ -585,7 +601,7 @@
 <p>而在进程执行过程中固定进程的优先级，将难以应对上述情况。</p>
 </div>
 <div class="section" id="id20">
-<h4>可降低优先级的多级反馈队列<a class="headerlink" href="#id20" title="永久链接至标题">¶</a></h4>
+<h4>可降低优先级的多级反馈队列<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h4>
 <p>改进的MLFQ调度策略需要感知进程的过去执行特征，并根据这种特征来预测进程的未来特征。简单地说，就是如果进程在过去一段时间是I/O密集型特征，就调高进程的优先级；如果进程在过去一段时间是CPU密集型特征，就降低进程的优先级。
 由于会动态调整进程的优先级，所以，操作系统首先需要以优先级的数量来建立多个队列。当然这个数量是一个经验值，比如Linux操作系统设置了140个优先级。</p>
 <p>那如何动态调整进程的优先级呢？首先，我们假设新创建的进程是I/O密集型的，可以把它设置为最高优先级。接下来根据它的执行表现来调整其优先级。如果在分配给它的时间配额内，它睡眠或等待I/O事件完成而主动放弃了处理器，操作系统预测它接下来的时间配额阶段很大可能还是具有I/O密集型特征，所以就保持其优先级不变。如果进程用完了分配给它的时间配额，操作系统预测它接下来有很大可能还是具有CPU密集型特征，就会降低其优先级。
@@ -604,7 +620,7 @@
 <p>这主要是调度策略还缺少提升优先级的灵活规则。</p>
 </div>
 <div class="section" id="id21">
-<h4>可提升/降低优先级的多级反馈队列<a class="headerlink" href="#id21" title="永久链接至标题">¶</a></h4>
+<h4>可提升/降低优先级的多级反馈队列<a class="headerlink" href="#id21" title="永久链接至标题">#</a></h4>
 <p>对于可降低优先级的多级反馈队列调度策略难以解决的上述情况1和2，我们需要考虑如何提升某些进程的优先级。一个可以简单实现的优化思路是，每过一段时间，周期性地把所有进程的优先级都设置为最高优先级。这样长进程不会饿死；而被降到最低优先级的进程，如果当前处于I/O密集型任务，至少在一段时间后，会重新减少其响应时间。不过这个“一段时间”的具体值如何设置？看起来又是一个经验值。这样，我们又扩展了MLFQ的基本规则。</p>
 <ol class="arabic simple" start="5">
 <li><p>经过一段时间，把所有就绪进程重新加入最高优先级队列。</p></li>
@@ -622,7 +638,7 @@
 </div>
 </div>
 <div class="section" id="id22">
-<h3>公平份额调度<a class="headerlink" href="#id22" title="永久链接至标题">¶</a></h3>
+<h3>公平份额调度<a class="headerlink" href="#id22" title="永久链接至标题">#</a></h3>
 <p>在大公司的数据中心中有着大量的计算机服务器，给互联网上的人们提供各种各样的服务。在这样的服务器中，有着相对个人计算机而言更加巨大的内存和强大的计算处理能力，给不同用户提供服务的各种进程的数量也越来越多。这个时候，面向用户或进程相对的公平性就是不得不考虑的一个问题，甚至时要优先考虑的性能指标。比如，在提供云主机的数据中心中，用户可能会希望分配20%的处理器时间给Windows虚拟机，80%的处理器时间给Linux系统，如果采用公平份额调度的方式可以更简单高效。</p>
 <p>从某种程度上看，MLFQ调度策略总提到的优先级就是对公平性的一种划分方式，有些进程优先级高，会更快地得到处理器执行，所分配到的处理器时间也多一些。但MLFQ并不是把公平性放在第一位。如果把公平性放在首位，我们就可以设计出另外一类调度策略 – 公平份额（Fair Share，又称为 比例份额，Proportional Share）调度。其基本思路是基于每个进程的重要性（即优先级）的比例关系，分配给该进程同比例的处理器执行时间。</p>
 <p>在1993~1994年，MIT的计算机系博士生Carl A. Waldspurger 和他的导师 William E. Weihl提出了与众不同的调度策略：彩票调度（Lottery Scheduling）和步长调度（Stride Scheduling）。它们都属于公平份额调度策略。彩票调度很有意思，它是从经济学的的彩票行为中吸取营养，模拟了购买彩票和中奖的随机性，给每个进程发彩票，进程优先级越高，所得到的彩票就越多；然后每隔一段时间（如，一个时间片），举行一次彩票抽奖，抽出来的号属于哪个进程，哪个进程就能运行。</p>
@@ -642,12 +658,12 @@
 </div>
 </div>
 <div class="section" id="id23">
-<h2>实时计算机系统的调度<a class="headerlink" href="#id23" title="永久链接至标题">¶</a></h2>
+<h2>实时计算机系统的调度<a class="headerlink" href="#id23" title="永久链接至标题">#</a></h2>
 <p>计算机系统的应用领域非常广泛，如机器人、物联网、军事、工业控制等。在这些领域中，要求计算机系统能够实时响应，如果采用上述调度方式，不能满足这些需求，这对操作系统提出了新的挑战。</p>
 <p>这里，我们首先需要理解实时的含义。实时计算机系统通常可以分为硬实时（Hard Real Time）和软实时（Soft Real Time）两类，硬实时是指任务完成时间必须在绝对的截止时间内，如果超过意味着错误和失败，可能导致严重后果。软实时是指任务完成时间尽量在绝对的截止时间内，偶尔超过可以接受。</p>
 <p>实时的任务是由一组进程来实现，其中每个进程的行为是可预测和提前确定的。这些进程称为实时进程，它们的执行时间一般较短。支持实时任务的操作系统称为实时操作系统。</p>
 <div class="section" id="id24">
-<h3>约束条件<a class="headerlink" href="#id24" title="永久链接至标题">¶</a></h3>
+<h3>约束条件<a class="headerlink" href="#id24" title="永久链接至标题">#</a></h3>
 <p>实时计算机系统是一种以确定的时间范围起到主导作用的计算机系统，一旦外设发给计算机一个事件（如时钟中断、网络包到达等），计算机必须在一个确定时间范围内做出响应。</p>
 <p>实时计算机系统中的事件可以按照响应方式进一步分类为周期性（以规则的时间间隔发生）事件或非周期性（发生时间不可预知）事件。一个系统可能要响应多个周期性事件流。根据每个事件需要处理时间的长短，系统甚至有可能无法处理完所有的事件。</p>
 <p>这样，实时计算机系统的约束条件也随之发生了新的变化：</p>
@@ -663,7 +679,7 @@
 <p>这里主要增加了第6和7点。第6点说明了实时进程的特点，第7点说明了操作系统调度的特点。</p>
 </div>
 <div class="section" id="id25">
-<h3>性能指标<a class="headerlink" href="#id25" title="永久链接至标题">¶</a></h3>
+<h3>性能指标<a class="headerlink" href="#id25" title="永久链接至标题">#</a></h3>
 <p>对于实时计算机系统而言，进程的周转时间快和响应时间低这样的性能指标并不是最主要的，进程要在指定的绝对的截止时间内完成是第一要务。这里首先需要理解实时计算机系统的可调度性。如果有m个周期事件，事件i以周期时间Pi 发生，并需要Ci 时间处理一个事件，那么计算机系统可以处理任务量（也称负载）的条件是：</p>
 <blockquote>
 <div><p>SUM(Ci/Pi) &lt;= 1</p>
@@ -681,7 +697,7 @@
 <p>实时计算机系统的调度策略/算法可以是静态或动态的。静态调度在进程开始运行之前就作出调度决策；而动态调度要在运行过程中进行调度决策。只有在预知进程要所完成的工作时间上限以及必须满足的截止时间等全部信息时，静态调度才能工作；而动态调度则不需要这些前提条件。</p>
 </div>
 <div class="section" id="id26">
-<h3>速率单调调度<a class="headerlink" href="#id26" title="永久链接至标题">¶</a></h3>
+<h3>速率单调调度<a class="headerlink" href="#id26" title="永久链接至标题">#</a></h3>
 <p>速率单调调度（Rate Monotonic Scheduling，RMS）算法是由刘炯朗（Chung Laung Liu）教授和James W. Layland在1973年提出的。该算法的基本思想是根据进程响应事件的执行周期的长短来设定进程的优先级，即执行周期越短的进程优先级越高。操作系统在调度过程中，选择优先级最高的就绪进程执行，高优先级的进程会抢占低优先级的进程。</p>
 <p>该调度算法有如下的前提假设：</p>
 <ol class="arabic simple">
@@ -695,7 +711,7 @@
 <p>采用抢占的、静态优先级的策略，调度周期性任务。</p>
 </div>
 <div class="section" id="edf">
-<h3>EDF调度<a class="headerlink" href="#edf" title="永久链接至标题">¶</a></h3>
+<h3>EDF调度<a class="headerlink" href="#edf" title="永久链接至标题">#</a></h3>
 <p>另一个典型的实时调度算法是最早截止时间优先（Earliest Deadline First，EDF）算法，其基本思想是根据进程的截止时间来确定任务的优先级。截止时间越早，其优先级就越高。如果进程的截止期相同，则处理时间短的进程优先级高。操作系统在调度过程中，选择优先级最高的就绪进程执行，高优先级的进程会抢占低优先级的进程。</p>
 <p>该调度算法有如下的前提假设：</p>
 <ol class="arabic simple">
@@ -707,7 +723,7 @@
 <p>EDF调度算法按照进程的截止时间的早晚来分配优先级，截止时间越近的进程优先级越高。操作系统在进行进程调度时，会根据各个进程的截止时间重新计算进程优先级，并选择优先级最高的进程执行，即操作系统总是优先运行最紧迫的进程。在不同时刻，两个周期性进程的截止时间的早晚关系可能会变化，所以EDF调度算法是一种动态优先级调度算法。</p>
 </div>
 <div class="section" id="id27">
-<h3>实时调度实例<a class="headerlink" href="#id27" title="永久链接至标题">¶</a></h3>
+<h3>实时调度实例<a class="headerlink" href="#id27" title="永久链接至标题">#</a></h3>
 <p>系统中有三个周期性进程PA、PB和PC，它们在一开始就处于就绪状态，它们的执行周期分别是20ms、50ms和100ms，它们响应事件的处理时间分别为5ms、20ms和25ms。操作系统需要考虑如何调度PA、PB和PC，以确保它们在周期性的截止时间（最终时限，即当前执行周期的绝对时间）到来前都能完成各自的任务。</p>
 <p>我们先分析一下系统的可调度性：</p>
 <blockquote>
@@ -748,7 +764,7 @@
 </div>
 </div>
 <div class="section" id="id28">
-<h2>多处理器计算机系统的调度<a class="headerlink" href="#id28" title="永久链接至标题">¶</a></h2>
+<h2>多处理器计算机系统的调度<a class="headerlink" href="#id28" title="永久链接至标题">#</a></h2>
 <p>在2000年前，多处理器计算机的典型代表是少见的高端服务器和超级计算机，但到了2000年后，单靠提高处理器的频率越来越困难，而芯片的集成度还在进一步提升，所以在一个芯片上集成多个处理器核成为一种自然的选择。到目前位置，在个人计算机、以手机为代表的移动终端上，多核处理器（Multi Core）已成为一种普遍的现象，多个处理器核能够并行执行，且可以共享Cache和内存。</p>
 <p>之前提到的调度策略/算法都是面向单处理器的，如果把这些策略和算法扩展到多处理器环境下，是否需要解决新问题？</p>
 <div class="admonition note">
@@ -756,7 +772,7 @@
 <p>并行处理需要了解更多的硬件并行架构问题和软件的同步互斥等技术，而深入的硬件并行架构目前不在本书的范畴之内，同步互斥等技术在后续章节才介绍。按道理需要先学习这些内容才能真正和深入理解本小节的内容，但本小节的内容在逻辑上都属于进程调度的范畴，所以就放在这里了。建议可以先大致学习本小节内容，在掌握了进程间同学、同步互斥等技术后，再回头重新学习一些本小节内容。</p>
 </div>
 <div class="section" id="id29">
-<h3>约束条件<a class="headerlink" href="#id29" title="永久链接至标题">¶</a></h3>
+<h3>约束条件<a class="headerlink" href="#id29" title="永久链接至标题">#</a></h3>
 <p>为了理解多处理器调度需要解决的新问题，我们需要理解单处理器计算机与多处理器计算机的基本区别。对于多处理器计算机而言，每个处理器核心会有共享的Cache，也会有它们私有的Cache，而各自的私有Cache中的数据有硬件来保证数据的Cache一致性（也称缓存一致性）。</p>
 <p>简单地说，位于不同私有Cache中的有效数据（是某一内存单元的值）要保证是相同的，这样处理器才能取得正确的数据，保证计算的正确性，这就是Cache一致性的基本含义。保证一致性的控制逻辑是由硬件来完成的，对操作系统和应用程序而言，是透明的。</p>
 <p>在共享Cache和内存层面，由于多个处理器可以并行访问位于共享Cache和内存中的共享数据，所以需要有后面章节讲解的同步互斥机制来保证程序执行的正确性。这里，我们仅仅介绍一下简单的思路。</p>
@@ -775,11 +791,11 @@ t1: CurID = CurID+1    CurID = CurID +1</p>
 </ol>
 </div>
 <div class="section" id="id30">
-<h3>性能指标<a class="headerlink" href="#id30" title="永久链接至标题">¶</a></h3>
+<h3>性能指标<a class="headerlink" href="#id30" title="永久链接至标题">#</a></h3>
 <p>这里的性能指标与之前描述的基于单处理器的通用计算机系统一样，主要是周转时间、响应时间和公平性。</p>
 </div>
 <div class="section" id="id31">
-<h3>单队列调度<a class="headerlink" href="#id31" title="永久链接至标题">¶</a></h3>
+<h3>单队列调度<a class="headerlink" href="#id31" title="永久链接至标题">#</a></h3>
 <p>对于多处理器系统而言，两个进程数量多于处理器个数，我们希望每个处理器都执行进程。这一点是之前单处理器调度不会碰到的情况。单处理器的调度只需不断地解答：“接下来应该运行哪个进程？”，而在多处理机中，调度还需解答一个问题：“要运行的进程在哪一个CPU上运行？”。这就增加了调度的复杂性。</p>
 <p>如果我们直接使用单处理器调度的数据结构，其中的重点就是放置就绪进程的就绪队列或其他与调度相关的数据结构。那么这些数据结构就是需要互斥访问的共享数据。 为简化分析过程，我们以轮转调度采用的单就绪队列为例，面向多处理器的单队列调度的策略逻辑没有改变，只是在读写/修改就绪队列等共享数据时，需要用同步互斥的一些操作保护起来，确保对这些共享数据访问的正确性。</p>
 <p>采用单队列调度的一个好处是，它支持自动负载平衡，因为决不会出现一个CPU空闲而其他CPU过载的情况。</p>
@@ -787,7 +803,7 @@ t1: CurID = CurID+1    CurID = CurID +1</p>
 <p>另外，还需考虑的一个性能问题是调度中的处理器亲和性（也称缓存亲和性、调度亲和性）问题。其基本思想是，尽量使一个进程在它前一次运行过的同一个CPU上运行。其原因是，现代的处理器都有私有Cache，基于局部性的考虑，如果操作系统在下次调度时要给该进程选择处理器，会优先选择该进程上次执行所在的处理器，从而使得Cache中缓存的数据可重用，提高了进程执行的局部性。</p>
 </div>
 <div class="section" id="id32">
-<h3>多队列调度<a class="headerlink" href="#id32" title="永久链接至标题">¶</a></h3>
+<h3>多队列调度<a class="headerlink" href="#id32" title="永久链接至标题">#</a></h3>
 <p>如果处理器的个数较多，频繁对共享数据执行同步互斥操作的开销会很大。为此，能想到的一个方法是，还是保持单处理器调度策略的基本逻辑，但把就绪队列或和他与调度相关的数据结构按处理器个数复制多份，这样操作系统在绝大多数情况下，只需访问本处理器绑定的调度相关数据结构，就可用完成调度操作。这样在一个调度控制框架下就包含多个调度队列。当要把一个新进程或被唤醒的进程放入就绪队列时，操作系统可根据一些启发式方法（如随机选择某个处理器上的就绪队列或选择就绪进程数量最少的就绪队列）来放置进程到某个就绪队列。操作系统通过访问本处理器上的调度相关数据结构，就可以选择出要执行的进程，这样就避免了开销大的同步互斥操作。</p>
 <p>多队列调度比单队列调度具有更好的可扩展性，多队列的数量会随着处理器的增加而增加，也具有良好的缓存亲和度。当多队列调度也有它自己的问题：负载均衡（Load Balance）问题。</p>
 <p>考虑如下的例子，在一个有4个进程，两个处理器的计算机系统中，有两个就绪队列，PA和PB在就绪队列Q1，PC和PD在就绪队列Q2，如果采用基于轮转调度的多队列调度，那么两个处理器可以均匀地让4给进程分时使用处理器。这是一种理想的情况。如果进程PB结束，而调度不进行进一步的干预，那么就会出现PA独占处理器1，PC和PD分时共享处理器2。如果PA也结束了，而调度还不进行进一步的干预，那么（Load Imbalance）就会出现处理器1空闲，而处理器2繁忙的情况，这就是典型的负载不均衡（Load Imbalance）的现象了。这就没有达到轮转调度的意图。</p>
@@ -805,12 +821,13 @@ t1: CurID = CurID+1    CurID = CurID +1</p>
 </div>
 </div>
 <div class="section" id="id33">
-<h2>小结<a class="headerlink" href="#id33" title="永久链接至标题">¶</a></h2>
+<h2>小结<a class="headerlink" href="#id33" title="永久链接至标题">#</a></h2>
 <p>本节对多种类型的计算机系统和不同类型的应用特征进行了分析，并给出了不同的性能指标，这些都是设计调度策略/算法的前提条件。我们给出了从简单到复杂的多种调度策略和算法，这些策略和方法相对于实际的操作系统而言，还很简单，不够实用，但其中的基本思想是一致的。如果同学们需要了解实际的操作系统调度策略和算法，建议阅读关于UNIX、Linux、Windows和各种RTOS等操作系统内核的书籍和文章，其中有关于这些操作系统的调度策略和算法的深入讲解。</p>
 </div>
 </div>
 
-      </article>
+        </article>
+      </div>
       <footer>
         
         <div class="related-pages">
@@ -835,19 +852,21 @@ t1: CurID = CurID+1    CurID = CurID +1</p>
               </div>
             </a>
         </div>
-
-        <div class="related-information">
-              Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
-            |
-            Built with <a href="https://www.sphinx-doc.org/">Sphinx</a>
-              and
-              <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
-              <a href="https://github.com/pradyunsg/furo">Furo theme</a>.
-            |
-            <a class="muted-link" href="../_sources/chapter5/4scheduling.rst.txt"
-               rel="nofollow">
-              显示源代码
-            </a>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
         </div>
         
       </footer>
@@ -928,7 +947,7 @@ t1: CurID = CurID+1    CurID = CurID +1</p>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/scripts/main.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
     <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {

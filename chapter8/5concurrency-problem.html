@@ -4,11 +4,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="练习" href="6exercise.html" /><link rel="prev" title="条件变量机制" href="4condition-variable.html" />
 
-    <meta name="generator" content="sphinx-4.1.2, furo 2021.08.31"/>
+    <meta name="generator" content="sphinx-4.3.2, furo 2022.06.21"/>
         <title>并发中的问题 - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=c7c65a82b42f6b978e58466c1e9ef2509836d916" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=16fb25fabf47304eee183a5e9af80b1ba98259b1" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     <link rel="stylesheet" type="text/css" href="../_static/my_style.css" />
     
     
@@ -20,38 +20,38 @@
   --color-code-foreground: black;
   
   }
-  body[data-theme="dark"] {
-    --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
-  
-  }
-  @media (prefers-color-scheme: dark) {
-    body:not([data-theme="light"]) {
+  @media not print {
+    body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
   
     }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
   }
 </style></head>
   <body>
+    
     <script>
       document.body.dataset.theme = localStorage.getItem("theme") || "auto";
     </script>
     
+
 <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
   <symbol id="svg-toc" viewBox="0 0 24 24">
     <title>Contents</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path stroke="none" d="M0 0h24v24H0z" />
-      <line x1="4" y1="6" x2="20" y2="6" />
-      <line x1="10" y1="12" x2="20" y2="12" />
-      <line x1="6" y1="18" x2="20" y2="18" />
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
     </svg>
   </symbol>
   <symbol id="svg-menu" viewBox="0 0 24 24">
     <title>Menu</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
       <line x1="3" y1="12" x2="21" y2="12"></line>
       <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -60,14 +60,14 @@
   </symbol>
   <symbol id="svg-arrow-right" viewBox="0 0 24 24">
     <title>Expand</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
       <polyline points="9 18 15 12 9 6"></polyline>
     </svg>
   </symbol>
   <symbol id="svg-sun" viewBox="0 0 24 24">
     <title>Light mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
       <circle cx="12" cy="12" r="5"></circle>
       <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -82,7 +82,7 @@
   </symbol>
   <symbol id="svg-moon" viewBox="0 0 24 24">
     <title>Dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
       <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
@@ -90,7 +90,7 @@
   </symbol>
   <symbol id="svg-sun-half" viewBox="0 0 24 24">
     <title>Auto light/dark mode</title>
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
       <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
       <circle cx="12" cy="12" r="9" />
@@ -357,13 +357,20 @@
 
 </div>
 </div>
+
       </div>
       
     </div>
   </aside>
   <div class="main">
     <div class="content">
-      <article role="main">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
         <div class="content-icon-container">
           <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
@@ -378,26 +385,27 @@
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
         </div>
-        <div class="section" id="id1">
-<h1>并发中的问题<a class="headerlink" href="#id1" title="永久链接至标题">¶</a></h1>
+        <article role="main">
+          <div class="section" id="id1">
+<h1>并发中的问题<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h1>
 <div class="section" id="id2">
-<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">¶</a></h2>
+<h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
 <p>应用程序员在开发并发应用的过程中，经常由于各种``不小心``编写出各种并发缺陷。并发缺陷有很多种，典型的主要有三类：互斥缺陷、同步缺陷和死锁缺陷。了解这些缺陷的模式是写出健壮、正确并发程序关键。</p>
 </div>
 <div class="section" id="id3">
-<h2>互斥缺陷<a class="headerlink" href="#id3" title="永久链接至标题">¶</a></h2>
+<h2>互斥缺陷<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
 <p>互斥缺陷也称为违反原子性缺陷，在并发应用程序中对共享变量没进行合理的保护是导致出现这类缺陷的一个重要原因。下面是一个简单的例子：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>static mut A: usize = 0;
 <span class="linenos"> 2</span>...
 <span class="linenos"> 3</span>unsafe fn thr1() -&gt; ! {
 <span class="hll"><span class="linenos"> 4</span>    if (A == 0) {
-</span><span class="linenos"> 5</span>      println!("thr1: A is Zero  --&gt; {}", A)；
+</span><span class="linenos"> 5</span>      println!(&quot;thr1: A is Zero  --&gt; {}&quot;, A)；
 <span class="linenos"> 6</span>    }
 <span class="linenos"> 7</span>    ...
 <span class="linenos"> 8</span>}
 <span class="linenos"> 9</span>unsafe fn thr2() -&gt; ! {
 <span class="hll"><span class="linenos">10</span>    A = A+1;
-</span><span class="linenos">11</span>    println!("thr2: A is One  --&gt; {}", A)；
+</span><span class="linenos">11</span>    println!(&quot;thr2: A is One  --&gt; {}&quot;, A)；
 <span class="linenos">12</span>}
 </pre></div>
 </div>
@@ -408,7 +416,7 @@
 <span class="linenos"> 3</span>unsafe fn thr1() -&gt; ! {
 <span class="linenos"> 4</span>    mutex.lock();
 <span class="linenos"> 5</span>    if (A == 0) {
-<span class="linenos"> 6</span>      println!("thr1: A is Zero  --&gt; {}", A)；
+<span class="linenos"> 6</span>      println!(&quot;thr1: A is Zero  --&gt; {}&quot;, A)；
 <span class="linenos"> 7</span>    }
 <span class="linenos"> 8</span>    mutex.unlock();
 <span class="linenos"> 9</span>    ...
@@ -416,7 +424,7 @@
 <span class="linenos">11</span>unsafe fn thr2() -&gt; ! {
 <span class="linenos">12</span>    mutex.lock();
 <span class="linenos">13</span>    A = A+1;
-<span class="linenos">14</span>    println!("thr2: A is One  --&gt; {}", A)；
+<span class="linenos">14</span>    println!(&quot;thr2: A is One  --&gt; {}&quot;, A)；
 <span class="linenos">15</span>    mutex.unlock();
 <span class="linenos">16</span>}
 </pre></div>
@@ -424,7 +432,7 @@
 <p>这种问题如果能发现，那么修复相对比较简单，即在对共享变量进行访问的代码区域前后加上请求锁和释放锁的操作。但主要的问题是发现缺陷比较难，特别是代码量比较大，代码的控制逻辑比较复杂的情况。</p>
 </div>
 <div class="section" id="id4">
-<h2>同步缺陷<a class="headerlink" href="#id4" title="永久链接至标题">¶</a></h2>
+<h2>同步缺陷<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
 <p>同步缺陷也称为违反顺序缺陷，在并发应用程序中对共享变量访问的先后顺序的可能性没有充分分析是导致出现这类缺陷的一个重要原因。下面是一个简单的例子：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
@@ -435,9 +443,9 @@
 <span class="linenos"> 7</span><span class="p">}</span><span class="w"></span>
 <span class="linenos"> 8</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="hll"><span class="linenos"> 9</span><span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="n">A</span><span class="o">==</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-</span><span class="linenos">10</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">"Correct"</span><span class="p">);</span><span class="w"></span>
+</span><span class="linenos">10</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Correct&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">11</span><span class="w">   </span><span class="p">}</span><span class="k">else</span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">"Panic"</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Panic&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">13</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
 <span class="linenos">14</span><span class="p">}</span><span class="w"></span>
 <span class="linenos">15</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
@@ -463,9 +471,9 @@
 <span class="hll"><span class="linenos"> 9</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 </span><span class="linenos">10</span><span class="w">   </span><span class="n">semaphore</span><span class="p">.</span><span class="n">down</span><span class="p">();</span><span class="w">  </span><span class="c1">// 需要等待 semaphore.up()的唤醒</span>
 <span class="linenos">11</span><span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="n">A</span><span class="o">==</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">"Correct"</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Correct&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">13</span><span class="w">   </span><span class="p">}</span><span class="k">else</span><span class="p">{</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">"Panic"</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Panic&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="linenos">15</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
 <span class="linenos">16</span><span class="p">}</span><span class="w"></span>
 <span class="linenos">17</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
@@ -482,7 +490,7 @@
 <p>也许有同学说，这样的错误缺陷很容易发现呀，只要开发者在编写时注意一下，就可以了。但其实不尽然，因为我们这里给出的是一个刻意简化的例子，在实际的并发应用程序中，由于代码量远大于这个例子，控制逻辑会有循环、跳转、函数调用等，涉及到的共享变量的数量、访问操作，以及与互斥/同步操作的关系等会错综复杂，难以一下子就能一目了然地分析清楚，导致很容易出现互斥和同步缺陷。</p>
 </div>
 <div class="section" id="id5">
-<h2>死锁缺陷<a class="headerlink" href="#id5" title="永久链接至标题">¶</a></h2>
+<h2>死锁缺陷<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
 <p>除了上面的两类并发缺陷，还有一类导致程序无法正常执行的并发缺陷 – 死锁（Dead lock）。在并发应用中，经常需要线程排他性地访问若干种资源。大部分死锁都和不可抢占的资源相关，这里把线程需要申请获取、排他性使用和释放的对象称为资源（resource）。需要互斥访问的共享变量就是一种资源。操作系统通过互斥锁、信号量或条件变量等同步互斥机制，能授权一个线程（临时）具有排他地访问某一种资源的能力。下面是一个死锁的例子：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">   </span><span class="n">mutex1</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
@@ -517,17 +525,17 @@
 <li><p>循环等待：线程之间存在一个资源持有/等待的环，环上每个线程都持有部分资源，而这部分资源又是下一个线程在等待申请的资源。</p></li>
 </ul>
 <div class="section" id="id6">
-<h3>死锁预防<a class="headerlink" href="#id6" title="永久链接至标题">¶</a></h3>
+<h3>死锁预防<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
 <p>如果线程间产生了死锁，那么上面四个条件一定会发生。换个角度来看，如果这四个条件中的任意一个没有满足，死锁就不会产生。</p>
 <p>一个比较实用的预防死锁的方法是打破循环等待，具体做法就是给锁/访问的资源进行排序，要求每个线程都按照排好的顺序依次申请锁和访问资源。这种顺序性避免了循环等待，也就不会产生死锁。</p>
 </div>
 <div class="section" id="id7">
-<h3>死锁避免<a class="headerlink" href="#id7" title="永久链接至标题">¶</a></h3>
+<h3>死锁避免<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
 <p>计算机科学家Dijkstra在1965年为THE操作系统设计提出的一种死锁避免（avoidance）的调度算法，称为银行家算法（banker’s algorithm）算法的核心是判断满足线程的资源请求是否会导致整个系统进入不安全状态。如果是，就拒绝线程的资源请求；如果满足请求后系统状态仍然是安全的，就分配资源给线程。</p>
 <p>状态是安全的，是指存在一个资源分配/线程执行序列使得所有的线程都能获取其所需资源并完成线程的工作。如果找不到这样的资源分配/线程执行序列，那么状态是不安全的。这里把线程的执行过程简化为：申请资源、释放资源的一系列资源操作。这意味这线程执行完毕后，会释放其占用的所有资源。</p>
 <p>我们需要知道，不安全状态并不等于死锁，而是指有死锁的可能性。安全全状态和不安全状态的区别是：从安全状态出发，操作系统通过调度线程执行序列，能够保证所有线程都能完成，一定不会出现死锁；而从不安全状态出发，就没有这样的保证，可能出现死锁。</p>
 <div class="section" id="id8">
-<h4>银行家算法的数据结构<a class="headerlink" href="#id8" title="永久链接至标题">¶</a></h4>
+<h4>银行家算法的数据结构<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h4>
 <p>为了描述操作系统中可利用的资源、所有线程对资源的最大需求、系统中的资源分配，以及所有线程还需要多少资源的情况，需要定义对应的四个数据结构：</p>
 <ul class="simple">
 <li><p>可利用资源向量 Available：含有 m 个元素的一维数组，每个元素代表可利用的某一类资源的数目，其初值是该类资源的全部可用数目，其值随该类资源的分配和回收而动态地改变。Available[j] = k，表示第j类资源的可用数量为k。</p></li>
@@ -539,7 +547,7 @@
 <p>Need[i,j] = Max[i,j] - allocation[i, j]</p>
 </div>
 <div class="section" id="id9">
-<h4>银行家算法的步骤<a class="headerlink" href="#id9" title="永久链接至标题">¶</a></h4>
+<h4>银行家算法的步骤<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h4>
 <p>设 Request是线程的请求资源矩阵，如果 Requesti[i,j] = t，表示线程thr[i]需要t个第j类型的资源。当线程thr[i]发出资源请求后，操作系统的银行家算法按下述步骤执行:</p>
 <ol class="arabic simple">
 <li><p>如果 Request[i,j] ≤ Need[i,j]，则转步骤2；否则出错，因为线程所需的资源数已超过它所宣布的最大值。</p></li>
@@ -556,7 +564,7 @@
 </ol>
 </div>
 <div class="section" id="id10">
-<h4>安全性检查算法<a class="headerlink" href="#id10" title="永久链接至标题">¶</a></h4>
+<h4>安全性检查算法<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h4>
 <p>安全性检查算法如下:</p>
 <ol class="arabic simple">
 <li><p>设置两个向量:工作向量Work，表示操作系统可提供给线程继续运行所需的各类资源数目，它含有m个元素，初始时，Work = Available；结束向量Finish，表示系统是否有足够的资源分配给线程，使之运行完成。初始时 Finish[0..n-1] = false，表示所有线程都没结束；当有足够资源分配给线程时，设置Finish[i] = true。</p></li>
@@ -584,7 +592,8 @@
 </div>
 </div>
 
-      </article>
+        </article>
+      </div>
       <footer>
         
         <div class="related-pages">
@@ -609,19 +618,21 @@
               </div>
             </a>
         </div>
-
-        <div class="related-information">
-              Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
-            |
-            Built with <a href="https://www.sphinx-doc.org/">Sphinx</a>
-              and
-              <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
-              <a href="https://github.com/pradyunsg/furo">Furo theme</a>.
-            |
-            <a class="muted-link" href="../_sources/chapter8/5concurrency-problem.rst.txt"
-               rel="nofollow">
-              显示源代码
-            </a>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
         </div>
         
       </footer>
@@ -667,7 +678,7 @@
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/doctools.js"></script>
-    <script src="../_static/scripts/main.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
     <script kind="utterances">
 
     var commentsRunWhenDOMLoaded = cb => {
