@@ -86,12 +86,10 @@
     // 设置要阻止的信号
     // mask：信号掩码
     sys_sigprocmask(mask: u32) -> isize 
-    ```
-    ```rust
+ 
     // 清除堆栈帧，从信号处理例程返回
      sys_sigreturn() -> isize
-    ```
-    ```rust
+ 
     // 将某信号发送给某进程
     // pid：进程pid
     // signal：信号的整数码

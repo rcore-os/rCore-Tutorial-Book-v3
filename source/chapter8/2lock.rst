@@ -280,7 +280,7 @@ CAS原子指令和TAS原子指令
     :linenos:
 
     fn TestAndSet(old_ptr: &mut i32, new:i32) -> i32 {
-        let old ：i32 = *old_ptr; // 取得 old_ptr 指向内存单元的旧值 old
+        let old :i32 = *old_ptr; // 取得 old_ptr 指向内存单元的旧值 old
         *old_ptr = new;           // 把新值 new 存入到 old_ptr 指向的内存单元中
         old                       // 返回旧值 old
     }
@@ -503,32 +503,34 @@ mutex系统调用的实现
 
 .. code-block:: Rust
     :linenos:
-    :emphasize-lines: 14,30
+    :emphasize-lines: 17,20
 
 	// os/src/syscall/sync.rs
-	pub fn sys_mutex_create(blocking: bool) -> isize {
-	    let process = current_process();
-	    let mut process_inner = process.inner_exclusive_access();
-	    if let Some(id) = process_inner
-	        .mutex_list
-	        .iter()
-	        .enumerate()
-	        .find(|(_, item)| item.is_none())
-	        .map(|(id, _)| id) {
-	        process_inner.mutex_list[id] = if !blocking {
-	            Some(Arc::new(MutexSpin::new()))
-	        } else {
-	            Some(Arc::new(MutexBlocking::new()))
-	        };
-	        id as isize
-	    } else {
-	        process_inner.mutex_list.push(Some(Arc::new(MutexSpin::new())));
-	        process_inner.mutex_list.len() as isize - 1
-	    }
-	}
+    pub fn sys_mutex_create(blocking: bool) -> isize {
+        let process = current_process();
+        let mutex: Option<Arc<dyn Mutex>> = if !blocking {
+            Some(Arc::new(MutexSpin::new()))
+        } else {
+            Some(Arc::new(MutexBlocking::new()))
+        };
+        let mut process_inner = process.inner_exclusive_access();
+        if let Some(id) = process_inner
+            .mutex_list
+            .iter()
+            .enumerate()
+            .find(|(_, item)| item.is_none())
+            .map(|(id, _)| id)
+        {
+            process_inner.mutex_list[id] = mutex;
+            id as isize
+        } else {
+            process_inner.mutex_list.push(mutex);
+            process_inner.mutex_list.len() as isize - 1
+        }
+    }
 
-- 第14行，如果向量中有空的元素，就在这个空元素的位置创建一个可睡眠的互斥锁；
-- 第30行，如果向量满了，就在向量中添加新的可睡眠的互斥锁；
+- 第17行，如果向量中有空的元素，就在这个空元素的位置创建一个可睡眠的互斥锁；
+- 第20行，如果向量满了，就在向量中添加新的可睡眠的互斥锁；
 
 
 有了互斥锁，接下来就是实现 ``Mutex`` trait的内核函数：对应 ``SYSCALL_MUTEX_LOCK`` 系统调用的 ``sys_mutex_lock`` 。操作系统主要工作是，在锁已被其他线程获取的情况下，把当前线程放到等待队列中，并调度一个新线程执行。主要代码如下：

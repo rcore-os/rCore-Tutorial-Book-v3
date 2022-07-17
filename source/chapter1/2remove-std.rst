@@ -209,6 +209,7 @@
 对于上面这个被移除标准库的应用程序，通过了编译器的检查和编译，形成了二进制代码。但这个二进制代码是怎样的，它能否被正常执行呢？为了分析这些程序，首先需要安装 cargo-binutils 工具集：
 
 .. code-block:: console
+
    $ cargo install cargo-binutils
    $ rustup component add llvm-tools-preview
 
