@@ -184,3 +184,6 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. 请学习 gdb 调试工具的使用(这对后续调试很重要)，并通过 gdb 简单跟踪从机器加电到跳转到 0x80200000 的简单过程。只需要描述重要的跳转即可，只需要描述在 qemu 上的情况。
+
+
+.. [#qemu_bootrom] https://github.com/qemu/qemu/blob/0ebf76aae58324b8f7bf6af798696687f5f4c2a9/hw/riscv/boot.c#L300

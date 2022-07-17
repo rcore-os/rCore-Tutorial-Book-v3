@@ -502,6 +502,8 @@
 </div>
 <div class="section" id="id6">
 <h2>进程标识符和内核栈<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
+<div class="section" id="id7">
+<h3>进程标识符<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
 <p>同一时间存在的所有进程都有一个唯一的进程标识符，它们是互不相同的整数，这样才能表示表示进程的唯一性。这里我们使用 RAII 的思想，将其抽象为一个 <code class="docutils literal notranslate"><span class="pre">PidHandle</span></code> 类型，当它的生命周期结束后对应的整数会被编译器自动回收：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/pid.rs</span>
 
@@ -566,6 +568,9 @@
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
+</div>
+<div class="section" id="id8">
+<h3>内核栈<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
 <p>在前面的章节中我们介绍过 <a class="reference internal" href="../chapter4/5kernel-app-spaces.html#kernel-as-high"><span class="std std-ref">内核地址空间布局</span></a> ，当时我们将每个应用的内核栈按照应用编号从小到大的顺序将它们作为逻辑段从高地址到低地址放在内核地址空间中，且两两之间保留一个守护页面使得我们能够尽可能早的发现内核栈溢出问题。从本章开始，我们将应用编号替换为进程标识符。我们可以在内核栈 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> 中保存着它所属进程的 PID ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/pid.rs</span>
 
@@ -633,8 +638,9 @@
 </div>
 <p>这仅需要为 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> 实现 <code class="docutils literal notranslate"><span class="pre">Drop</span></code> Trait，一旦它的生命周期结束则在内核地址空间中将对应的逻辑段删除（为此在 <code class="docutils literal notranslate"><span class="pre">MemorySet</span></code> 中新增了一个名为 <code class="docutils literal notranslate"><span class="pre">remove_area_with_start_vpn</span></code> 的方法，感兴趣的同学可以参考其实现），由前面章节的介绍我们知道这也就意味着那些物理页帧被同时回收掉了。</p>
 </div>
-<div class="section" id="id7">
-<h2>进程控制块<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h2>
+</div>
+<div class="section" id="id9">
+<h2>进程控制块<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h2>
 <p>在内核中，每个进程的执行状态、资源控制等元数据均保存在一个被称为 <strong>进程控制块</strong> (PCB, Process Control Block) 的结构中，它是内核对进程进行管理的单位，故而是一种极其关键的内核数据结构。在内核看来，它就等价于一个进程。</p>
 <p>承接前面的章节，我们仅需对任务控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 进行若干改动并让它直接承担进程控制块的功能：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/task.rs</span>
@@ -720,8 +726,8 @@
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">new/exec/fork</span></code> 的实现我们将在下一小节再介绍。</p>
 </div>
-<div class="section" id="id8">
-<h2>任务管理器<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h2>
+<div class="section" id="id10">
+<h2>任务管理器<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h2>
 <p>在前面的章节中，任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 不仅负责管理所有的任务，还维护着 CPU 当前在执行哪个任务。由于这种设计不够灵活，不能拓展到后续的多核环境，我们需要将任务管理器对于 CPU 的监控职能拆分到下面即将介绍的处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 中去，任务管理器自身仅负责管理所有任务。在这里，任务指的就是进程。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/manager.rs</span>
 <span class="linenos"> 2</span>
@@ -760,8 +766,8 @@
 <p><code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 将所有的任务控制块用引用计数 <code class="docutils literal notranslate"><span class="pre">Arc</span></code> 智能指针包裹后放在一个双端队列 <code class="docutils literal notranslate"><span class="pre">VecDeque</span></code> 中。正如之前介绍的那样，我们并不直接将任务控制块放到 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 里面，而是将它们放在内核堆上，在任务管理器中仅存放他们的引用计数智能指针，这也是任务管理器的操作单位。这样做的原因在于，任务控制块经常需要被放入/取出，如果直接移动任务控制块自身将会带来大量的数据拷贝开销，而对于智能指针进行移动则没有多少开销。其次，允许任务控制块的共享引用在某些情况下能够让我们的实现更加方便。</p>
 <p><code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 提供 <code class="docutils literal notranslate"><span class="pre">add/fetch</span></code> 两个操作，前者表示将一个任务加入队尾，后者则表示从队头中取出一个任务来执行。从调度算法来看，这里用到的就是最简单的 RR 算法。全局实例 <code class="docutils literal notranslate"><span class="pre">TASK_MANAGER</span></code> 则提供给内核的其他子模块 <code class="docutils literal notranslate"><span class="pre">add_task/fetch_task</span></code> 两个函数。</p>
 </div>
-<div class="section" id="id9">
-<h2>处理器管理结构<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h2>
+<div class="section" id="id11">
+<h2>处理器管理结构<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h2>
 <p>处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 负责从任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 中分出去的维护 CPU 状态的职责：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/processor.rs</span>
 
@@ -795,8 +801,8 @@
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<div class="section" id="id10">
-<h3>正在执行的任务<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
+<div class="section" id="id12">
+<h3>正在执行的任务<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
 <p>在抢占式调度模型中，在一个处理器上执行的任务常常被换入或换出，因此我们需要维护在一个处理器上正在执行的任务，可以查看它的信息或是对它进行替换：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/processor.rs</span>
 <span class="linenos"> 2</span>
@@ -966,11 +972,15 @@
 <li><a class="reference internal" href="#id5">基于应用名的应用加载器</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id6">进程标识符和内核栈</a></li>
-<li><a class="reference internal" href="#id7">进程控制块</a></li>
-<li><a class="reference internal" href="#id8">任务管理器</a></li>
-<li><a class="reference internal" href="#id9">处理器管理结构</a><ul>
-<li><a class="reference internal" href="#id10">正在执行的任务</a></li>
+<li><a class="reference internal" href="#id6">进程标识符和内核栈</a><ul>
+<li><a class="reference internal" href="#id7">进程标识符</a></li>
+<li><a class="reference internal" href="#id8">内核栈</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id9">进程控制块</a></li>
+<li><a class="reference internal" href="#id10">任务管理器</a></li>
+<li><a class="reference internal" href="#id11">处理器管理结构</a><ul>
+<li><a class="reference internal" href="#id12">正在执行的任务</a></li>
 <li><a class="reference internal" href="#idle">任务调度的 idle 控制流</a></li>
 </ul>
 </li>

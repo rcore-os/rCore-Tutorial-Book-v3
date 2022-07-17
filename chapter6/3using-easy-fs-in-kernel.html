@@ -748,7 +748,7 @@
 </div>
 <div class="section" id="id8">
 <h2>应用访问文件的内核机制实现<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h2>
-<p>应用程序在访问文件之前，首先需要完成对文件系统的初始化和加载。这可以通过操作系统来完成，也可以让应用程序发出文件系统相关的系统调用（如 <a href="#id9"><span class="problematic" id="id10">``</span></a>mount``等）来完成。我们这里的选择是让操作系统直接完成。</p>
+<p>应用程序在访问文件之前，首先需要完成对文件系统的初始化和加载。这可以通过操作系统来完成，也可以让应用程序发出文件系统相关的系统调用（如 <code class="docutils literal notranslate"><span class="pre">mount</span></code> 等）来完成。我们这里的选择是让操作系统直接完成。</p>
 <p>应用程序如果要基于文件进行I/O访问，大致就会涉及如下一些系统调用：</p>
 <ul class="simple">
 <li><p>打开文件 – sys_open：进程只有打开文件，操作系统才能返回一个可进行读写的文件描述符给进程，进程才能基于这个值来进行对应文件的读写。</p></li>
@@ -756,8 +756,8 @@
 <li><p>读文件 – sys_read：进程可以基于文件描述符来读文件内容到相应内存中。</p></li>
 <li><p>写文件 – sys_write：进程可以基于文件描述符来把相应内存内容写到文件中。</p></li>
 </ul>
-<div class="section" id="id11">
-<h3>文件系统初始化<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h3>
+<div class="section" id="id9">
+<h3>文件系统初始化<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
 <p>在上一小节我们介绍过，为了使用 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 提供的抽象和服务，我们需要进行一些初始化操作才能成功将 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 接入到我们的内核中。按照前面总结的步骤：</p>
 <ol class="arabic simple">
 <li><p>打开块设备。从本节前面可以看出，我们已经打开并可以访问装载有 easy-fs 文件系统镜像的块设备 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> ；</p></li>
@@ -788,8 +788,8 @@
 </pre></div>
 </div>
 </div>
-<div class="section" id="id12">
-<h3>打开与关闭文件<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
+<div class="section" id="id10">
+<h3>打开与关闭文件<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
 <p>我们需要在内核中也定义一份打开文件的标志 <code class="docutils literal notranslate"><span class="pre">OpenFlags</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/inode.rs</span>
 
@@ -900,8 +900,8 @@
 </pre></div>
 </div>
 </div>
-<div class="section" id="id13">
-<h3>基于文件来加载并执行应用<a class="headerlink" href="#id13" title="永久链接至标题">#</a></h3>
+<div class="section" id="id11">
+<h3>基于文件来加载并执行应用<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h3>
 <p>在有了文件系统支持之后，我们在 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 所需的应用的 ELF 文件格式的数据就不再需要通过应用加载器从内核的数据段获取，而是从文件系统中获取，这样内核与应用的代码/数据就解耦了：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
 <span class="linenos"> 2</span>
@@ -954,8 +954,8 @@
 </pre></div>
 </div>
 </div>
-<div class="section" id="id14">
-<h3>读写文件<a class="headerlink" href="#id14" title="永久链接至标题">#</a></h3>
+<div class="section" id="id12">
+<h3>读写文件<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
 <p>基于文件抽象接口和文件描述符表，我们可以按照无结构的字节流来处理基本的文件读写，这样可以让文件读写系统调用 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 变得更加具有普适性，为后续支持把管道等抽象为文件打下了基础：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
 
@@ -1072,10 +1072,10 @@
 <li><a class="reference internal" href="#id6">文件描述符层</a></li>
 <li><a class="reference internal" href="#id7">文件描述符表</a></li>
 <li><a class="reference internal" href="#id8">应用访问文件的内核机制实现</a><ul>
-<li><a class="reference internal" href="#id11">文件系统初始化</a></li>
-<li><a class="reference internal" href="#id12">打开与关闭文件</a></li>
-<li><a class="reference internal" href="#id13">基于文件来加载并执行应用</a></li>
-<li><a class="reference internal" href="#id14">读写文件</a></li>
+<li><a class="reference internal" href="#id9">文件系统初始化</a></li>
+<li><a class="reference internal" href="#id10">打开与关闭文件</a></li>
+<li><a class="reference internal" href="#id11">基于文件来加载并执行应用</a></li>
+<li><a class="reference internal" href="#id12">读写文件</a></li>
 </ul>
 </li>
 </ul>

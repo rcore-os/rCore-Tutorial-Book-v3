@@ -395,38 +395,38 @@
 <div class="section" id="id3">
 <h2>互斥缺陷<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
 <p>互斥缺陷也称为违反原子性缺陷，在并发应用程序中对共享变量没进行合理的保护是导致出现这类缺陷的一个重要原因。下面是一个简单的例子：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>static mut A: usize = 0;
-<span class="linenos"> 2</span>...
-<span class="linenos"> 3</span>unsafe fn thr1() -&gt; ! {
-<span class="hll"><span class="linenos"> 4</span>    if (A == 0) {
-</span><span class="linenos"> 5</span>      println!(&quot;thr1: A is Zero  --&gt; {}&quot;, A)；
-<span class="linenos"> 6</span>    }
-<span class="linenos"> 7</span>    ...
-<span class="linenos"> 8</span>}
-<span class="linenos"> 9</span>unsafe fn thr2() -&gt; ! {
-<span class="hll"><span class="linenos">10</span>    A = A+1;
-</span><span class="linenos">11</span>    println!(&quot;thr2: A is One  --&gt; {}&quot;, A)；
-<span class="linenos">12</span>}
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="c1">//... other code</span>
+<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="linenos"> 4</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">A</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+</span><span class="linenos"> 5</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr1: A is Zero  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="c1">//... other code</span>
+<span class="linenos"> 8</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="linenos">10</span><span class="w">    </span><span class="n">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">A</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+</span><span class="linenos">11</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr2: A is One  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">12</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>A是共享变量。粗略地看，可以估计执行流程为：第一个线程thr1检查A的值，如果为0，则显示“”thr1: A is Zero  –&gt; 0”；第二个线程thr2设置A的值为2，并显示”thr2: A is One  –&gt; 1”。但如果线程thr1执行完第4行代码，准备执行第5行代码前发生了线程切换，开始执行线程th2；当线程thr2完成第10行后，操作系统有切换回线程thr1继续执行，那么线程thr1就会输出“thr1: A is Zero  –&gt; 1” 这样的奇怪结果。</p>
 <p>这里出现问题的根源是线程在对共享变量进行访问时，违反了临界区的互斥性（原子性）原则。解决这样的问题需要给共享变量的访问加锁，确保每个线程访问共享变量时，都持有锁，修改后的代码如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>static mut A: usize = 0;
-<span class="linenos"> 2</span>...
-<span class="linenos"> 3</span>unsafe fn thr1() -&gt; ! {
-<span class="linenos"> 4</span>    mutex.lock();
-<span class="linenos"> 5</span>    if (A == 0) {
-<span class="linenos"> 6</span>      println!(&quot;thr1: A is Zero  --&gt; {}&quot;, A)；
-<span class="linenos"> 7</span>    }
-<span class="linenos"> 8</span>    mutex.unlock();
-<span class="linenos"> 9</span>    ...
-<span class="linenos">10</span>}
-<span class="linenos">11</span>unsafe fn thr2() -&gt; ! {
-<span class="linenos">12</span>    mutex.lock();
-<span class="linenos">13</span>    A = A+1;
-<span class="linenos">14</span>    println!(&quot;thr2: A is One  --&gt; {}&quot;, A)；
-<span class="linenos">15</span>    mutex.unlock();
-<span class="linenos">16</span>}
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="c1">//... other code</span>
+<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">A</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr1: A is Zero  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">unlock</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="c1">//... other code</span>
+<span class="linenos">10</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">11</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="n">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">A</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr2: A is One  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">unlock</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">16</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>这种问题如果能发现，那么修复相对比较简单，即在对共享变量进行访问的代码区域前后加上请求锁和释放锁的操作。但主要的问题是发现缺陷比较难，特别是代码量比较大，代码的控制逻辑比较复杂的情况。</p>
@@ -570,8 +570,8 @@
 <li><p>设置两个向量:工作向量Work，表示操作系统可提供给线程继续运行所需的各类资源数目，它含有m个元素，初始时，Work = Available；结束向量Finish，表示系统是否有足够的资源分配给线程，使之运行完成。初始时 Finish[0..n-1] = false，表示所有线程都没结束；当有足够资源分配给线程时，设置Finish[i] = true。</p></li>
 <li><p>从线程集合中找到一个能满足下述条件的线程</p></li>
 </ol>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span>Finish[i] == false;
-<span class="linenos">2</span>Need[i,j] ≤ Work[j];
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="n">Finish</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">2</span><span class="n">Need</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">Work</span><span class="p">[</span><span class="n">j</span><span class="p">];</span><span class="w"></span>
 </pre></div>
 </div>
 <p>若找到，执行步骤3，否则，执行步骤4。</p>

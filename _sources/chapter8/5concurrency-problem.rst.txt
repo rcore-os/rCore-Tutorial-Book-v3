@@ -18,16 +18,16 @@
     :emphasize-lines: 4,10
 
     static mut A: usize = 0;
-    ...
+    //... other code
     unsafe fn thr1() -> ! {
         if (A == 0) {
-          println!("thr1: A is Zero  --> {}", A)；
+          println!("thr1: A is Zero  --> {}", A);
         }  
-        ...
+        //... other code
     }
     unsafe fn thr2() -> ! {
         A = A+1;
-        println!("thr2: A is One  --> {}", A)；
+        println!("thr2: A is One  --> {}", A);
     }
 
 A是共享变量。粗略地看，可以估计执行流程为：第一个线程thr1检查A的值，如果为0，则显示“"thr1: A is Zero  --> 0”；第二个线程thr2设置A的值为2，并显示"thr2: A is One  --> 1”。但如果线程thr1执行完第4行代码，准备执行第5行代码前发生了线程切换，开始执行线程th2；当线程thr2完成第10行后，操作系统有切换回线程thr1继续执行，那么线程thr1就会输出“thr1: A is Zero  --> 1” 这样的奇怪结果。
@@ -38,19 +38,19 @@ A是共享变量。粗略地看，可以估计执行流程为：第一个线程t
     :linenos:
 
     static mut A: usize = 0;
-    ...
+    //... other code
     unsafe fn thr1() -> ! {
         mutex.lock();
         if (A == 0) {
-          println!("thr1: A is Zero  --> {}", A)；
+          println!("thr1: A is Zero  --> {}", A);
         }
         mutex.unlock();  
-        ...
+        //... other code
     }
     unsafe fn thr2() -> ! {
         mutex.lock();
         A = A+1;
-        println!("thr2: A is One  --> {}", A)；
+        println!("thr2: A is One  --> {}", A);
         mutex.unlock();  
     }
 
@@ -242,7 +242,7 @@ Need[i,j] = Max[i,j] - allocation[i, j]
    :linenos:
 
    Finish[i] == false;
-   Need[i,j] ≤ Work[j];
+   Need[i,j] <= Work[j];
 
 若找到，执行步骤3，否则，执行步骤4。
 
