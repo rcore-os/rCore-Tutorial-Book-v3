@@ -3,7 +3,7 @@ Documentation of rCore-Tutorial version 3 in Chinese.
 
 ##  news
 
-Welcome to JOIN [**Open-Source-OS-Training-Camp-2022 !**](https://learningos.github.io/rust-based-os-comp2022/)
+- 2022.07.01 Welcome to JOIN [**Open-Source-OS-Training-Camp-2022 !**](https://learningos.github.io/rust-based-os-comp2022/)
 
 ## [Deployed Page](https://rcore-os.github.io/rCore-Tutorial-Book-v3/).
 
