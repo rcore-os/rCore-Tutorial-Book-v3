@@ -26,7 +26,16 @@
 移除 ``println!`` 宏
 ----------------------------------
 
-``println!`` 宏所在的 Rust 标准库 std 需要通过系统调用获得操作系统的服务，而如果要构建运行在裸机上的操作系统，就不能再依赖标准库了。所以我们第一步要尝试移除 ``println!`` 宏及其所在的标准库。我们首先在 ``os`` 目录下新建 ``.cargo`` 目录，并在这个目录下创建 ``config`` 文件，并在里面输入如下内容：
+``println!`` 宏所在的 Rust 标准库 std 需要通过系统调用获得操作系统的服务，而如果要构建运行在裸机上的操作系统，就不能再依赖标准库了。所以我们第一步要尝试移除 ``println!`` 宏及其所在的标准库。
+
+由于后续实验需要 ``rustc`` 编译器缺省生成RISC-V 64的目标代码，所以我们首先要给  ``rustc`` 添加一个target : ``riscv64gc-unknown-none-elf`` 。这可通过如下命令来完成：
+
+.. code-block:: bash
+
+   $ rustup target add riscv64gc-unknown-none-elf
+
+
+然后在 ``os`` 目录下新建 ``.cargo`` 目录，并在这个目录下创建 ``config`` 文件，并在里面输入如下内容：
 
 .. code-block:: toml
 
@@ -121,7 +130,18 @@
        loop {}
    }
 
+在把 ``panic_handler`` 配置在单独的文件 ``os/src/lang_items.rs`` 后，需要在os/src/main.rs文件中添加以下内容才能正常编译整个软件：
+
+.. code-block:: rust
+
+   // os/src/main.rs
+   #![no_std]
+   mod lang_items;
+   // ... other code
+
 注意，panic 处理函数的函数签名需要一个 ``PanicInfo`` 的不可变借用作为输入参数，它在核心库中得以保留，这也是我们第一次与核心库打交道。之后我们会从 ``PanicInfo`` 解析出错位置并打印出来，然后杀死应用程序。但目前我们什么都不做只是在原地  ``loop`` 。
+
+
 
 移除 main 函数
 -----------------------------
@@ -146,15 +166,16 @@
       Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)
        Finished dev [unoptimized + debuginfo] target(s) in 0.06s
 
-目前的代码如下：
+目前的主要代码包括 ``main.rs`` 和 ``lang_items.rs`` ，大致内容如下：
 
 .. code-block:: rust
 
    // os/src/main.rs
-   #![no_std]
    #![no_main]
-
+   #![no_std]
    mod lang_items;
+   // ... other code
+
 
    // os/src/lang_items.rs
    use core::panic::PanicInfo;
@@ -185,7 +206,13 @@
 分析被移除标准库的程序
 -----------------------------
 
-对于上面这个被移除标准库的应用程序，通过了编译器的检查和编译，形成了二进制代码。但这个二进制代码是怎样的，它能否被正常执行呢？我们可以通过一些工具来分析一下。
+对于上面这个被移除标准库的应用程序，通过了编译器的检查和编译，形成了二进制代码。但这个二进制代码是怎样的，它能否被正常执行呢？为了分析这些程序，首先需要安装 cargo-binutils 工具集：
+
+.. code-block:: console
+   $ cargo install cargo-binutils
+   $ rustup component add llvm-tools-preview
+
+这样我们可以通过各种工具来分析目前的程序：
 
 .. code-block:: console
 
