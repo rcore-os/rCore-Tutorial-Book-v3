@@ -287,7 +287,7 @@ CPU可以通过MMIO方式来对PLIC进行管理，下面是一下与PLIC相关�
 
 但对于串口输入的处理，由于要考虑中断，相对就要复杂一些。对于操作系统的一般处理过程是，首先是能接收中断，即在 ``trap_handler`` 中通过访问 ``scause`` 寄存器，能够识别出有外部中断产生。然后再进一步通过读PLIC的 ``Claim`` 寄存器来了解是否是收到了串口发来的输入中断。如果确定是，就通过对串口寄存器的偏移量为 ``0`` 的串口控制寄存器的MMIO地址进行读一个字节的操作，从而获得通过串口输入的字符。
 
-在我们的具体实现中，与上述的一般中断处理过程不太一样。首先操作系统通过自定义的 ``SBI_DEVICE_HANDLER`` SBI调用，告知RustSBI在收到外部中断后，要跳转到到的操作系统中处理外部中断的函数 ``device_trap_handler`` 。这样，在外部中断产生后，先由RustSBI在M Mode下接收的，并转到S Mode，交由 ``device_trap_handler`` 内核函数进一步处理。接下来就是 PLIC识别出是串口中断号 ``10`` 后，最终交由 ``uart::InBuffer`` 结构的 ``peinding`` 函数处理。
+在我们的具体实现中，与上述的一般中断处理过程不太一样。首先操作系统通过自定义的 ``SBI_DEVICE_HANDLER`` SBI调用，告知RustSBI在收到外部中断后，要跳转到的操作系统中处理外部中断的函数 ``device_trap_handler`` 。这样，在外部中断产生后，先由RustSBI在M Mode下接收的，并转到S Mode，交由 ``device_trap_handler`` 内核函数进一步处理。接下来就是 PLIC识别出是串口中断号 ``10`` 后，最终交由 ``uart::InBuffer`` 结构的 ``peinding`` 函数处理。
 
 .. code-block:: Rust
 
