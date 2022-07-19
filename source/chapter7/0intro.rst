@@ -164,7 +164,7 @@
     │       │   └── page_table.rs
     │       ├── sbi.rs
     │       ├── syscall
-    │       │   ├── fs.rs(修改：调整 sys_read/write 的实现，新增 sys_close/pipe)
+    │       │   ├── fs.rs(修改：调整 sys_read/write 的实现，新增 sys_dup/pipe)
     │       │   ├── mod.rs(修改：调整 syscall 分发)
     │       │   └── process.rs
     │       ├── task
@@ -215,9 +215,9 @@
             │   └── yield.rs
             ├── console.rs
             ├── lang_items.rs
-            ├── lib.rs(新增两个系统调用：sys_close/sys_pipe)
+            ├── lib.rs(新增两个系统调用：sys_dup/sys_pipe)
             ├── linker.ld
-            └── syscall.rs(新增两个系统调用：sys_close/sys_pipe)
+            └── syscall.rs(新增两个系统调用：sys_dup/sys_pipe)
 
 
 
