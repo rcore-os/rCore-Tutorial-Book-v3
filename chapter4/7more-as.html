@@ -429,7 +429,7 @@
 </div>
 <div class="section" id="best-fit">
 <h4>最优匹配（best fit）策略<a class="headerlink" href="#best-fit" title="永久链接至标题">#</a></h4>
-<p>最优匹配（best fit）策略的思路也很简单：选择最接近需求方请求大小的块，从而尽量避免空间浪费。也是把空闲空间基于地址顺序组织为大小不一的空闲块列表。当需求方需要大小为n的空闲块时，遍历整个空闲列表，找到足够大且二者空间大小差距最小的空闲块。其代价是时间，即需要遍历一次空闲列表，找到最合适的空闲块。而且还有可能造成空间的浪费，因为可能产生很多小的空闲碎片，虽然碎片容量的总和比较大，当无法满足内存分配请求。</p>
+<p>最优匹配（best fit）策略的思路也很简单：选择最接近需求方请求大小的块，从而尽量避免空间浪费。也是把空闲空间基于地址顺序组织为大小不一的空闲块列表。当需求方需要大小为n的空闲块时，遍历整个空闲列表，找到足够大且二者空间大小差距最小的空闲块。其代价是时间，即需要遍历一次空闲列表，找到最合适的空闲块。而且还有可能造成空间的浪费，因为可能产生很多小的空闲碎片，虽然碎片容量的总和比较大，但无法满足内存分配请求。</p>
 </div>
 <div class="section" id="worst-fit">
 <h4>最差匹配（worst fit）策略<a class="headerlink" href="#worst-fit" title="永久链接至标题">#</a></h4>
@@ -493,8 +493,8 @@
 </div>
 <div class="section" id="id13">
 <h4>内存访问异常处理<a class="headerlink" href="#id13" title="永久链接至标题">#</a></h4>
-<p>操作系统的“Page Fault”异常处理例程首先会判断，该数据的虚拟地址是否时该任务的合法地址？根据之前操作系统的设置，答案是“Yes”；然后取出保存在对应页表项中的扇区地址，把存储设备上交换区上对应的虚拟页内容读入到某空闲的物理内存页中；接着更新页表项内容，即把对应的物理页号写入页表项，把页表项中的存在位（Present Bit）置“1”；最后是返回该任务，让该任务重新执行访问数据的指令。这次处理器再次执行这条指令时，TLB还是会没有命中，但由于对应页表项内容合法，所以TLB会缓存该页表项，并完成虚拟地址到物理地址的转换，完成访问数据指令的执行。</p>
-<p>相对于内存访问，交换区的扇区访问要慢很多。为了进一步提高系统的执行效率，但操作系统在让存储设备进行I/O访问时，可将当前任务设置为阻塞状态，并切换其他可以运行的任务继续执行。通过这种任务调度方式，可以充分发挥多道程序和分时多任务的整体执行效率。</p>
+<p>操作系统的“Page Fault”异常处理例程首先会判断，该数据的虚拟地址是否是该任务的合法地址？根据之前操作系统的设置，答案是“Yes”；然后取出保存在对应页表项中的扇区地址，把存储设备上交换区上对应的虚拟页内容读入到某空闲的物理内存页中；接着更新页表项内容，即把对应的物理页号写入页表项，把页表项中的存在位（Present Bit）置“1”；最后是返回该任务，让该任务重新执行访问数据的指令。这次处理器再次执行这条指令时，TLB还是会没有命中，但由于对应页表项内容合法，所以TLB会缓存该页表项，并完成虚拟地址到物理地址的转换，完成访问数据指令的执行。</p>
+<p>相对于内存访问，交换区的扇区访问要慢很多。为了进一步提高系统的执行效率，当操作系统在让存储设备进行I/O访问时，可将当前任务设置为阻塞状态，并切换其他可以运行的任务继续执行。通过这种任务调度方式，可以充分发挥多道程序和分时多任务的整体执行效率。</p>
 </div>
 </div>
 <div class="section" id="id14">
@@ -513,13 +513,15 @@
 <h4>评价指标<a class="headerlink" href="#id16" title="永久链接至标题">#</a></h4>
 <p>页面置换策略可以由多种，这就需要对各种策略的优劣进行评价。我们希望程序访问的数据 <strong>快</strong> ，最好是数据都在物理内存中。但这仅仅是理想，一旦数据不在物理内存，即访存未命中，就会产生“Page Fault”异常，并让操作系统从存储设备的交换区把数据缓慢地读入到内存中。</p>
 <p>如何量化程序访问的速度呢？如果能知道程序执行过程中的访存命中次数和未命中次数，就可以计算出程序的平均内存访问时间：</p>
-<blockquote>
-<div><p>AvgTime = ( Tm * Phit ) + ( Ts * Pmiss ) / ( Phit + Pmiss )</p>
-</div></blockquote>
-<p>这里 Tm 是访问内存单元的时间，Ts 是访问存储设备的时间，Phit 是访存命中次数, Pmiss是访存未命中次数。 访存命中率是：</p>
-<blockquote>
-<div><p>HitRatio = Phit /  ( Phit + Pmiss )</p>
-</div></blockquote>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[AvgTime = ( T_m * P_{hit}  +  T_s * P_{miss} ) / ( P_{hit} + P_{miss} )\]</div>
+</div>
+<p>这里 <span class="math notranslate nohighlight">\(T_m\)</span> 是访问内存单元的时间，<span class="math notranslate nohighlight">\(T_s\)</span> 是访问存储设备的时间， <span class="math notranslate nohighlight">\(P_{hit}\)</span> 是访存命中次数， <span class="math notranslate nohighlight">\(P_{miss}\)</span> 是访存未命中次数。 访存命中率是：</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[HitRatio = P_{hit} /  ( P_{hit} + P_{miss} )\]</div>
+</div>
 <p>由于访问内存比访问存储设备快2~3个数量级，所以性能瓶颈是对存储设备读写次数，即访存未命中次数。 只有减少访存未命中次数，才能提高访存命中率，并加快平均内存访问速度。所以页面置换策略的评价指标就是
 访存未命中次数 或 访存命中率。</p>
 </div>
@@ -758,5 +760,6 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     </body>
 </html>

@@ -114,7 +114,7 @@ Rust 的标准库中提供了很多开箱即用的堆数据结构，利用它们
 .. _term-reference-counting:
 .. _term-garbage-collection:
 
-- C 语言仅支持 ``malloc/free`` 这一对操作，它们必须恰好成对使用，否则就会出现各种内存错误。比如分配了之后没有回收，则会导致内存溢出；回收之后再次 free 相同的指针，则会造成 Double-Free 问题；又如回收之后再尝试通过指针访问它指向的区域，这属于 Use-After-Free 问题。总之，这样的内存安全问题层出不穷，毕竟人总是会犯错的。
+- C 语言仅支持 ``malloc/free`` 这一对操作，它们必须恰好成对使用，否则就会出现各种内存错误。比如分配了之后没有回收，则会导致内存泄漏；回收之后再次 free 相同的指针，则会造成 Double-Free 问题；又如回收之后再尝试通过指针访问它指向的区域，这属于 Use-After-Free 问题。总之，这样的内存安全问题层出不穷，毕竟人总是会犯错的。
 - Python/Java 通过 **引用计数** (Reference Counting) 对所有的对象进行运行时的动态管理，一套 **垃圾回收** (GC, Garbage Collection) 机制会被自动定期触发，每次都会检查所有的对象，如果其引用计数为零则可以将该对象占用的内存从堆上回收以待后续其他的对象使用。这样做完全杜绝了内存安全问题，但是性能开销则很大，而且 GC 触发的时机和每次 GC 的耗时都是无法预测的，还使得软件的执行性能不够确定。
 - C++ 的智能指针（shared_ptr、unique_ptr、weak_ptr、auto_ptr等）和 **资源获取即初始化** (RAII, Resource Acquisition Is Initialization，指将一个使用前必须获取的资源的生命周期绑定到一个变量上，变量释放时，对应的资源也一并释放。) 风格都是致力于解决内存安全问题。但这些编程方式是“建议”而不是“强制”。
 
@@ -203,7 +203,7 @@ Rust 的标准库中提供了很多开箱即用的堆数据结构，利用它们
       panic!("Heap allocation error, layout = {:?}", layout);
   }
 
-最后，让我们尝试一下动态内存分配吧！感兴趣的同学可以在 ``rust_main`` 中尝试调用下面的 ``heap_test`` 函数。
+最后，让我们尝试一下动态内存分配吧！感兴趣的同学可以在 ``rust_main`` 中尝试调用下面的 ``heap_test`` 函数（调用 ``heap_test()`` 前要记得先调用 ``init_heap()`` ）。
 
 .. code-block:: rust
     :linenos:
