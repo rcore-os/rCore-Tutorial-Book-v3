@@ -396,7 +396,7 @@
 <li><p>进程调度机制：当进程主动调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 交出 CPU 使用权或者内核把本轮分配的时间片用尽的进程换出且换入下一个进程；</p></li>
 <li><p>进程生成机制：介绍进程相关的两个重要系统调用 <code class="docutils literal notranslate"><span class="pre">sys_fork/sys_exec</span></code> 的实现；</p></li>
 <li><p>进程资源回收机制：当进程调用 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 正常退出或者出错被内核终止之后如何保存其退出码，其父进程通过 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 系统调用收集该进程的信息并回收其资源。</p></li>
-<li><p>字符输入机制：为了支对shell程序-user_shell获得字符输入，介绍 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用的实现；</p></li>
+<li><p>字符输入机制：为了支持shell程序-user_shell获得字符输入，介绍 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用的实现；</p></li>
 </ul>
 </div>
 <div class="section" id="id3">
@@ -480,29 +480,29 @@
 <div class="section" id="id4">
 <h2>进程调度机制<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
 <p>通过调用 <code class="docutils literal notranslate"><span class="pre">task</span></code> 子模块提供的 <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 函数可以暂停当前任务并切换到下一个任务，当应用调用 <code class="docutils literal notranslate"><span class="pre">sys_yield</span></code> 主动交出使用权、本轮时间片用尽或者由于某些原因内核中的处理无法继续的时候，就会在内核中调用此函数触发调度机制并进行任务切换。下面给出了两种典型的使用情况：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/process.rs</span>
-
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_yield</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="w">    </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span><span class="w"></span>
-</span><span class="w">    </span><span class="mi">0</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
-
-<span class="c1">// os/src/trap/mod.rs</span>
-
-<span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">Trap</span>::<span class="n">Interrupt</span><span class="p">(</span><span class="n">Interrupt</span>::<span class="n">SupervisorTimer</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">set_next_trigger</span><span class="p">();</span><span class="w"></span>
-<span class="hll"><span class="w">            </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span><span class="w"></span>
-</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_yield</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="linenos"> 4</span><span class="w">    </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span><span class="w"></span>
+</span><span class="linenos"> 5</span><span class="w">    </span><span class="mi">0</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="c1">// os/src/trap/mod.rs</span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos">11</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Interrupt</span><span class="p">(</span><span class="n">Interrupt</span>::<span class="n">SupervisorTimer</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">            </span><span class="n">set_next_trigger</span><span class="p">();</span><span class="w"></span>
+<span class="hll"><span class="linenos">18</span><span class="w">            </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span><span class="w"></span>
+</span><span class="linenos">19</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">23</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>随着进程概念的引入， <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 的实现也需要发生变化：</p>
@@ -631,7 +631,7 @@
 <p>它基本上和新建进程控制块的 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::new</span></code> 是相同的，但要注意以下几点：</p>
 <ul class="simple">
 <li><p>子进程的地址空间不是通过解析 ELF 文件，而是通过在第 8 行调用 <code class="docutils literal notranslate"><span class="pre">MemorySet::from_existed_user</span></code> 复制父进程地址空间得到的；</p></li>
-<li><p>第 26 行，我们让子进程和父进程的 <code class="docutils literal notranslate"><span class="pre">base_size</span></code> ，也即应用数据的大小保持一致；</p></li>
+<li><p>第 24 行，我们让子进程和父进程的 <code class="docutils literal notranslate"><span class="pre">base_size</span></code> ，也即应用数据的大小保持一致；</p></li>
 <li><p>在 fork 的时候需要注意父子进程关系的维护。第 28 行我们将父进程的弱引用计数放到子进程的进程控制块中，而在第 33 行我们将子进程插入到父进程的孩子向量 <code class="docutils literal notranslate"><span class="pre">children</span></code> 中。</p></li>
 </ul>
 <p>我们在子进程内核栈上压入一个初始化的任务上下文，使得内核一旦通过任务切换到该进程，就会跳转到 <code class="docutils literal notranslate"><span class="pre">trap_return</span></code> 来进入用户态。而在复制地址空间的时候，子进程的 Trap 上下文也是完全从父进程复制过来的，这可以保证子进程进入用户态和其父进程回到用户态的那一瞬间 CPU 的状态是完全相同的（后面我们会让它们的返回值不同从而区分两个进程）。而两个进程的应用数据由于地址空间复制的原因也是完全相同的，这是 fork 语义要求做到的。</p>
@@ -758,48 +758,48 @@
 <div class="section" id="trap">
 <h3>系统调用后重新获取 Trap 上下文<a class="headerlink" href="#trap" title="永久链接至标题">#</a></h3>
 <p>过去的 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 实现是这样处理系统调用的：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/trap/mod.rs</span>
-
-<span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">UserEnvCall</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">sepc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">syscall</span><span class="p">(</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">17</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">11</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">12</span><span class="p">]])</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/trap/mod.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">UserEnvCall</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">sepc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">syscall</span><span class="p">(</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">17</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">11</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">12</span><span class="p">]])</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">17</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>这里的 <code class="docutils literal notranslate"><span class="pre">cx</span></code> 是当前应用的 Trap 上下文的可变引用，我们需要通过查页表找到它具体被放在哪个物理页帧上，并构造相同的虚拟地址来在内核中访问它。对于系统调用 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 来说，一旦调用它之后，我们会发现 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 原来上下文中的 <code class="docutils literal notranslate"><span class="pre">cx</span></code> 失效了——因为它是用来访问之前地址空间中 Trap 上下文被保存在的那个物理页帧的，而现在它已经被回收掉了。因此，为了能够处理类似的这种情况，我们在 <code class="docutils literal notranslate"><span class="pre">syscall</span></code> 分发函数返回之后需要重新获取 <code class="docutils literal notranslate"><span class="pre">cx</span></code> ，目前的实现如下：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/trap/mod.rs</span>
-
-<span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">UserEnvCall</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="c1">// jump to next instruction anyway</span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">sepc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="c1">// get system call return value</span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">syscall</span><span class="p">(</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">17</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">11</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">12</span><span class="p">]]);</span><span class="w"></span>
-<span class="w">            </span><span class="c1">// cx is changed during sys_exec, so we have to call it again</span>
-<span class="w">            </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/trap/mod.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">UserEnvCall</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">            </span><span class="c1">// jump to next instruction anyway</span>
+<span class="linenos">11</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">sepc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">            </span><span class="c1">// get system call return value</span>
+<span class="linenos">14</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">syscall</span><span class="p">(</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">17</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">11</span><span class="p">],</span><span class="w"> </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">12</span><span class="p">]]);</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">            </span><span class="c1">// cx is changed during sys_exec, so we have to call it again</span>
+<span class="linenos">16</span><span class="w">            </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">            </span><span class="n">cx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">22</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 </div>
@@ -807,36 +807,36 @@
 <div class="section" id="shell-user-shell">
 <h2>shell程序 user_shell 的输入机制<a class="headerlink" href="#shell-user-shell" title="永久链接至标题">#</a></h2>
 <p>为了实现shell程序 <code class="docutils literal notranslate"><span class="pre">user_shell</span></code> 的输入机制，我们需要实现 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用使得应用能够取得用户的键盘输入。</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
-
-<span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">sbi</span>::<span class="n">console_getchar</span><span class="p">;</span><span class="w"></span>
-
-<span class="k">const</span><span class="w"> </span><span class="n">FD_STDIN</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_read</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">FD_STDIN</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">len</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Only support len = 1 in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">c</span>: <span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">console_getchar</span><span class="p">();</span><span class="w"></span>
-<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                    </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span><span class="w"></span>
-<span class="w">                    </span><span class="k">continue</span><span class="p">;</span><span class="w"></span>
-<span class="w">                </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                    </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
-<span class="w">                </span><span class="p">}</span><span class="w"></span>
-<span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">ch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buffers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_byte_buffer</span><span class="p">(</span><span class="n">current_user_token</span><span class="p">(),</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span><span class="w"></span>
-<span class="w">            </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">buffers</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">as_mut_ptr</span><span class="p">().</span><span class="n">write_volatile</span><span class="p">(</span><span class="n">ch</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="w">            </span><span class="mi">1</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unsupported fd in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/fs.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">sbi</span>::<span class="n">console_getchar</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 4</span>
+<span class="linenos"> 5</span><span class="k">const</span><span class="w"> </span><span class="n">FD_STDIN</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 6</span>
+<span class="linenos"> 7</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_read</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="n">FD_STDIN</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">            </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">len</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Only support len = 1 in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">c</span>: <span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">                </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">console_getchar</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">                    </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">                    </span><span class="k">continue</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">                </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">                    </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">                </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">ch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buffers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_byte_buffer</span><span class="p">(</span><span class="n">current_user_token</span><span class="p">(),</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">            </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">buffers</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">as_mut_ptr</span><span class="p">().</span><span class="n">write_volatile</span><span class="p">(</span><span class="n">ch</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">            </span><span class="mi">1</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">            </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unsupported fd in sys_read!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">30</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>目前我们仅支持从标准输入 <code class="docutils literal notranslate"><span class="pre">FD_STDIN</span></code> 即文件描述符 0 读入，且单次读入的长度限制为 1，即每次只能读入一个字符。我们调用 <code class="docutils literal notranslate"><span class="pre">sbi</span></code> 子模块提供的从键盘获取输入的接口 <code class="docutils literal notranslate"><span class="pre">console_getchar</span></code> ，如果返回 0 则说明还没有输入，我们调用 <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 暂时切换到其他进程，等下次切换回来的时候再看看是否有输入了。获取到输入之后，我们退出循环并手动查页表将输入的字符正确的写入到应用地址空间。</p>
