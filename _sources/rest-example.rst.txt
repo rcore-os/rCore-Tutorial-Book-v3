@@ -53,9 +53,9 @@ reStructuredText 基本语法
 `这是 <https://docs.readthedocs.io/en/stable/guides/cross-referencing-with-sphinx.html#the-doc-role>`_ 一个全面展示
 章节分布的例子，来自于 ReadTheDocs 的官方文档。事实上，现在我们也采用 ReadTheDocs 主题了，它非常美观大方。
 
-下面是一个测试 gif。
+下面是一个测试的截图。
 
-.. image:: resources/test.gif
+.. image:: resources/test.png
 
 接下来是一个表格的例子。
 
