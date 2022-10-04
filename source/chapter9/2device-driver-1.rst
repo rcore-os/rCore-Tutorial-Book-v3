@@ -56,11 +56,11 @@
    :align: center
    :name: device-tree
 
+.. info::
 
+  **设备节点属性**
 
-**[info] 设备节点属性**
-
-设备树的每个节点上都描述了对应设备的信息，如支持的协议是什么类型等等。而操作系统就是通过这些节点上的信息来实现对设备的识别的。具体而言，一个设备节点上会有几个标准属性，这里简要介绍我们需要用到的几个：
+  设备树的每个节点上都描述了对应设备的信息，如支持的协议是什么类型等等。而操作系统就是通过这些节点上的信息来实现对设备的识别的。具体而言，一个设备节点上会有几个标准属性，这里简要介绍我们需要用到的几个：
 
   - compatible：该属性是一个字符串列表，由一个或多个定义了该设备的编程模型的字符串组成。其中的每个字符串的一般格式为 "manufacturer,model"，分别指一个出厂标签和具体模型。如 "virtio,mmio" 指的是这个设备通过 virtio 协议、MMIO（内存映射 I/O）方式来驱动
   - model：指的是设备生产商给设备的型号
@@ -120,7 +120,7 @@
 
    fn walk_dt_node(dt: &Node) {
       if let Ok(compatible) = dt.prop_str_list("compatible") {
-         if compatible.iter().find(|s| s == "virtio,mmio").is_some() {
+         if compatible.iter().any(|s| s == "virtio,mmio") {
             //确定是virtio设备
             virtio_probe(dt);
          }
