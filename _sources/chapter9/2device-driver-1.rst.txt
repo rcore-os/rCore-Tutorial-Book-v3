@@ -36,7 +36,7 @@
 设备树
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-首先，我们需要了解OS管理的计算机硬件系统-- ``QEMU riscv-64 virt machine`` 。这表示了一台虚拟的RISC-V 64计算机，CPU的个数是可以通过参数 ``-cpu num`` 配置的，内存也是可通过参数 ``-m numM/G`` 来配置。这是标配信息。这台虚拟计算机还有很多外设信息，每个设备在物理上连接到了父设备上最后再通过总线等连接起来构成一整个设备树。QEMU 可以把它模拟的机器细节信息全都导出到dtb格式的二进制文件中，并可通过 ``dtc`` （Device Tree Compiler）工具转成可理解的文本文件。如想详细了解这个文件的格式说明可以参考  `Devicetree Specification <https://buildmedia.readthedocs.org/media/pdf/devicetree-specification/latest/devicetree-specification.pdf>`_ 。
+首先，我们需要了解OS管理的计算机硬件系统-- ``QEMU riscv-64 virt machine`` 。这表示了一台虚拟的RISC-V 64计算机，CPU的个数是可以通过参数 ``-cpu num`` 配置的，内存也是可通过参数 ``-m numM/G`` 来配置。这是标配信息。这台虚拟计算机还有很多外设信息，每个设备在物理上连接到了父设备上最后再通过总线等连接起来构成一整个设备树。QEMU 可以把它模拟的机器细节信息全都导出到dtb格式的二进制文件中，并可通过 ``dtc`` （Device Tree Compiler）工具转成可理解的文本文件。如想详细了解这个文件的格式说明可以参考  `Devicetree Specification <https://www.devicetree.org/specifications/>`_ 。
 
 .. code-block:: console
 
@@ -56,16 +56,16 @@
    :align: center
    :name: device-tree
 
+.. note::
 
+  **设备节点属性**
 
-**[info] 设备节点属性**
+  设备树的每个节点上都描述了对应设备的信息，如支持的协议是什么类型等等。而操作系统就是通过这些节点上的信息来实现对设备的识别的。具体而言，一个设备节点上会有几个标准属性，这里简要介绍我们需要用到的几个：
 
-设备树的每个节点上都描述了对应设备的信息，如支持的协议是什么类型等等。而操作系统就是通过这些节点上的信息来实现对设备的识别的。具体而言，一个设备节点上会有几个标准属性，这里简要介绍我们需要用到的几个：
-
-  - compatible：该属性指的是该设备的编程模型，一般格式为 "manufacturer,model"，分别指一个出厂标签和具体模型。如 "virtio,mmio" 指的是这个设备通过 virtio 协议、MMIO（内存映射 I/O）方式来驱动
+  - compatible：该属性是一个字符串列表，由一个或多个定义了该设备的编程模型的字符串组成。其中的每个字符串的一般格式为 "manufacturer,model"，分别指一个出厂标签和具体模型。如 "virtio,mmio" 指的是这个设备通过 virtio 协议、MMIO（内存映射 I/O）方式来驱动
   - model：指的是设备生产商给设备的型号
   - reg：当一些很长的信息或者数据无法用其他标准属性来定义时，可以用 reg 段来自定义存储一些信息
-      
+
 传递设备树信息
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -86,7 +86,7 @@
 解析设备树信息
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-对于解析设备树中的各种属性，我们不需要自己来实现这件事情，可以直接调用 `rCore 中 device_tree 库 <https://github.com/rcore-os/device_tree-rs">`_ ，然后遍历树上节点即可：
+对于解析设备树中的各种属性，我们不需要自己来实现这件事情，可以直接调用 `rCore 中 device_tree 库 <https://github.com/rcore-os/device_tree-rs>`_ ，然后遍历树上节点即可：
 
 .. code-block:: Rust
 
@@ -119,8 +119,8 @@
 .. code-block:: Rust
 
    fn walk_dt_node(dt: &Node) {
-      if let Ok(compatible) = dt.prop_str("compatible") {
-         if compatible == "virtio,mmio" {
+      if let Ok(compatible) = dt.prop_str_list("compatible") {
+         if compatible.iter().any(|s| s == "virtio,mmio") {
             //确定是virtio设备
             virtio_probe(dt);
          }

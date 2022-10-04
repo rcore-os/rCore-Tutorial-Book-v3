@@ -416,7 +416,7 @@
 <h2>硬件系统架构<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
 <div class="section" id="id5">
 <h3>设备树<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
-<p>首先，我们需要了解OS管理的计算机硬件系统– <code class="docutils literal notranslate"><span class="pre">QEMU</span> <span class="pre">riscv-64</span> <span class="pre">virt</span> <span class="pre">machine</span></code> 。这表示了一台虚拟的RISC-V 64计算机，CPU的个数是可以通过参数 <code class="docutils literal notranslate"><span class="pre">-cpu</span> <span class="pre">num</span></code> 配置的，内存也是可通过参数 <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">numM/G</span></code> 来配置。这是标配信息。这台虚拟计算机还有很多外设信息，每个设备在物理上连接到了父设备上最后再通过总线等连接起来构成一整个设备树。QEMU 可以把它模拟的机器细节信息全都导出到dtb格式的二进制文件中，并可通过 <code class="docutils literal notranslate"><span class="pre">dtc</span></code> （Device Tree Compiler）工具转成可理解的文本文件。如想详细了解这个文件的格式说明可以参考  <a class="reference external" href="https://buildmedia.readthedocs.org/media/pdf/devicetree-specification/latest/devicetree-specification.pdf">Devicetree Specification</a> 。</p>
+<p>首先，我们需要了解OS管理的计算机硬件系统– <code class="docutils literal notranslate"><span class="pre">QEMU</span> <span class="pre">riscv-64</span> <span class="pre">virt</span> <span class="pre">machine</span></code> 。这表示了一台虚拟的RISC-V 64计算机，CPU的个数是可以通过参数 <code class="docutils literal notranslate"><span class="pre">-cpu</span> <span class="pre">num</span></code> 配置的，内存也是可通过参数 <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">numM/G</span></code> 来配置。这是标配信息。这台虚拟计算机还有很多外设信息，每个设备在物理上连接到了父设备上最后再通过总线等连接起来构成一整个设备树。QEMU 可以把它模拟的机器细节信息全都导出到dtb格式的二进制文件中，并可通过 <code class="docutils literal notranslate"><span class="pre">dtc</span></code> （Device Tree Compiler）工具转成可理解的文本文件。如想详细了解这个文件的格式说明可以参考  <a class="reference external" href="https://www.devicetree.org/specifications/">Devicetree Specification</a> 。</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>qemu-system-riscv64 -machine virt -machine <span class="nv">dumpdtb</span><span class="o">=</span>riscv64-virt.dtb -bios default
 
 <span class="go">qemu-system-riscv64: info: dtb dumped to riscv64-virt.dtb. Exiting.</span>
@@ -429,15 +429,16 @@
 </div>
 <p>一个典型的设备树如下图所示：</p>
 <img alt="../_images/device-tree.png" class="align-center" id="device-tree" src="../_images/device-tree.png" />
-<p><strong>[info] 设备节点属性</strong></p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>设备节点属性</strong></p>
 <p>设备树的每个节点上都描述了对应设备的信息，如支持的协议是什么类型等等。而操作系统就是通过这些节点上的信息来实现对设备的识别的。具体而言，一个设备节点上会有几个标准属性，这里简要介绍我们需要用到的几个：</p>
-<blockquote>
-<div><ul class="simple">
-<li><p>compatible：该属性指的是该设备的编程模型，一般格式为 “manufacturer,model”，分别指一个出厂标签和具体模型。如 “virtio,mmio” 指的是这个设备通过 virtio 协议、MMIO（内存映射 I/O）方式来驱动</p></li>
+<ul class="simple">
+<li><p>compatible：该属性是一个字符串列表，由一个或多个定义了该设备的编程模型的字符串组成。其中的每个字符串的一般格式为 “manufacturer,model”，分别指一个出厂标签和具体模型。如 “virtio,mmio” 指的是这个设备通过 virtio 协议、MMIO（内存映射 I/O）方式来驱动</p></li>
 <li><p>model：指的是设备生产商给设备的型号</p></li>
 <li><p>reg：当一些很长的信息或者数据无法用其他标准属性来定义时，可以用 reg 段来自定义存储一些信息</p></li>
 </ul>
-</div></blockquote>
+</div>
 </div>
 <div class="section" id="id6">
 <h3>传递设备树信息<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
@@ -455,7 +456,7 @@
 </div>
 <div class="section" id="id7">
 <h3>解析设备树信息<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
-<p>对于解析设备树中的各种属性，我们不需要自己来实现这件事情，可以直接调用 <a class="reference external" href="https://github.com/rcore-os/device_tree-rs&quot;">rCore 中 device_tree 库</a> ，然后遍历树上节点即可：</p>
+<p>对于解析设备树中的各种属性，我们不需要自己来实现这件事情，可以直接调用 <a class="reference external" href="https://github.com/rcore-os/device_tree-rs">rCore 中 device_tree 库</a> ，然后遍历树上节点即可：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 遍历设备树并初始化设备</span>
 <span class="k">fn</span> <span class="nf">init_dt</span><span class="p">(</span><span class="n">dtb</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">   </span><span class="n">info</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;device tree @ {:#x}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">dtb</span><span class="p">);</span><span class="w"></span>
@@ -483,8 +484,8 @@
 </div>
 <p>起始时有一步是验证 Magic Number，这是为了保证系统可靠性，验证这段内存是否存放了设备树信息。在遍历过程中，一旦发现了一个支持 “virtio,mmio” 的设备（其实就是 QEMU 模拟的各种virtio设备），就进入下一步加载驱动的逻辑。具体遍历设备树节点的实现如下：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">walk_dt_node</span><span class="p">(</span><span class="n">dt</span>: <span class="kp">&amp;</span><span class="nc">Node</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(</span><span class="n">compatible</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dt</span><span class="p">.</span><span class="n">prop_str</span><span class="p">(</span><span class="s">&quot;compatible&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="n">compatible</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;virtio,mmio&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(</span><span class="n">compatible</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dt</span><span class="p">.</span><span class="n">prop_str_list</span><span class="p">(</span><span class="s">&quot;compatible&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="n">compatible</span><span class="p">.</span><span class="n">iter</span><span class="p">().</span><span class="n">any</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;virtio,mmio&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">         </span><span class="c1">//确定是virtio设备</span>
 <span class="w">         </span><span class="n">virtio_probe</span><span class="p">(</span><span class="n">dt</span><span class="p">);</span><span class="w"></span>
 <span class="w">      </span><span class="p">}</span><span class="w"></span>
