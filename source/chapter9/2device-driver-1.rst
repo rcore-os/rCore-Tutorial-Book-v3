@@ -56,7 +56,7 @@
    :align: center
    :name: device-tree
 
-.. info::
+.. note::
 
   **设备节点属性**
 
