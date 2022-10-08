@@ -23,19 +23,19 @@ Github Classroom方式进行在线OS 环境配置
 
 .. note::
 
-   **基于github classroom的在线开发方式**
+   **基于 github classroom 的在线开发方式**
    
-   基于github classroom，可方便建立开发用的git repository，并可基于github的 codespace （在线版ubuntu +vscode）在线开发使用。整个开发环境仅仅需要一个网络浏览器。
+   基于 github classroom，可方便建立开发用的 git repository，并可基于 github 的 codespace （在线版 ubuntu +vscode）在线开发使用。整个开发环境仅仅需要一个网络浏览器。
 
    1. 在网络浏览器中用自己的 github  id 登录 github.com
    2. 接收 `第一个实验练习 setup-env-run-os1 的github classroom在线邀请 <https://classroom.github.com/a/hnoWuKGF>`_  ，根据提示一路选择OK即可。
-   3. 完成第二步后，你的第一个实验练习 setup-env-run-os1 的 github repository 会被自动建立好，点击此github repository的链接，就可看到你要完成的第一个实验了。
+   3. 完成第二步后，你的第一个实验练习 setup-env-run-os1 的 github repository 会被自动建立好，点击此 github repository 的链接，就可看到你要完成的第一个实验了。
    4. 在你的第一个实验练习的网页的中上部可以看到一个醒目的 `code`  绿色按钮，点击后，可以进一步看到  `codespace` 标签和醒目的 `create codesapce on main` 绿色按钮。请点击这个绿色按钮，就可以进入到在线的ubuntu +vscode环境中
-   5. 再按照下面的环境安装提示在vscode的 `console` 中安装配置开发环境：rustc，qemu等工具。注：也可在vscode的 `console` 中执行 ``make codespaces_setenv`` 来自动安装配置开发环境（执行 ``sudo`` 需要root权限，仅需要执行一次）。
-   6. **重要：** 在vscode的 `console` 中执行 `make setupclassroom_testX`  （该命令仅执行一次，X的范围为 1-8）配置githubclassroom 自动评分功能。
-   7. 然后就可以基于在线vscode进行开发、运行、提交等完整的实验过程了。
+   5. 再按照下面的环境安装提示在 vscode 的 `console` 中安装配置开发环境：rustc，qemu 等工具。注：也可在 vscode 的 `console` 中执行 ``make codespaces_setenv`` 来自动安装配置开发环境（执行 ``sudo`` 需要root权限，仅需要执行一次）。
+   6. **重要：** 在 vscode 的 `console` 中执行 `make setupclassroom_testX`  （该命令仅执行一次，X的范围为 1-8）配置 github classroom 自动评分功能。
+   7. 然后就可以基于在线 vscode 进行开发、运行、提交等完整的实验过程了。
 
-   上述的3，4，5步不是必须的，你也可以仅仅基于 ``Github Classromm`` 生成git repository，并进行本地开发。
+   上述的3，4，5步不是必须的，你也可以仅仅基于 ``Github Classroom`` 生成 git repository，并进行本地开发。
 
 
 本地操作系统开发环境配置
@@ -291,6 +291,12 @@ QEMU 模拟器安装
    qemu-riscv64 --version
 
 在其他缺少预编译 QEMU with RV64 软件包的Linux x86-64 环境（如openEuler操作系统）上，首先需要从 openEuler 社区维护的 QEMU 的 `riscv分支 <https://gitee.com/src-openeuler/qemu/tree/riscv/>`_ 下载 QEMU 源码，并直接通过 rpmbuild 进行构建。
+
+.. warning::
+
+   请尽量不要安装 ``qemu-kvm`` ，这可能会导致我们的框架无法正常运行。如果已经安装，可以考虑换用 Docker 。
+
+   另外，我们仅在 Qemu 7.0.0 版本上进行了测试，请尽量不要切换到其他版本。
 
 K210 真机串口通信
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
