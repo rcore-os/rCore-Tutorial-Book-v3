@@ -41,12 +41,11 @@ Remzi H. Arpaci-Dusseau 和 Andrea C. Arpaci-Dusseau 的《Operating Systems: Th
   chyyuu：有一个比较大的ascii图，画出我们做出的各种OSes。
 
 
-.. note::
+.. admonition:: **本书提供了哪些“小”操作系统？**
+   :class: note
 
-   **本书提供了哪些“小”操作系统？**
-   
    我们按照操作系统的发展历史，设计了如下一些逐步进化的“小”操作系统
-
+  
    - LibOS: 让APP与HW隔离，简化应用访问硬件的难度和复杂性
    - BatchOS： 让APP与OS隔离，加强系统安全，提高执行效率
    - Multiprog & Time-sharing OS: 让APP共享CPU资源
@@ -58,9 +57,8 @@ Remzi H. Arpaci-Dusseau 和 Andrea C. Arpaci-Dusseau 的《Operating Systems: Th
    - SyncMutex OS：在多线程APP中支持对共享资源的同步互斥访问
    - Device OS：提高APP的I/O效率和人机交互能力，支持基于外设中断的串口/块设备/键盘/鼠标/显示设备
 
-.. note::
-
-   **如何基于本书学习操作系统？**
+.. admonition:: **如何基于本书学习操作系统？**
+   :class: note
 
    这取决于你想学习操作系统的目标，这里主要分为两类：
 
@@ -72,7 +70,8 @@ Remzi H. Arpaci-Dusseau 和 Andrea C. Arpaci-Dusseau 的《Operating Systems: Th
 
      - 构造式学习：在理解式学习方式基础上，进一步分析源码，逐步深入了解每个OS的内部增量实现，并且参考/基于这些小OS，扩展部分OS功能，通过测试用例，从而同时掌握操作系统实现和原理。
 
-.. note::
+.. admonition:: **编程语言与指令集选择**
+   :class: note
 
    **目前常见的操作系统内核都是基于 C 语言的，为何要推荐 Rust 语言？**
    
