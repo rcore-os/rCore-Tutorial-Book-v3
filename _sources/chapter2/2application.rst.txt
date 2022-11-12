@@ -318,4 +318,4 @@
 
 可以看到，除了 ``02power`` 之外，其余两个应用程序都能够执行并顺利结束。这是由于它们在运行时得到了操作系统 Linux for RISC-V 64 的支持。而 ``02power`` 的例子也说明我们应用的兼容性比较受限，当应用用到较多特性时很可能就不再兼容 Qemu 了。我们期望在下一节开始实现的泥盆纪“邓式鱼”操作系统也能够正确加载和执行这些应用程序。
 
-.. [#rust-asm-macro-rfc] https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html
+.. [#rust-asm-macro-rfc] https://doc.rust-lang.org/reference/inline-assembly.html
