@@ -539,7 +539,7 @@
     // os/src/task/mod.rs
 
     impl TaskManager {
-            fn get_current_token(&self) -> usize {
+        fn get_current_token(&self) -> usize {
             let inner = self.inner.borrow();
             let current = inner.current_task;
             inner.tasks[current].get_user_token()
