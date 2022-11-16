@@ -218,7 +218,7 @@ Rust 开发环境配置
 .. code-block:: bash
 
    rustup target add riscv64gc-unknown-none-elf
-   cargo install cargo-binutils --version=0.3.3
+   cargo install cargo-binutils
    rustup component add llvm-tools-preview
    rustup component add rust-src
 
