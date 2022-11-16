@@ -24,27 +24,27 @@
 
 在 Rust 编译&链接辅助程序 ``os/build.rs`` 中，会读取位于 ``user/src/bin`` 中应用程序对应的执行文件，并生成 ``link_app.S`` ，按顺序保存链接进来的每个应用的名字：
   
-.. code-block::
+.. code-block:: Rust
     :linenos:
     :emphasize-lines: 8-13
 
-        // os/build.rs
+    // os/build.rs
 
-        for i in 0..apps.len() {
-            writeln!(f, r#"    .quad app_{}_start"#, i)?;
-        }
-        writeln!(f, r#"    .quad app_{}_end"#, apps.len() - 1)?;
+    for i in 0..apps.len() {
+        writeln!(f, r#"    .quad app_{}_start"#, i)?;
+    }
+    writeln!(f, r#"    .quad app_{}_end"#, apps.len() - 1)?;
 
-        writeln!(f, r#"
-        .global _app_names
+    writeln!(f, r#"
+    .global _app_names
     _app_names:"#)?;
-        for app in apps.iter() {
-            writeln!(f, r#"    .string "{}""#, app)?;
-        }
+    for app in apps.iter() {
+        writeln!(f, r#"    .string "{}""#, app)?;
+    }
 
-        for (idx, app) in apps.iter().enumerate() {
-            ...
-        }
+    for (idx, app) in apps.iter().enumerate() {
+        ...
+    }
 
 第 8~13 行，我们按照顺序将各个应用的名字通过 ``.string`` 伪指令放到数据段中，注意链接器会自动在每个字符串的结尾加入分隔符 ``\0`` ，它们的位置则由全局符号 ``_app_names`` 指出。这样在编译操作系统的过程中，会生成如下的 ``link_app.S`` 文件：
 
