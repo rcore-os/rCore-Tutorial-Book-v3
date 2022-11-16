@@ -24,7 +24,7 @@
 
 在 Rust 编译&链接辅助程序 ``os/build.rs`` 中，会读取位于 ``user/src/bin`` 中应用程序对应的执行文件，并生成 ``link_app.S`` ，按顺序保存链接进来的每个应用的名字：
   
-.. code-block:: Rust
+.. code-block:: rust
     :linenos:
     :emphasize-lines: 8-13
 
