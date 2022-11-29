@@ -3,21 +3,22 @@
 
 本节导读
 --------------------------------------------
-在本节之前的IPC机制主要集中在进程间的数据传输和数据交换方面，这需要两个进程之间相互合作，同步地来实现。比如，一个进程发出 ``read`` 系统调用，另外一个进程需要发出对应的 ``write`` 系统调用，这样两个进程才能协同完成基于 ``pipe`` 机制的数据传输。这种双向协作的方式不太适合单向的事件通知机制。
 
-在进程间还存在“事件通知”的需求：操作系统或某进程希望能单方面通知另外一个正在忙其它事情的进程产生了某个事件，并让这个进程能迅速响应。如果采用之前同步的IPC机制，难以高效地应对这样的需求。比如，用户想中断当前正在运行的一个程序，于是他敲击 `Ctrl-C` 的组合键，正在运行的程序会迅速退出它正在做的任何事情，截止程序的执行。
+在本节之前的 IPC 机制主要集中在进程间的数据传输和数据交换方面，这需要两个进程之间相互合作，同步地来实现。比如，一个进程发出 ``read`` 系统调用，另外一个进程需要发出对应的 ``write`` 系统调用，这样两个进程才能协同完成基于 ``pipe`` 机制的数据传输。这种双向协作的方式不太适合单向的事件通知机制。
 
-我们需要有一种类似于硬件中断的软件级异步通知机制，让进程在没有事件的时候，该忙啥就忙啥；如果一有事件产生，它能够暂停当前的工作，及时地响应事件，并在响应完事件后，恢复当前工作继续执行。这里的暂停与恢复的工作，都由操作系统来完成，应用程序只需设置好响应某事件的事件处理例程就够了。这在很大程度上简化了应用程序响应事件的开发工作。这些需求和想法推动了 ``信号（Signal）`` 机制的产生。
+在进程间还存在“事件通知”的需求：操作系统或某进程希望能单方面通知另外一个正在忙其它事情的进程产生了某个事件，并让这个进程能迅速响应。如果采用之前同步的 IPC 机制，难以高效地应对这样的需求。比如，用户想中断当前正在运行的一个程序，于是他敲击 `Ctrl-C` 的组合键，正在运行的程序会迅速退出它正在做的任何事情，截止程序的执行。
+
+我们需要有一种类似于硬件中断的软件级异步通知机制，使得进程在接收到特定事件的时候能够暂停当前的工作并及时响应事件，并在响应事件之后可以恢复当前工作继续执行。如果进程没有接收到任何事件，它可以执行自己的任务。这里的暂停与恢复的工作，都由操作系统来完成，应用程序只需设置好响应某事件的事件处理例程就够了。这在很大程度上简化了应用程序响应事件的开发工作。这些需求和想法推动了 ``信号（Signal）`` 机制的产生。
 
 
 信号机制简介
 --------------------------------------------
 
-信号（Signals）是类UNIX操作系统中实现进程间通信的一种异步通知机制，用来提醒某进程一个特定事件已经发生，需要及时处理。当一个信号发送给一个进程时，操作系统会中断被发送进程的正常执行流程。如果被发送进程定义了信号的处理函数，那么它将被执行，否则就执行默认的处理行为，比如让该进程退出。
+信号（Signals）是类 UNIX 操作系统中实现进程间通信的一种异步通知机制，用来提醒某进程一个特定事件已经发生，需要及时处理。当一个信号发送给一个进程时，操作系统会中断接收到信号的进程的正常执行流程。如果该进程定义了信号的处理函数，那么这个处理函数被执行，否则就执行默认的处理行为，比如让该进程退出。
 
-如果将信号与硬件中断进行比较，我们可以把信号描述为软件中断。当硬件发出中断后，中断响应的对象是操作系统，并由操作系统预设的中断处理例程来具体地进行中断的响应和处理；当某进程或操作系统发出信号时，会指定信号响应的对象，即某个进程的 ``pid`` ，并由该进程预设的信号处理例程来进行具体的信号响应。
+如果将信号与硬件中断进行比较，我们可以把信号描述为软件中断。当硬件发出中断后，中断响应的对象是操作系统，并由操作系统预设的中断处理例程来具体地进行中断的响应和处理；对于信号来说，当某进程或操作系统发出信号时，会指定信号响应的对象，即某个进程的 ``pid`` ，并由该进程预设的信号处理例程来进行具体的信号响应。
 
-进程间发送的信号是某种事件，为了简单起见，UNIX采用了整数来对信号进行编号，这些整数编号都定义了对应的信号的宏名，宏名都是以SIG开头，比如SIGABRT, SIGKILL, SIGSTOP, SIGCONT。
+进程间发送的信号是某种事件，为了简单起见，UNIX 采用了整数来对信号进行编号，这些整数编号都定义了对应的信号的宏名，宏名都是以 SIG 开头，比如SIGABRT, SIGKILL, SIGSTOP, SIGCONT。
 
 信号的发送方可以是进程或操作系统内核，进程通过系统调用 ``kill`` 给其它进程发信号；内核在碰到特定事件，比如用户对当前进程按下 ``Ctrl+C`` 按键时，内核收到包含 ``Ctrl+C`` 按键的外设中断和按键信息，并会向正在运行的当前进程发送 ``SIGINT`` 信号，将其终止。
 
@@ -30,9 +31,9 @@
 
 .. note::
 
-   Linux有哪些信号？ 
+   **Linux有哪些信号？** 
 
-   Linux中有62个信号，每个信号代表着某种事件，一般情况下，当进程收到某个信号时，就表示该信号所代表的事件发生了。  下面列出了一些常见的信号。
+   Linux 中有 62 个信号，每个信号代表着某种事件，一般情况下，当进程收到某个信号时，就表示该信号所代表的事件发生了。下面列出了一些常见的信号。
 
 
    ===========  ========================================================== 
@@ -46,7 +47,7 @@
     SIGILL      非法指令异常
     SIGTSTP     对当前进程按下 ``CTRL+Z`` 键时，会发送给当前进程让它暂停
     SIGCONT     恢复暂停的进程继续执行
-    SIGUSR1/2     用户自定义signal 1或2
+    SIGUSR1/2   用户自定义signal 1或2
    ===========  ==========================================================  
 
 
@@ -56,25 +57,25 @@
 
 为了支持应用使用信号机制，我们需要新增4个系统调用：
 
-- sys_sigaction: 设置信号处理例程
-- sys_sigprocmask: 设置要阻止的信号
-- sys_kill: 将某信号发送给某进程
-- sys_sigreturn: 清除堆栈帧，从信号处理例程返回
+- ``sys_sigaction`` : 设置信号处理例程
+- ``sys_sigprocmask`` : 设置要阻止的信号
+- ``sys_kill`` : 将某信号发送给某进程
+- ``sys_sigreturn`` : 清除堆栈帧，从信号处理例程返回
 
 具体描述如下：
 
 .. code-block:: rust
     
-    // usr/src/syscall.rs
+    // user/src/syscall.rs
     
     // 设置信号处理例程
     // signum：指定信号
     // action：新的信号处理配置
     // old_action：老的的信号处理配置
-    sys_sigaction(signum: i32, 
-       action: *const SignalAction,
-       old_action: *const SignalAction) 
-       -> isize
+    fn sys_sigaction(
+        signum: i32, 
+        action: *const SignalAction,
+        old_action: *const SignalAction) -> isize
 
     pub struct SignalAction {
         // 信号处理例程的地址
@@ -85,28 +86,30 @@
 
     // 设置要阻止的信号
     // mask：信号掩码
-    sys_sigprocmask(mask: u32) -> isize 
+    fn sys_sigprocmask(mask: u32) -> isize 
  
     // 清除堆栈帧，从信号处理例程返回
-     sys_sigreturn() -> isize
+    fn sys_sigreturn() -> isize
  
     // 将某信号发送给某进程
     // pid：进程pid
     // signal：信号的整数码
-    sys_kill(pid: usize, signal: i32) -> isize
+    fn sys_kill(pid: usize, signal: i32) -> isize
 
 在用户库中会将其包装为 ``sigaction`` 等函数：
 
 .. code-block:: rust
 
-    // usr/src/lib.rs
+    // user/src/lib.rs
 
     pub fn kill(pid: usize, signal: i32) -> isize {
         sys_kill(pid, signal)
     }
 
-    pub fn sigaction(signum: i32, action: *const SignalAction, old_action:
-       *const SignalAction) -> isize {
+    pub fn sigaction(
+        signum: i32,
+        action: *const SignalAction,
+        old_action: *const SignalAction) -> isize {
         sys_sigaction(signum, action, old_action)
     }
 
@@ -125,13 +128,14 @@
 .. code-block:: rust
     :linenos:
 
+    // user/src/bin/sig_simple.rs
+
     #![no_std]
     #![no_main]
 
     #[macro_use]
     extern crate user_lib;
 
-    // use user_lib::{sigaction, sigprocmask, SignalAction, SignalFlags, fork, exit, wait, kill, getpid, sleep, sigreturn};
     use user_lib::*;
 
     fn func() {
@@ -158,13 +162,13 @@
         0
     }
 
-在此进程中，在第17~19行，首先建立了 ``new`` 和 ``old`` 两个 ``SignalAction`` 结构的变量，并设置 ``new.handler`` 为信号处理函数 ``func`` 的地址。 
+在此进程中：
 
-然后在第22行，调用 ``sigaction`` 函数，设置 ``SIGUSR1`` 信号对应为 ``new`` 变量，即该进程在收到 ``SIGUSR1`` 信号后，会执行 ``func`` 函数来具体处理响应此信号。 
+- 在第 18~20 行，首先建立了 ``new`` 和 ``old`` 两个 ``SignalAction`` 结构的变量，并设置 ``new.handler`` 为信号处理函数 ``func`` 的地址。 
+- 然后在第23行，调用 ``sigaction`` 函数，设置 ``SIGUSR1`` 信号对应为 ``new`` 变量，即该进程在收到 ``SIGUSR1`` 信号后，会执行 ``func`` 函数来具体处理响应此信号。 
+- 接着在第27行，通过 ``getpid`` 函数获得自己的 pid，并以自己的 pid 和 ``SIGUSR1`` 为参数，调用 ``kill`` 函数，给自己发 ``SIGUSR1`` 信号。
 
-接着在第26行，通过 ``getpid`` 函数获得自己的pid，并以自己的pid和 ``SIGUSR1`` 为参数，调用 ``kill`` 函数，给自己发 ``SIGUSR1`` 信号。
-
-操作系统在收到 ``sys_kill`` 系统调用后，会保存该进程老的``trap``上下文，然后修改其``trap``上下文，使得从内核返回到该进程的 ``func`` 函数执行，并在 ``func`` 函数的末尾，进程通过调用 ``sigreturn`` 函数，恢复到该进程之前被 ``func`` 函数截断的地方，即 ``sys_kill`` 系统调用后的指令处，继续执行，直到进程结束。
+操作系统在收到 ``sys_kill`` 系统调用后，会保存该进程老的 Trap 上下文，然后修改其 Trap 上下文，使得从内核返回到该进程的 ``func`` 函数执行，并在 ``func`` 函数的末尾，进程通过调用 ``sigreturn`` 函数，恢复到该进程之前被 ``func`` 函数截断的地方，即 ``sys_kill`` 系统调用后的指令处，继续执行，直到进程结束。
 
 
 信号设计与实现
@@ -173,7 +177,7 @@
 核心数据结构
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-signal属于进程的一种资源，所以需要在进程控制块中添加signal核心数据结构：
+信号属于进程的一种资源，所以需要在进程控制块中添加 signal 核心数据结构：
 
 .. code-block:: rust
     :linenos:
@@ -196,13 +200,11 @@ signal属于进程的一种资源，所以需要在进程控制块中添加signa
         pub mask: SignalFlags       // 信号掩码
     }
 
+进程控制块中新增字段的含义如下：
 
-``SignalAction`` 数据结构包含信号所对应的信号处理函数的地址和信号掩码。
-``signal_actions`` 是每个信号对应的SignalAction的数组，操作系统根据这个数组中的内容，可以知道该进程应该如何响应信号。
-
-``killed`` 的作用是标志当前进程是否已经被杀死。因为进程收到杀死信号的时候并不会立刻结束，而是会在适当的时候退出。这个时候需要killed作为标记，退出不必要的信号处理循环。
-
-``frozen`` 的标志与SIGSTOP和SIGCONT两个信号有关。SIGSTOP会暂停进程的执行，即将frozen置为true。此时当前进程会阻塞等待SIGCONT（即解冻的信号）。当信号收到SIGCONT的时候，frozen置为false，退出等待信号的循环，返回用户态继续执行。
+- ``SignalAction`` 数据结构包含信号所对应的信号处理函数的地址和信号掩码。进程控制块中的 ``signal_actions`` 是每个信号对应的 SignalAction 的数组，操作系统根据这个数组中的内容，可以知道该进程应该如何响应信号。
+- ``killed`` 的作用是标志当前进程是否已经被杀死。因为进程收到杀死信号的时候并不会立刻结束，而是会在适当的时候退出。这个时候需要 killed 作为标记，退出不必要的信号处理循环。
+- ``frozen`` 的标志与 SIGSTOP 和 SIGCONT 两个信号有关。SIGSTOP 会暂停进程的执行，即将frozen 置为 true。此时当前进程会阻塞等待 SIGCONT（即解冻的信号）。当信号收到 SIGCONT 的时候，frozen 置为 false，退出等待信号的循环，返回用户态继续执行。
 
 
 建立信号处理函数(signal_handler)
@@ -213,19 +215,25 @@ signal属于进程的一种资源，所以需要在进程控制块中添加signa
 
     // os/src/syscall/process.rs
 
-    fn sys_sigaction(signum: i32, action: *const SignalAction, 
-                              old_action: *mut SignalAction) -> isize {
-      ...
+    fn sys_sigaction(
+        signum: i32
+        action: *const SignalAction, 
+        old_action: *mut SignalAction) -> isize {
+        
+        ...
 
-      //1. 保存老的signal_handler地址到old_action中
-      let old_kernel_action = inner.signal_actions.table[signum as usize];
-      *translated_refmut(token, old_action) = old_kernel_action;
+        //1. 保存老的 signal_handler 地址到 old_action 中
+        let old_kernel_action = inner.signal_actions.table[signum as usize];
+        *translated_refmut(token, old_action) = old_kernel_action;
      
-      //2. 保存新的signal_handler地址到TCB的signal_actions中
-      let ref_action = translated_ref(token, action);
-      inner.signal_actions.table[signum as usize] = *ref_action;
+        //2. 保存新的 signal_handler 地址到 TCB 的 signal_actions 中
+        let ref_action = translated_ref(token, action);
+        inner.signal_actions.table[signum as usize] = *ref_action;
 
-``sys_sigaction`` 的主要工作就是保存该进程的``signal_actions``中对应信号的sigaction到old_action中，然后再把新的ref_action保存到该进程的signal_actions对应项中。
+        ...
+    }
+
+``sys_sigaction`` 的主要工作就是保存该进程的 ``signal_actions`` 中对应信号的 ``sigaction`` 到 ``old_action`` 中，然后再把新的 ``ref_action`` 保存到该进程的 ``signal_actions`` 对应项中。
 
 
 发送信号
@@ -237,13 +245,14 @@ signal属于进程的一种资源，所以需要在进程控制块中添加signa
     // os/src/syscall/process.rs
     
     fn sys_kill(pid: usize, signum: i32) -> isize {
-          let Some(task) = pid2task(pid);
-          // insert the signal if legal
-          let mut task_ref = task.inner_exclusive_access();
-          task_ref.signals.insert(flag);
-         ...
+        let Some(task) = pid2task(pid);
+        // insert the signal if legal
+        let mut task_ref = task.inner_exclusive_access();
+        task_ref.signals.insert(flag);
+        ...
+    }
 
-``sys_kill``的主要工作是对进程号为pid的进程发值为signum的信号。具体而言，先根据 ``pid`` 找到对应的进程控制块，然后把进程控制块中的 ``signals`` 中 ``signum`` 所对应的位设置 ``1`` 。
+``sys_kill`` 的主要工作是对进程号为 pid 的进程发值为 ``signum`` 的信号。具体而言，先根据 ``pid`` 找到对应的进程控制块，然后把进程控制块中的 ``signals`` 中 ``signum`` 所对应的位设置 ``1`` 。
 
 
 在信号处理后恢复继续执行
