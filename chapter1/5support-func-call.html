@@ -563,14 +563,14 @@
 <span class="linenos"> 6</span>    <span class="nf">call</span> <span class="no">rust_main</span>
 <span class="linenos"> 7</span>
 <span class="linenos"> 8</span>    <span class="na">.section</span> <span class="no">.bss.stack</span>
-<span class="linenos"> 9</span>    <span class="na">.globl</span> <span class="no">boot_stack</span>
-<span class="linenos">10</span><span class="nl">boot_stack:</span>
+<span class="linenos"> 9</span>    <span class="na">.globl</span> <span class="no">boot_stack_lower_bound</span>
+<span class="linenos">10</span><span class="nl">boot_stack_lower_bound:</span>
 <span class="linenos">11</span>    <span class="na">.space</span> <span class="mi">4096</span> <span class="p">*</span> <span class="mi">16</span>
 <span class="linenos">12</span>    <span class="na">.globl</span> <span class="no">boot_stack_top</span>
 <span class="linenos">13</span><span class="nl">boot_stack_top:</span>
 </pre></div>
 </div>
-<p>我们在第 11 行在内核的内存布局中预留了一块大小为 4096 * 16 字节也就是 <span class="math notranslate nohighlight">\(64\text{KiB}\)</span> 的空间用作接下来要运行的程序的栈空间。在 RISC-V 架构上，栈是从高地址向低地址增长，因此我们用更高地址的符号 <code class="docutils literal notranslate"><span class="pre">boot_stack_top</span></code> 来标识栈顶的位置，而用更低地址的符号 <code class="docutils literal notranslate"><span class="pre">boot_stack</span></code> 来标识栈底的位置，它们都被设置为全局符号供其他目标文件使用。第 8 行可以看到我们将这块空间放置在一个名为 <code class="docutils literal notranslate"><span class="pre">.bss.stack</span></code> 的段中，在链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中可以看到 <code class="docutils literal notranslate"><span class="pre">.bss.stack</span></code> 段最终会被汇集到 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段中：</p>
+<p>我们在第 11 行在内核的内存布局中预留了一块大小为 4096 * 16 字节也就是 <span class="math notranslate nohighlight">\(64\text{KiB}\)</span> 的空间用作接下来要运行的程序的栈空间。在 RISC-V 架构上，栈是从高地址向低地址增长。因此，最开始的时候栈为空，栈顶和栈底位于相同的位置，我们用更高地址的符号 <code class="docutils literal notranslate"><span class="pre">boot_stack_top</span></code> 来标识栈顶的位置。同时，我们用更低地址的符号 <code class="docutils literal notranslate"><span class="pre">boot_stack_lower_bound</span></code> 来标识栈能够增长到的下限位置，它们都被设置为全局符号供其他目标文件使用。第 8 行可以看到我们将这块空间放置在一个名为 <code class="docutils literal notranslate"><span class="pre">.bss.stack</span></code> 的段中，在链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中可以看到 <code class="docutils literal notranslate"><span class="pre">.bss.stack</span></code> 段最终会被汇集到 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段中：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">.</span><span class="n">bss</span> <span class="p">:</span> <span class="p">{</span>
     <span class="o">*</span><span class="p">(</span><span class="o">.</span><span class="n">bss</span><span class="o">.</span><span class="n">stack</span><span class="p">)</span>
     <span class="n">sbss</span> <span class="o">=</span> <span class="o">.</span><span class="p">;</span>
