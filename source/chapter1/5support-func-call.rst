@@ -235,13 +235,13 @@
         call rust_main
 
         .section .bss.stack
-        .globl boot_stack
-    boot_stack:
+        .globl boot_stack_lower_bound
+    boot_stack_lower_bound:
         .space 4096 * 16
         .globl boot_stack_top
     boot_stack_top:
 
-我们在第 11 行在内核的内存布局中预留了一块大小为 4096 * 16 字节也就是 :math:`64\text{KiB}` 的空间用作接下来要运行的程序的栈空间。在 RISC-V 架构上，栈是从高地址向低地址增长，因此我们用更高地址的符号 ``boot_stack_top`` 来标识栈顶的位置，而用更低地址的符号 ``boot_stack`` 来标识栈底的位置，它们都被设置为全局符号供其他目标文件使用。第 8 行可以看到我们将这块空间放置在一个名为 ``.bss.stack`` 的段中，在链接脚本 ``linker.ld`` 中可以看到 ``.bss.stack`` 段最终会被汇集到 ``.bss`` 段中：
+我们在第 11 行在内核的内存布局中预留了一块大小为 4096 * 16 字节也就是 :math:`64\text{KiB}` 的空间用作接下来要运行的程序的栈空间。在 RISC-V 架构上，栈是从高地址向低地址增长。因此，最开始的时候栈为空，栈顶和栈底位于相同的位置，我们用更高地址的符号 ``boot_stack_top`` 来标识栈顶的位置。同时，我们用更低地址的符号 ``boot_stack_lower_bound`` 来标识栈能够增长到的下限位置，它们都被设置为全局符号供其他目标文件使用。第 8 行可以看到我们将这块空间放置在一个名为 ``.bss.stack`` 的段中，在链接脚本 ``linker.ld`` 中可以看到 ``.bss.stack`` 段最终会被汇集到 ``.bss`` 段中：
 
 .. code-block::
 
