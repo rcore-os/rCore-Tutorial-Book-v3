@@ -75,7 +75,7 @@
     fn sys_sigaction(
         signum: i32, 
         action: *const SignalAction,
-        old_action: *const SignalAction) -> isize
+        old_action: *mut SignalAction) -> isize
 
     pub struct SignalAction {
         // 信号处理例程的地址
@@ -109,7 +109,7 @@
     pub fn sigaction(
         signum: i32,
         action: *const SignalAction,
-        old_action: *const SignalAction) -> isize {
+        old_action: *mut SignalAction) -> isize {
         sys_sigaction(signum, action, old_action)
     }
 
@@ -279,7 +279,7 @@
 响应信号
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-当一个进程给另外一个进程发出信号后，操作系统位需要响应信号的进程所做的事情相对复杂一些。操作系统会在进程在从内核态回到用户态的最后阶段进行响应信号的处理。其总体的处理流程如下所示：
+当一个进程给另外一个进程发出信号后，操作系统为需要响应信号的进程所做的事情相对复杂一些。操作系统会在进程在从内核态回到用户态的最后阶段进行响应信号的处理。其总体的处理流程如下所示：
 
 
 .. code-block:: 
