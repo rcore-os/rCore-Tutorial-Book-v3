@@ -504,8 +504,8 @@
 <p>在上述函数的实现中，分别通过手动查内核多级页表的方式验证代码段和只读数据段不允许被写入，同时不允许从数据段上取指执行。</p>
 </div>
 </div>
-<div class="section" id="term-trampoline">
-<span id="id7"></span><h2>跳板机制的实现<a class="headerlink" href="#term-trampoline" title="永久链接至标题">#</a></h2>
+<div class="section" id="id7">
+<h2>跳板机制的实现<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h2>
 <p>上一小节我们看到无论是内核还是应用的地址空间，最高的虚拟页面都是一个跳板。同时应用地址空间的次高虚拟页面还被设置为用来存放应用的 Trap 上下文。那么跳板究竟起什么作用呢？为何不直接把 Trap 上下文仍放到应用的内核栈中呢？</p>
 <p>回忆曾在第二章介绍过的 <a class="reference internal" href="../chapter2/4trap-handling.html#trap-context-save-restore"><span class="std std-ref">Trap 上下文保存与恢复</span></a> 。当一个应用 Trap 到内核时，<code class="docutils literal notranslate"><span class="pre">sscratch</span></code> 已指向该应用的内核栈栈顶，我们用一条指令即可从用户栈切换到内核栈，然后直接将 Trap 上下文压入内核栈栈顶。当 Trap 处理完毕返回用户态的时候，将 Trap 上下文中的内容恢复到寄存器上，最后将保存着应用用户栈顶的 <code class="docutils literal notranslate"><span class="pre">sscratch</span></code> 与 sp 进行交换，也就从内核栈切换回了用户栈。在这个过程中， <code class="docutils literal notranslate"><span class="pre">sscratch</span></code> 起到了非常关键的作用，它使得我们可以在不破坏任何通用寄存器的情况下，完成用户栈与内核栈的切换，以及位于内核栈顶的 Trap 上下文的保存与恢复。</p>
 <p>然而，一旦使能了分页机制，一切就并没有这么简单了，我们必须在这个过程中同时完成地址空间的切换。具体来说，当 <code class="docutils literal notranslate"><span class="pre">__alltraps</span></code> 保存 Trap 上下文的时候，我们必须通过修改 satp 从应用地址空间切换到内核地址空间，因为 trap handler 只有在内核地址空间中才能访问；同理，在 <code class="docutils literal notranslate"><span class="pre">__restore</span></code> 恢复 Trap 上下文的时候，我们也必须从内核地址空间切换回应用地址空间，因为应用的代码和数据只能在它自己的地址空间中才能访问，应用是看不到内核地址空间的。这样就要求地址空间的切换不能影响指令的连续执行，即要求应用和内核地址空间在切换地址空间指令附近是平滑的。</p>
@@ -1087,7 +1087,7 @@
 <li><a class="reference internal" href="#id6">检查内核地址空间的多级页表设置</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#term-trampoline">跳板机制的实现</a><ul>
+<li><a class="reference internal" href="#id7">跳板机制的实现</a><ul>
 <li><a class="reference internal" href="#trap">扩展Trap 上下文</a></li>
 <li><a class="reference internal" href="#id8">切换地址空间</a></li>
 <li><a class="reference internal" href="#id9">建立跳板页面</a></li>

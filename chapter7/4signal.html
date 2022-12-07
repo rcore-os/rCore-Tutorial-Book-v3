@@ -392,29 +392,30 @@
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
 <p>在本节之前的 IPC 机制主要集中在进程间的数据传输和数据交换方面，这需要两个进程之间相互合作，同步地来实现。比如，一个进程发出 <code class="docutils literal notranslate"><span class="pre">read</span></code> 系统调用，另外一个进程需要发出对应的 <code class="docutils literal notranslate"><span class="pre">write</span></code> 系统调用，这样两个进程才能协同完成基于 <code class="docutils literal notranslate"><span class="pre">pipe</span></code> 机制的数据传输。这种双向协作的方式不太适合单向的事件通知机制。</p>
 <p>在进程间还存在“事件通知”的需求：操作系统或某进程希望能单方面通知另外一个正在忙其它事情的进程产生了某个事件，并让这个进程能迅速响应。如果采用之前同步的 IPC 机制，难以高效地应对这样的需求。比如，用户想中断当前正在运行的一个程序，于是他敲击 <cite>Ctrl-C</cite> 的组合键，正在运行的程序会迅速退出它正在做的任何事情，截止程序的执行。</p>
-<p>我们需要有一种类似于硬件中断的软件级异步通知机制，使得进程在接收到特定事件的时候能够暂停当前的工作并及时响应事件，并在响应事件之后可以恢复当前工作继续执行。如果进程没有接收到任何事件，它可以执行自己的任务。这里的暂停与恢复的工作，都由操作系统来完成，应用程序只需设置好响应某事件的事件处理例程就够了。这在很大程度上简化了应用程序响应事件的开发工作。这些需求和想法推动了 <code class="docutils literal notranslate"><span class="pre">信号（Signal）</span></code> 机制的产生。</p>
+<p>我们需要有一种类似于硬件中断的软件级异步通知机制，使得进程在接收到特定事件的时候能够暂停当前的工作并及时响应事件，并在响应事件之后可以恢复当前工作继续执行。如果进程没有接收到任何事件，它可以执行自己的任务。这里的暂停与恢复的工作，都由操作系统来完成，应用程序只需设置好响应某事件的事件处理例程就够了。这在很大程度上简化了应用程序响应事件的开发工作。这些需求和想法推动了 <strong>信号</strong> (Signal) 机制的产生。</p>
 </div>
 <div class="section" id="id3">
 <h2>信号机制简介<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
-<p>信号（Signals）是类 UNIX 操作系统中实现进程间通信的一种异步通知机制，用来提醒某进程一个特定事件已经发生，需要及时处理。当一个信号发送给一个进程时，操作系统会中断接收到信号的进程的正常执行流程。如果该进程定义了信号的处理函数，那么这个处理函数被执行，否则就执行默认的处理行为，比如让该进程退出。</p>
+<p>信号（Signals）是类 UNIX 操作系统中实现进程间通信的一种异步通知机制，用来提醒某进程一个特定事件已经发生，需要及时处理。当一个信号发送给一个进程时，操作系统会中断接收到信号的进程的正常执行流程并对信号进行处理。如果该进程定义了信号的处理函数，那么这个处理函数会被调用，否则就执行默认的处理行为，比如让该进程退出。在处理完信号之后，如果进程还没有退出，则会恢复并继续进程的正常执行。</p>
 <p>如果将信号与硬件中断进行比较，我们可以把信号描述为软件中断。当硬件发出中断后，中断响应的对象是操作系统，并由操作系统预设的中断处理例程来具体地进行中断的响应和处理；对于信号来说，当某进程或操作系统发出信号时，会指定信号响应的对象，即某个进程的 <code class="docutils literal notranslate"><span class="pre">pid</span></code> ，并由该进程预设的信号处理例程来进行具体的信号响应。</p>
 <p>进程间发送的信号是某种事件，为了简单起见，UNIX 采用了整数来对信号进行编号，这些整数编号都定义了对应的信号的宏名，宏名都是以 SIG 开头，比如SIGABRT, SIGKILL, SIGSTOP, SIGCONT。</p>
-<p>信号的发送方可以是进程或操作系统内核，进程通过系统调用 <code class="docutils literal notranslate"><span class="pre">kill</span></code> 给其它进程发信号；内核在碰到特定事件，比如用户对当前进程按下 <code class="docutils literal notranslate"><span class="pre">Ctrl+C</span></code> 按键时，内核收到包含 <code class="docutils literal notranslate"><span class="pre">Ctrl+C</span></code> 按键的外设中断和按键信息，并会向正在运行的当前进程发送 <code class="docutils literal notranslate"><span class="pre">SIGINT</span></code> 信号，将其终止。</p>
-<p>信号的接收方是一个进程。接收信号的处理方式有三种：</p>
+<p>信号的发送方可以是进程或操作系统内核：进程可以通过系统调用 <code class="docutils literal notranslate"><span class="pre">kill</span></code> 给其它进程发信号；内核在碰到特定事件，比如用户对当前进程按下 <code class="docutils literal notranslate"><span class="pre">Ctrl+C</span></code> 按键时，内核会收到包含 <code class="docutils literal notranslate"><span class="pre">Ctrl+C</span></code> 按键的外设中断和按键信息，随后会向正在运行的当前进程发送 <code class="docutils literal notranslate"><span class="pre">SIGINT</span></code> 信号，将其终止。</p>
+<p>信号的接收方是一个进程，接收到信号有多种处理方式，最常见的三种如下：</p>
 <ul class="simple">
 <li><p>忽略：就像信号没有发生过一样。</p></li>
 <li><p>捕获：进程会调用相应的处理函数进行处理。</p></li>
-<li><p>默认：如果不忽略也不捕获，此时进程会使用内核默认的处理方式来处理信号。内核默认的信号处理：在大多情况下就是杀死进程或者直接忽略信号。</p></li>
+<li><p>终止：终止进程。</p></li>
 </ul>
+<p>如果应用没有手动设置接收到某种信号之后如何处理，则操作系统内核会以默认方式处理该信号，一般是终止收到信号的进程或者忽略此信号。每种信号都有自己的默认处理方式。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p><strong>Linux有哪些信号？</strong></p>
-<p>Linux 中有 62 个信号，每个信号代表着某种事件，一般情况下，当进程收到某个信号时，就表示该信号所代表的事件发生了。下面列出了一些常见的信号。</p>
+<p><strong>Linux 有哪些信号？</strong></p>
+<p>Linux 中有 62 个信号，每个信号代表着某种事件，一般情况下，当进程收到某个信号时，意味着该信号所代表的事件发生了。下面列出了一些常见的信号。</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <colgroup>
-<col style="width: 16%" />
-<col style="width: 84%" />
+<col style="width: 10%" />
+<col style="width: 90%" />
 </colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>信号</p></th>
@@ -423,39 +424,247 @@
 </thead>
 <tbody>
 <tr class="row-even"><td><p>SIGABRT</p></td>
-<td><p>由调用abort函数产生，进程非正常退出</p></td>
+<td><p>非正常的进程退出，可能由调用 <code class="docutils literal notranslate"><span class="pre">abort</span></code> 函数产生</p></td>
 </tr>
 <tr class="row-odd"><td><p>SIGCHLD</p></td>
-<td><p>进程终止时，会发送给它的父进程</p></td>
+<td><p>进程状态变更时（通常是进程退出时），由内核发送给它的父进程</p></td>
 </tr>
 <tr class="row-even"><td><p>SIGINT</p></td>
-<td><p>对当前进程按下 <code class="docutils literal notranslate"><span class="pre">CTRL+C</span></code> 键时，会发送给当前进程</p></td>
+<td><p>在终端界面按下 <code class="docutils literal notranslate"><span class="pre">CTRL+C</span></code> 组合键时，由内核会发送给当前终端的前台进程</p></td>
 </tr>
 <tr class="row-odd"><td><p>SIGKILL</p></td>
-<td><p>操作系统中止某个进程</p></td>
+<td><p>终止某个进程，由内核或其他进程发送给被终止进程</p></td>
 </tr>
 <tr class="row-even"><td><p>SIGSEGV</p></td>
-<td><p>非法内存访问异常</p></td>
+<td><p>非法内存访问异常，由内核发送给触发异常的进程</p></td>
 </tr>
 <tr class="row-odd"><td><p>SIGILL</p></td>
-<td><p>非法指令异常</p></td>
+<td><p>非法指令异常，由内核发送给触发异常的进程</p></td>
 </tr>
 <tr class="row-even"><td><p>SIGTSTP</p></td>
-<td><p>对当前进程按下 <code class="docutils literal notranslate"><span class="pre">CTRL+Z</span></code> 键时，会发送给当前进程让它暂停</p></td>
+<td><p>在终端界面按下  <code class="docutils literal notranslate"><span class="pre">CTRL+Z</span></code> 组合键时，会发送给当前进程让它暂停</p></td>
 </tr>
-<tr class="row-odd"><td><p>SIGCONT</p></td>
+<tr class="row-odd"><td><p>SIGSTOP</p></td>
+<td><p>也用于暂停进程，与 <code class="docutils literal notranslate"><span class="pre">SIGTSTP</span></code> 的区别在于 <code class="docutils literal notranslate"><span class="pre">SIGSTOP</span></code> 不能被忽略或捕获，即 <code class="docutils literal notranslate"><span class="pre">SIGTSTP</span></code> 更加灵活</p></td>
+</tr>
+<tr class="row-even"><td><p>SIGCONT</p></td>
 <td><p>恢复暂停的进程继续执行</p></td>
 </tr>
-<tr class="row-even"><td><p>SIGUSR1/2</p></td>
-<td><p>用户自定义signal 1或2</p></td>
+<tr class="row-odd"><td><p>SIGUSR1/2</p></td>
+<td><p>用户自定义信号 1/2</p></td>
 </tr>
 </tbody>
 </table>
 </div>
+<p>和之前介绍过的硬件中断一样，信号作为软件中断也可以分成同步和异步两种，这里的同步/异步指的是信号的触发同步/异步于接收到信号进程的执行。比如 <code class="docutils literal notranslate"><span class="pre">SIGILL</span></code> 和 <code class="docutils literal notranslate"><span class="pre">SIGSEGV</span></code> 就属于同步信号，而 <code class="docutils literal notranslate"><span class="pre">SIGCHLD</span></code> 和 <code class="docutils literal notranslate"><span class="pre">SIGINT</span></code> 就属于异步信号。</p>
 </div>
 </div>
 <div class="section" id="id4">
-<h2>信号的系统调用原型及使用方法<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
+<h2>信号处理流程<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
+<p>信号的处理流程如下图所示：</p>
+<a class="reference internal image-reference" href="../_images/signal.png"><img alt="../_images/signal.png" class="align-center" src="../_images/signal.png" style="width: 500px;" /></a>
+<p>信号有两种来源：最开始的时候进程在正常执行，此时可能内核或者其他进程给它发送了一个信号，这些就属于异步信号，是信号的第一种来源；信号的第二种来源则是由进程自身的执行触发，在处理 Trap 的时候的时候内核会将相应的信号直接附加到进程控制块中，这种属于同步信号。</p>
+<p>内核会在 Trap 处理完成即将返回用户态之前检查要返回到的进程是否还有信号待处理。如果需要处理的话，取决于进程是否提供该种信号的处理函数，有两种处理方法：</p>
+<ul class="simple">
+<li><p>如果进程通过下面介绍的 <code class="docutils literal notranslate"><span class="pre">sigaction</span></code> 系统调用提供了相应信号的处理函数，那么内核会将该进程 Trap 进来时留下的 Trap 上下文保存在另一个地方，并回到用户态执行进程提供的处理函数。内核要求处理函数的编写者在函数的末尾手动进行另一个 <code class="docutils literal notranslate"><span class="pre">sigreturn</span></code> 系统调用，表明处理结束并请求恢复进程原来的执行。内核将处理该系统调用并恢复之前保存的 Trap 上下文，等到再次回到用户态的时候，便会继续进程在处理信号之前的执行。</p></li>
+<li><p>反之，如果进程未提供处理函数，这是一种比较简单的情况。此时，内核会直接默认的方式处理信号。之后便会回到用户态继续进程原先的执行。</p></li>
+</ul>
+</div>
+<div class="section" id="id5">
+<h2>信号机制系统调用原型<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
+<div class="section" id="id6">
+<h3>发送信号<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
+<p>为了与其他进程进行通信，一个进程可以使用 <code class="docutils literal notranslate"><span class="pre">kill</span></code> 系统调用发送信号给另一个进程：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
+
+<span class="sd">/// 功能：当前进程向另一个进程（可以是自身）发送一个信号。</span>
+<span class="sd">/// 参数：pid 表示接受信号的进程的进程 ID, signum 表示要发送的信号的编号。</span>
+<span class="sd">/// 返回值：如果传入参数不正确（比如指定进程或信号类型不存在）则返回 -1 ,否则返回 0 。</span>
+<span class="sd">/// syscall ID: 129</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">kill</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
+<p>我们的内核中各信号的编号定义如下：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGDEF</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// Default signal handling</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGHUP</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGINT</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGQUIT</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGILL</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGTRAP</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGABRT</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">6</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGBUS</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGFPE</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGKILL</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">9</span><span class="p">;</span><span class="w"></span>
+<span class="o">..</span><span class="p">.</span><span class="w"></span>
+</pre></div>
+</div>
+<p>从中可以看出，每次调用 <code class="docutils literal notranslate"><span class="pre">kill</span></code> 只能发送一个类型的信号。</p>
+</div>
+<div class="section" id="id7">
+<h3>处理信号<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
+<p>与信号处理相关的系统调用则有三个：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sys_sigaction</span></code> :设置信号处理例程</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sys_procmask</span></code> :设置进程的信号屏蔽掩码</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sys_sigreturn</span></code> :清除栈帧，从信号处理例程返回</p></li>
+</ul>
+<p>下面依次对它们进行说明。</p>
+<p>首先，进程可以通过 <code class="docutils literal notranslate"><span class="pre">sigaction</span></code> 系统调用捕获某种信号，即：当接收到某种信号的时候，暂停进程当前的执行，调用进程为该种信号提供的函数对信号进行处理，处理完成之后再恢复进程原先的执行。 <code class="docutils literal notranslate"><span class="pre">sigaction</span></code> 的接口如下：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
+
+<span class="sd">/// 功能：为当前进程设置某种信号的处理函数，同时保存设置之前的处理函数。</span>
+<span class="sd">/// 参数：signum 表示信号的编号，action 表示要设置成的处理函数的指针</span>
+<span class="sd">/// old_action 表示用于保存设置之前的处理函数的指针（SignalAction 结构稍后介绍）。</span>
+<span class="sd">/// 返回值：如果传入参数错误（比如传入的 action 或 old_action 为空指针或者）</span>
+<span class="sd">/// 信号类型不存在返回 -1 ，否则返回 0 。</span>
+<span class="sd">/// syscall ID: 134</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigaction</span><span class="p">(</span><span class="w"></span>
+<span class="w">    </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">old_action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
+<p>注意这里参数 <code class="docutils literal notranslate"><span class="pre">action</span></code> 和 <code class="docutils literal notranslate"><span class="pre">old_action</span></code> 在裸指针外面使用一层 <code class="docutils literal notranslate"><span class="pre">Option</span></code> 包裹。这意味着传值的时候当传递实际存在的引用的时候使用 <code class="docutils literal notranslate"><span class="pre">Some</span></code> 包裹，当传递空指针的时候则直接传 <code class="docutils literal notranslate"><span class="pre">None</span></code> 。这样可以提前对引用和空指针做出区分。在实现系统调用的时候，如果发现是 <code class="docutils literal notranslate"><span class="pre">None</span></code> ，我们再将其转换成空指针：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigaction</span><span class="p">(</span><span class="w"></span>
+<span class="w">    </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">old_action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">sys_sigaction</span><span class="p">(</span><span class="n">signum</span><span class="p">,</span><span class="w"> </span><span class="n">action</span><span class="p">,</span><span class="w"> </span><span class="n">old_action</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="c1">// user/src/syscall.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigaction</span><span class="p">(</span><span class="w"></span>
+<span class="w">    </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="n">old_action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="w"></span>
+<span class="w">        </span><span class="n">SYSCALL_SIGACTION</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="p">[</span><span class="w"></span>
+<span class="w">            </span><span class="n">signum</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">action</span><span class="p">.</span><span class="n">map_or</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">|</span><span class="n">r</span><span class="o">|</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">),</span><span class="w"></span>
+<span class="w">            </span><span class="n">old_action</span><span class="p">.</span><span class="n">map_or</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">|</span><span class="n">r</span><span class="o">|</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">),</span><span class="w"></span>
+<span class="w">        </span><span class="p">],</span><span class="w"></span>
+<span class="w">    </span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>接下来介绍 <code class="docutils literal notranslate"><span class="pre">SignalAction</span></code> 数据结构：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
+
+<span class="sd">/// Action for a signal</span>
+<span class="cp">#[repr(C)]</span><span class="w"></span>
+<span class="cp">#[derive(Debug, Clone, Copy)]</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SignalAction</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">handler</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">mask</span>: <span class="nc">SignalFlags</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>可以看到它有两个字段： <code class="docutils literal notranslate"><span class="pre">handler</span></code> 表示信号处理函数的入口地址； <code class="docutils literal notranslate"><span class="pre">mask</span></code> 则表示执行该信号处理函数期间的信号掩码。这个信号掩码是用于在执行信号处理函数的期间屏蔽掉一些信号，每个 <code class="docutils literal notranslate"><span class="pre">handler</span></code> 都可以设置它在执行期间屏蔽掉哪些信号。“屏蔽”的意思是指在执行该信号处理函数期间，即使 Trap 到内核态发现当前进程又接收到了一些信号，只要这些信号被屏蔽，内核就不会对这些信号进行处理而是直接回到用户态继续执行信号处理函数。但这不意味着这些被屏蔽的信号就此被忽略，它们仍被记录在进程控制块中，当信号处理函数执行结束之后它们便不再被屏蔽，从而后续可能被处理。</p>
+<p><code class="docutils literal notranslate"><span class="pre">mask</span></code> 作为一个掩码可以代表屏蔽掉一组信号，因此它的类型 <code class="docutils literal notranslate"><span class="pre">SignalFlags</span></code> 是一个信号集合：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
+
+<span class="n">bitflags</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SignalFlags</span>: <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGDEF</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="c1">// Default signal handling</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGHUP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGINT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGQUIT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGILL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGTRAP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGSYS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">31</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>需要注意的是，我们目前的实现比较简单，暂时不支持信号嵌套，也就是在执行一个信号处理函数期间再去执行另一个信号处理函数。</p>
+<p><code class="docutils literal notranslate"><span class="pre">sigaction</span></code> 可以设置某个信号处理函数的信号掩码，而 <code class="docutils literal notranslate"><span class="pre">sigprocmask</span></code> 是设置这个进程的全局信号掩码：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
+
+<span class="sd">/// 功能：设置当前进程的全局信号掩码。</span>
+<span class="sd">/// 参数：mask 表示当前进程要设置成的全局信号掩码，代表一个信号集合，</span>
+<span class="sd">/// 在集合中的信号始终被该进程屏蔽。</span>
+<span class="sd">/// 返回值：如果传入参数错误返回 -1 ，否则返回 0 。</span>
+<span class="sd">/// syscall ID: 135</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigprocmask</span><span class="p">(</span><span class="n">mask</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
+<p>最后一个系统调用是 <code class="docutils literal notranslate"><span class="pre">sigreturn</span></code> 。介绍信号处理流程的时候提到过，在进程向内核提供的信号处理函数末尾，函数的编写者需要手动插入一个 <code class="docutils literal notranslate"><span class="pre">sigreturn</span></code> 系统调用来通知内核信号处理过程结束，可以恢复进程先前的执行。它的接口如下：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
+
+<span class="sd">/// 功能：进程通知内核信号处理函数退出，可以恢复原先的进程执行。</span>
+<span class="sd">/// 返回值：如果出错返回 -1，否则返回 0 。</span>
+<span class="sd">/// syscall ID: 139</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigreturn</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id8">
+<h3>信号系统调用使用示例<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
+<p>我们来从简单的信号例子 <code class="docutils literal notranslate"><span class="pre">sig_simple</span></code> 中介绍如何使用信号机制：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/sig_simple.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="cp">#![no_std]</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="cp">#![no_main]</span><span class="w"></span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="c1">// use user_lib::{sigaction, sigprocmask, SignalAction, SignalFlags, fork, exit, wait, kill, getpid, sleep, sigreturn};</span>
+<span class="linenos"> 9</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="o">*</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">10</span>
+<span class="linenos">11</span><span class="k">fn</span> <span class="nf">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;user_sig_test passed&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="n">sigreturn</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">14</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">15</span>
+<span class="linenos">16</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos">17</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalAction</span>::<span class="n">default</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">old</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalAction</span>::<span class="n">default</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">    </span><span class="n">new</span><span class="p">.</span><span class="n">handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">func</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">21</span>
+<span class="linenos">22</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: sigaction&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">sigaction</span><span class="p">(</span><span class="n">SIGUSR1</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="n">new</span><span class="p">),</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">old</span><span class="p">))</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">        </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Sigaction failed!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: kill&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">kill</span><span class="p">(</span><span class="n">getpid</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">SIGUSR1</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Kill failed!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">        </span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: Done&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">    </span><span class="mi">0</span><span class="w"></span>
+<span class="linenos">33</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>在此进程中：</p>
+<ul class="simple">
+<li><p>在第 18~20 行，首先建立了 <code class="docutils literal notranslate"><span class="pre">new</span></code> 和 <code class="docutils literal notranslate"><span class="pre">old</span></code> 两个 <code class="docutils literal notranslate"><span class="pre">SignalAction</span></code> 结构的变量，并设置 <code class="docutils literal notranslate"><span class="pre">new.handler</span></code> 为信号处理函数 <code class="docutils literal notranslate"><span class="pre">func</span></code> 的地址。</p></li>
+<li><p>然后在第 23 行，调用 <code class="docutils literal notranslate"><span class="pre">sigaction</span></code> 函数，提取 <code class="docutils literal notranslate"><span class="pre">new</span></code> 结构中的信息设置当前进程收到 <code class="docutils literal notranslate"><span class="pre">SIGUSR1</span></code> 信号之后的处理方式，其效果是该进程在收到 <code class="docutils literal notranslate"><span class="pre">SIGUSR1</span></code> 信号后，会执行 <code class="docutils literal notranslate"><span class="pre">func</span></code> 函数来具体处理响应此信号。</p></li>
+<li><p>接着在第 27 行，通过 <code class="docutils literal notranslate"><span class="pre">getpid</span></code> 函数获得自己的 pid，并以自己的 pid 和 <code class="docutils literal notranslate"><span class="pre">SIGUSR1</span></code> 为参数，调用 <code class="docutils literal notranslate"><span class="pre">kill</span></code> 函数，给自己发 <code class="docutils literal notranslate"><span class="pre">SIGUSR1</span></code> 信号。</p></li>
+</ul>
+<p>执行这个应用，可以看到下面的输出：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;&gt;</span> <span class="n">sig_simple</span>
+<span class="n">signal_simple</span><span class="p">:</span> <span class="n">sigaction</span>
+<span class="n">signal_simple</span><span class="p">:</span> <span class="n">kill</span>
+<span class="n">user_sig_test</span> <span class="n">passed</span>
+<span class="n">signal_simple</span><span class="p">:</span> <span class="n">Done</span>
+</pre></div>
+</div>
+<p>可以看出，看到进程在收到自己给自己发送的 <code class="docutils literal notranslate"><span class="pre">SIGUSR1</span></code> 信号之后，内核调用它作为信号处理函数的 <code class="docutils literal notranslate"><span class="pre">func</span></code> 函数并打印出了标志性输出。在信号处理函数结束之后，还能够看到含有 <code class="docutils literal notranslate"><span class="pre">Done</span></code> 的输出，这意味着进程原先的执行被正确恢复。</p>
+</div>
+</div>
+<div class="section" id="id9">
+<h2>信号的系统调用原型及使用方法<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h2>
 <p>为了支持应用使用信号机制，我们需要新增4个系统调用：</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">sys_sigaction</span></code> : 设置信号处理例程</p></li>
@@ -518,54 +727,11 @@
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>我们来从简单的信号例子 <code class="docutils literal notranslate"><span class="pre">sig_simple</span></code> 中介绍如何使用信号机制：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/sig_simple.rs</span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="cp">#![no_std]</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="cp">#![no_main]</span><span class="w"></span>
-<span class="linenos"> 5</span>
-<span class="linenos"> 6</span><span class="cp">#[macro_use]</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 8</span>
-<span class="linenos"> 9</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="o">*</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">10</span>
-<span class="linenos">11</span><span class="k">fn</span> <span class="nf">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;user_sig_test succsess&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="n">sigreturn</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">14</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">15</span>
-<span class="linenos">16</span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="linenos">17</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalAction</span>::<span class="n">default</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">old</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalAction</span>::<span class="n">default</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">    </span><span class="n">new</span><span class="p">.</span><span class="n">handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">func</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">21</span>
-<span class="linenos">22</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: sigaction&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">sigaction</span><span class="p">(</span><span class="n">SIGUSR1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">new</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">old</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">        </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Sigaction failed!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: kill&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">kill</span><span class="p">(</span><span class="n">getpid</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">SIGUSR1</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Kill failed!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">29</span><span class="w">        </span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">30</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">31</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: Done&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">32</span><span class="w">    </span><span class="mi">0</span><span class="w"></span>
-<span class="linenos">33</span><span class="p">}</span><span class="w"></span>
-</pre></div>
 </div>
-<p>在此进程中：</p>
-<ul class="simple">
-<li><p>在第 18~20 行，首先建立了 <code class="docutils literal notranslate"><span class="pre">new</span></code> 和 <code class="docutils literal notranslate"><span class="pre">old</span></code> 两个 <code class="docutils literal notranslate"><span class="pre">SignalAction</span></code> 结构的变量，并设置 <code class="docutils literal notranslate"><span class="pre">new.handler</span></code> 为信号处理函数 <code class="docutils literal notranslate"><span class="pre">func</span></code> 的地址。</p></li>
-<li><p>然后在第23行，调用 <code class="docutils literal notranslate"><span class="pre">sigaction</span></code> 函数，设置 <code class="docutils literal notranslate"><span class="pre">SIGUSR1</span></code> 信号对应为 <code class="docutils literal notranslate"><span class="pre">new</span></code> 变量，即该进程在收到 <code class="docutils literal notranslate"><span class="pre">SIGUSR1</span></code> 信号后，会执行 <code class="docutils literal notranslate"><span class="pre">func</span></code> 函数来具体处理响应此信号。</p></li>
-<li><p>接着在第27行，通过 <code class="docutils literal notranslate"><span class="pre">getpid</span></code> 函数获得自己的 pid，并以自己的 pid 和 <code class="docutils literal notranslate"><span class="pre">SIGUSR1</span></code> 为参数，调用 <code class="docutils literal notranslate"><span class="pre">kill</span></code> 函数，给自己发 <code class="docutils literal notranslate"><span class="pre">SIGUSR1</span></code> 信号。</p></li>
-</ul>
-<p>操作系统在收到 <code class="docutils literal notranslate"><span class="pre">sys_kill</span></code> 系统调用后，会保存该进程老的 Trap 上下文，然后修改其 Trap 上下文，使得从内核返回到该进程的 <code class="docutils literal notranslate"><span class="pre">func</span></code> 函数执行，并在 <code class="docutils literal notranslate"><span class="pre">func</span></code> 函数的末尾，进程通过调用 <code class="docutils literal notranslate"><span class="pre">sigreturn</span></code> 函数，恢复到该进程之前被 <code class="docutils literal notranslate"><span class="pre">func</span></code> 函数截断的地方，即 <code class="docutils literal notranslate"><span class="pre">sys_kill</span></code> 系统调用后的指令处，继续执行，直到进程结束。</p>
-</div>
-<div class="section" id="id5">
-<h2>信号设计与实现<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
-<div class="section" id="id6">
-<h3>核心数据结构<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
+<div class="section" id="id10">
+<h2>信号设计与实现<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h2>
+<div class="section" id="id11">
+<h3>核心数据结构<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h3>
 <p>信号属于进程的一种资源，所以需要在进程控制块中添加 signal 核心数据结构：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/task.rs</span>
 <span class="linenos"> 2</span>
@@ -618,8 +784,8 @@
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">sys_sigaction</span></code> 的主要工作就是保存该进程的 <code class="docutils literal notranslate"><span class="pre">signal_actions</span></code> 中对应信号的 <code class="docutils literal notranslate"><span class="pre">sigaction</span></code> 到 <code class="docutils literal notranslate"><span class="pre">old_action</span></code> 中，然后再把新的 <code class="docutils literal notranslate"><span class="pre">ref_action</span></code> 保存到该进程的 <code class="docutils literal notranslate"><span class="pre">signal_actions</span></code> 对应项中。</p>
 </div>
-<div class="section" id="id7">
-<h3>发送信号<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
+<div class="section" id="id12">
+<h3>发送信号<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/syscall/process.rs</span>
 <span class="linenos">2</span>
 <span class="linenos">3</span><span class="k">fn</span> <span class="nf">sys_kill</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
@@ -633,8 +799,8 @@
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">sys_kill</span></code> 的主要工作是对进程号为 pid 的进程发值为 <code class="docutils literal notranslate"><span class="pre">signum</span></code> 的信号。具体而言，先根据 <code class="docutils literal notranslate"><span class="pre">pid</span></code> 找到对应的进程控制块，然后把进程控制块中的 <code class="docutils literal notranslate"><span class="pre">signals</span></code> 中 <code class="docutils literal notranslate"><span class="pre">signum</span></code> 所对应的位设置 <code class="docutils literal notranslate"><span class="pre">1</span></code> 。</p>
 </div>
-<div class="section" id="id8">
-<h3>在信号处理后恢复继续执行<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
+<div class="section" id="id13">
+<h3>在信号处理后恢复继续执行<a class="headerlink" href="#id13" title="永久链接至标题">#</a></h3>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigretrun</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 3</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
@@ -651,8 +817,8 @@
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">sys_sigreturn</span></code> 的主要工作是在信号处理函数完成信号响应后要执行的一个恢复操作，即把操作系统在响应信号前保存的 <code class="docutils literal notranslate"><span class="pre">trap</span></code> 上下文重新恢复回来，这样就可以从信号处理前的进程正常执行的位置继续执行了。</p>
 </div>
-<div class="section" id="id9">
-<h3>响应信号<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
+<div class="section" id="id14">
+<h3>响应信号<a class="headerlink" href="#id14" title="永久链接至标题">#</a></h3>
 <p>当一个进程给另外一个进程发出信号后，操作系统为需要响应信号的进程所做的事情相对复杂一些。操作系统会在进程在从内核态回到用户态的最后阶段进行响应信号的处理。其总体的处理流程如下所示：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>执行APP --&gt; __alltraps
 <span class="linenos"> 2</span>         --&gt; trap_handler
@@ -766,15 +932,16 @@
 <p>从 <code class="docutils literal notranslate"><span class="pre">call_user_signal_handler</span></code> 的实现可以看到，第14~15行，把进程之前的``trap``上下文保存在进程控制块的 <code class="docutils literal notranslate"><span class="pre">trap_ctx_backup</span></code> 中；然后在第18行，修改``trap``上下文的 <code class="docutils literal notranslate"><span class="pre">sepc</span></code> 的值为对应信号 <code class="docutils literal notranslate"><span class="pre">sig</span></code> 的用户态的信号处理函数地址，并设置该函数的第一个参数为 <code class="docutils literal notranslate"><span class="pre">sig</span></code> 。这样在从内核回到用户态时，将不执行之前进入内核时的用户进程代码，而是执行该进程的信号处理函数。该信号处理函数最后通过执行 <code class="docutils literal notranslate"><span class="pre">sys_sigreturn</span></code> 来恢复保存在``trap_ctx_backup`` 中的``trap``上下文，从而能够回到之前进程在用户态的正常执行位置继续执行。</p>
 </div>
 </div>
-<div class="section" id="id10">
-<h2>小结<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h2>
-<p>这里仅仅给出了一个基本的信号机制的使用和实现的过程描述，在实际操作系统中，信号处理的过程要复杂很多，有兴趣的同学可以查找实际操作系统，如Linux，在信号处理上的具体实现。</p>
+<div class="section" id="id15">
+<h2>小结<a class="headerlink" href="#id15" title="永久链接至标题">#</a></h2>
+<p>这里仅仅给出了一个基本的信号机制的使用和实现的过程描述，在实际操作系统中，信号处理的过程要复杂很多，有兴趣的同学可以查找实际操作系统，如 Linux，在信号处理上的具体实现。</p>
 </div>
-<div class="section" id="id11">
-<h2>参考<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h2>
+<div class="section" id="id16">
+<h2>参考<a class="headerlink" href="#id16" title="永久链接至标题">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference external" href="https://venam.nixers.net/blog/unix/2016/10/21/unix-signals.html">https://venam.nixers.net/blog/unix/2016/10/21/unix-signals.html</a></p></li>
 <li><p><a class="reference external" href="https://www.onitroad.com/jc/linux/man-pages/linux/man2/sigreturn.2.html">https://www.onitroad.com/jc/linux/man-pages/linux/man2/sigreturn.2.html</a></p></li>
+<li><p><a class="reference external" href="http://web.stanford.edu/class/cs110/">http://web.stanford.edu/class/cs110/</a></p></li>
 </ul>
 </div>
 </div>
@@ -839,17 +1006,24 @@
 <li><a class="reference internal" href="#">信号</a><ul>
 <li><a class="reference internal" href="#id2">本节导读</a></li>
 <li><a class="reference internal" href="#id3">信号机制简介</a></li>
-<li><a class="reference internal" href="#id4">信号的系统调用原型及使用方法</a></li>
-<li><a class="reference internal" href="#id5">信号设计与实现</a><ul>
-<li><a class="reference internal" href="#id6">核心数据结构</a></li>
-<li><a class="reference internal" href="#signal-handler">建立信号处理函数(signal_handler)</a></li>
-<li><a class="reference internal" href="#id7">发送信号</a></li>
-<li><a class="reference internal" href="#id8">在信号处理后恢复继续执行</a></li>
-<li><a class="reference internal" href="#id9">响应信号</a></li>
+<li><a class="reference internal" href="#id4">信号处理流程</a></li>
+<li><a class="reference internal" href="#id5">信号机制系统调用原型</a><ul>
+<li><a class="reference internal" href="#id6">发送信号</a></li>
+<li><a class="reference internal" href="#id7">处理信号</a></li>
+<li><a class="reference internal" href="#id8">信号系统调用使用示例</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id10">小结</a></li>
-<li><a class="reference internal" href="#id11">参考</a></li>
+<li><a class="reference internal" href="#id9">信号的系统调用原型及使用方法</a></li>
+<li><a class="reference internal" href="#id10">信号设计与实现</a><ul>
+<li><a class="reference internal" href="#id11">核心数据结构</a></li>
+<li><a class="reference internal" href="#signal-handler">建立信号处理函数(signal_handler)</a></li>
+<li><a class="reference internal" href="#id12">发送信号</a></li>
+<li><a class="reference internal" href="#id13">在信号处理后恢复继续执行</a></li>
+<li><a class="reference internal" href="#id14">响应信号</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id15">小结</a></li>
+<li><a class="reference internal" href="#id16">参考</a></li>
 </ul>
 </li>
 </ul>
