@@ -122,7 +122,7 @@
 
 .. code-block:: rust
 
-    // user/src/lib.rs
+    // os/src/syscall/process.rs
 
     /// 功能：为当前进程设置某种信号的处理函数，同时保存设置之前的处理函数。
     /// 参数：signum 表示信号的编号，action 表示要设置成的处理函数的指针
@@ -130,13 +130,25 @@
     /// 返回值：如果传入参数错误（比如传入的 action 或 old_action 为空指针或者）
     /// 信号类型不存在返回 -1 ，否则返回 0 。
     /// syscall ID: 134
+    pub fn sys_sigaction(
+        signum: i32,
+        action: *const SignalAction,
+        old_action: *mut SignalAction,
+    ) -> isize;
+
+为了让编写应用更加方便，用户库 ``user_lib`` 中的接口略有不同：
+
+.. code-block:: rust
+
+    // user/src/lib.rs
+
     pub fn sigaction(
         signum: i32,
         action: Option<&SignalAction>,
         old_action: Option<&mut SignalAction>,
     ) -> isize;
 
-注意这里参数 ``action`` 和 ``old_action`` 在裸指针外面使用一层 ``Option`` 包裹。这意味着传值的时候当传递实际存在的引用的时候使用 ``Some`` 包裹，当传递空指针的时候则直接传 ``None`` 。这样可以提前对引用和空指针做出区分。在实现系统调用的时候，如果发现是 ``None`` ，我们再将其转换成空指针：
+注意这里参数 ``action`` 和 ``old_action`` 使用引用而非裸指针，且有一层 ``Option`` 包裹，这样能减少对于不安全的裸指针的使用。在传参的时候，如果传递实际存在的引用则使用 ``Some`` 包裹，而用 ``None`` 来代替空指针，这样可以提前对引用和空指针做出区分。在具体实现的时候，再将 ``None`` 转换为空指针：
 
 .. code-block:: rust
 
@@ -147,41 +159,28 @@
         action: Option<&SignalAction>,
         old_action: Option<&mut SignalAction>,
     ) -> isize {
-        sys_sigaction(signum, action, old_action)
-    }
-
-    // user/src/syscall.rs
-
-    pub fn sys_sigaction(
-        signum: i32,
-        action: Option<&SignalAction>,
-        old_action: Option<&mut SignalAction>,
-    ) -> isize {
-        syscall(
-            SYSCALL_SIGACTION,
-            [
-                signum as usize,
-                action.map_or(0, |r| r as *const _ as usize),
-                old_action.map_or(0, |r| r as *mut _ as usize),
-            ],
+        sys_sigaction(
+            signum,
+            action.map_or(core::ptr::null(), |a| a),
+            old_action.map_or(core::ptr::null_mut(), |a| a)
         )
     }
 
-接下来介绍 ``SignalAction`` 数据结构：
+接下来介绍 ``SignalAction`` 数据结构。方便起见，我们将其对齐到 16 字节使得它不会跨虚拟页面：
 
 .. code-block:: rust
 
     // user/src/lib.rs
 
     /// Action for a signal
-    #[repr(C)]
+    #[repr(C, align(16))]
     #[derive(Debug, Clone, Copy)]
     pub struct SignalAction {
         pub handler: usize,
         pub mask: SignalFlags,
     }
 
-可以看到它有两个字段： ``handler`` 表示信号处理函数的入口地址； ``mask`` 则表示执行该信号处理函数期间的信号掩码。这个信号掩码是用于在执行信号处理函数的期间屏蔽掉一些信号，每个 ``handler`` 都可以设置它在执行期间屏蔽掉哪些信号。“屏蔽”的意思是指在执行该信号处理函数期间，即使 Trap 到内核态发现当前进程又接收到了一些信号，只要这些信号被屏蔽，内核就不会对这些信号进行处理而是直接回到用户态继续执行信号处理函数。但这不意味着这些被屏蔽的信号就此被忽略，它们仍被记录在进程控制块中，当信号处理函数执行结束之后它们便不再被屏蔽，从而后续可能被处理。
+可以看到它有两个字段： ``handler`` 表示信号处理例程的入口地址； ``mask`` 则表示执行该信号处理例程期间的信号掩码。这个信号掩码是用于在执行信号处理例程的期间屏蔽掉一些信号，每个 ``handler`` 都可以设置它在执行期间屏蔽掉哪些信号。“屏蔽”的意思是指在执行该信号处理例程期间，即使 Trap 到内核态发现当前进程又接收到了一些信号，只要这些信号被屏蔽，内核就不会对这些信号进行处理而是直接回到用户态继续执行信号处理例程。但这不意味着这些被屏蔽的信号就此被忽略，它们仍被记录在进程控制块中，当信号处理例程执行结束之后它们便不再被屏蔽，从而后续可能被处理。
 
 ``mask`` 作为一个掩码可以代表屏蔽掉一组信号，因此它的类型 ``SignalFlags`` 是一个信号集合：
 
@@ -202,9 +201,9 @@
         }
     }
 
-需要注意的是，我们目前的实现比较简单，暂时不支持信号嵌套，也就是在执行一个信号处理函数期间再去执行另一个信号处理函数。
+需要注意的是，我们目前的实现比较简单，暂时不支持信号嵌套，也就是在执行一个信号处理例程期间再去执行另一个信号处理例程。
 
-``sigaction`` 可以设置某个信号处理函数的信号掩码，而 ``sigprocmask`` 是设置这个进程的全局信号掩码：
+``sigaction`` 可以设置某个信号处理例程的信号掩码，而 ``sigprocmask`` 是设置这个进程的全局信号掩码：
 
 .. code-block:: rust
 
@@ -213,17 +212,17 @@
     /// 功能：设置当前进程的全局信号掩码。
     /// 参数：mask 表示当前进程要设置成的全局信号掩码，代表一个信号集合，
     /// 在集合中的信号始终被该进程屏蔽。
-    /// 返回值：如果传入参数错误返回 -1 ，否则返回 0 。
+    /// 返回值：如果传入参数错误返回 -1 ，否则返回之前的信号掩码 。
     /// syscall ID: 135
     pub fn sigprocmask(mask: u32) -> isize;
 
-最后一个系统调用是 ``sigreturn`` 。介绍信号处理流程的时候提到过，在进程向内核提供的信号处理函数末尾，函数的编写者需要手动插入一个 ``sigreturn`` 系统调用来通知内核信号处理过程结束，可以恢复进程先前的执行。它的接口如下：
+最后一个系统调用是 ``sigreturn`` 。介绍信号处理流程的时候提到过，在进程向内核提供的信号处理例程末尾，函数的编写者需要手动插入一个 ``sigreturn`` 系统调用来通知内核信号处理过程结束，可以恢复进程先前的执行。它的接口如下：
 
 .. code-block:: rust
 
     // user/src/lib.rs
 
-    /// 功能：进程通知内核信号处理函数退出，可以恢复原先的进程执行。
+    /// 功能：进程通知内核信号处理例程退出，可以恢复原先的进程执行。
     /// 返回值：如果出错返回 -1，否则返回 0 。
     /// syscall ID: 139
     pub fn sigreturn() -> isize;
@@ -274,7 +273,7 @@
 
 在此进程中：
 
-- 在第 18~20 行，首先建立了 ``new`` 和 ``old`` 两个 ``SignalAction`` 结构的变量，并设置 ``new.handler`` 为信号处理函数 ``func`` 的地址。 
+- 在第 18~20 行，首先建立了 ``new`` 和 ``old`` 两个 ``SignalAction`` 结构的变量，并设置 ``new.handler`` 为信号处理例程 ``func`` 的地址。 
 - 然后在第 23 行，调用 ``sigaction`` 函数，提取 ``new`` 结构中的信息设置当前进程收到 ``SIGUSR1`` 信号之后的处理方式，其效果是该进程在收到 ``SIGUSR1`` 信号后，会执行 ``func`` 函数来具体处理响应此信号。 
 - 接着在第 27 行，通过 ``getpid`` 函数获得自己的 pid，并以自己的 pid 和 ``SIGUSR1`` 为参数，调用 ``kill`` 函数，给自己发 ``SIGUSR1`` 信号。
 
@@ -288,193 +287,273 @@
     user_sig_test passed
     signal_simple: Done
     
-可以看出，看到进程在收到自己给自己发送的 ``SIGUSR1`` 信号之后，内核调用它作为信号处理函数的 ``func`` 函数并打印出了标志性输出。在信号处理函数结束之后，还能够看到含有 ``Done`` 的输出，这意味着进程原先的执行被正确恢复。 
+可以看出，看到进程在收到自己给自己发送的 ``SIGUSR1`` 信号之后，内核调用它作为信号处理例程的 ``func`` 函数并打印出了标志性输出。在信号处理例程结束之后，还能够看到含有 ``Done`` 的输出，这意味着进程原先的执行被正确恢复。 
 
 .. 操作系统在收到 ``sys_kill`` 系统调用后，会保存该进程老的 Trap 上下文，然后修改其 Trap 上下文，使得从内核返回到该进程的 ``func`` 函数执行，并在 ``func`` 函数的末尾，进程通过调用 ``sigreturn`` 函数，恢复到该进程之前被 ``func`` 函数截断的地方，即 ``sys_kill`` 系统调用后的指令处，继续执行，直到进程结束。
 
-信号设计与实现
+设计与实现信号机制
 ---------------------------------------------
 
-核心数据结构
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+我们将信号机制的实现划分为两部分：
 
-信号属于进程的一种资源，所以需要在进程控制块中添加 signal 核心数据结构：
+- 一是进程通过 ``sigaction`` 系统调用设置信号处理例程和通过 ``sigprocmask`` 设置进程全局信号掩码。这些操作只需简单修改进程控制块中新增的相关数据结构即可，比较简单。
+- 二是如何向进程发送信号、进程如何接收信号、而信号又如何被处理，这些操作需要结合到本书前面的章节介绍的对于 Trap 处理流程，因此会比较复杂。
+
+设置信号处理例程和信号掩码
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+为了实现进程设置信号处理例程和信号掩码的功能，我们需要在进程控制块 ``TaskControlBlock`` 中新增以下数据结构（这些数据结构在进程创建之后可能被修改，因此将它们放置在内部可变的 inner 中）：
 
 .. code-block:: rust
-    :linenos:
 
     // os/src/task/task.rs
 
     pub struct TaskControlBlockInner {
         ...
-        pub signals: SignalFlags,          // 要响应的信号
-        pub signal_mask: SignalFlags,      // 要屏蔽的信号
-        pub handling_sig: isize,           // 正在处理的信号
-        pub signal_actions: SignalActions, // 信号处理例程表
-        pub killed: bool,                  // 任务是否已经被杀死了
-        pub frozen: bool,                  // 任务是否已经被暂停了
-        pub trap_ctx_backup: Option<TrapContext> //被打断的trap上下文
-    }
-
-    pub struct SignalAction {
-        pub handler: usize,         // 信号处理函数的地址
-        pub mask: SignalFlags       // 信号掩码
-    }
-
-进程控制块中新增字段的含义如下：
-
-- ``SignalAction`` 数据结构包含信号所对应的信号处理函数的地址和信号掩码。进程控制块中的 ``signal_actions`` 是每个信号对应的 SignalAction 的数组，操作系统根据这个数组中的内容，可以知道该进程应该如何响应信号。
-- ``killed`` 的作用是标志当前进程是否已经被杀死。因为进程收到杀死信号的时候并不会立刻结束，而是会在适当的时候退出。这个时候需要 killed 作为标记，退出不必要的信号处理循环。
-- ``frozen`` 的标志与 SIGSTOP 和 SIGCONT 两个信号有关。SIGSTOP 会暂停进程的执行，即将frozen 置为 true。此时当前进程会阻塞等待 SIGCONT（即解冻的信号）。当信号收到 SIGCONT 的时候，frozen 置为 false，退出等待信号的循环，返回用户态继续执行。
-
-
-建立信号处理函数(signal_handler)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: rust
-    :linenos:
-
-    // os/src/syscall/process.rs
-
-    fn sys_sigaction(
-        signum: i32
-        action: *const SignalAction, 
-        old_action: *mut SignalAction) -> isize {
-        
-        ...
-
-        //1. 保存老的 signal_handler 地址到 old_action 中
-        let old_kernel_action = inner.signal_actions.table[signum as usize];
-        *translated_refmut(token, old_action) = old_kernel_action;
-     
-        //2. 保存新的 signal_handler 地址到 TCB 的 signal_actions 中
-        let ref_action = translated_ref(token, action);
-        inner.signal_actions.table[signum as usize] = *ref_action;
-
+        pub signal_mask: SignalFlags,
+        pub signal_actions: SignalActions,
         ...
     }
 
-``sys_sigaction`` 的主要工作就是保存该进程的 ``signal_actions`` 中对应信号的 ``sigaction`` 到 ``old_action`` 中，然后再把新的 ``ref_action`` 保存到该进程的 ``signal_actions`` 对应项中。
+其中， ``signal_mask`` 表示进程的全局信号掩码，其类型 ``SignalFlags`` 与用户库 ``user_lib`` 中的相同，表示一个信号集合。在 ``signal_mask`` 这个信号集合内的信号将被该进程全局屏蔽。
 
-
-发送信号
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+进程可以通过 ``sigprocmask`` 系统调用直接设置自身的全局信号掩码：
 
 .. code-block:: rust
-    :linenos:
 
-    // os/src/syscall/process.rs
-    
-    fn sys_kill(pid: usize, signum: i32) -> isize {
-        let Some(task) = pid2task(pid);
-        // insert the signal if legal
-        let mut task_ref = task.inner_exclusive_access();
-        task_ref.signals.insert(flag);
-        ...
-    }
+    // os/src/process.rs
 
-``sys_kill`` 的主要工作是对进程号为 pid 的进程发值为 ``signum`` 的信号。具体而言，先根据 ``pid`` 找到对应的进程控制块，然后把进程控制块中的 ``signals`` 中 ``signum`` 所对应的位设置 ``1`` 。
-
-
-在信号处理后恢复继续执行
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: rust
-    :linenos:
-
-    pub fn sys_sigretrun() -> isize {
+    pub fn sys_sigprocmask(mask: u32) -> isize {
         if let Some(task) = current_task() {
             let mut inner = task.inner_exclusive_access();
-            inner.handling_sig = -1;
-            // restore the trap context
-            let trap_ctx = inner.get_trap_cx();
-            *trap_ctx = inner.trap_ctx_backup.unwrap();
+            let old_mask = inner.signal_mask;
+            if let Some(flag) = SignalFlags::from_bits(mask) {
+                inner.signal_mask = flag;
+                old_mask.bits() as isize
+            } else {
+                -1
+            }
+        } else {
+            -1
+        }
+    }
+
+进程控制块中的 ``signal_actions`` 的类型是 ``SignalActions`` ，是一个 ``SignalAction`` （同样与 ``user_lib`` 中的定义相同）的定长数组，其中每一项都记录进程如何响应对应的信号：
+
+.. code-block:: rust
+
+    // os/src/task/signal.rs
+
+    pub const MAX_SIG: usize = 31;
+
+    // os/src/task/action.rs
+
+    #[derive(Clone)]
+    pub struct SignalActions {
+        pub table: [SignalAction; MAX_SIG + 1],
+    }
+
+于是，在 ``sigaction`` 系统调用的时候我们只需要更新当前进程控制块的 ``signal_actions`` 即可：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/syscall/process.rs
+
+    fn check_sigaction_error(signal: SignalFlags, action: usize, old_action: usize) -> bool {
+        if action == 0
+            || old_action == 0
+            || signal == SignalFlags::SIGKILL
+            || signal == SignalFlags::SIGSTOP
+        {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn sys_sigaction(
+        signum: i32,
+        action: *const SignalAction,
+        old_action: *mut SignalAction,
+    ) -> isize {
+        let token = current_user_token();
+        let task = current_task().unwrap();
+        let mut inner = task.inner_exclusive_access();
+        if signum as usize > MAX_SIG {
+            return -1;
+        }
+        if let Some(flag) = SignalFlags::from_bits(1 << signum) {
+            if check_sigaction_error(flag, action as usize, old_action as usize) {
+                return -1;
+            }
+            let prev_action = inner.signal_actions.table[signum as usize];
+            *translated_refmut(token, old_action) = prev_action;
+            inner.signal_actions.table[signum as usize] = *translated_ref(token, action);
             0
         } else {
             -1
         }
     }
 
-``sys_sigreturn`` 的主要工作是在信号处理函数完成信号响应后要执行的一个恢复操作，即把操作系统在响应信号前保存的 ``trap`` 上下文重新恢复回来，这样就可以从信号处理前的进程正常执行的位置继续执行了。 
+其中：
 
-响应信号
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- ``check_sigaction_error`` 用来检查 ``sigaction`` 的参数是否有错误（有错误的话返回 true）。这里的检查比较简单，如果传入的 ``action`` 或者 ``old_action`` 为空指针则视为错误。另一种错误则是信号类型为 ``SIGKILL`` 或者 ``SIGSTOP`` ，这是因为我们的内核参考 Linux 内核规定不允许进程对这两种信号设置信号处理例程，而只能由内核对它们进行处理。
+- ``sys_sigaction`` 首先会调用 ``check_sigactio_error`` 进行检查，如果没有错误的话，则会使用 ``translated_ref(mut)`` 将进程提交的信号处理例程保存到进程控制块，随后将此前的处理例程保存到进程中的指定位置。注意使用 ``translated_ref(mut)`` 的前提是类型 ``T`` 不会跨页，我们通过设置 ``SignalAction`` 对齐到 16 字节来保证这一点。
 
-当一个进程给另外一个进程发出信号后，操作系统为需要响应信号的进程所做的事情相对复杂一些。操作系统会在进程在从内核态回到用户态的最后阶段进行响应信号的处理。其总体的处理流程如下所示：
+信号的产生
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+信号的产生有以下几种方式：
 
-.. code-block:: 
-    :linenos:
+1. 进程通过 ``kill`` 系统调用给自己或者其他进程发送信号。
+2. 内核检测到某些事件给某个进程发送信号，但这个事件与接收信号的进程的执行无关。典型的例子如： ``SIGCHLD`` 当子进程的状态改变后由内核发送给父进程。可以看出这可以用来实现更加灵活的进程管理，但我们的内核为了简单目前并没有实现 ``SIGCHLD`` 这类信号。
+3. 前两种属于异步信号，最后一种则属于同步信号：即进程执行的时候触发了某些条件，于是在 Trap 到内核处理的时候，内核给该进程发送相应的信号。比较常见的例子是进程执行的时候出错，比如段错误 ``SIGSEGV`` 和非法指令异常 ``SIGILL`` 。
 
-    执行APP --> __alltraps 
-             --> trap_handler 
-                --> handle_signals 
-                    --> check_pending_signals 
-                        --> call_kernel_signal_handler
-                        --> call_user_signal_handler
-                           -->  // backup trap Context
-                                // modify trap Context
-                                trap_ctx.sepc = handler; //设置回到中断处理例程的入口
-                                trap_ctx.x[10] = sig;   //把信号值放到Reg[10]
-                --> trap_return //找到并跳转到位于跳板页的`__restore`汇编函数
-           -->  __restore //恢复被修改过的trap Context，执行sret
-    执行APP的signal_handler函数
-
-
-这里需要先分析处于从内核态回到用户态的最后阶段的 ``trap_handler`` 函数：
+首先来看 ``kill`` 系统调用的实现：
 
 .. code-block:: rust
-    :linenos:
+
+    // os/src/task/task.rs
+
+    pub struct TaskControlBlockInner {
+        ...
+        pub signals: SignalFlags,
+        ...
+    }
+
+    // os/src/syscall/process.rs
+
+    pub fn sys_kill(pid: usize, signum: i32) -> isize {
+        if let Some(task) = pid2task(pid) {
+            if let Some(flag) = SignalFlags::from_bits(1 << signum) {
+                // insert the signal if legal
+                let mut task_ref = task.inner_exclusive_access();
+                if task_ref.signals.contains(flag) {
+                    return -1;
+                }
+                task_ref.signals.insert(flag);
+                0
+            } else {
+                -1
+            }
+        } else {
+            -1
+        }
+    }
+
+这需要在进程控制块的可变部分中新增一个 ``signals`` 字段记录对应进程目前已经收到了哪些信号尚未处理，它的类型同样是 ``SignalFlags`` 表示一个信号集合。 ``sys_kill`` 的实现也比较简单：就是调用 ``pid2task`` 得到传入进程 ID 对应的进程控制块，然后把要发送的信号插入到 ``signals`` 字段中。
+
+然后是进程执行出错的情况（比如访存错误或非法指令异常），这会 Trap 到内核并在 ``trap_handler`` 中由内核将对应信号发送到当前进程：
+
+.. code-block:: rust
 
     // os/src/trap/mod.rs
 
+    #[no_mangle]
     pub fn trap_handler() -> ! {
-     ...
-     match scause.cause() {
-        ... 
-        | Trap::Exception(Exception::LoadPageFault) => {
-            current_add_signal(SignalFlags::SIGSEGV);
-        }
-        Trap::Exception(Exception::IllegalInstruction) => {
-            current_add_signal(SignalFlags::SIGILL);
+        ...
+        match scause.cause() {
+            ...
+            Trap::Exception(Exception::StoreFault)
+            | Trap::Exception(Exception::StorePageFault)
+            | Trap::Exception(Exception::InstructionFault)
+            | Trap::Exception(Exception::InstructionPageFault)
+            | Trap::Exception(Exception::LoadFault)
+            | Trap::Exception(Exception::LoadPageFault) => {
+                /*
+                println!(
+                    "[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
+                    scause.cause(),
+                    stval,
+                    current_trap_cx().sepc,
+                );
+                */
+                current_add_signal(SignalFlags::SIGSEGV);
+            }
+            Trap::Exception(Exception::IllegalInstruction) => {
+                current_add_signal(SignalFlags::SIGILL);
+            ...
         }
         ...
-     } // end of match scause.cause() 
-     // handle signals (handle the sent signal)
-     handle_signals();
-
-    // check error signals (if error then exit)
-    if let Some((errno, msg)) = check_signals_error_of_current() {
-        println!("[kernel] {}", msg);
-        exit_current_and_run_next(errno);
     }
-    trap_return();
-    } 
 
-在 ``trap_handler`` 函数中，如何内核发现进程由于内存访问错误等产生异常，会添加 ``SIGSEGV`` 或 ``SIGILL`` 信号到该进程控制块的``signals`` 对应的位中；然后会在返回到用户态前，调用 ``handle_signals`` 检查该进程的控制块的``signals`` ，是否有需要处理的信号，如果有，会进行相应的 ``trap`` 上下文保存与设置。
+    // os/src/task/mod.rs
 
+    pub fn current_add_signal(signal: SignalFlags) {
+        let task = current_task().unwrap();
+        let mut task_inner = task.inner_exclusive_access();
+        task_inner.signals |= signal;
+    }
 
-这里需要进一步分析 ``handle_signals`` 函数。 
+信号的处理
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+在 ``trap_handler`` 完成 Trap 处理并返回用户态之前，会调用 ``handle_signals`` 函数处理当前进程此前接收到的信号：
+
+.. code-block:: rust
+
+    // os/src/task/task.rs
+
+    pub struct TaskControlBlockInner {
+        ...
+        pub killed: bool,
+        pub frozen: bool,
+        ...
+    }
+
+    // os/src/task/mod.rs
+
+    pub fn handle_signals() {
+        loop {
+            check_pending_signals();
+            let (frozen, killed) = {
+                let task = current_task().unwrap();
+                let task_inner = task.inner_exclusive_access();
+                (task_inner.frozen, task_inner.killed)
+            };
+            if !frozen || killed {
+                break;
+            }
+            suspend_current_and_run_next();
+        }
+    }
+
+可以看到 ``handle_signals`` 是一个无限循环，真正处理信号的逻辑在 ``check_pending_signals`` 函数中。这样做是为了处理 ``SIGSTOP`` 和 ``SIGCONT`` 这一对信号：当进程收到 ``SIGSTOP`` 信号之后，它的执行将被暂停，等到该进程收到 ``SIGCONT`` 信号之后再继续执行。我们在进程控制块中新增 ``frozen`` 字段表示进程目前是否已收到 ``SIGSTOP`` 信号被暂停，而 ``killed`` 字段表示进程是否已被杀死。这个循环的意义在于：只要进程还处于暂停且未被杀死的状态就会停留在循环中等待 ``SIGCONT`` 信号的到来。如果 ``frozen`` 为真，证明还没有收到 ``SIGCONT`` 信号，进程仍处于暂停状态，循环的末尾我们调用 ``suspend_current_and_run_next`` 函数切换到其他进程期待其他进程将 ``SIGCONT`` 信号发过来。
+
+``check_pending_signals`` 会检查收到的信号并对它们进行处理，在这个过程中会更新上面的 ``frozen`` 和 ``killed`` 字段：
 
 .. code-block:: rust
     :linenos:
 
-    pub fn handle_signals() {
-        check_pending_signals();
-        loop {
-            ...
-            if (!frozen_flag) || killed_flag {
-                break;
-            }
-            check_pending_signals();
-            suspend_current_and_run_next()
-        }
-    }
-
+    // os/src/task/mod.rs
 
     fn check_pending_signals() {
         for sig in 0..(MAX_SIG + 1) {
-              ...
+            let task = current_task().unwrap();
+            let task_inner = task.inner_exclusive_access();
+            let signal = SignalFlags::from_bits(1 << sig).unwrap();
+            if task_inner.signals.contains(signal) && (!task_inner.signal_mask.contains(signal)) {
+                let mut masked = true;
+                let handling_sig = task_inner.handling_sig;
+                if handling_sig == -1 {
+                    masked = false;
+                } else {
+                    let handling_sig = handling_sig as usize;
+                    if !task_inner.signal_actions.table[handling_sig]
+                        .mask
+                        .contains(signal)
+                    {
+                        masked = false;
+                    }
+                }
+                if !masked {
+                    drop(task_inner);
+                    drop(task);
+                    if signal == SignalFlags::SIGKILL
+                        || signal == SignalFlags::SIGSTOP
+                        || signal == SignalFlags::SIGCONT
+                        || signal == SignalFlags::SIGDEF
                     {
                         // signal is a kernel signal
                         call_kernel_signal_handler(signal);
@@ -483,31 +562,61 @@
                         call_user_signal_handler(sig, signal);
                         return;
                     }
-              ...
+                }
+            }
+        }
     }
 
-``handle_signals`` 函数会调用 ``check_pending_signals`` 函数来检查发送给该进程的信号。信号分为必须由内核处理的信号和可由用户进程处理的信号两类。内核处理的信号有
-
-- ``SIGSTOP``  :  暂停该进程
-- ``SIGCONT``  :  继续该进程
-- ``SIGKILL``  :  杀死该进程
-- ``SIGDEF``   :  缺省行为：杀死该进程
-
-主要由 ``call_kernel_signal_handler`` 函数完成，如果是 ``SIGKILL`` 或 ``SIGDEF`` 信号，该函数，会把进程控制块中的 ``killed`` 设置位 ``true``。 
-
-而其它信号都属于可由用户进程处理的信号，由 ``call_user_signal_handler`` 函数进行进一步处理。
+- 第 4 行的最外层循环遍历所有信号；
+- 第 8 行检查当前进程是否接收到了遍历到的信号（条件 1）以及该信号是否未被当前进程全局屏蔽（条件 2）；
+- 第 9 ~ 21 行检查该信号是否未被当前正在执行的信号处理例程屏蔽（条件 3）；
+- 当 3 个条件全部满足的时候，则在第 23 ~ 36 行开始处理该信号。目前的设计是：如果信号类型为 ``SIGKILL/SIGSTOP/SIGCONT/SIGDEF`` 四者之一，则该信号只能由内核来处理，调用 ``call_kernel_signal_handler`` 函数来处理；否则调用 ``call_user_signal_handler`` 函数尝试使用进程提供的信号处理例程来处理。
 
 .. code-block:: rust
-    :linenos:
+
+    // os/src/task/task.rs
+
+    pub struct TaskControlBlockInner {
+        ...
+        pub handling_sig: isize,
+        pub trap_ctx_backup: Option<TrapContext>,
+        ...
+    }
+
+    // os/src/task/mod.rs
+
+    fn call_kernel_signal_handler(signal: SignalFlags) {
+        let task = current_task().unwrap();
+        let mut task_inner = task.inner_exclusive_access();
+        match signal {
+            SignalFlags::SIGSTOP => {
+                task_inner.frozen = true;
+                task_inner.signals ^= SignalFlags::SIGSTOP;
+            }
+            SignalFlags::SIGCONT => {
+                if task_inner.signals.contains(SignalFlags::SIGCONT) {
+                    task_inner.signals ^= SignalFlags::SIGCONT;
+                    task_inner.frozen = false;
+                }
+            }
+            _ => {
+                // println!(
+                //     "[K] call_kernel_signal_handler:: current task sigflag {:?}",
+                //     task_inner.signals
+                // );
+                task_inner.killed = true;
+            }
+        }
+    }
 
     fn call_user_signal_handler(sig: usize, signal: SignalFlags) {
-        ...
+        let task = current_task().unwrap();
+        let mut task_inner = task.inner_exclusive_access();
+
         let handler = task_inner.signal_actions.table[sig].handler;
         if handler != 0 {
             // user handler
 
-            // change current mask
-            task_inner.signal_mask = task_inner.signal_actions.table[sig].mask;
             // handle flag
             task_inner.handling_sig = sig as isize;
             task_inner.signals ^= signal;
@@ -527,12 +636,60 @@
         }
     }
 
-从 ``call_user_signal_handler`` 的实现可以看到，第14~15行，把进程之前的``trap``上下文保存在进程控制块的 ``trap_ctx_backup`` 中；然后在第18行，修改``trap``上下文的 ``sepc`` 的值为对应信号 ``sig`` 的用户态的信号处理函数地址，并设置该函数的第一个参数为 ``sig`` 。这样在从内核回到用户态时，将不执行之前进入内核时的用户进程代码，而是执行该进程的信号处理函数。该信号处理函数最后通过执行 ``sys_sigreturn`` 来恢复保存在``trap_ctx_backup`` 中的``trap``上下文，从而能够回到之前进程在用户态的正常执行位置继续执行。
+- ``call_kernel_signal_handler`` 对于 ``SIGSTOP`` 和 ``SIGCONT`` 特殊处理：清除掉接收到的信号避免它们再次被处理，然后更新 ``frozen`` 字段；对于其他的信号都按照默认的处理方式即杀死当前进程，于是将 ``killed`` 字段设置为真，这样的进程会在 Trap 返回用户态之前就通过调度切换到其他进程。
+- 在实现 ``call_user_signal_handler`` 之前，还需在进程控制块中新增两个字段： ``handling_sig`` 表示进程正在执行哪个信号的处理例程； ``trap_ctx_backup`` 则表示进程执行信号处理例程之前的 Trap 上下文。因为我们要 Trap 回到用户态执行信号处理例程，原来的 Trap 上下文会被覆盖，所以我们将其保存在进程控制块中。
+- ``call_user_signal_handler`` 首先检查进程是否提供了该信号的处理例程，如果没有提供的话直接忽略该信号。否则就调用信号处理例程：除了更新 ``handling_sig`` 和 ``signals`` 之外，还将当前的 Trap 上下文保存在 ``trap_ctx_backup`` 中。然后修改 Trap 上下文的 ``sepc`` 到应用设置的例程地址使得 Trap 回到用户态之后就会跳转到例程入口并开始执行。注意我们并没有修改 Trap 上下文中的 ``sp`` ，这意味着例程还会在原先的用户栈上执行。这是为了实现方便，在 Linux 的实现中，内核会为每次例程的执行重新分配一个用户栈。最后，我们修改 Trap 上下文的 ``a0`` 寄存器，使得信号类型能够作为参数被例程接收。
+
+回到 ``handle_signals`` ，从 ``handle_signals`` 退出之后会回到 ``trap_handler`` 中，这里在回到用户态之前会检查当前进程是否出错并可以退出：
+
+.. code-block:: rust
+
+    // os/src/trap/mod.rs
+
+    #[no_mangle]
+    pub fn trap_handler() -> ! {
+        ...
+        handle_signals();
+
+        // check error signals (if error then exit)
+        if let Some((errno, msg)) = check_signals_error_of_current() {
+            println!("[kernel] {}", msg);
+            exit_current_and_run_next(errno);
+        }
+        trap_return();
+    }
+
+这里的错误涵盖了 ``SIGINT/SIGSEGV/SIGILL`` 等，可以看 ``check_signals_error_of_current`` 的实现。出错之后会直接打印信息并调用 ``exit_current_and_run_next`` 退出当前进程并进行调度。
+
+最后还需要补充 ``sigreturn`` 的实现。在信号处理例程的结尾需要插入这个系统调用来结束信号处理并继续进程原来的执行：
+
+.. code-block:: rust
+
+    // os/src/syscall/process.rs
+
+    pub fn sys_sigreturn() -> isize {
+        if let Some(task) = current_task() {
+            let mut inner = task.inner_exclusive_access();
+            inner.handling_sig = -1;
+            // restore the trap context
+            let trap_ctx = inner.get_trap_cx();
+            *trap_ctx = inner.trap_ctx_backup.unwrap();
+            0
+        } else {
+            -1
+        }
+    }
+
+这里只是将进程控制块中保存的记录了处理信号之前的进程上下文的 ``trap_ctx_backup`` 覆盖到当前的 Trap 上下文。这样接下来 Trap 回到用户态就会继续原来进程的执行了。
 
 小结
 --------------------------------------------
 
+信号作为一种软件中断机制和硬件中断有很多相似之处：比如它们都可以用某种方式屏蔽，还细分为全局屏蔽和局部屏蔽；它们的处理都有一定延迟，硬件中断每个 CPU 周期仅在固定的阶段被检查，而信号只有在 Trap 陷入内核态之后才被检查并处理。这个延迟还与屏蔽、优先级和软件或硬件层面的调度策略有关。
+
 这里仅仅给出了一个基本的信号机制的使用和实现的过程描述，在实际操作系统中，信号处理的过程要复杂很多，有兴趣的同学可以查找实际操作系统，如 Linux，在信号处理上的具体实现。
+
+至此，我们基本上完成了“迅猛龙”操作系统，它具有 UNIX 的很多核心特征，比如进程管理、虚存管理、文件系统、管道、I/O 重定向、信号等，是一个典型的宏内核操作系统。虽然它还缺少很多优化的算法、机制和策略，但我们已经一步一步地建立了一个相对完整的操作系统框架和核心模块实现。在这个过程中，我们经历了从简单到复杂的 LibOS、批处理、多道程序、分时多任务、虚存支持、进程支持、文件系统支持等各种操作系统的设计过程，相信同学对操作系统的总体设计也有了一个连贯的多层次的理解。而且我们可以在这个操作系统的框架下，进一步扩展和改进它的设计实现，支持更多的功能并提高性能，这将是我们后续会进一步讲解的内容。
 
 参考
 --------------------------------------------
