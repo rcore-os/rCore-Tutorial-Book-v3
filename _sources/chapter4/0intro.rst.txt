@@ -107,13 +107,6 @@
    $ cd os
    $ make run
 
-将 Maix 系列开发板连接到 PC，并在上面运行本章代码：
-
-.. code-block:: console
-
-   $ cd os
-   $ make run BOARD=k210
-
 如果顺利的话，我们将看到和上一章相同的运行结果（以 K210 平台为例）：
 
 .. code-block::

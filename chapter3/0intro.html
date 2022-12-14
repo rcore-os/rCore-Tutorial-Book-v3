@@ -458,11 +458,6 @@
 <span class="gp">$ </span>make run
 </pre></div>
 </div>
-<p>将 Maix 系列开发板连接到 PC，并在上面运行本章代码：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> os
-<span class="gp">$ </span>make run <span class="nv">BOARD</span><span class="o">=</span>k210
-</pre></div>
-</div>
 <p>多道程序的应用分别会输出一个不同的字母矩阵。当他们交替执行的时候，我们将看到字母行的交错输出：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[RustSBI output]
 [kernel] Hello, world!
@@ -564,66 +559,58 @@ Test sleep OK!
 <span class="linenos"> 3</span>Assembly     3 Files    82 Lines
 <span class="linenos"> 4</span>
 <span class="linenos"> 5</span>├── bootloader
-<span class="linenos"> 6</span>│   ├── rustsbi-k210.bin
-<span class="linenos"> 7</span>│   └── rustsbi-qemu.bin
-<span class="linenos"> 8</span>├── LICENSE
-<span class="linenos"> 9</span>├── os
-<span class="linenos">10</span>│   ├── build.rs
-<span class="linenos">11</span>│   ├── Cargo.toml
-<span class="linenos">12</span>│   ├── Makefile
-<span class="linenos">13</span>│   └── src
-<span class="hll"><span class="linenos">14</span>│       ├── batch.rs(移除：功能分别拆分到 loader 和 task 两个子模块)
-</span><span class="linenos">15</span>│       ├── config.rs(新增：保存内核的一些配置)
-<span class="linenos">16</span>│       ├── console.rs
-<span class="linenos">17</span>│       ├── entry.asm
-<span class="linenos">18</span>│       ├── lang_items.rs
-<span class="linenos">19</span>│       ├── link_app.S
-<span class="linenos">20</span>│       ├── linker-k210.ld
-<span class="linenos">21</span>│       ├── linker-qemu.ld
-<span class="linenos">22</span>│       ├── loader.rs(新增：将应用加载到内存并进行管理)
-<span class="linenos">23</span>│       ├── main.rs(修改：主函数进行了修改)
-<span class="linenos">24</span>│       ├── sbi.rs(修改：引入新的 sbi call set_timer)
-<span class="linenos">25</span>│       ├── sync
-<span class="linenos">26</span>│       │   ├── mod.rs
-<span class="linenos">27</span>│       │   └── up.rs
-<span class="linenos">28</span>│       ├── syscall(修改：新增若干 syscall)
-<span class="linenos">29</span>│       │   ├── fs.rs
-<span class="linenos">30</span>│       │   ├── mod.rs
-<span class="linenos">31</span>│       │   └── process.rs
-<span class="linenos">32</span>│       ├── task(新增：task 子模块，主要负责任务管理)
-<span class="linenos">33</span>│       │   ├── context.rs(引入 Task 上下文 TaskContext)
-<span class="linenos">34</span>│       │   ├── mod.rs(全局任务管理器和提供给其他模块的接口)
-<span class="linenos">35</span>│       │   ├── switch.rs(将任务切换的汇编代码解释为 Rust 接口 __switch)
-<span class="linenos">36</span>│       │   ├── switch.S(任务切换的汇编代码)
-<span class="linenos">37</span>│       │   └── task.rs(任务控制块 TaskControlBlock 和任务状态 TaskStatus 的定义)
-<span class="linenos">38</span>│       ├── timer.rs(新增：计时器相关)
-<span class="linenos">39</span>│       └── trap
-<span class="linenos">40</span>│           ├── context.rs
-<span class="linenos">41</span>│           ├── mod.rs(修改：时钟中断相应处理)
-<span class="linenos">42</span>│           └── trap.S
-<span class="linenos">43</span>├── README.md
-<span class="linenos">44</span>├── rust-toolchain
-<span class="linenos">45</span>├── tools
-<span class="linenos">46</span>│   ├── kflash.py
-<span class="linenos">47</span>│   ├── LICENSE
-<span class="linenos">48</span>│   ├── package.json
-<span class="linenos">49</span>│   ├── README.rst
-<span class="linenos">50</span>│   └── setup.py
-<span class="linenos">51</span>└── user
-<span class="linenos">52</span>    ├── build.py(新增：使用 build.py 构建应用使得它们占用的物理地址区间不相交)
-<span class="linenos">53</span>    ├── Cargo.toml
-<span class="linenos">54</span>    ├── Makefile(修改：使用 build.py 构建应用)
-<span class="linenos">55</span>    └── src
-<span class="linenos">56</span>        ├── bin(修改：换成第三章测例)
-<span class="linenos">57</span>        │   ├── 00power_3.rs
-<span class="linenos">58</span>        │   ├── 01power_5.rs
-<span class="linenos">59</span>        │   ├── 02power_7.rs
-<span class="linenos">60</span>        │   └── 03sleep.rs
-<span class="linenos">61</span>        ├── console.rs
-<span class="linenos">62</span>        ├── lang_items.rs
-<span class="linenos">63</span>        ├── lib.rs
-<span class="linenos">64</span>        ├── linker.ld
-<span class="linenos">65</span>        └── syscall.rs
+<span class="linenos"> 6</span>│   └── rustsbi-qemu.bin
+<span class="linenos"> 7</span>├── LICENSE
+<span class="linenos"> 8</span>├── os
+<span class="linenos"> 9</span>│   ├── build.rs
+<span class="linenos">10</span>│   ├── Cargo.toml
+<span class="linenos">11</span>│   ├── Makefile
+<span class="linenos">12</span>│   └── src
+<span class="linenos">13</span>│       ├── batch.rs(移除：功能分别拆分到 loader 和 task 两个子模块)
+<span class="hll"><span class="linenos">14</span>│       ├── config.rs(新增：保存内核的一些配置)
+</span><span class="linenos">15</span>│       ├── console.rs
+<span class="linenos">16</span>│       ├── entry.asm
+<span class="linenos">17</span>│       ├── lang_items.rs
+<span class="linenos">18</span>│       ├── link_app.S
+<span class="linenos">19</span>│       ├── linker-qemu.ld
+<span class="linenos">20</span>│       ├── loader.rs(新增：将应用加载到内存并进行管理)
+<span class="linenos">21</span>│       ├── main.rs(修改：主函数进行了修改)
+<span class="linenos">22</span>│       ├── sbi.rs(修改：引入新的 sbi call set_timer)
+<span class="linenos">23</span>│       ├── sync
+<span class="linenos">24</span>│       │   ├── mod.rs
+<span class="linenos">25</span>│       │   └── up.rs
+<span class="linenos">26</span>│       ├── syscall(修改：新增若干 syscall)
+<span class="linenos">27</span>│       │   ├── fs.rs
+<span class="linenos">28</span>│       │   ├── mod.rs
+<span class="linenos">29</span>│       │   └── process.rs
+<span class="linenos">30</span>│       ├── task(新增：task 子模块，主要负责任务管理)
+<span class="linenos">31</span>│       │   ├── context.rs(引入 Task 上下文 TaskContext)
+<span class="linenos">32</span>│       │   ├── mod.rs(全局任务管理器和提供给其他模块的接口)
+<span class="linenos">33</span>│       │   ├── switch.rs(将任务切换的汇编代码解释为 Rust 接口 __switch)
+<span class="linenos">34</span>│       │   ├── switch.S(任务切换的汇编代码)
+<span class="linenos">35</span>│       │   └── task.rs(任务控制块 TaskControlBlock 和任务状态 TaskStatus 的定义)
+<span class="linenos">36</span>│       ├── timer.rs(新增：计时器相关)
+<span class="linenos">37</span>│       └── trap
+<span class="linenos">38</span>│           ├── context.rs
+<span class="linenos">39</span>│           ├── mod.rs(修改：时钟中断相应处理)
+<span class="linenos">40</span>│           └── trap.S
+<span class="linenos">41</span>├── README.md
+<span class="linenos">42</span>├── rust-toolchain
+<span class="linenos">43</span>└── user
+<span class="linenos">44</span>    ├── build.py(新增：使用 build.py 构建应用使得它们占用的物理地址区间不相交)
+<span class="linenos">45</span>    ├── Cargo.toml
+<span class="linenos">46</span>    ├── Makefile(修改：使用 build.py 构建应用)
+<span class="linenos">47</span>    └── src
+<span class="linenos">48</span>        ├── bin(修改：换成第三章测例)
+<span class="linenos">49</span>        │   ├── 00power_3.rs
+<span class="linenos">50</span>        │   ├── 01power_5.rs
+<span class="linenos">51</span>        │   ├── 02power_7.rs
+<span class="linenos">52</span>        │   └── 03sleep.rs
+<span class="linenos">53</span>        ├── console.rs
+<span class="linenos">54</span>        ├── lang_items.rs
+<span class="linenos">55</span>        ├── lib.rs
+<span class="linenos">56</span>        ├── linker.ld
+<span class="linenos">57</span>        └── syscall.rs
 </pre></div>
 </div>
 </div>

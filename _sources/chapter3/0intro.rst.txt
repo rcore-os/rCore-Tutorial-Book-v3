@@ -141,13 +141,6 @@
    $ cd os
    $ make run
 
-将 Maix 系列开发板连接到 PC，并在上面运行本章代码：
-
-.. code-block:: console
-
-   $ cd os
-   $ make run BOARD=k210
-
 多道程序的应用分别会输出一个不同的字母矩阵。当他们交替执行的时候，我们将看到字母行的交错输出：
 
 .. code-block::
@@ -260,7 +253,6 @@
     Assembly     3 Files    82 Lines
 
     ├── bootloader
-    │   ├── rustsbi-k210.bin
     │   └── rustsbi-qemu.bin
     ├── LICENSE
     ├── os
@@ -274,7 +266,6 @@
     │       ├── entry.asm
     │       ├── lang_items.rs
     │       ├── link_app.S
-    │       ├── linker-k210.ld
     │       ├── linker-qemu.ld
     │       ├── loader.rs(新增：将应用加载到内存并进行管理)
     │       ├── main.rs(修改：主函数进行了修改)
@@ -299,12 +290,6 @@
     │           └── trap.S
     ├── README.md
     ├── rust-toolchain
-    ├── tools
-    │   ├── kflash.py
-    │   ├── LICENSE
-    │   ├── package.json
-    │   ├── README.rst
-    │   └── setup.py
     └── user
         ├── build.py(新增：使用 build.py 构建应用使得它们占用的物理地址区间不相交)
         ├── Cargo.toml

@@ -78,13 +78,6 @@
    $ cd os
    $ make run
 
-将 Maix 系列开发板连接到 PC，并在上面运行本章代码：
-
-.. code-block:: console
-
-   $ cd os
-   $ make run BOARD=k210
-
 进入shell程序后，可以运行管道机制的简单测例 ``pipetest`` 和比较复杂的测例 ``pipe_large_test`` 。 ``pipetest`` 需要保证父进程通过管道传输给子进程的字符串不会发生变化；而 ``pipe_large_test`` 中，父进程将一个长随机字符串传给子进程，随后父子进程同时计算该字符串的某种 Hash 值（逐字节求和），子进程会将计算后的 Hash 值传回父进程，而父进程接受到之后，需要验证两个 Hash 值相同，才算通过测试。
 
 运行两个测例的输出可能如下：
@@ -133,7 +126,6 @@
     Assembly     3 Files      88 Lines
 
     ├── bootloader
-    │   ├── rustsbi-k210.bin
     │   └── rustsbi-qemu.bin
     ├── LICENSE
     ├── os
@@ -151,7 +143,6 @@
     │       │   └── stdio.rs(实现了 File Trait 的第二个分支——标准输入/输出)
     │       ├── lang_items.rs
     │       ├── link_app.S
-    │       ├── linker-k210.ld
     │       ├── linker-qemu.ld
     │       ├── loader.rs
     │       ├── main.rs
@@ -183,12 +174,6 @@
     │           └── trap.S
     ├── README.md
     ├── rust-toolchain
-    ├── tools
-    │   ├── kflash.py
-    │   ├── LICENSE
-    │   ├── package.json
-    │   ├── README.rst
-    │   └── setup.py
     └── user
         ├── Cargo.lock
         ├── Cargo.toml
