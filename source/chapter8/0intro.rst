@@ -194,30 +194,6 @@
 
 在执行 ``qemu-system-riscv64`` 的参数中，``../user/target/riscv64gc-unknown-none-elf/release/fs.img`` 是包含应用程序集合的文件系统镜像，这个镜像是放在虚拟硬盘块设备 ``virtio-blk-device`` （在下一章会进一步介绍这种存储设备）中的。
 
-若要在 k210 平台上运行，首先需要将 microSD 通过读卡器插入 PC ，然后将打包应用 ELF 的文件系统镜像烧写到 microSD 中：
-
-.. code-block:: console
-
-   $ cd os
-   $ make sdcard
-   Are you sure write to /dev/sdb ? [y/N]
-   y
-   16+0 records in
-   16+0 records out
-   16777216 bytes (17 MB, 16 MiB) copied, 1.76044 s, 9.5 MB/s
-   8192+0 records in
-   8192+0 records out
-   4194304 bytes (4.2 MB, 4.0 MiB) copied, 3.44472 s, 1.2 MB/s
-
-途中需要输入 ``y`` 确认将文件系统烧写到默认的 microSD 所在位置 ``/dev/sdb`` 中（注：这个位置在不同的Linux开发环境下可能是不同的）。这个位置可以在 ``os/Makefile`` 中的 ``SDCARD`` 处进行修改，在烧写之前请确认它被正确配置为 microSD 的实际目录的位置，否则可能会造成数据损失。
-
-烧写之后，将 microSD 插入到 Maix 系列开发板并连接到 PC，然后在开发板上运行本章代码：
-
-.. code-block:: console
-
-   $ cd os
-   $ make run BOARD=k210
-
 内核初始化完成之后就会进入shell程序，我们可以体会一下线程的创建和执行过程。在这里我们运行一下本章的测例 ``threads`` ：
 
 .. code-block::
@@ -270,7 +246,6 @@
 
 	.
 	├── bootloader
-	│   ├── rustsbi-k210.bin
 	│   └── rustsbi-qemu.bin
 	├── dev-env-info.md
 	├── Dockerfile
@@ -315,7 +290,6 @@
 	│       │   └── stdio.rs
 	│       ├── lang_items.rs
 	│       ├── link_app.S
-	│       ├── linker-k210.ld
 	│       ├── linker-qemu.ld
 	│       ├── loader.rs
 	│       ├── main.rs

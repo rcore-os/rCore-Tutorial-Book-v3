@@ -112,13 +112,6 @@
    $ cd os
    $ make run
 
-将 基于K210 CPU的Maix 系列开发板连接到 PC，并在上面运行本章代码：
-
-.. code-block:: console
-
-   $ cd os
-   $ make run BOARD=k210
-
 待内核初始化完毕之后，将在屏幕上打印可用的应用列表并进入shell程序（以 K210 平台为例）：
 
 .. code-block::
@@ -186,7 +179,6 @@
     Assembly     3 Files      86 Lines
 
     ├── bootloader
-    │   ├── rustsbi-k210.bin
     │   └── rustsbi-qemu.bin
     ├── LICENSE
     ├── os
@@ -199,7 +191,6 @@
     │       ├── entry.asm
     │       ├── lang_items.rs
     │       ├── link_app.S
-    │       ├── linker-k210.ld
     │       ├── linker-qemu.ld
     │       ├── loader.rs(修改：基于应用名的应用加载器)
     │       ├── main.rs(修改)
@@ -234,12 +225,6 @@
     │           └── trap.S
     ├── README.md
     ├── rust-toolchain
-    ├── tools
-    │   ├── kflash.py
-    │   ├── LICENSE
-    │   ├── package.json
-    │   ├── README.rst
-    │   └── setup.py
     └── user(对于用户库 user_lib 进行修改，替换了一套新的测例)
     ├── Cargo.toml
     ├── Makefile

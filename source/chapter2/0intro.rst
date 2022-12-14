@@ -112,13 +112,6 @@
    $ cd os
    $ make run
 
-将 Maix 系列开发板连接到 PC，并在上面运行本章代码：
-
-.. code-block:: console
-
-   $ cd os
-   $ make run BOARD=k210
-
 如果顺利的话，我们可以看到批处理系统自动加载并运行所有的程序并且正确在程序出错的情况下保护了自身：
 
 .. code-block:: 
@@ -171,7 +164,6 @@
    Assembly     2 Files    58 Lines
 
    ├── bootloader
-   │   ├── rustsbi-k210.bin
    │   └── rustsbi-qemu.bin
    ├── LICENSE
    ├── os
@@ -184,7 +176,6 @@
    │       ├── entry.asm
    │       ├── lang_items.rs
    │       ├── link_app.S(构建产物，由 os/build.rs 输出)
-   │       ├── linker-k210.ld
    │       ├── linker-qemu.ld
    │       ├── main.rs(修改：主函数中需要初始化 Trap 处理并加载和执行应用)
    │       ├── sbi.rs
@@ -201,12 +192,6 @@
    │           └── trap.S(包含 Trap 上下文保存与恢复的汇编代码)
    ├── README.md
    ├── rust-toolchain
-   ├── tools
-   │   ├── kflash.py
-   │   ├── LICENSE
-   │   ├── package.json
-   │   ├── README.rst
-   │   └── setup.py
    └── user(新增：应用测例保存在 user 目录下)
       ├── Cargo.toml
       ├── Makefile
