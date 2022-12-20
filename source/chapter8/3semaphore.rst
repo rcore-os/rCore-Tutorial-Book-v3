@@ -38,16 +38,16 @@ V操作会对信号量的值加1，然后检查是否有一个或多个线程在
     :linenos:
 
     fn P(S) { 
-          if S >= 1 
-             S = S - 1;
-          else 
-             <block and enqueue the thread>;
+        if S >= 1 
+            S = S - 1;
+        else 
+            <block and enqueue the thread>;
     }
     fn V(S) { 
-          if <some threads are blocked on the queue> 
-             <unblock a thread>;
-          else 
-             S = S + 1;
+        if <some threads are blocked on the queue> 
+            <unblock a thread>;
+        else 
+            S = S + 1;
     }
 
 
