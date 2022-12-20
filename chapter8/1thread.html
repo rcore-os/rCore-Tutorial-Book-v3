@@ -392,9 +392,8 @@
 </div>
 <div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
-<p>在本章的起始介绍中，给出了线程的基本定义，但没有具体的实现，这可能让同学在理解线程上还有些不够深入。其实实现多线程不一定需要操作系统的支持，完全可以在用户态实现。本节的主要目标是理解线程的基本要素、多线程应用的执行方式以及如何在用户态构建一个多线程的的基本执行环境(即线程管理运行时， Thread Manager Runtime)。
-在这里，我们首先分析了一个简单的用户态多线程应用的执行过程，然后设计支持这种简单多线程应用的执行环境，包括线程的总体结构、管理线程执行的线程控制块数据结构、以及对线程管理相关的重要函数：线程创建和线程切换。这样设计实现的原因是，
-它能帮助我们直接理解线程最核心的设计思想与具体实现，并对后续在有进程支持的操作系统内核中 进一步实现线程机制打下一个基础。</p>
+<p>在本章的起始介绍中，给出了线程的基本定义，但没有具体的实现，这可能让同学在理解线程上还有些不够深入。其实实现多线程不一定需要操作系统的支持，完全可以在用户态实现。本节的主要目标是理解线程的基本要素、多线程应用的执行方式以及如何在用户态构建一个多线程的基本执行环境(即线程管理运行时， Thread Manager Runtime)。</p>
+<p>在这里，我们首先分析了一个简单的用户态多线程应用的执行过程，然后设计支持这种简单多线程应用的执行环境，包括线程的总体结构、管理线程执行的线程控制块数据结构、以及对线程管理相关的重要函数：线程创建和线程切换。安排本节的原因在于：它能帮助我们直接理解线程最核心的设计思想与具体实现，并对后续在有进程支持的操作系统内核中进一步实现线程机制打下一个基础。</p>
 </div>
 <div class="section" id="id3">
 <h2>用户态多线程应用<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
@@ -402,29 +401,29 @@
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// 多线程基本执行环境的代码</span>
 <span class="linenos"> 2</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
 <span class="linenos"> 3</span><span class="c1">// 多线程应用的主体代码</span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">runtime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Runtime</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">        </span><span class="n">runtime</span><span class="p">.</span><span class="n">init</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">        </span><span class="n">runtime</span><span class="p">.</span><span class="n">spawn</span><span class="p">(</span><span class="o">||</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;TASK 1 STARTING&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">10</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">                </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;task: {} counter: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">                </span><span class="n">yield_task</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;TASK 1 FINISHED&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">        </span><span class="p">});</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">        </span><span class="n">runtime</span><span class="p">.</span><span class="n">spawn</span><span class="p">(</span><span class="o">||</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;TASK 2 STARTING&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">15</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">                </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;task: {} counter: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">                </span><span class="n">yield_task</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;TASK 2 FINISHED&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">        </span><span class="p">});</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">        </span><span class="n">runtime</span><span class="p">.</span><span class="n">run</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">runtime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Runtime</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="n">runtime</span><span class="p">.</span><span class="n">init</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="n">runtime</span><span class="p">.</span><span class="n">spawn</span><span class="p">(</span><span class="o">||</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;TASK 1 STARTING&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">10</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;task: {} counter: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="n">yield_task</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;TASK 1 FINISHED&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="p">});</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">    </span><span class="n">runtime</span><span class="p">.</span><span class="n">spawn</span><span class="p">(</span><span class="o">||</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;TASK 2 STARTING&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">15</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;task: {} counter: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">            </span><span class="n">yield_task</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;TASK 2 FINISHED&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">    </span><span class="p">});</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">    </span><span class="n">runtime</span><span class="p">.</span><span class="n">run</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">26</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>可以看出，多线程应用的结构很简单，大致含义如下：</p>
@@ -501,7 +500,7 @@
 <span class="linenos">5</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>下面的线程管理初始化过程中，会创建一个线程控制块向量，这里面的线程控制块对应到一个已创建的线程（其状态为 <cite>Running</cite> 或 <cite>Ready</cite> ）或还没加入一个具体的线程，其状态为 <cite>Available</cite> 。当创建线程并分配一个空闲的线程控制块给这个线程时，管理此线程的线程控制块的状态将转为 <cite>Ready</cite> 状态。当线程管理运行时调度切换此线程占用处理器执行时，会把此线程的线程控制块的状态设置为 <cite>Running</cite> 状态。</p>
+<p>下面的线程管理初始化过程中，会创建一个线程控制块向量，其中的每个线程控制块对应到一个已创建的线程（其状态为 <cite>Running</cite> 或 <cite>Ready</cite> ）或还没加入一个具体的线程（此时其状态为 <cite>Available</cite> ）。当创建线程并分配一个空闲的线程控制块给这个线程时，管理此线程的线程控制块的状态将转为 <cite>Ready</cite> 状态。当线程管理运行时调度切换此线程占用处理器执行时，会把此线程的线程控制块的状态设置为 <cite>Running</cite> 状态。</p>
 </div>
 <div class="section" id="id6">
 <h3>线程管理运行时初始化<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
@@ -565,11 +564,11 @@
 <span class="linenos">44</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>这样，在应用的 <cite>main()</cite> 函数中，首先会依次调用上述两个函数。这样线程管理运行时会附在TID为 <cite>0</cite> 的应用主线程上，处于运行正在运行的 <cite>Running</cite> 状态。而且，线程管理运行也建立好了空闲线程控制块向量。后续创建线程时，会从此空闲线程控制块向量中找到一个空闲线程控制块，来绑定要创建的线程，并进行后续的管理。</p>
+<p>这样，在应用的 <cite>main()</cite> 函数中，首先会依次调用上述两个函数。这样线程管理运行时会附在TID为 <cite>0</cite> 的应用主线程上，处于运行正在运行的 <cite>Running</cite> 状态。而且，线程管理运行时也建立好了空闲线程控制块向量。后续创建线程时，会从此空闲线程控制块向量中找到一个空闲线程控制块，来绑定要创建的线程，并进行后续的管理。</p>
 </div>
 <div class="section" id="id7">
 <h3>线程创建<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
-<p>但应用要创建一个线程时，会调用 <cite>runtime.spawn</cite> 函数。这个函数主要完成的功能是：</p>
+<p>当应用要创建一个线程时，会调用 <cite>runtime.spawn</cite> 函数。这个函数主要完成的功能是：</p>
 <ul class="simple">
 <li><p>第4~12行，在线程向量中查找一个状态为 <cite>Available</cite> 的空闲线程控制块；</p></li>
 <li><p>第14~20行，初始化该空闲线程的线程控制块；</p>
@@ -630,7 +629,7 @@
 <p>当应用要切换线程时，会调用 <cite>yield_task</cite> 函数，通过 <cite>runtime.t_yield</cite> 函数来完成具体的切换过程。<cite>runtime.t_yield</cite> 这个函数主要完成的功能是：</p>
 <ul class="simple">
 <li><p>第4~12行，在线程向量中查找一个状态为 <cite>Ready</cite> 的线程控制块；</p></li>
-<li><p>第14~20行， 把当前运行的线程的状态改为 <cite>Ready</cite> ，把新就绪线程的状态改为 <cite>Running</cite> ，，把 <cite>runtime</cite> 的 <cite>current</cite> 设置为这个新线程控制块的id；</p></li>
+<li><p>第14~20行， 把当前运行的线程的状态改为 <cite>Ready</cite> ，把新就绪线程的状态改为 <cite>Running</cite> ，把 <cite>runtime</cite> 的 <cite>current</cite> 设置为这个新线程控制块的id；</p></li>
 <li><p>第23行，调用汇编代码写的函数 <cite>switch</cite> ，完成两个线程的栈和上下文的切换；</p></li>
 </ul>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Runtime</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -710,7 +709,7 @@
 </div>
 <div class="section" id="id9">
 <h3>开始执行<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
-<p>有了上述线程管理运行时的各种功能支持，就可以开始线程的正常执行了。假设完成了线程管理运行时初始化，并创建了几个线程。当执行 <cite>runtime.run()</cite>  函数，通过 <cite>函数时，将切换线程管理运行时所在的应用主线程到另外一个处于 `Ready</cite> 状态的线程，让那个线程开始执行。当所有的线程都执行完毕后，会回到  <cite>runtime.run()</cite>  函数，通过 <cite>std::process::exit(0)</cite> 来退出该应用进程，整个应用的运行就结束了。</p>
+<p>有了上述线程管理运行时的各种功能支持，就可以开始线程的正常执行了。假设完成了线程管理运行时初始化，并创建了几个线程。当执行 <cite>runtime.run()</cite>  函数，通过 <cite>t_yield</cite> 函数时，将切换线程管理运行时所在的应用主线程到另外一个处于 <cite>Ready</cite> 状态的线程，让那个线程开始执行。当所有的线程都执行完毕后，会回到  <cite>runtime.run()</cite>  函数，通过 <cite>std::process::exit(0)</cite> 来退出该应用进程，整个应用的运行就结束了。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Runtime</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">       </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">run</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 3</span><span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">t_yield</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>

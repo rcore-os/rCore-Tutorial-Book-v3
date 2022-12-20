@@ -19,11 +19,11 @@
     :linenos:
     :emphasize-lines: 4
 
-	// 线程的入口函数
-	int a=0;
-	void f() {
-	  a=a+1;
-	}
+    // 线程的入口函数
+    int a=0;
+    void f() {
+        a=a+1;
+    }
 
 对于上述函数中的第4行代码，一般人理解处理器会一次就执行完这条简单的语句，但实际情况并不是这样。我们可以用GCC编译出上述函数的汇编码：
 
@@ -40,32 +40,32 @@
     :emphasize-lines: 18-23
 
     //f.s
-	  .text
-	  .globl	a
-	  .section	.sbss,"aw",@nobits
-	  .align	2
-	  .type	a, @object
-	  .size	a, 4
-	a:
-	  .zero	4
-	  .text
-	  .align	1
-	  .globl	f
-	  .type	f, @function
-	f:
-	  addi	sp,sp,-16
-	  sd	s0,8(sp)
-	  addi	s0,sp,16
-	  lui	a5,%hi(a)
-	  lw	a5,%lo(a)(a5)
-	  addiw	a5,a5,1
-	  sext.w	a4,a5
-	  lui	a5,%hi(a)
-	  sw	a4,%lo(a)(a5)
-	  nop
-	  ld	s0,8(sp)
-	  addi	sp,sp,16
-	  jr	ra
+      .text
+      .globl	a
+      .section	.sbss,"aw",@nobits
+      .align	2
+      .type	a, @object
+      .size	a, 4
+    a:
+      .zero	4
+      .text
+      .align	1
+      .globl	f
+      .type	f, @function
+    f:
+      addi	sp,sp,-16
+      sd	s0,8(sp)
+      addi	s0,sp,16
+      lui	a5,%hi(a)
+      lw	a5,%lo(a)(a5)
+      addiw	a5,a5,1
+      sext.w	a4,a5
+      lui	a5,%hi(a)
+      sw	a4,%lo(a)(a5)
+      nop
+      ld	s0,8(sp)
+      addi	sp,sp,16
+      jr	ra
 
 
 .. chyyuu 可以给上面的汇编码添加注释???
@@ -90,7 +90,7 @@
 10      --      L23      --          1          a的高位地址
 =====  =====  =======   =======   ===========   =========
 
-一般情况下，线程T0执行完毕后，再执行线程T1，那么共享全局变量``a``的值为 2 。但在上面的执行过程中，可以看到在线程执行指令的过程中会发生线程切换，这样在时刻10的时候，共享全局变量``a``的值为 1，这不是我们预期的结果。出现这种情况的原因是两个线程在操作系统的调度下（在哪个时刻调度具有不确定性），交错执行 ``a=a+1`` 的不同汇编指令序列，导致虽然增加全局变量 ``a`` 的代码被执行了两次，但结果还是只增加了1。这种多线程的最终执行结果不确定（indeterminate），取决于由于调度导致的不确定指令执行序列的情况就是竞态条件（race condition）。
+一般情况下，线程T0执行完毕后，再执行线程T1，那么共享全局变量 ``a`` 的值为 2 。但在上面的执行过程中，可以看到在线程执行指令的过程中会发生线程切换，这样在时刻10的时候，共享全局变量 ``a`` 的值为 1，这不是我们预期的结果。出现这种情况的原因是两个线程在操作系统的调度下（在哪个时刻调度具有不确定性），交错执行 ``a=a+1`` 的不同汇编指令序列，导致虽然增加全局变量 ``a`` 的代码被执行了两次，但结果还是只增加了1。这种多线程的最终执行结果不确定（indeterminate），取决于由于调度导致的不确定指令执行序列的情况就是竞态条件（race condition）。
 
 如果每个线程在执行 ``a=a+1`` 这个C语句所对应多条汇编语句过程中，不会被操作系统切换，那么就不会出现多个线程交叉读写全局变量的情况，也就不会出现结果不确定的问题了。
 
@@ -209,11 +209,11 @@
     :linenos:
   
     fn lock() {
-    	disable_Interrupt(); //屏蔽中断的机器指令
+        disable_Interrupt(); //屏蔽中断的机器指令
     }
     
     fn unlock() {
-    	enable_Interrupt(); ////使能中断的机器指令
+        enable_Interrupt(); ////使能中断的机器指令
     }
     
 这个方法的特点是简单。没有中断，线程可以确信它的代码会继续执行下去，不会被其他线程干扰。注：目前实现的操作系统内核就是在屏蔽中断的情况下执行的。
@@ -233,8 +233,8 @@
     :emphasize-lines: 2-3
 
     fn lock(mutex: i32) {
-    	while (mutex);
-    	mutex = 1;
+        while (mutex);
+        mutex = 1;
     }
     
 
@@ -264,7 +264,7 @@ CAS原子指令和TAS原子指令
     }
 
     fn unlock((mutex : *i32){
-    	*mutex = 0;
+        *mutex = 0;
     }
 
 比较并交换原子指令的基本思路是检测ptr指向的实际值是否和expected相等；如果相等，更新ptr所指的值为new值；最后返回该内存地址之前指向的实际值。有了比较并交换指令，就可以实现对锁读写的原子操作了。在lock函数中，检查锁标志是否为0，如果是，原子地交换为1，从而获得锁。锁被持有时，竞争锁的线程会忙等在while循环中。
@@ -296,11 +296,11 @@ TAS原子指令完成返回old_ptr指向的旧值，同时更新为new的新值�
     static mut mutex :i32 = 0;
 
     fn lock(mutex: &mut i32) {
-    	while (TestAndSet(mutex, 1) == 1);
+        while (TestAndSet(mutex, 1) == 1);
     }
     
     fn unlock(mutex: &mut i32){
-    	*mutex = 0;
+        *mutex = 0;
     }
 
 
@@ -333,15 +333,15 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
     :linenos:
 
     # RISC-V sequence for implementing a TAS  at (s1)
-	li t2, 1                 # t2 <-- 1 
- 	Try: lr  t1, s1          # t1 <-- mem[s1]  (load reserved)
-	     bne t1, x0, Try     # if t1 != 0, goto Try:
-	     sc  t0, s1, t2      # mem[s1] <-- t2  (store conditional)
-	     bne t0, x0, Try     # if t0 !=0 ('sc' Instr failed), goto Try:
-	Locked: 
-	     ...                 # critical section 
-	Unlock: 
-	     sw x0,0(s1)         # mem[s1] <-- 0
+    li t2, 1                 # t2 <-- 1 
+    Try: lr  t1, s1          # t1 <-- mem[s1]  (load reserved)
+            bne t1, x0, Try     # if t1 != 0, goto Try:
+            sc  t0, s1, t2      # mem[s1] <-- t2  (store conditional)
+            bne t0, x0, Try     # if t0 !=0 ('sc' Instr failed), goto Try:
+    Locked: 
+            ...                 # critical section 
+    Unlock: 
+            sw x0,0(s1)         # mem[s1] <-- 0
 
 .. chyyuu https://inst.eecs.berkeley.edu/~cs61c/sp19/pdfs/lectures/lec20.pdf
 .. chyyuu    :##code-block:: Asm
@@ -381,13 +381,13 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
     static mut mutex :i32 = 0;
 
     fn lock(mutex: &mut i32) {
-    	while (TestAndSet(mutex, 1) == 1){
-    	   yield_();
-    	}
+        while (TestAndSet(mutex, 1) == 1){
+            yield_();
+        }
     }
-    
+
     fn unlock(mutex: &mut i32){
-    	*mutex = 0;
+        *mutex = 0;
     }
 
 
@@ -416,43 +416,43 @@ LR/SC指令保证了它们两条指令之间的操作的原子性。LR指令读�
 
     // user/src/bin/race_adder_mutex_blocking.rs
 
-	static mut A: usize = 0;
-	...
-	unsafe fn f() -> ! {
-	    let mut t = 2usize;
-	    for _ in 0..PER_THREAD {
-	        mutex_lock(0);
-	        let a = &mut A as *mut usize;
-	        let cur = a.read_volatile();
-	        for _ in 0..500 { t = t * t % 10007; }
-	        a.write_volatile(cur + 1);
-	        mutex_unlock(0);
-	    }
-	    exit(t as i32)
-	}
+    static mut A: usize = 0;
+    ...
+    unsafe fn f() -> ! {
+        let mut t = 2usize;
+        for _ in 0..PER_THREAD {
+            mutex_lock(0);
+            let a = &mut A as *mut usize;
+            let cur = a.read_volatile();
+            for _ in 0..500 { t = t * t % 10007; }
+            a.write_volatile(cur + 1);
+            mutex_unlock(0);
+        }
+        exit(t as i32)
+    }
 
-	#[no_mangle]
-	pub fn main() -> i32 {
-	    let start = get_time();
-	    assert_eq!(mutex_blocking_create(), 0);
-	    let mut v = Vec::new();    
-	    for _ in 0..THREAD_COUNT {
-	        v.push(thread_create(f as usize, 0) as usize);
-	    }
-	    ...
-	}
+    #[no_mangle]
+    pub fn main() -> i32 {
+        let start = get_time();
+        assert_eq!(mutex_blocking_create(), 0);
+        let mut v = Vec::new();    
+        for _ in 0..THREAD_COUNT {
+            v.push(thread_create(f as usize, 0) as usize);
+        }
+        ...
+    }
 
     // usr/src/syscall.rs
 
-	pub fn sys_mutex_create(blocking: bool) -> isize {
-	    syscall(SYSCALL_MUTEX_CREATE, [blocking as usize, 0, 0])
-	}
-	pub fn sys_mutex_lock(id: usize) -> isize {
-	    syscall(SYSCALL_MUTEX_LOCK, [id, 0, 0])
-	}
-	pub fn sys_mutex_unlock(id: usize) -> isize {
-	    syscall(SYSCALL_MUTEX_UNLOCK, [id, 0, 0])
-	}    
+    pub fn sys_mutex_create(blocking: bool) -> isize {
+        syscall(SYSCALL_MUTEX_CREATE, [blocking as usize, 0, 0])
+    }
+    pub fn sys_mutex_lock(id: usize) -> isize {
+        syscall(SYSCALL_MUTEX_LOCK, [id, 0, 0])
+    }
+    pub fn sys_mutex_unlock(id: usize) -> isize {
+        syscall(SYSCALL_MUTEX_UNLOCK, [id, 0, 0])
+    }    
 
 
 - 第21行，创建了一个ID为 ``0`` 的互斥锁，对应的是第32行 ``SYSCALL_MUTEX_CREATE`` 系统调用；
@@ -473,30 +473,30 @@ mutex系统调用的实现
     :linenos:
     :emphasize-lines: 9,20
 
-	pub struct ProcessControlBlock {
-	    // immutable
-	    pub pid: PidHandle,
-	    // mutable
-	    inner: UPSafeCell<ProcessControlBlockInner>,
-	}
-	pub struct ProcessControlBlockInner {
-	    ...
-	    pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
-	}
-	pub trait Mutex: Sync + Send {
-	    fn lock(&self);
-	    fn unlock(&self);
-	}
-	pub struct MutexBlocking {
-	    inner: UPSafeCell<MutexBlockingInner>,
-	}
-	pub struct MutexBlockingInner {
-	    locked: bool,
-	    wait_queue: VecDeque<Arc<TaskControlBlock>>,
-	}
+    pub struct ProcessControlBlock {
+        // immutable
+        pub pid: PidHandle,
+        // mutable
+        inner: UPSafeCell<ProcessControlBlockInner>,
+    }
+    pub struct ProcessControlBlockInner {
+        ...
+        pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
+    }
+    pub trait Mutex: Sync + Send {
+        fn lock(&self);
+        fn unlock(&self);
+    }
+    pub struct MutexBlocking {
+        inner: UPSafeCell<MutexBlockingInner>,
+    }
+    pub struct MutexBlockingInner {
+        locked: bool,
+        wait_queue: VecDeque<Arc<TaskControlBlock>>,
+    }
 
 
-这样，在操作系统中，需要设计实现三个核心成员变量。互斥锁的成员变量有两个：表示是否锁上的 ``locked`` 和管理等待线程的等待队列 ``wait_queue``；进程的成员变量：锁向量 ``mutex_list`` 。
+这样，在操作系统中，需要设计实现三个核心成员变量。互斥锁的成员变量有两个：表示是否锁上的 ``locked`` 和管理等待线程的等待队列 ``wait_queue`` ；进程的成员变量：锁向量 ``mutex_list`` 。
 
 	
 首先需要创建一个互斥锁，下面是应对``SYSCALL_MUTEX_CREATE`` 系统调用的创建互斥锁的函数：	
@@ -505,7 +505,7 @@ mutex系统调用的实现
     :linenos:
     :emphasize-lines: 17,20
 
-	// os/src/syscall/sync.rs
+    // os/src/syscall/sync.rs
     pub fn sys_mutex_create(blocking: bool) -> isize {
         let process = current_process();
         let mutex: Option<Arc<dyn Mutex>> = if !blocking {
@@ -540,28 +540,28 @@ mutex系统调用的实现
     :emphasize-lines: 8,15,16,18,20
 
     // os/src/syscall/sync.rs
-	pub fn sys_mutex_lock(mutex_id: usize) -> isize {
-	    let process = current_process();
-	    let process_inner = process.inner_exclusive_access();
-	    let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
-	    drop(process_inner);
-	    drop(process);
-	    mutex.lock();
-	    0
-	}    
-	// os/src/sync/mutex.rs
-	impl Mutex for MutexBlocking {
-	    fn lock(&self) {
-	        let mut mutex_inner = self.inner.exclusive_access();
-	        if mutex_inner.locked {
-	            mutex_inner.wait_queue.push_back(current_task().unwrap());
-	            drop(mutex_inner);
-	            block_current_and_run_next();
-	        } else {
-	            mutex_inner.locked = true;
-	        }
-	    }
-	}
+    pub fn sys_mutex_lock(mutex_id: usize) -> isize {
+        let process = current_process();
+        let process_inner = process.inner_exclusive_access();
+        let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
+        drop(process_inner);
+        drop(process);
+        mutex.lock();
+        0
+    }    
+    // os/src/sync/mutex.rs
+    impl Mutex for MutexBlocking {
+        fn lock(&self) {
+            let mut mutex_inner = self.inner.exclusive_access();
+            if mutex_inner.locked {
+                mutex_inner.wait_queue.push_back(current_task().unwrap());
+                drop(mutex_inner);
+                block_current_and_run_next();
+            } else {
+                mutex_inner.locked = true;
+            }
+        }
+    }
 
 
 .. chyyuu drop的作用？？？
@@ -570,33 +570,32 @@ mutex系统调用的实现
 - 第15行，如果互斥锁mutex已经被其他线程获取了，	那么在第16行，将把当前线程放入等待队列中，在第18行，并让当前线程处于等待状态，并调度其他线程执行。
 - 第20行，如果互斥锁mutex还没被获取，那么当前线程会获取给互斥锁，并返回系统调用。
 
-
 最后是实现 ``Mutex`` trait的内核函数：对应 ``SYSCALL_MUTEX_UNLOCK`` 系统调用的 ``sys_mutex_unlock`` 。操作系统的主要工作是，如果有等待在这个互斥锁上的线程，需要唤醒最早等待的线程。主要代码如下：
 
 .. code-block:: Rust
     :linenos:	
 
     // os/src/syscall/sync.rs
-	pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
-	    let process = current_process();
-	    let process_inner = process.inner_exclusive_access();
-	    let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
-	    drop(process_inner);
-	    drop(process);
-	    mutex.unlock();
-	    0
-	}
-	// os/src/sync/mutex.rs
-	impl Mutex for MutexBlocking {	
-	    fn unlock(&self) {
-	        let mut mutex_inner = self.inner.exclusive_access(); 
-	        assert_eq!(mutex_inner.locked, true);
-	        mutex_inner.locked = false;
-	        if let Some(waking_task) = mutex_inner.wait_queue.pop_front() {
-	            add_task(waking_task);
-	        }
-	    }
-	}	    
+    pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
+        let process = current_process();
+        let process_inner = process.inner_exclusive_access();
+        let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
+        drop(process_inner);
+        drop(process);
+        mutex.unlock();
+        0
+    }
+    // os/src/sync/mutex.rs
+    impl Mutex for MutexBlocking {	
+        fn unlock(&self) {
+            let mut mutex_inner = self.inner.exclusive_access(); 
+            assert_eq!(mutex_inner.locked, true);
+            mutex_inner.locked = false;
+            if let Some(waking_task) = mutex_inner.wait_queue.pop_front() {
+                add_task(waking_task);
+            }
+        }
+    }	    
 
 - 第8行，调用ID为mutex_id的互斥锁mutex的unlock方法，具体工作由unlock方法来完成的。
 - 第16行，释放锁。
