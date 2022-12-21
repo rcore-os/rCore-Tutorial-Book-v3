@@ -478,7 +478,7 @@ who <span class="p">|</span> grep chyyuu <span class="p">|</span> wc  <span clas
 </pre></div>
 </div>
 <p>在父进程中，我们通过 <code class="docutils literal notranslate"><span class="pre">pipe</span></code> 打开一个管道文件数组，其中 <code class="docutils literal notranslate"><span class="pre">pipe_fd[0]</span></code> 保存了管道读端的文件描述符，而 <code class="docutils literal notranslate"><span class="pre">pipe_fd[1]</span></code> 保存了管道写端的文件描述符。在 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 之后，子进程会完全继承父进程的文件描述符表，于是子进程也可以通过同样的文件描述符来访问同一个管道的读端和写端。之前提到过管道是单向的，在这个测例中我们希望管道中的数据从父进程流向子进程，也即父进程仅通过管道的写端写入数据，而子进程仅通过管道的读端读取数据。</p>
-<p>因此，在第 25 和第 34 行，分别第一时间在子进程中关闭管道的写端和在父进程中关闭管道的读端。父进程在第 35 行将字符串 <code class="docutils literal notranslate"><span class="pre">STR</span></code> 写入管道的写端，随后在第 37 行关闭管道的写端；子进程在第 27 行从管道的读端读取字符串，并在第 29 行关闭。</p>
+<p>因此，在第 25 和第 36 行，分别第一时间在子进程中关闭管道的写端和在父进程中关闭管道的读端。父进程在第 37 行将字符串 <code class="docutils literal notranslate"><span class="pre">STR</span></code> 写入管道的写端，随后在第 39 行关闭管道的写端；子进程在第 27 行从管道的读端读取字符串，并在第 29 行关闭。</p>
 <p>如果想在父子进程之间实现双向通信，我们就必须创建两个管道。有兴趣的同学可以参考测例 <code class="docutils literal notranslate"><span class="pre">pipe_large_test</span></code> 。</p>
 </div>
 <div class="section" id="id5">
@@ -702,6 +702,7 @@ who <span class="p">|</span> grep chyyuu <span class="p">|</span> wc  <span clas
 </li>
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">Pipe</span></code> 的 <code class="docutils literal notranslate"><span class="pre">write</span></code> 方法 – 即通过管道的写端向管道中写入数据的实现和 <code class="docutils literal notranslate"><span class="pre">read</span></code> 的原理类似，篇幅所限在这里不再赘述，感兴趣的同学可自行参考其实现。</p>
+<p>这样我们就为管道 <code class="docutils literal notranslate"><span class="pre">Pipe</span></code> 实现了上节中的通用文件接口 <code class="docutils literal notranslate"><span class="pre">File</span></code> trait，并将其顺利整合到了文件子系统中。上一节我们提到子进程会继承父进程的所有文件描述符，管道自然也包括在内，使得父子进程可以使用共享的单向管道进行通信了。</p>
 </div>
 </div>
 <div class="section" id="id8">
