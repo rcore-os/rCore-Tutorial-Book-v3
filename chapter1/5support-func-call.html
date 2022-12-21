@@ -512,7 +512,7 @@
 <p>剩下的 5 个通用寄存器情况如下：</p>
 <ul class="simple">
 <li><p>zero( <code class="docutils literal notranslate"><span class="pre">x0</span></code> ) 之前提到过，它恒为零，函数调用不会对它产生影响；</p></li>
-<li><p>ra( <code class="docutils literal notranslate"><span class="pre">x1</span></code> ) 是调用者保存的，但是与其他调用者保存的寄存器不同的是它会被保存在被调用者函数的栈帧中。前面提到过它的作用是让被调用者函数能够正确跳转回调用者函数继续向下执行。</p></li>
+<li><p>ra( <code class="docutils literal notranslate"><span class="pre">x1</span></code> ) 是被调用者保存的。被调用者函数可能也会调用函数，在调用之前就需要修改 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 使得这次调用能正确返回。因此，每个函数都需要在开头保存 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 到自己的栈帧中，并在结尾使用 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 返回之前将其恢复。</p></li>
 <li><p>sp( <code class="docutils literal notranslate"><span class="pre">x2</span></code> ) 是被调用者保存的。这个是之后就会提到的栈指针 (Stack Pointer) 寄存器。</p></li>
 <li><p>fp( <code class="docutils literal notranslate"><span class="pre">s0</span></code> )，它既可作为s0临时寄存器，也可作为栈帧指针（Frame Pointer）寄存器，表示当前栈帧的起始位置，是一个被调用者保存寄存器。</p></li>
 <li><p>gp( <code class="docutils literal notranslate"><span class="pre">x3</span></code> ) 和 tp( <code class="docutils literal notranslate"><span class="pre">x4</span></code> ) 在一个程序运行期间都不会变化，因此不必放在函数调用上下文中。它们的用途在后面的章节会提到。</p></li>
@@ -550,6 +550,41 @@
 <li><p>函数所使用到的局部变量。</p></li>
 </ul>
 <p>因此，栈上多个 <code class="docutils literal notranslate"><span class="pre">fp</span></code> 信息实际上保存了一条完整的函数调用链，通过适当的方式我们可以实现对函数调用关系的跟踪。</p>
+<p><code class="docutils literal notranslate"><span class="pre">ra</span></code> 、 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 和 <code class="docutils literal notranslate"><span class="pre">fp</span></code> 是和函数调用紧密相关的寄存器，我们用一个例子来展示真实编译器生成的汇编代码会如何使用这些寄存器。首先，无论对于内核本身还是第二章后出现的应用程序，我们修改 <code class="docutils literal notranslate"><span class="pre">.cargo/config</span></code> :</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">//</span> <span class="o">.</span><span class="n">cargo</span><span class="o">/</span><span class="n">config</span>
+
+<span class="p">[</span><span class="n">build</span><span class="p">]</span>
+<span class="n">target</span> <span class="o">=</span> <span class="s2">&quot;riscv64gc-unknown-none-elf&quot;</span>
+
+<span class="p">[</span><span class="n">target</span><span class="o">.</span><span class="n">riscv64gc</span><span class="o">-</span><span class="n">unknown</span><span class="o">-</span><span class="n">none</span><span class="o">-</span><span class="n">elf</span><span class="p">]</span>
+<span class="n">rustflags</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;-Clink-args=-Tsrc/linker.ld&quot;</span><span class="p">,</span> <span class="s2">&quot;-Cforce-frame-pointers=yes&quot;</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>这可以设置我们的默认编译目标，同时调整编译选项，设置链接脚本以及强制打开 <code class="docutils literal notranslate"><span class="pre">fp</span></code> 选项，这样才会避免 <code class="docutils literal notranslate"><span class="pre">fp</span></code> 相关指令被编译器优化掉。随后，我们可以使用 <code class="docutils literal notranslate"><span class="pre">rust-objdump</span></code> 工具反汇编内核或者应用程序可执行文件，并找到某个函数的入口。然后，我们能够看到在函数的开场和结尾阶段，编译器会生成类似的汇编代码：</p>
+<div class="highlight-riscv notranslate"><div class="highlight"><pre><span></span><span class="c"># 开场</span>
+<span class="c"># 为当前函数分配 64 字节的栈帧</span>
+<span class="nd">addi</span><span class="w">        </span><span class="na">sp</span>,<span class="w"> </span><span class="na">sp</span>,<span class="w"> </span>-<span class="m">64</span><span class="w"></span>
+<span class="c"># 将 ra 和 fp 压栈保存</span>
+<span class="nd">sd</span><span class="w">  </span><span class="na">ra</span>,<span class="w"> </span><span class="m">56</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="nd">sd</span><span class="w">  </span><span class="na">s0</span>,<span class="w"> </span><span class="m">48</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="c"># 更新 fp 为当前函数栈帧顶端地址</span>
+<span class="nd">addi</span><span class="w">        </span><span class="na">s0</span>,<span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">64</span><span class="w"></span>
+
+<span class="c"># 函数执行</span>
+<span class="c"># 中间如果再调用了其他函数会修改 ra</span>
+
+<span class="c"># 结尾</span>
+<span class="c"># 恢复 ra 和 fp</span>
+<span class="nd">ld</span><span class="w">  </span><span class="na">ra</span>,<span class="w"> </span><span class="m">56</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="nd">ld</span><span class="w">  </span><span class="na">s0</span>,<span class="w"> </span><span class="m">48</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="c"># 退栈</span>
+<span class="nd">addi</span><span class="w">        </span><span class="na">sp</span>,<span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">64</span><span class="w"></span>
+<span class="c"># 返回，使用 ret 指令或其他等价的实现方式</span>
+<span class="nd">ret</span><span class="w"></span>
+</pre></div>
+</div>
 <p>至此，我们基本上说明了函数调用是如何基于栈来实现的。不过我们可以暂时先忽略掉这些细节，因为我们现在只是需要在初始化阶段完成栈的设置，也就是设置好栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器，编译器会帮我们自动完成后面的函数调用相关机制的代码生成。麻烦的是， <code class="docutils literal notranslate"><span class="pre">sp</span></code> 的值也不能随便设置，至少我们需要保证它指向合法的物理内存，而且不能与程序的其他代码、数据段相交，因为在函数调用的过程中，栈区域里面的内容会被修改。如何保证这一点呢？</p>
 </div>
 <div class="section" id="jump-practice">
