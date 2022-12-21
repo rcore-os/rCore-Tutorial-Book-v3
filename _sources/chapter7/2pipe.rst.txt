@@ -325,40 +325,46 @@
 
     impl File for Pipe {
         fn read(&self, buf: UserBuffer) -> usize {
-            assert_eq!(self.readable, true);
+            assert!(self.readable());
+            let want_to_read = buf.len();
             let mut buf_iter = buf.into_iter();
-            let mut read_size = 0usize;
+            let mut already_read = 0usize;
             loop {
                 let mut ring_buffer = self.buffer.exclusive_access();
                 let loop_read = ring_buffer.available_read();
                 if loop_read == 0 {
                     if ring_buffer.all_write_ends_closed() {
-                        return read_size;
+                        return already_read;
                     }
                     drop(ring_buffer);
                     suspend_current_and_run_next();
                     continue;
                 }
-                // read at most loop_read bytes
                 for _ in 0..loop_read {
                     if let Some(byte_ref) = buf_iter.next() {
-                        unsafe { *byte_ref = ring_buffer.read_byte(); }
-                        read_size += 1;
+                        unsafe {
+                            *byte_ref = ring_buffer.read_byte();
+                        }
+                        already_read += 1;
+                        if already_read == want_to_read {
+                            return want_to_read;
+                        }
                     } else {
-                        return read_size;
+                        return already_read;
                     }
                 }
             }
         }
-    }    
+    }
 
-- 第 6 行的 ``buf_iter`` 将传入的应用缓冲区 ``buf`` 转化为一个能够逐字节对于缓冲区进行访问的迭代器，每次调用 ``buf_iter.next()`` 即可按顺序取出用于访问缓冲区中一个字节的裸指针。
-- 第 7 行的 ``read_size`` 用来维护实际有多少字节从管道读入应用的缓冲区。
+
+- 第 7 行的 ``buf_iter`` 将传入的应用缓冲区 ``buf`` 转化为一个能够逐字节对于缓冲区进行访问的迭代器，每次调用 ``buf_iter.next()`` 即可按顺序取出用于访问缓冲区中一个字节的裸指针。
+- 第 8 行的 ``already_read`` 用来维护实际有多少字节从管道读入应用的缓冲区。
 - ``File::read`` 的语义是要从文件中最多读取应用缓冲区大小那么多字符。这可能超出了循环队列的大小，或者由于尚未有进程从管道的写端写入足够的字符，因此我们需要将整个读取的过程放在一个循环中，当循环队列中不存在足够字符的时候暂时进行任务切换，等待循环队列中的字符得到补充之后再继续读取。
   
-  这个循环从第 8 行开始，第 10 行我们用 ``loop_read`` 来保存循环这一轮次中可以从管道循环队列中读取多少字符。如果管道为空则会检查管道的所有写端是否都已经被关闭，如果是的话，说明我们已经没有任何字符可以读取了，这时可以直接返回；否则我们需要等管道的字符得到填充之后再继续读取，因此我们调用 ``suspend_current_and_run_next`` 切换到其他任务，等到切换回来之后回到循环开头再看一下管道中是否有字符了。在调用之前我们需要手动释放管道自身的锁，因为切换任务时候的 ``__switch`` 并不是一个正常的函数调用。
+  这个循环从第 9 行开始，第 11 行我们用 ``loop_read`` 来表示循环这一轮次中可以从管道循环队列中读取多少字符。如果管道为空则会检查管道的所有写端是否都已经被关闭，如果是的话，说明我们已经没有任何字符可以读取了，这时可以直接返回；否则我们需要等管道的字符得到填充之后再继续读取，因此我们调用 ``suspend_current_and_run_next`` 切换到其他任务，等到切换回来之后回到循环开头再看一下管道中是否有字符了。在调用之前我们需要手动释放管道自身的锁，因为切换任务时候的 ``__switch`` 跨越了正常函数调用的边界。
 
-  如果 ``loop_read`` 不为 0 ，在这一轮次中管道中就有 ``loop_read`` 个字节可以读取。我们可以迭代应用缓冲区中的每个字节指针，并调用 ``PipeRingBuffer::read_byte`` 方法来从管道中进行读取。如果这 ``loop_read`` 个字节均被读取之后还没有填满应用缓冲区，就需要进入循环的下一个轮次，否则就可以直接返回了。
+  如果 ``loop_read`` 不为 0 ，在这一轮次中管道中就有 ``loop_read`` 个字节可以读取。我们可以迭代应用缓冲区中的每个字节指针，并调用 ``PipeRingBuffer::read_byte`` 方法来从管道中进行读取。如果这 ``loop_read`` 个字节均被读取之后还没有填满应用缓冲区，就需要进入循环的下一个轮次，否则就可以直接返回了。在具体实现的时候注意边界条件的判断。
 
 ``Pipe`` 的 ``write`` 方法 -- 即通过管道的写端向管道中写入数据的实现和 ``read`` 的原理类似，篇幅所限在这里不再赘述，感兴趣的同学可自行参考其实现。
 
