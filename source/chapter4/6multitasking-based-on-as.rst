@@ -455,7 +455,7 @@
         }
     }
   
-  此处需要说明的是，返回 ``'static`` 的可变引用和之前一样可以看成一个绕过 unsafe 的裸指针；而 ``PhysPageNum::get_mut`` 是一个泛型函数，由于我们已经声明了总体返回 ``TrapContext`` 的可变引用，则Rust编译器会给 ``get_mut`` 泛型函数针对具体类型 ``TrapContext`` 的情况生成一个特定版本的 ``get_mut`` 函数实现。在 ``get_trap_cx`` 函数中则会静态调用``get_mut`` 泛型函数的特定版本实现。
+  此处需要说明的是，返回 ``'static`` 的可变引用和之前一样可以看成一个绕过 unsafe 的裸指针；而 ``PhysPageNum::get_mut`` 是一个泛型函数，由于我们已经声明了总体返回 ``TrapContext`` 的可变引用，则Rust编译器会给 ``get_mut`` 泛型函数针对具体类型 ``TrapContext`` 的情况生成一个特定版本的 ``get_mut`` 函数实现。在 ``get_trap_cx`` 函数中则会静态调用 ``get_mut`` 泛型函数的特定版本实现。
 - 第 39~45 行，调用 ``TrapContext::app_init_context`` 函数，通过应用的 Trap 上下文的可变引用来对其进行初始化。具体初始化过程如下所示：
 
   .. code-block:: rust
