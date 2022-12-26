@@ -522,7 +522,7 @@
 <li><p>线程可被操作系统调度来分时占用 CPU 执行；</p></li>
 <li><p>线程可以动态创建和退出；</p></li>
 <li><p>同进程下的多个线程不像进程一样存在父子关系，但有一个特殊的主线程在它所属进程被创建的时候产生，应用程序的 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数就运行在这个主线程上。当主线程退出后，整个进程立即退出，也就意味着不论进程下的其他线程处于何种状态也随之立即退出；</p></li>
-<li><p>线程可通过系统调用获得操作系统的服务。</p></li>
+<li><p>线程可通过系统调用获得操作系统的服务。注意线程和进程两个系列的系统调用不能混用。</p></li>
 </ul>
 <p>我们实现的线程模型建立在进程的地址空间抽象之上：同进程下的所有线程共享该进程的地址空间，包括代码段和数据段。从逻辑上来说某些段是由所有线程共享的（比如包含代码中的全局变量的全局数据段），而某些段是由某个线程独占的（比如操作系统为每个线程分配的栈），通常情况下程序员会遵循这种约定。然而，线程之间并不能严格做到隔离。举例来说，一个线程访问另一个线程的栈这种行为并不会被操作系统和硬件禁止。这也体现了线程和进程的不同：线程的诞生是为了方便共享，而进程更强调隔离。</p>
 <p>此外，线程模型还需要操作系统支持一些重要的系统调用：创建线程、等待线程结束等来支持灵活的多线程应用。接下来我们介绍这些系统调用的基本功能和设计思路。</p>
@@ -539,10 +539,13 @@
 <p>内核会为每个线程分配一组专属于该线程的资源：用户栈、Trap 上下文还有内核栈，前面两个在进程地址空间中，内核栈在内核地址空间中。这样这些线程才能相对独立地被调度和执行。相比于创建进程的 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 系统调用，创建线程无需建立新的地址空间，这是二者之间最大的不同。另外属于同一进程中的线程之间没有父子关系，这一点也与进程不一样。</p>
 </div>
 <div class="section" id="id9">
-<h3>线程退出及资源回收<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
+<h3>简单线程管理<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
+<p>类似 <code class="docutils literal notranslate"><span class="pre">getpid</span></code> ，我们新增了一个 <code class="docutils literal notranslate"><span class="pre">gettid</span></code> 的系统调用可以获取当前线程的 TID，其 syscall ID 为1001 。由于比较简单，在这里不再赘述。</p>
+</div>
+<div class="section" id="id10">
+<h3>线程退出及资源回收<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
 <p>在 C/Rust 语言实现的多线程应用中，当线程执行的函数返回之后线程会自动退出，在编程的时候无需对函数做任何特殊处理。其实现原理是当函数返回之后，会自动跳转到用户态一段预先设置好的代码，在这段代码中通过系统调用实现线程退出操作。在这里，我们为了让实现更加简单，约定线程函数需要在返回之前通过 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 系统调用退出。这里 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 系统调用的含义发生了变化：从进程退出变成线程退出。</p>
 <p>内核在收到线程发出的 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 系统调用后，会回收线程占用的用户态资源，包括用户栈和 Trap 上下文等。线程占用的内核态资源（包括内核栈等）则需要在进程内使用 <code class="docutils literal notranslate"><span class="pre">waittid</span></code> 系统调用来回收，这样该线程占用的资源才能被完全回收。 <code class="docutils literal notranslate"><span class="pre">waittid</span></code> 的系统调用原型如下：</p>
-<p>两个系统调用的原型如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="sd">/// 功能：等待当前进程内的一个指定线程退出</span>
 <span class="linenos">2</span><span class="sd">/// 参数：tid 表示指定线程的 TID</span>
 <span class="linenos">3</span><span class="sd">/// 返回值：如果线程不存在，返回-1；如果线程还没退出，返回-2；其他情况下，返回结束线程的退出码</span>
@@ -552,34 +555,39 @@
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">waittid</span></code> 基本上就是把我们比较熟悉的 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 的操作对象从进程换成了线程，使用方法也和 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 比较像。它像 <code class="docutils literal notranslate"><span class="pre">pthread_join</span></code> 一样能起到一定的同步作用，也能够彻底回收一个线程的资源。一般情况下进程/主线程要负责通过 <code class="docutils literal notranslate"><span class="pre">waittid</span></code> 来等待它创建出来的线程（不是主线程）结束并回收它们在内核中的资源（如线程的内核栈、线程控制块等）。如果进程/主线程先调用了 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 系统调用来退出，那么整个进程（包括所属的所有线程）都会退出，而对应父进程会通过 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 回收子进程剩余还没被回收的资源。</p>
 </div>
-<div class="section" id="id10">
-<h3>进程相关的系统调用<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
-<p>在引入了线程机制后，进程相关的重要系统调用： <code class="docutils literal notranslate"><span class="pre">fork</span></code> 、 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 、 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 虽然在接口上没有变化，但在它要完成的功能上需要有一定的扩展。首先，需要注意到把以前进程中与处理器执行相关的部分拆分到线程中。这样，在通过 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 创建进程其实也意味着要单独建立一个主线程来使用处理器，并为以后创建新的线程建立相应的线程控制块向量。相对而言， <code class="docutils literal notranslate"><span class="pre">exec</span></code> 和 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 这两个系统调用要做的改动比较小，还是按照与之前进程的处理方式来进行。总体上看，进程相关的这三个系统调用还是保持了已有的进程操作的语义，并没有由于引入了线程，而带来大的变化。</p>
-</div>
-</div>
 <div class="section" id="id11">
-<h2>应用程序示例<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h2>
-<p>我们刚刚介绍了 <code class="docutils literal notranslate"><span class="pre">thread_create/waittid</span></code> 两个重要系统调用，我们可以借助它们和之前实现的系统调用开发出功能更为灵活的应用程序。下面我们通过描述一个多线程应用程序 <code class="docutils literal notranslate"><span class="pre">threads</span></code> 的开发过程，来展示这些系统调用的使用方法。</p>
+<h3>进程相关的系统调用<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h3>
+<p>在引入了线程机制后，进程相关的重要系统调用： <code class="docutils literal notranslate"><span class="pre">fork</span></code> 、 <code class="docutils literal notranslate"><span class="pre">exec</span></code> 、 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 虽然在接口上没有变化，但在它要完成的功能上需要有一定的扩展。首先，需要注意到把以前进程中与处理器执行相关的部分拆分到线程中。这样，在通过 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 创建进程其实也意味着要单独建立一个主线程来使用处理器，并为以后创建新的线程建立相应的线程控制块向量。相对而言， <code class="docutils literal notranslate"><span class="pre">exec</span></code> 和 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> 这两个系统调用要做的改动比较小，还是按照与之前进程的处理方式来进行。</p>
+<p>而且，为了实现更加简单，我们要求每个应用对于 <strong>线程和进程两个系列的系统调用只能使用其中之一</strong> 。比如说，使用了进程系列的 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 就不能使用线程系列的 <code class="docutils literal notranslate"><span class="pre">thread_create</span></code> ，这是因为很难定义如何 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 一个多线程的进程。类似的，可以发现要将进程和线程模型融合起来需要做很多额外的工作。如果做了上述要求的话，我们就可以对进程-线程的融合模型进行简化。如果涉及到父子进程的交互，那么这些进程只会有一个主线程，基本等价于之前的进程模型；如果使用 <code class="docutils literal notranslate"><span class="pre">thread_create</span></code> 创建了新线程，那么我们只需考虑多个线程在这一个进程内的交互。因此，总体上看，进程相关的这三个系统调用还是保持了已有的进程操作的语义，并没有由于引入了线程，而带来大的变化。</p>
+</div>
+</div>
 <div class="section" id="id12">
-<h3>系统调用封装<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
+<h2>应用程序示例<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h2>
+<p>我们刚刚介绍了 <code class="docutils literal notranslate"><span class="pre">thread_create/waittid</span></code> 两个重要系统调用，我们可以借助它们和之前实现的系统调用开发出功能更为灵活的应用程序。下面我们通过描述一个多线程应用程序 <code class="docutils literal notranslate"><span class="pre">threads</span></code> 的开发过程，来展示这些系统调用的使用方法。</p>
+<div class="section" id="id13">
+<h3>系统调用封装<a class="headerlink" href="#id13" title="永久链接至标题">#</a></h3>
 <p>同学可以在 <code class="docutils literal notranslate"><span class="pre">user/src/syscall.rs</span></code> 中看到以 <code class="docutils literal notranslate"><span class="pre">sys_*</span></code> 开头的系统调用的函数原型，它们后续还会在 <code class="docutils literal notranslate"><span class="pre">user/src/lib.rs</span></code> 中被封装成方便应用程序使用的形式。如 <code class="docutils literal notranslate"><span class="pre">sys_thread_create</span></code> 被封装成 <code class="docutils literal notranslate"><span class="pre">thread_create</span></code> ，而 <code class="docutils literal notranslate"><span class="pre">sys_waittid</span></code> 被封装成 <code class="docutils literal notranslate"><span class="pre">waittid</span></code>  ：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thread_create</span><span class="p">(</span><span class="n">entry</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">arg</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_thread_create</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span><span class="w"> </span><span class="n">arg</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/lib.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">waittid</span><span class="p">(</span><span class="n">tid</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">sys_waittid</span><span class="p">(</span><span class="n">tid</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">            </span><span class="o">-</span><span class="mi">2</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">yield_</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">            </span><span class="n">exit_code</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">exit_code</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">10</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thread_create</span><span class="p">(</span><span class="n">entry</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">arg</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">sys_thread_create</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span><span class="w"> </span><span class="n">arg</span><span class="p">)</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 6</span>
+<span class="linenos"> 7</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">waittid</span><span class="p">(</span><span class="n">tid</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">sys_waittid</span><span class="p">(</span><span class="n">tid</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">            </span><span class="o">-</span><span class="mi">2</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">yield_</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">            </span><span class="n">exit_code</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">exit_code</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">14</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">waittid</span></code> 等待一个线程标识符的值为 tid 的线程结束。在具体实现方面，我们看到当 <code class="docutils literal notranslate"><span class="pre">sys_waittid</span></code> 返回值为 -2 ，即要等待的线程存在但它却尚未退出的时候，主线程调用 <code class="docutils literal notranslate"><span class="pre">yield_</span></code> 主动交出 CPU 使用权，待下次 CPU 使用权被内核交还给它的时候再次调用 <code class="docutils literal notranslate"><span class="pre">sys_waittid</span></code> 查看要等待的线程是否退出。这样做是为了减小 CPU 资源的浪费以及尽可能简化内核的实现。</p>
 </div>
-<div class="section" id="threads">
-<h3>多线程应用程序 – threads<a class="headerlink" href="#threads" title="永久链接至标题">#</a></h3>
-<p>多线程应用程序 – <code class="docutils literal notranslate"><span class="pre">threads</span></code> 开始执行后，先调用 <code class="docutils literal notranslate"><span class="pre">thread_create</span></code> 创建了三个线程，加上进程自带的主线程，其实一共有四个线程。每个线程在打印了1000个字符后，会执行 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 退出。进程通过 <code class="docutils literal notranslate"><span class="pre">waittid</span></code> 等待这三个线程结束后，最终结束进程的执行。下面是多线程应用程序 – threads 的源代码：</p>
+<div class="section" id="id14">
+<h3>多线程应用程序<a class="headerlink" href="#id14" title="永久链接至标题">#</a></h3>
+<p>多线程应用程序 – <code class="docutils literal notranslate"><span class="pre">threads</span></code> 开始执行后，先调用 <code class="docutils literal notranslate"><span class="pre">thread_create</span></code> 创建了三个线程，加上进程自带的主线程，其实一共有四个线程。每个线程在打印了 1000 个字符后，会执行 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 退出。进程通过 <code class="docutils literal notranslate"><span class="pre">waittid</span></code> 等待这三个线程结束后，最终结束进程的执行。下面是多线程应用程序 – <code class="docutils literal notranslate"><span class="pre">threads</span></code> 的源代码：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">//usr/src/bin/threads.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="cp">#![no_std]</span><span class="w"></span>
@@ -622,19 +630,80 @@
 <span class="linenos">40</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
+<p>另一个名为 <code class="docutils literal notranslate"><span class="pre">threads_arg</span></code> 的应用和 <code class="docutils literal notranslate"><span class="pre">threads</span></code> 的功能相同，其不同在于利用 <code class="docutils literal notranslate"><span class="pre">thread_create</span></code> 可以传参的特性，从而只需编写一个线程函数。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="cp">#![no_std]</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="cp">#![no_main]</span><span class="w"></span>
+<span class="linenos"> 3</span>
+<span class="linenos"> 4</span><span class="cp">#[macro_use]</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">alloc</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">vec</span>::<span class="nb">Vec</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span><span class="n">exit</span><span class="p">,</span><span class="w"> </span><span class="n">thread_create</span><span class="p">,</span><span class="w"> </span><span class="n">waittid</span><span class="p">};</span><span class="w"></span>
+<span class="linenos">10</span>
+<span class="linenos">11</span><span class="k">struct</span> <span class="nc">Argument</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">ch</span>: <span class="kt">char</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">rc</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">14</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">15</span>
+<span class="linenos">16</span><span class="k">fn</span> <span class="nf">thread_print</span><span class="p">(</span><span class="n">arg</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">Argument</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">arg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">&amp;*</span><span class="n">arg</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">1000</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">        </span><span class="fm">print!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">arg</span><span class="p">.</span><span class="n">ch</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">arg</span><span class="p">.</span><span class="n">rc</span><span class="p">)</span><span class="w"></span>
+<span class="linenos">22</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">23</span>
+<span class="linenos">24</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos">25</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">        </span><span class="n">Argument</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ch</span>: <span class="o">&#39;</span><span class="na">a</span><span class="o">&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">rc</span>: <span class="mi">1</span><span class="w"> </span><span class="p">},</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">        </span><span class="n">Argument</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ch</span>: <span class="o">&#39;</span><span class="na">b</span><span class="o">&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">rc</span>: <span class="mi">2</span><span class="w"> </span><span class="p">},</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">        </span><span class="n">Argument</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ch</span>: <span class="o">&#39;</span><span class="na">c</span><span class="o">&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">rc</span>: <span class="mi">3</span><span class="w"> </span><span class="p">},</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">    </span><span class="p">];</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">arg</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="w"></span>
+<span class="linenos">34</span><span class="w">            </span><span class="n">thread_print</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">35</span><span class="w">            </span><span class="n">arg</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">36</span><span class="w">        </span><span class="p">));</span><span class="w"></span>
+<span class="linenos">37</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">38</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">tid</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">39</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">waittid</span><span class="p">(</span><span class="o">*</span><span class="n">tid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">40</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thread#{} exited with code {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">tid</span><span class="p">,</span><span class="w"> </span><span class="n">exit_code</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">41</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">42</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;main thread exited.&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">43</span><span class="w">    </span><span class="mi">0</span><span class="w"></span>
+<span class="linenos">44</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>这里传给创建的三个线程的参数放在主线程的栈上，在 <code class="docutils literal notranslate"><span class="pre">thread_create</span></code> 的时候提供的是对应参数的地址。参数会决定每个线程打印的字符和线程的返回码。</p>
 </div>
 </div>
-<div class="section" id="id13">
-<h2>线程管理的核心数据结构<a class="headerlink" href="#id13" title="永久链接至标题">#</a></h2>
-<p>为了在现有进程管理的基础上实现线程管理，我们需要改进一些数据结构包含的内容及接口。基本思路就是把进程中与处理器相关的部分分拆出来，形成线程相关的部分。
-本节将按照如下顺序来进行介绍：</p>
+<div class="section" id="id15">
+<h2>线程管理的核心数据结构<a class="headerlink" href="#id15" title="永久链接至标题">#</a></h2>
+<p>为了实现线程机制，我们需要将操作系统的 CPU 资源调度单位（也即“任务”）从之前的进程改为线程。这意味着调度器需要考虑更多的因素，比如当一个线程时间片用尽交出 CPU 使用权的时候，切换到同进程下还是不同进程下的线程的上下文切换开销往往有很大不同，可能影响到是否需要切换页表。不过我们为了实现更加简单，仍然采用 Round-Robin 调度算法，将所有线程一视同仁，不考虑它们属于哪个进程。</p>
+<p>本章之前，进程管理的三种核心数据结构和一些软/硬件资源如下：</p>
+<p>第一个数据结构是任务（进程）控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> ，可以在 <code class="docutils literal notranslate"><span class="pre">os/src/task/task.rs</span></code> 中找到。它除了记录当前任务的状态之外，还包含如下资源：</p>
 <ul class="simple">
-<li><p>任务控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> ：表示线程的核心数据结构。</p></li>
-<li><p>任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> ：管理线程集合的核心数据结构。</p></li>
-<li><p>处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> ：用于线程调度，维护当前时刻处理器的状态。</p></li>
+<li><p>进程标识符 <code class="docutils literal notranslate"><span class="pre">pid</span></code> ；</p></li>
+<li><p>内核栈 <code class="docutils literal notranslate"><span class="pre">kernel_stack</span></code> ；</p></li>
+<li><p>进程地址空间 <code class="docutils literal notranslate"><span class="pre">memory_set</span></code> ；</p></li>
+<li><p>进程地址空间中的用户栈和 Trap 上下文（进程控制块中相关字段为 <code class="docutils literal notranslate"><span class="pre">trap_cx_ppn</span></code> ）；</p></li>
+<li><p>文件描述符表 <code class="docutils literal notranslate"><span class="pre">fd_table</span></code> ；</p></li>
+<li><p>信号相关的字段。</p></li>
 </ul>
-<div class="section" id="id14">
-<h3>线程控制块<a class="headerlink" href="#id14" title="永久链接至标题">#</a></h3>
+<p>这些资源的生命周期基本上与进程的生命周期相同。但是在有了线程之后，我们需要将一些与代码执行相关的资源分离出来，让它们与相关线程的生命周期绑定。</p>
+<p>第二个数据结构是任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> ，可以在 <code class="docutils literal notranslate"><span class="pre">os/src/task/manager.rs</span></code> 中找到。它实质上是我们内核的调度器，可以决定一个任务时间片用尽或退出之后接下来执行哪个任务。</p>
+<p>第三个数据结构是处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> ，可以在 <code class="docutils literal notranslate"><span class="pre">os/src/task/processor.rs</span></code> 中找到。它维护了处理器当前在执行哪个任务，在处理系统调用的时候我们需要依据这里的记录来确定系统调用的发起者是哪个任务。</p>
+<p>本章的变更如下：</p>
+<ul class="simple">
+<li><p>进程控制块由之前的 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 变成新增的 <code class="docutils literal notranslate"><span class="pre">ProcessControlBlock</span></code> （简称 PCB ），我们在其中保留进程的一些信息以及由进程下所有线程共享的一些资源。 PCB 可以在 <code class="docutils literal notranslate"><span class="pre">os/src/task/process.rs</span></code> 中找到。任务控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 则变成用来描述线程的线程控制块，包含线程的信息以及线程独占的资源。</p></li>
+<li><p>在资源管理方面，本章之前在 <code class="docutils literal notranslate"><span class="pre">os/src/task/pid.rs</span></code> 可以看到与进程相关的一些 RAII 风格的软/硬件资源，包括进程描述符 <code class="docutils literal notranslate"><span class="pre">PidHandle</span></code> 以及内核栈 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> ，其中内核栈被分配在内核地址空间中且其位置由所属进程的进程描述符决定。本章将 <code class="docutils literal notranslate"><span class="pre">pid.rs</span></code> 替换为 <code class="docutils literal notranslate"><span class="pre">id.rs</span></code> ，仍然保留 <code class="docutils literal notranslate"><span class="pre">PidHandle</span></code> 和 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> 两种资源，不过 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> 变为一种线程独占的资源，我们可以在线程控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 中找到它。此外，我们还在 <code class="docutils literal notranslate"><span class="pre">id.rs</span></code> 中新增了 <code class="docutils literal notranslate"><span class="pre">TaskUserRes</span></code> 表示每个线程独占的用户态资源，还有一个各类资源的通用分配器 <code class="docutils literal notranslate"><span class="pre">RecycleAllocator</span></code> 。</p></li>
+<li><p>CPU 资源调度单位仍为任务控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 不变。因此，基于任务控制块的任务控制器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 和处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 也基本不变，只有某些接口有小幅修改。</p></li>
+</ul>
+<div class="section" id="id16">
+<h3>线程控制块<a class="headerlink" href="#id16" title="永久链接至标题">#</a></h3>
 <p>在内核中，每个线程的执行状态和线程上下文等均保存在一个被称为任务控制块 (TCB, Task Control Block) 的结构中，它是内核对线程进行管理的核心数据结构。在内核看来，它就等价于一个线程。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">     </span><span class="c1">// immutable</span>
@@ -678,8 +747,8 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">exit_code</span></code> 线程退出码。</p></li>
 </ul>
 </div>
-<div class="section" id="id15">
-<h3>包含线程的进程控制块<a class="headerlink" href="#id15" title="永久链接至标题">#</a></h3>
+<div class="section" id="id17">
+<h3>包含线程的进程控制块<a class="headerlink" href="#id17" title="永久链接至标题">#</a></h3>
 <p>把线程相关数据单独组织成数据结构后，进程的结构也需要进行一定的调整：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">     </span><span class="c1">// immutable</span>
@@ -697,23 +766,23 @@
 </div>
 <p>从中可以看出，进程把与处理器执行相关的部分都移到了 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 中，并组织为一个线程控制块向量中，这就自然对应到多个线程的管理上了。而 <code class="docutils literal notranslate"><span class="pre">RecycleAllocator</span></code> 是对之前的 <code class="docutils literal notranslate"><span class="pre">PidAllocator</span></code> 的一个升级版，即一个相对通用的资源分配器，可用于分配进程标识符（PID）和线程的内核栈（KernelStack）。</p>
 </div>
-<div class="section" id="id16">
-<h3>线程与处理器管理结构<a class="headerlink" href="#id16" title="永久链接至标题">#</a></h3>
+<div class="section" id="id18">
+<h3>线程与处理器管理结构<a class="headerlink" href="#id18" title="永久链接至标题">#</a></h3>
 <p>线程管理的结构是线程管理器，即任务管理器，位于 <code class="docutils literal notranslate"><span class="pre">os/src/task/manager.rs</span></code> 中，其数据结构和方法与之前章节中进程的任务管理器完全一样，只不过管理单位从之前的任务（进程）换成了线程。而处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 负责维护 CPU 状态、调度和特权级切换等事务。其数据结构与之前章节中进程的处理器管理结构完全一样。但在相关方法上面，由于多个线程有各自的用户栈和跳板页，所以有些不同，下面会进一步分析。</p>
 </div>
 </div>
-<div class="section" id="id17">
-<h2>线程管理机制的设计与实现<a class="headerlink" href="#id17" title="永久链接至标题">#</a></h2>
+<div class="section" id="id19">
+<h2>线程管理机制的设计与实现<a class="headerlink" href="#id19" title="永久链接至标题">#</a></h2>
 <p>在上述线程模型和内核数据结构的基础上，我们还需完成线程管理的基本实现，从而构造出一个完整的“达科塔盗龙”操作系统。本节将分析如何实现线程管理：</p>
 <ul class="simple">
 <li><p>线程创建、线程退出与等待线程结束</p></li>
 <li><p>线程执行中的特权级切换</p></li>
 <li><p>进程管理中与线程相关的处理</p></li>
 </ul>
-<div class="section" id="id18">
-<h3>线程创建、线程退出与等待线程结束<a class="headerlink" href="#id18" title="永久链接至标题">#</a></h3>
-<div class="section" id="id19">
-<h4>线程创建<a class="headerlink" href="#id19" title="永久链接至标题">#</a></h4>
+<div class="section" id="id20">
+<h3>线程创建、线程退出与等待线程结束<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h3>
+<div class="section" id="id21">
+<h4>线程创建<a class="headerlink" href="#id21" title="永久链接至标题">#</a></h4>
 <p>当一个进程执行中发出了创建线程的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_thread_create</span></code> 后，操作系统就需要在当前进程的基础上创建一个线程了，这里重点是需要了解创建线程控制块，在线程控制块中初始化各个成员变量，建立好进程和线程的关系等。只有建立好这些成员变量，才能给线程建立一个灵活方便的执行环境。这里列出支持线程正确运行所需的重要的执行环境要素：</p>
 <ul class="simple">
 <li><p>线程的用户态栈：确保在用户态的线程能正常执行函数调用；</p></li>
@@ -767,8 +836,8 @@
 <li><p>第25~32行，初始化位于该线程在用户态地址空间中的 Trap 上下文：设置线程的函数入口点和用户栈，使得第一次进入用户态时能从线程起始位置开始正确执行；设置好内核栈和陷入函数指针 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> ，保证在 Trap 的时候用户态的线程能正确进入内核态。</p></li>
 </ul>
 </div>
-<div class="section" id="id20">
-<h4>线程退出<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h4>
+<div class="section" id="id22">
+<h4>线程退出<a class="headerlink" href="#id22" title="永久链接至标题">#</a></h4>
 <p>当一个非主线程的其他线程发出 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 系统调用时，内核会调用 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 函数退出当前线程并切换到下一个线程，但不会导致其所属进程的退出。当 <code class="docutils literal notranslate"><span class="pre">主线程</span></code> 即进程发出这个系统调用，当内核收到这个系统调用后，会回收整个进程（这包括了其管理的所有线程）资源，并退出。具体实现如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
 <span class="linenos"> 2</span>
@@ -837,8 +906,8 @@
 </ul>
 <p>上述实现中很大一部分与第五章讲解的 <a class="reference internal" href="../chapter5/3implement-process-mechanism.html#process-exit"><span class="std std-ref">进程的退出</span></a> 的功能实现大致相同。</p>
 </div>
-<div class="section" id="id21">
-<h4>等待线程结束<a class="headerlink" href="#id21" title="永久链接至标题">#</a></h4>
+<div class="section" id="id23">
+<h4>等待线程结束<a class="headerlink" href="#id23" title="永久链接至标题">#</a></h4>
 <p>主线程通过系统调用 <code class="docutils literal notranslate"><span class="pre">sys_waittid</span></code> 来等待其他线程的结束。具体实现如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/thread.rs</span>
 <span class="linenos"> 2</span>
@@ -880,8 +949,8 @@
 </ul>
 </div>
 </div>
-<div class="section" id="id22">
-<h3>线程执行中的特权级切换和调度切换<a class="headerlink" href="#id22" title="永久链接至标题">#</a></h3>
+<div class="section" id="id24">
+<h3>线程执行中的特权级切换和调度切换<a class="headerlink" href="#id24" title="永久链接至标题">#</a></h3>
 <p>线程执行中的特权级切换与第三章中 <strong>任务切换的设计与实现</strong> 小节中讲解的过程是一致的。而线程执行中的调度切换过程与第五章的 <strong>进程调度机制</strong> 小节中讲解的过程是一致的。
 这里就不用再赘述一遍了。</p>
 <dl class="footnote brackets">
@@ -956,29 +1025,30 @@
 <li><a class="reference internal" href="#id5">通用操作系统多线程应用程序示例</a></li>
 <li><a class="reference internal" href="#id7">线程模型与重要系统调用</a><ul>
 <li><a class="reference internal" href="#id8">线程的创建</a></li>
-<li><a class="reference internal" href="#id9">线程退出及资源回收</a></li>
-<li><a class="reference internal" href="#id10">进程相关的系统调用</a></li>
+<li><a class="reference internal" href="#id9">简单线程管理</a></li>
+<li><a class="reference internal" href="#id10">线程退出及资源回收</a></li>
+<li><a class="reference internal" href="#id11">进程相关的系统调用</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id11">应用程序示例</a><ul>
-<li><a class="reference internal" href="#id12">系统调用封装</a></li>
-<li><a class="reference internal" href="#threads">多线程应用程序 – threads</a></li>
+<li><a class="reference internal" href="#id12">应用程序示例</a><ul>
+<li><a class="reference internal" href="#id13">系统调用封装</a></li>
+<li><a class="reference internal" href="#id14">多线程应用程序</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id13">线程管理的核心数据结构</a><ul>
-<li><a class="reference internal" href="#id14">线程控制块</a></li>
-<li><a class="reference internal" href="#id15">包含线程的进程控制块</a></li>
-<li><a class="reference internal" href="#id16">线程与处理器管理结构</a></li>
+<li><a class="reference internal" href="#id15">线程管理的核心数据结构</a><ul>
+<li><a class="reference internal" href="#id16">线程控制块</a></li>
+<li><a class="reference internal" href="#id17">包含线程的进程控制块</a></li>
+<li><a class="reference internal" href="#id18">线程与处理器管理结构</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id17">线程管理机制的设计与实现</a><ul>
-<li><a class="reference internal" href="#id18">线程创建、线程退出与等待线程结束</a><ul>
-<li><a class="reference internal" href="#id19">线程创建</a></li>
-<li><a class="reference internal" href="#id20">线程退出</a></li>
-<li><a class="reference internal" href="#id21">等待线程结束</a></li>
+<li><a class="reference internal" href="#id19">线程管理机制的设计与实现</a><ul>
+<li><a class="reference internal" href="#id20">线程创建、线程退出与等待线程结束</a><ul>
+<li><a class="reference internal" href="#id21">线程创建</a></li>
+<li><a class="reference internal" href="#id22">线程退出</a></li>
+<li><a class="reference internal" href="#id23">等待线程结束</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id22">线程执行中的特权级切换和调度切换</a></li>
+<li><a class="reference internal" href="#id24">线程执行中的特权级切换和调度切换</a></li>
 </ul>
 </li>
 </ul>
