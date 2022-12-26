@@ -8,11 +8,11 @@
 API与ABI
 --------------------
 
-站在使用操作系统的角度会比较容易对操作系统的功能产生初步的认识。操作系统内核是一个需要提供各种服务的软件，其服务对象是应用程序，而用户（这里可以理解为一般使用计算机的人）是通过应用程序的服务间接获得操作系统的服务的，因此操作系统内核藏在一般用户看不到的地方。但应用程序需要访问操作系统获得操作系统的服务，这就需要通过操作系统的接口才能完成。操作系统的接口形式就是上一节提到的应用程序二进制接口 (ABI, Application Binary Interface)。
+站在使用操作系统的角度会比较容易对操作系统内核的功能产生初步的认识。操作系统内核是一个提供各种服务的软件，其服务对象是应用程序，而用户（这里可以理解为一般使用计算机的人）是通过应用程序的服务间接获得操作系统的服务的，因此操作系统内核藏在一般用户看不到的地方。但应用程序需要访问操作系统获得操作系统的服务，这就需要通过操作系统的接口才能完成。操作系统与运行在用户态软件之间的接口形式就是上一节提到的应用程序二进制接口 (ABI, Application Binary Interface)。
 
-操作系统不能只提供面向单一编程语言的函数库的编程接口 (API, Application Programming Interface) ，它的接口需要考虑对基于各种编程语言的应用支持，以及访问安全等因素，使得应用软件不能像访问函数库一样的直接访问操作系统内部函数，更不能直接读写操作系统内部的地址空间。为此，操作系统设计了一套安全可靠的接口，我们称为系统调用接口 (System Call Interface)。系统调用接口通常面向应用程序提供了 API 的描述，但在具体实现上，还需要提供 ABI 的接口描述规范。
+操作系统不能只提供面向单一编程语言的函数库的编程接口 (API, Application Programming Interface) ，它的接口需要考虑对基于各种编程语言的应用支持，以及访问安全等因素，使得应用软件不能像访问函数库一样的直接访问操作系统内部函数，更不能直接读写操作系统内部的地址空间。为此，操作系统设计了一套安全可靠的二进制接口，我们称为系统调用接口 (System Call Interface)。系统调用接口通常面向应用程序提供了 API 的描述，但在具体实现上，还需要提供 ABI 的接口描述规范。
 
-在现代处理器的安全支持（特权级隔离，内存空间隔离等）下，应用程序就不能直接以函数调用的方式访问操作系统的函数，以及直接读写操作系统的数据变量。不同类型的应用程序可以通过符合操作系统规定的ABI规范的系统调用接口，发出系统调用请求，来获得操作系统的服务。操作系统提供完服务后，返回应用程序继续执行。
+在现代处理器的安全支持（特权级隔离，内存空间隔离等）下，应用程序就不能直接以函数调用的方式访问操作系统的函数，以及直接读写操作系统的数据变量。不同类型的应用程序可以通过符合操作系统规定的系统调用接口，发出系统调用请求，来获得操作系统的服务。操作系统提供完服务后，返回应用程序继续执行。
 
 
 .. note::
@@ -37,7 +37,7 @@ API与ABI
 - 多个运行的程序如何同步互斥地对共享资源进行访问？
 - 一个运行的程序可以创建另一个程序的实例吗？需要等待另外一个程序执行完成吗？一个运行的程序能暂停或恢复另一个正在运行的程序吗？
 
-操作系统主要通过基于 ABI 的系统调用接口来给应用程序提供上述服务，以支持应用程序的各种需求。对于实际操作系统而言，有多少操作系统，就有多少种不同类型的系统调用接口。通用服务器为支持各种应用的服务需求，需要有相对多的系统调用服务接口，比如目前 Linux 有超过三百个的系统调用接口。下面列出了一些相对比较重要的操作系统接口或抽象，以及它们的大致功能：
+操作系统主要通过基于 ABI 的系统调用接口来给应用程序提供上述服务，以支持应用程序的各种需求。对于实际操作系统而言，有多少操作系统，就有多少种不同类型的系统调用接口。通用操作系统为支持各种应用的服务需求，需要有相对多的系统调用服务接口，比如目前 Linux 有超过三百个的系统调用接口。下面列出了一些相对比较重要的操作系统接口或抽象，以及它们的大致功能：
 
 * 进程（即程序运行过程）管理：复制创建进程 fork 、退出进程 exit 、执行进程 exec 等。
 * 线程管理：线程（即程序的一个执行流）的创建、执行、调度切换等。
@@ -65,41 +65,46 @@ API与ABI
 
 ..  chyyuu 在线组织表格 https://tableconvert.com/restructuredtext-generator 再用 format current (ctrl-alt-T C)格式化
 
-====  ================  ========  ==============================
-编号      系统调用      所在章节             功能描述
-====  ================  ========  ==============================
-1     exit              2         结束执行
-2     write             2/6       (2)输出字符串/(6)写文件
-3     yield             3         暂时放弃执行
-4     get_time          3         获取当前时间
-5     getpid            5         获取进程id
-6     fork              5         创建子进程
-7     exec              5         执行新程序
-8     waitpid           5         等待子进程结束
-9     read              5/6       (5)读取字符串/(6)读文件
-10    open              6         打开/创建文件
-11    close             6         关闭文件
-12    dup               7         复制文件描述符
-13    pipe              7         创建管道
-14    kill              7         发送信号给某进程
-15    sigaction         7         设立信号处理例程
-16    sigprocmask       7         设置要阻止的信号
-17    sigreturn         7         从信号处理例程返回
-18    sleep             8         进程休眠一段时间
-19    thread_create     8         创建线程
-20    gettid            8         获取线程id
-21    waittid           8         等待线程结束
-22    mutex_create      8         创建锁
-23    mutex_lock        8         获取锁
-24    mutex_unlock      8         释放锁
-25    semaphore_create  8         创建信号量
-26    semaphore_up      8         减少信号量的计数
-27    semaphore_down    8         增加信号量的计数
-28    condvar_create    8         创建条件变量
-29    condvar_signal    8         唤醒阻塞在条件变量上的线程
-30    condvar_wait      8         阻塞与此条件变量关联的当前线程
-====  ================  ========  ==============================
 
+
+====  ====================  =============  ===============================
+编号   系统调用              所在章节        功能描述
+====  ====================  =============  ===============================
+1     sys_exit                 2           结束执行
+2     sys_write                2/6         (2)输出字符串/(6)写文件
+3     sys_yield                3           暂时放弃执行
+4     sys_get_time             3           获取当前时间
+5     sys_getpid               5           获取进程id
+6     sys_fork                 5           创建子进程
+7     sys_exec                 5           执行新程序
+8     sys_waitpid              5           等待子进程结束
+9     sys_read                 5/6         (5)读取字符串/(6)读文件
+10    sys_open                 6           打开/创建文件
+11    sys_close                6           关闭文件
+12    sys_dup                  7           复制文件描述符
+13    sys_pipe                 7           创建管道
+14    sys_kill                 7           发送信号给某进程
+15    sys_sigaction            7           设立信号处理例程
+16    sys_sigprocmask          7           设置要阻止的信号
+17    sys_sigreturn            7           从信号处理例程返回
+18    sys_sleep                8           进程休眠一段时间
+19    sys_thread_create        8           创建线程
+20    sys_gettid               8           获取线程id
+21    sys_waittid              8           等待线程结束
+22    sys_mutex_create         8           创建锁
+23    sys_mutex_lock           8           获取锁
+24    sys_mutex_unlock         8           释放锁
+25    sys_semaphore_create     8           创建信号量
+26    sys_semaphore_up         8           减少信号量的计数
+27    sys_semaphore_down       8           增加信号量的计数
+28    sys_condvar_create       8           创建条件变量
+29    sys_condvar_signal       8           唤醒阻塞在条件变量上的线程
+30    sys_condvar_wait         8           阻塞与此条件变量关联的当前线程
+====  ====================  =============  ===============================
+
+
+系统调用接口举例
+---------------------------------------------------
 
 .. chyyuu 可以有两个例子，体现API和ABI
    #![feature(asm)]
@@ -115,3 +120,80 @@ API与ABI
 
    Ok(())
    }
+
+ 
+我们以rCore-Tutorial中的例子，一个应用程序显示一个字符串，来看看系统调用的具体内容。应用程序的代码如下：
+
+.. code-block:: rust
+   :linenos:
+
+   // user/src/bin/hello_world.rs
+   ...
+   pub fn main() -> i32 {
+      println!("Hello world from user mode program!");
+      0
+   }    
+
+这个程序的功能就是显示一行字符串（重点看第8行的代码）。注意，这里的 `println!` 一个宏。而进一步跟踪源代码 （位于  `user/src/console.rs` ），可以看到 `println!` 会进一步展开为 `write` 函数：
+
+.. code-block:: rust
+   :linenos:
+
+   // user/src/console.rs
+   ...
+   impl Write for Stdout {
+      fn write_str(&mut self, s: &str) -> fmt::Result {
+         write(STDOUT, s.as_bytes());
+         Ok(())
+      }
+   }
+
+这个write函数就是对系统调用 `sys_write` 的封装：
+
+
+.. code-block:: rust
+   :linenos:
+
+   // user/src/lib.rs
+   ...
+   pub fn write(fd: usize, buf: &[u8]) -> isize {
+    sys_write(fd, buf)
+   }
+
+   // user/src/syscall.rs
+   ...
+   pub fn sys_write(fd: usize, buffer: &[u8]) -> isize {
+      syscall(SYSCALL_WRITE, [fd, buffer.as_ptr() as usize, buffer.len()])
+   }
+
+
+`sys_write` 用户库函数封装了 `sys_write`  系统调用的API接口，这个系统调用API的参数和返回值的含义如下：
+
+- `SYSCALL_WRITE` 表示 `sys_write` 的系统调用号
+- `fd` 表示待写入文件的文件描述符；
+- `buf` 表示内存中缓冲区的起始地址；
+- `len` 表示内存中缓冲区的长度；
+- 返回值：返回成功写入的长度或错误值
+
+而 `sys_write`  系统调用的ABI接口描述了具体用哪些寄存器来保存参数和返回值：
+
+.. code-block:: rust
+   :linenos:
+
+   // user/src/syscall.rs
+   ...
+   fn syscall(id: usize, args: [usize; 3]) -> isize {
+      let mut ret: isize;
+      unsafe {
+         asm!(
+               "ecall",
+               inlateout("x10") args[0] => ret,
+               in("x11") args[1],
+               in("x12") args[2],
+               in("x17") id
+         );
+      }
+      ret
+   }
+
+这里我们看到，API中的各个参数和返回值分别被RISC-V通用寄存器 `x10` （即存放系统调用号，也保存返回值）、 `x11`（存放 `fd` ） 、 `x12` （存放 `buf` ）和 `x17` （存放 `len` ）保存。
