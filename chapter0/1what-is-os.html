@@ -395,29 +395,52 @@
 <p>一个操作系统（OS）是一个软件，它帮助用户和应用程序使用和管理计算机的资源。操作系统可能对最终用户不可见，但它控制着嵌入式设备、更通用的系统（如智能手机、台式计算机和服务器）以及巨型机等各种计算机系统。</p>
 <p>今天，我们很难想象在没有操作系统的情况下使用计算机，它塑造和构建了我们访问计算机及其外围设备的交互方式。当第一批电子计算机在第二次世界大战后被开发出来时，还没有操作系统这种软件。在计算机诞生十年后，才首次出现某种操作系统的尝试。又过了十年，操作系统才被大家广泛接受。</p>
 <p>我们的讨论将集中在通用操作系统上，因为它们需要的技术是嵌入式系统所需技术的超集，对操作系统原理、概念和技术的覆盖更加全面。现在的通用操作系统是一个复杂的系统软件，比如 Linux 操作系统达到了千万行的 C 源码量级。在学习操作系统的初期，如果去分析了解这样大规模的软件，要付出巨大的代价，因此我们对其进行简化，只讨论最基本的功能。</p>
-<div class="admonition note">
-<p class="admonition-title">注解</p>
-<p><strong>什么是系统软件？</strong></p>
-<p>系统软件是在一个计算机系统范围内使用的软件，其作用可涉及到整个计算机系统。
-如果这样来看，编辑类软件，如 Vi、Emacs、MS Word等，只涉及到对文本文件的编辑，它们就不能算是系统软件。
-而在计算机中安装的 C 标准库 libc（类似的有 Rust 标准库 等）可以算是系统软件，因为它提供了与 OS 交互的系统调用接口，其功能覆盖了整个计算机系统，会被许多不同的软件访问和调用。</p>
-<p>不难看出，操作系统也是这样的一个系统软件。</p>
+<div class="section" id="id3">
+<h3>系统软件<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h3>
+<p>系统软件是为计算机系统提供基本功能，并在计算机系统范围内使用的软件，其作用可涉及到整个计算机系统。系统软件包括操作系统内核、驱动程序、工具软件、用户界面、软件库等。操作系统内核是系统软件的核心部分，负责控制计算机的硬件资源并为用户和应用程序提供服务。驱动程序是操作系统用于控制硬件设备的软件，如显卡驱动、声卡驱动和打印机驱动等。一般情况下，驱动程序是操作系统内核的一部分。</p>
+<p>工具软件是操作系统提供的用于维护、调试和优化计算机系统的软件，如磁盘碎片整理工具、系统信息工具和病毒查杀工具等。用户界面可以是图形用户界面 (GUI) 或命令行界面 (CLI)。图形用户界面是操作系统的一种常见用户界面，它使用图形元素（如图标、菜单和按钮）来帮助用户使用操作系统。通常，图形用户界面提供了一个桌面环境，其中包含可以打开和关闭的窗口，用户可以在其中运行应用程序和执行其他操作。图形用户界面是操作系统的一种常见用户界面，它使用图形元素（如图标、菜单和按钮）来帮助用户使用操作系统。通常，图形用户界面提供了一个桌面环境，其中包含可以打开和关闭的窗口，用户可以在其中运行应用程序和执行其他操作。</p>
+<p>C 语言标准库 libc（类似的有 Rust 标准库 等）提供了与 OS 交互的系统调用接口，其功能覆盖了整个计算机系统，会被许多不同的软件访问和调用。</p>
+<p>从这个角度来看，操作系统是一种系统软件。</p>
 </div>
-<p>如果我们站在一万米的高空来看 <a class="reference internal" href="#computer-hw-sw"><span class="std std-ref">操作系统</span></a> ，可以发现操作系统这个系统软件干的事主要有两件：一是向下管理并控制计算机硬件和各种外设，二是向上管理应用软件并提供各种服务。我们可对其进一步描述：操作系统是一个可以管理CPU、内存和各种外设，并管理和服务应用软件的系统软件。这样的描述也是大多数操作系统教材上对操作系统的一个比较概括的定义。为了完成这些工作，操作系统需要知道如何与硬件打交道，如何更好地给应用软件提供服务。这就有一系列与操作系统相关的理论、抽象、设计等来支持如何做和做得好这两件事情。</p>
-<a class="reference internal image-reference" href="../_images/computer-hw-sw.png" id="computer-hw-sw"><img alt="../_images/computer-hw-sw.png" class="align-center" id="computer-hw-sw" src="../_images/computer-hw-sw.png" style="width: 516.0px; height: 267.0px;" /></a>
-<p>如果看看我们的身边， Android 应用运行在 ARM 处理器上的 Android 操作系统执行环境中；微软的 Office 应用运行在 x86-64 处理器上的 Windows 操作系统执行环境中；Web Server应用运行在 x86-64 处理器上的 Linux 操作系统执行环境中；Web app 应用运行在 x86-64 或 ARM 处理器上的 Chrome OS 操作系统执行环境中。而在一些嵌入式环境中，操作系统以运行时库的形式与应用程序紧密结合在一起，形成一个可在嵌入式硬件上执行的嵌入式应用。所以，在不同的应用场景下，操作系统的边界也是不同的，我们可以把运行时库、图形界面支持库等这些可支持不同应用的系统软件 (System Software) 也看成是操作系统的一部分。</p>
-<p>站在应用程序的角度来看，我们可以发现常见的应用程序其实是运行在由硬件、操作系统内核、运行时库、图形界面支持库等所包起来的一个 <a class="reference internal" href="#exec-env"><span class="std std-ref">执行环境 (Execution Environment)</span></a> 中，应用程序只需根据与系统软件约定好的应用程序二进制接口 (ABI, Application Binary Interface) 来请求执行环境提供的各种服务或功能，从而完成应用程序自己的功能。基于这样的观察，我们可以把操作系统的定义简化为： <strong>应用程序的软件执行环境</strong> 。这种概括性描述可以适用于操作系统发展的不同历史时期。从这个角度出发，操作系统可以包括运行时库、图形界面支持库等系统软件。</p>
+<div class="section" id="id4">
+<h3>执行环境<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
+<p>站在应用程序的角度来看，我们可以发现常见的应用程序其实是运行在由硬件、操作系统内核、运行时库、图形界面支持库等所包起来的一个 <a class="reference internal" href="#exec-env"><span class="std std-ref">执行环境 (Execution Environment)</span></a> 中。执行环境提供了运行应用软件所需的运行时服务，包括内存管理、文件系统访问、网络连接等，这些服务大部分是由操作系统来提供的。应用程序只需根据与系统软件约定好的应用程序二进制接口 (ABI, Application Binary Interface) 来请求执行环境提供的各种服务或功能，从而完成应用程序自己的功能。基于这样的观察，我们可以把操作系统的定义简化为： <strong>应用程序的软件执行环境</strong> 。这种概括性描述可以适用于操作系统发展的不同历史时期。从这个角度出发，操作系统可以包括运行时库、图形界面支持库等系统软件。</p>
 <img alt="../_images/EE.png" class="align-center" id="exec-env" src="../_images/EE.png" />
 </div>
-<div class="section" id="id3">
-<h2>站在计算机发展的时间尺度看<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
+<div class="section" id="id5">
+<h3>操作系统的定义与组成<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
+<p>如果我们站在一万米的高空来看 <a class="reference internal" href="#computer-hw-sw"><span class="std std-ref">操作系统</span></a> ，可以发现操作系统这个系统软件干的事主要有两件：一是向下管理并控制计算机硬件和各种外设，二是向上管理应用软件并提供各种服务。我们可对其进一步定义为：操作系统是一种系统软件，主要功能是向下管理CPU、内存和各种外设等硬件资源，并形成软件执行环境来向上管理和服务应用软件。这样的描述也符合大多数操作系统教材上对操作系统的定义。为了完成这些工作，操作系统需要知道如何与硬件打交道，如何给应用软件提供服务。这就有一系列与操作系统相关的理论、抽象、设计等来支持如何做和做得好这两件事情。</p>
+<a class="reference internal image-reference" href="../_images/computer-hw-sw.png" id="computer-hw-sw"><img alt="../_images/computer-hw-sw.png" class="align-center" id="computer-hw-sw" src="../_images/computer-hw-sw.png" style="width: 516.0px; height: 267.0px;" /></a>
+<p>如果看看我们的身边， Android 应用运行在 ARM 处理器上的 Android 操作系统执行环境中；微软的 Office 应用运行在 x86-64 处理器上的 Windows 操作系统执行环境中；Web Server应用运行在 x86-64 处理器上的 Linux 操作系统执行环境中；Web app 应用运行在 x86-64 或 ARM 处理器上的 Chrome OS 操作系统执行环境中。而在一些嵌入式环境中，操作系统以运行时库的形式与应用程序紧密结合在一起，形成一个可在嵌入式硬件上执行的嵌入式应用。所以，在不同的应用场景下，操作系统的边界也是不同的，我们可以把运行时库、图形界面支持库等这些可支持不同应用的系统软件 (System Software) 也看成是操作系统的一部分。</p>
+<p>那操作系统的组成部分包含哪些内容呢？在一般情况下，操作系统的主要组成包括：</p>
+<ol class="arabic simple">
+<li><p>操作系统内核：操作系统的核心部分，负责控制计算机的硬件资源并为用户和应用程序提供服务。</p></li>
+<li><p>系统工具和软件库：为操作系统提供基本功能的软件，包括工具软件和系统软件库等。</p></li>
+<li><p>用户接口：是操作系统的外壳，是用户与操作系统交互的方式。用户接口包括图形用户界面（GUI）和命令行界面（CLI）等。</p></li>
+</ol>
+<p>而本书重点讲述的对象是操作系统内核，它的主要组成部分包括：</p>
+<ol class="arabic simple">
+<li><p>进程/线程管理：内核负责管理系统中的进程或线程，创建、销毁、调度和切换进程或线程。</p></li>
+<li><p>内存管理：内核负责管理系统的内存，分配和回收内存空间，并保证进程之间的内存隔离。</p></li>
+<li><p>文件系统：内核提供文件系统接口，负责管理存储设备上的文件和目录，并允许应用访问文件系统。</p></li>
+<li><p>网络通信：内核提供网络通信接口，负责管理网络连接并允许应用进行网络通信。</p></li>
+<li><p>设备驱动：内核提供设备驱动接口，负责管理硬件设备并允许应用和内核其他部分访问设备。</p></li>
+<li><p>同步互斥：内核负责协调多个进程或线程之间对共享资源的访问。同步功能主要用于解决进程或线程之间的协作问题，互斥功能主要用于解决进程或线程之间的竞争问题。</p></li>
+<li><p>系统调用接口：内核提供给应用程序访问系统服务的入口，应用程序通过系统调用接口调用操作系统提供的服务，如文件系统、网络通信、进程管理等。</p></li>
+</ol>
+<p>下图就是一个典型的UNIX操作系统的组成示意图：</p>
+<a class="reference internal image-reference" href="../_images/ucorearch.png" id="unix-arch"><img alt="../_images/ucorearch.png" class="align-center" id="unix-arch" src="../_images/ucorearch.png" style="width: 645.0px; height: 399.0px;" /></a>
+</div>
+</div>
+<div class="section" id="id6">
+<h2>站在计算机发展的时间尺度看<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
 <p>虽然电子计算机的出现距今才仅仅七十年左右，但计算机技术和操作系统已经发生了巨大的变化。从计算机发展的短暂的历史角度看，操作系统也是从计算机诞生大约十年后，从无到有地逐步发展起来的。操作系统主要完成硬件控制和为应用程序提供服务这些必不可少的功能，它的历史与计算机的发展史密不可分。操作系统的内涵和功能随着历史的发展也在一直变化、改进中。如今在二十一世纪初期的大众眼中，操作系统就是他们的手机/终端上的软件系统，包括各种应用程序集合，图形界面和网络浏览器是其中重要的组成部分。</p>
 <p>其实，操作系统的内涵和外延随着历史的发展也一直在变化，并没有类似于“1+1=2”这样的明确定义。参考地球生物的进化史，我们也给操作系统的进化历史做一个简单的概述，从中可以看到操作系统在各个时间段上包含什么，具有什么样的特征。但无论操作系统的内在实现和具体目标如何变化，其管理计算机硬件，给应用提供服务的核心定位没有变化。</p>
-<div class="section" id="id5">
-<h3>寒武纪生物大爆发时代 <a class="footnote-reference brackets" href="#id27" id="id4">1</a><a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
+<div class="section" id="id8">
+<h3>寒武纪生物大爆发时代 <a class="footnote-reference brackets" href="#id30" id="id7">1</a><a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
 <p>在 1946 年出现电子计算机的时候，只有人类操作员（Operator）来管理和操作机器，还没有操作系统（Operating System）这种事物 。启动，扳开关，装卡片/纸带等比较辛苦的工作都是计算机操作员或者用户自己完成。操作员/用户带着记录有程序和数据的卡片 (Punch Card) 或打孔纸带去操作计算机。装好卡片/纸带后，启动卡片/纸带阅读器，把程序和数据读入计算机内存中之后，计算机就开始工作，并把结果也输出到卡片/纸带或显示屏上，最后程序停止。</p>
 <p>随着程序设计语言和编译技术的进步，推动了程序员开发翻译符号程序（即编译器）来自动把代码转换成机器代码，代替了以前低效的手工机器编码的方式，提高了程序开发的效率。但程序执行的效率还很低。而且随着计算机和 I/O 设备变得更强大，程序运行的时间减少了，相比之下，让计算机运行的准备时间变得更长了，使得计算机的整体执行效率很低。</p>
-<p>一般情况下，五十年代初期的计算机每次只能执行一个任务， CPU 大部分时间都在等待人类操作员的缓慢操作。由于过低的人工操作效率浪费了计算机的宝贵机时，所以就引入监控程序（Monitor）辅助完成输入、输出、加载、运行程序等工作，从而提高了使用计算机的效率。监控程序就是操作系统最开始的雏形，类似寒武纪生物大爆发中的著名生物–“三叶虫”。在 1951-1954 年前后，Swinnerton-Dwyer 等在 EDSAC（Electronic Delay Storage Automatic Calculator）计算机上研制了监控程序，这也许是有记录的最早操作系统雏形 <a class="footnote-reference brackets" href="#unix25y" id="id6">9</a> 。这种类似监控程序的初级“辅助操作”过程一直持续到 20 世纪 50 年代中后期。</p>
+<p>一般情况下，五十年代初期的计算机每次只能执行一个任务， CPU 大部分时间都在等待人类操作员的缓慢操作。由于过低的人工操作效率浪费了计算机的宝贵机时，所以就引入监控程序（Monitor）辅助完成输入、输出、加载、运行程序等工作，从而提高了使用计算机的效率。监控程序就是操作系统最开始的雏形，类似寒武纪生物大爆发中的著名生物–“三叶虫”。在 1951-1954 年前后，Swinnerton-Dwyer 等在 EDSAC（Electronic Delay Storage Automatic Calculator）计算机上研制了监控程序，这也许是有记录的最早操作系统雏形 <a class="footnote-reference brackets" href="#unix25y" id="id9">9</a> 。这种类似监控程序的初级“辅助操作”过程一直持续到 20 世纪 50 年代中后期。</p>
 <p>在中国，计算机与操作系统相关技术的发展也很快。1958 年 8 月 1 日，在苏联专家的指导下，中科院计算所、第四机械工业部（电子工业部）等单位，仿制苏联 M-3 小型数字电子计算机，设计完成了中国第一台以电子管为主的小型数字电子计算机 – 103 型（即 DJS-1 型）计算机，这个计算机没有监控程序。1959 年 10 月 1 日，中科院计算所、四机部等单位合作，仿照苏联 БЭCM-Ⅱ 大型机，制成了中国第一台以电子管为主的大型通用数字电子计算机 – 104 机。在 104 机上的软件已经比较丰富了，包括具有前期操作系统雏形的自检程序、标准子程序库、自动更换地址程序，以及面向应用的算法语言与编译系统。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
@@ -425,8 +448,8 @@
 <p>可以在 <a class="reference internal" href="../chapter1/index.html#link-chapter1"><span class="std std-ref">本书第一章</span></a> 看到初级的“三叶虫”操作系统 – LibOS 其实就是一个给应用提供各种服务（比如输出字符串）的库，方便了单一应用程序的开发与运行。</p>
 </div>
 </div>
-<div class="section" id="id9">
-<h3>泥盆纪 <a class="footnote-reference brackets" href="#id28" id="id7">2</a> 鱼类时代和二叠纪  <a class="footnote-reference brackets" href="#id29" id="id8">3</a> 两栖动物时代<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
+<div class="section" id="id12">
+<h3>泥盆纪 <a class="footnote-reference brackets" href="#id31" id="id10">2</a> 鱼类时代和二叠纪  <a class="footnote-reference brackets" href="#id32" id="id11">3</a> 两栖动物时代<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
 <p>在 20 世纪 50~60 年代，计算机发展到大型机阶段，计算能力和 I/O 处理能力进一步加强，存储空间进一步扩展，应用领域逐步扩大，这使得所对应的各种早期操作系统具有多样化、专用化的特点。计算机生产厂商设计出针对各自硬件的专用操作系统，且大部分用汇编语言编写。这导致操作系统的开发效率不高，不具有跨硬件平台的可移植性，进化比较缓慢。而且当时的处理器时间很宝贵，将计算机系统的一次使用过程限制在一个用户范围内是一种很大的浪费。例如，在早期计算机系统中，当用户通过监控程序加载应用程序时，处理器保持空闲状态，所有其他用户的程序都不能执行。为提高计算机执行效率，操作系统进化在持续进行，从“手工操作”和“监控程序”阶段进化到了“批处理 Batch”和“多道程序 Multiprogramming”阶段。</p>
 <p>批处理是指把一批作业（英文： <strong>Job</strong> ，古老的术语，可理解为现在的应用程序）以脱机方式（offline mode）输入到磁带上，并使这批作业能一个接一个地连续处理，流程如下：</p>
 <ol class="arabic simple">
@@ -441,14 +464,14 @@
 <p>基于脱机方式的操作是指没有与计算机进行关联所完成的操作。比如把包含程序的卡片放到卡片机上，把打印纸安装到打印机上等。与此相反的是联机方式（online mode）的操作，即通过与计算机相联所完成的操作，比如计算机把正在运行的应用程序所计算出来的结果通过打印机打印到纸上。</p>
 <p>现在，脱机方式的操作更多的是指断网下进行的操作，联机方式是指在联网下进行的操作。</p>
 </div>
-<p>这样能充分地利用计算机系统：即尽量使该系统连续运行，减少 CPU 的空闲时间。批处理操作系统分为单道批处理系统和多道批处理系统。单道批处理操作系统只能管理内存中的一个（道）作业，无法充分利用大型计算机系统中的所有资源，致使系统整体性能较差。这就像泥盆纪 <a class="footnote-reference brackets" href="#id28" id="id10">2</a> 的史前鱼类–邓氏鱼，有着坚硬的头部铠甲，很强壮，但运动缓慢，灵敏度低，离不开水。</p>
+<p>这样能充分地利用计算机系统：即尽量使该系统连续运行，减少 CPU 的空闲时间。批处理操作系统分为单道批处理系统和多道批处理系统。单道批处理操作系统只能管理内存中的一个（道）作业，无法充分利用大型计算机系统中的所有资源，致使系统整体性能较差。这就像泥盆纪 <a class="footnote-reference brackets" href="#id31" id="id13">2</a> 的史前鱼类–邓氏鱼，有着坚硬的头部铠甲，很强壮，但运动缓慢，灵敏度低，离不开水。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>历史的缩影 – 泥盆纪“邓氏鱼”操作系统 – BatchOS</strong></p>
 <p>可以在 <a class="reference internal" href="../chapter2/index.html#link-chapter2"><span class="std std-ref">本书第二章</span></a> 看到“邓氏鱼”操作系统 – BatchOS ，虽然每次只能加载运行一个应用，但BatchOS通过硬件隔离机制让 APP 与 OS 隔离，加强了系统安全，并在一定程度上提高了执行效率。</p>
 </div>
-<p>1956 年，鲍勃.帕特里克（Bob Patrick）在美国通用汽车的系统监督程序（system monitor）的基础上，为美国通用汽车和北美航空公司在 IBM 704 计算机上设计了最早的批处理操作系统–GM-NAA I/O <a class="footnote-reference brackets" href="#oshistory" id="id11">11</a> 。这个最早的操作系统已经具有了单道批处理系统的基本功能。</p>
-<p>1964 年， IBM 公司开发了面向 System/360 系列大型计算机的统一可兼容的操作系统—— OS/360  <a class="footnote-reference brackets" href="#man" id="id12">12</a> ，它是一种多道批处理操作系统。多道批处理操作系统能管理内存中的多个（道）作业，可比较充分地利用计算机系统中的所有资源，提升系统整体性能。这里的“多道”是指多个程序，即允许同时把多个程序放入内存，并允许它们交替在 CPU 中运行，它们共享系统中的各种硬、软件资源。当一个程序因 I/O 请求而暂停运行时， CPU 便立即转去运行另一个程序。这就像二叠纪  <a class="footnote-reference brackets" href="#id29" id="id13">3</a> 的两栖动物，当水中暂时有危险或食物不多的时候，可以离开水面到陆地上来，并享用陆地上的动植物资源。</p>
+<p>1956 年，鲍勃.帕特里克（Bob Patrick）在美国通用汽车的系统监督程序（system monitor）的基础上，为美国通用汽车和北美航空公司在 IBM 704 计算机上设计了最早的批处理操作系统–GM-NAA I/O <a class="footnote-reference brackets" href="#oshistory" id="id14">11</a> 。这个最早的操作系统已经具有了单道批处理系统的基本功能。</p>
+<p>1964 年， IBM 公司开发了面向 System/360 系列大型计算机的统一可兼容的操作系统—— OS/360  <a class="footnote-reference brackets" href="#man" id="id15">12</a> ，它是一种多道批处理操作系统。多道批处理操作系统能管理内存中的多个（道）作业，可比较充分地利用计算机系统中的所有资源，提升系统整体性能。这里的“多道”是指多个程序，即允许同时把多个程序放入内存，并允许它们交替在 CPU 中运行，它们共享系统中的各种硬、软件资源。当一个程序因 I/O 请求而暂停运行时， CPU 便立即转去运行另一个程序。这就像二叠纪  <a class="footnote-reference brackets" href="#id32" id="id16">3</a> 的两栖动物，当水中暂时有危险或食物不多的时候，可以离开水面到陆地上来，并享用陆地上的动植物资源。</p>
 <p>然而，处理器共享产生了程序间隔离的需求，以避免出现一个程序中的运行错误使其他程序崩溃或损坏的情况。为此计算机中进一步添加了硬件级的内存保护机制，限制了一个程序在运行时能访问的地址空间，提高了故障隔离的能力，并减少了隔离的开销。另外，虽然批处理操作系统提高了系统的执行效率，但其缺点是人机交互性差，比如，批处理计算的一个实际挑战是如何调试应用程序和操作系统本身。如果程序员的代码出现错误，必须重新编码，上传内存，再执行。这需要花费以小时和天为单位的时间开销，使得程序员修改和调试程序很不方便。实质上是将计算机重新变成单用户系统。</p>
 <p>1965 年 2 月，哈尔滨军事工程学院（国防科技大学前身）慈云桂教授等成功研制我国第一台晶体管通用电子计算机 441B-I。441B-I 是中国第二代计算机，具有批处理功能的操作系统雏形、汇编语言、FORTRAN 语言及标准程序库等丰富的软件。</p>
 <div class="admonition note">
@@ -457,11 +480,11 @@
 <p>在 <a class="reference internal" href="../chapter3/index.html#link-chapter3"><span class="std std-ref">本书第三章</span></a> 可以看到二叠纪“锯齿螈”操作系统支持在内存中驻留多个应用，形成多道程序操作系统 – Multiprog OS；三叠纪“始初龙”操作系统 – Coop OS 进一步进化，支持协作式多道程序，即支持应用程序主动放弃 CPU 并切换到另一个应用继续执行，从而提高系统整体执行效率；三叠纪“腔骨龙”操作系统 – Timesharing OS 则可以抢占应用的执行，从而可以公平和高效地分时执行多个应用，提高系统的整体效率。</p>
 </div>
 </div>
-<div class="section" id="id16">
-<h3>侏罗纪 <a class="footnote-reference brackets" href="#id30" id="id14">4</a> 与白垩纪 <a class="footnote-reference brackets" href="#id31" id="id15">5</a> 的恐龙时代<a class="headerlink" href="#id16" title="永久链接至标题">#</a></h3>
-<p>1965 年，时任仙童半导体公司研发总监的 Gordon Moore 在被要求预测未来半导体产业发展趋势时提出：“当价格不变时，集成电路上可容纳的晶体管数目每年便会增加一倍”，这被称为摩尔定律。1975 年，Gordon Moore 的同事 David House 认为根据摩尔定律，计算机芯片的性能也将每 18 个月提升一倍。这种累积效应使得计算成本逐渐下降，使得软件开发者不必将全部精力用于提高处理器利用率，而是可以开始努力提升用户的使用体验。例如，UNIX 是在 70 年代初在当时没有人使用的备用计算机上开发的。20 世纪 50 年代末，提高人机交互方式的分时操作系统越来越崭露头角。分时是指多个用户和多个程序以很小的时间间隔来共享使用同一台计算机上的 CPU 和其他硬件资源。1961 年，麻省理工学院的 Fernando Corbató 带领团队成功研发了在 IBM 709 计算机上的 CTSS（Compatible Time-Sharing System， 兼容时间共享系统）操作系统 <a class="footnote-reference brackets" href="#unix25y" id="id17">9</a> ，它拥有分时系统必须有的特征：支持多个用户分享使用同一台计算机，即宏观上的同一时间段内能完成多个人机交互工作。</p>
+<div class="section" id="id19">
+<h3>侏罗纪 <a class="footnote-reference brackets" href="#id33" id="id17">4</a> 与白垩纪 <a class="footnote-reference brackets" href="#id34" id="id18">5</a> 的恐龙时代<a class="headerlink" href="#id19" title="永久链接至标题">#</a></h3>
+<p>1965 年，时任仙童半导体公司研发总监的 Gordon Moore 在被要求预测未来半导体产业发展趋势时提出：“当价格不变时，集成电路上可容纳的晶体管数目每年便会增加一倍”，这被称为摩尔定律。1975 年，Gordon Moore 的同事 David House 认为根据摩尔定律，计算机芯片的性能也将每 18 个月提升一倍。这种累积效应使得计算成本逐渐下降，使得软件开发者不必将全部精力用于提高处理器利用率，而是可以开始努力提升用户的使用体验。例如，UNIX 是在 70 年代初在当时没有人使用的备用计算机上开发的。20 世纪 50 年代末，提高人机交互方式的分时操作系统越来越崭露头角。分时是指多个用户和多个程序以很小的时间间隔来共享使用同一台计算机上的 CPU 和其他硬件资源。1961 年，麻省理工学院的 Fernando Corbató 带领团队成功研发了在 IBM 709 计算机上的 CTSS（Compatible Time-Sharing System， 兼容时间共享系统）操作系统 <a class="footnote-reference brackets" href="#unix25y" id="id20">9</a> ，它拥有分时系统必须有的特征：支持多个用户分享使用同一台计算机，即宏观上的同一时间段内能完成多个人机交互工作。</p>
 <p>在 CTSS 的鼓舞下，1964 年，麻省理工学院、贝尔实验室及美国通用电气公司共同研发一个目标远大的操作系统：MULTICS（MULTiplexed Information and Computing System），它是一套安装在大型主机上、支持多人多任务的操作系统。 MULTICS 以兼容分时系统（CTSS）做基础，建置在美国通用电力公司的大型机 GE-645 ，目标是连接 1000 部终端机，支持 300 位用户同时上线。因 MULTICS 的目标太宏大，而研发工作进度过于缓慢，1969 年 AT&amp;T 的 Bell 实验室从 MULTICS 研发中撤出。CTSS 和 MULTICS 这就像侏罗纪时期体型庞大的食肉恐龙–霸王龙，称霸一时，但进化缓慢，最终灭绝。</p>
-<p>但贝尔实验室的两位软件工程师 Ken Thompson 与 Dennis Ritchie 借鉴了一些重要的 MULTICS 设计思想和理念，以 C 语言为基础发展出小巧灵活的 UNIX 操作系统 <a class="footnote-reference brackets" href="#unix" id="id18">10</a> 。UNIX 操作系统的早期版本是完全免费的，可以轻易获得并随意修改，所以它得到了广泛的接受。后来，它成为开发小型机操作系统的起点。由于早期的广泛应用，它已经成为分时操作系统的典范。这好像一种生活在侏罗纪晚期的小型恐龙–始祖鸟，它可能是鸟类的祖先，最终进化为可以展翅高飞的飞鸟。</p>
+<p>但贝尔实验室的两位软件工程师 Ken Thompson 与 Dennis Ritchie 借鉴了一些重要的 MULTICS 设计思想和理念，以 C 语言为基础发展出小巧灵活的 UNIX 操作系统 <a class="footnote-reference brackets" href="#unix" id="id21">10</a> 。UNIX 操作系统的早期版本是完全免费的，可以轻易获得并随意修改，所以它得到了广泛的接受。后来，它成为开发小型机操作系统的起点。由于早期的广泛应用，它已经成为分时操作系统的典范。这好像一种生活在侏罗纪晚期的小型恐龙–始祖鸟，它可能是鸟类的祖先，最终进化为可以展翅高飞的飞鸟。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p>Ken Thompson 与 Dennis Ritchie 于 1974 年 7 月在 the Communications of the ACM 期刊上发表 “The UNIX Time Sharing System”，引起了学术界的广泛兴趣并向他们要源码进行分析和学习，所以 Unix v5 以“仅用于教育目的”的开放协议，提供给各个大学作为操作系统教学之用，成为当时操作系统课程中的重要学习资料，而且各大学和公司开始进一步研究 Unix，并对 Unix 进行改进和扩展，从而使得 Unix 在世界上广泛流行。</p>
@@ -478,9 +501,9 @@
 <p><a class="reference internal" href="../chapter8/index.html#link-chapter8"><span class="std std-ref">第八章</span></a> 的白垩纪“达科塔盗龙”操作系统 – “Thread OS”支持线程抽象，把线程作为处理器的调度单位，并成为进程资源管理的一部分内容。线程间通过共享进程的地址空间建立了线程间共享数据和进行数据交换的基础。而白垩纪“慈母龙”操作系统 – “SyncMutex OS”通过建立同步互斥机制来让线程间能够有序、互斥地访问共享资源，从而让基于多线程的应用 能够高效正确地完成任务。</p>
 </div>
 </div>
-<div class="section" id="id20">
-<h3>古近纪 <a class="footnote-reference brackets" href="#id32" id="id19">6</a> 哺乳动物时代<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h3>
-<p>20 世纪 70 年代中后期，微型处理器的快速发展使计算机的应用普及至中小企业及个人爱好者，推动了PC（Personal Computer，个人计算机）的发展，也进一步推动了面向一般大众使用的操作系统的出现。其代表是由微软公司在 20 世纪 80 年代为个人计算机开发（实际是购买）的 DOS 操作系统，其特点是简单易用。后来又开发了有图形用户界面（GUI）的操作系统–MS Windows，极大地简化了一般用户使用计算机的难度，使得个人计算机得到了快速的普及和广泛的使用。这里需要注意的是，第一个带 GUI 界面的个人计算机原型起源于伟大却又让人扼腕叹息的施乐帕洛阿图研究中心（PARC, Palo Alto Research Center），PARC 研发出的带有图标、弹出式菜单和重叠窗口的图形交互界面 (GUI, Graphical User Interface)，可利用鼠标的点击动作来进行操控，这是当今我们所使用的 GUI 系统的基础。支持便捷的图形交互界面也成为自 20 世纪 70 年代以来操作系统的主要特征之一。这就像古近纪 <a class="footnote-reference brackets" href="#id32" id="id21">6</a> 的哺乳动物，能在陆上跑，空中飞和水里游，有很强的适应性和生存能力。</p>
+<div class="section" id="id23">
+<h3>古近纪 <a class="footnote-reference brackets" href="#id35" id="id22">6</a> 哺乳动物时代<a class="headerlink" href="#id23" title="永久链接至标题">#</a></h3>
+<p>20 世纪 70 年代中后期，微型处理器的快速发展使计算机的应用普及至中小企业及个人爱好者，推动了PC（Personal Computer，个人计算机）的发展，也进一步推动了面向一般大众使用的操作系统的出现。其代表是由微软公司在 20 世纪 80 年代为个人计算机开发（实际是购买）的 DOS 操作系统，其特点是简单易用。后来又开发了有图形用户界面（GUI）的操作系统–MS Windows，极大地简化了一般用户使用计算机的难度，使得个人计算机得到了快速的普及和广泛的使用。这里需要注意的是，第一个带 GUI 界面的个人计算机原型起源于伟大却又让人扼腕叹息的施乐帕洛阿图研究中心（PARC, Palo Alto Research Center），PARC 研发出的带有图标、弹出式菜单和重叠窗口的图形交互界面 (GUI, Graphical User Interface)，可利用鼠标的点击动作来进行操控，这是当今我们所使用的 GUI 系统的基础。支持便捷的图形交互界面也成为自 20 世纪 70 年代以来操作系统的主要特征之一。这就像古近纪 <a class="footnote-reference brackets" href="#id35" id="id24">6</a> 的哺乳动物，能在陆上跑，空中飞和水里游，有很强的适应性和生存能力。</p>
 <p>1980 年左右，用于远望号测量船的多机实时操作系统 GX-73 诞生了。1983 年，国防科技大学研制了中国第一台亿次巨型机 – 银河-I，并研制了配套的多道批处理操作系统 – YHOS。同年，电子工业部第六研究所设计实现了面向微型计算机的操作系统 CCDOS（汉字磁盘操作系统，英语：Chinese Characters Disk Operation System），这是一个基于微软公司 DOS 微机操作系统的汉化版本。80 年代到 90 年代，微软的 DOS 操作系统和后继的 Windows 操作系统和 Intel 公司的 x86 处理器相互支持，形成了 Wintel 联盟，逐渐在桌面计算机市场上被广泛使用。中国的操作系统主要集中在使用范围较小的科研领域。1989 - 1997 年这段时间，中国计算机服务总公司与中国软件技术公司联合国内高校和科研院所，共同承担了开发与 UNIX 兼容的 COSIX 操作系统的科技攻关计划。COSIX 取得了很多科研成果，但由于没基于新的硬件进行研发等多种因素，最终没有形成广泛的操作系统产业生态。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
@@ -488,8 +511,8 @@
 <p>晚侏罗纪的侏罗猎龙体型小巧，有着适应微光环境的大眼睛和具备压力感应能力的神奇鳞片，能够发现外部环境的微小变化，这种“小巧灵敏”的特征为后续哺乳动物的生物进化开辟了一个方向。 <a class="reference internal" href="../chapter9/index.html#link-chapter9"><span class="std std-ref">第九章</span></a> 的“侏罗猎龙”操作系统 – “Device OS”支持与新增的键盘、鼠标、GPU 等多种 Virtio 外设的交互，可以形成初级的人机交互 GUI 能力，而且支持在内核中响应中断来降低 I/O 响应的总体延迟。这在某种程度上体现了当前广泛使用的有图形界面的桌面/移动终端操作系统的基本特征。</p>
 </div>
 </div>
-<div class="section" id="id23">
-<h3>第四纪智人时代 <a class="footnote-reference brackets" href="#id33" id="id22">7</a><a class="headerlink" href="#id23" title="永久链接至标题">#</a></h3>
+<div class="section" id="id26">
+<h3>第四纪智人时代 <a class="footnote-reference brackets" href="#id36" id="id25">7</a><a class="headerlink" href="#id26" title="永久链接至标题">#</a></h3>
 <p>21 世纪以来， Internet 和移动互联网的迅猛发展，使得在服务器领域和个人终端的应用与需求大增，数据中心和个人终端已经进入了人们的日常生活中。现在我们拥有种类繁多的计算设备，在这些设备上运行着许多不同的操作系统，操作系统设计者面临的功能权衡取决于硬件的物理能力以及应用程序和用户需求。下面是一些目前常见类型的操作系统：</p>
 <ul class="simple">
 <li><p>面向服务器的操作系统：当前大家常用的主流搜索引擎、新媒体、电子商务网站和大数据处理系统等一般都托管在数据中心的计算机上。每台计算机都是强大的服务器，运行着服务器操作系统，典型的例子是 Linux。通常每台服务器只运行一个应用服务程序，例如数据库服务器或 Web 服务器等，用于处理成千上万个用户传入的网络服务请求，所以吞吐量（每秒处理的请求数量）是一个关键的优化目标。而安全和可靠也是服务器操作性系统需要重点关注的目标。服务器操作系统的一种形态是虚拟机（Virtual Machine Monitor，VMM），它可在一台物理机上虚拟出多台虚拟计算机，可以像运行应用程序一样运行另一个操作系统。通过虚拟机可以充分利用数据中心中资源利用率不高的物理服务器，提高整个数据中心的运行效率。典型的服务器操作系统有：FreeBSD、微软的Windows Server、基于 Linux 系的 RHLS、Ubuntu、openEuler、龙蜥操作系统、麒麟服务器操作系统等。</p></li>
@@ -504,46 +527,46 @@
 <p>而他所说的“爱好″成为了大家都知道的 Linux 操作系统内核。这个时代的操作系统的特征是联网，提高网络的吞吐量，并降低传输延迟是这个时代的网络操作系统追求的目标。 Linux 就像是第四纪出现的智人，横扫陆地上的各种强大生物，出现在生物界的顶端，统治了整个地球。</p>
 <p>中国对 Linux 系统的引进源于在芬兰读博士的宫敏。1994 年，他回国休假，随手带了 20 张磁盘、存储了 80GB 的自由软件，其中就有 Linux。由于 Linux 基于 GPL 协议开放源代码， Linux 在国内的高校中被小范围传播。从 1999 年起，国内出现了很多基于 Linux 的操作系统公司，出现了Xteam、蓝点、中科红旗、银河麒麟、中软 Linux 等几十种发行版。但这些发行版大多数基于 Fedora/CentOS/Debian/Ubuntu 进行二次开发，并没有形成桌面计算机的应用生态，在二十年左右的时间内，大部分发行版都退出了。目前（2019 年之后）在桌面计算机领域，麒麟操作系统和统信 UOS 操作系统目前有比较好的应用发展趋势。在服务器领域，华为的 openEuler 操作系统和阿里的龙蜥操作系统借助于云计算的快速发展，形成了较好的云应用生态。在嵌入式操作系统领域，国内有不少有技术特色的操作系统，主要代表是 RT-Thread、SylixOS、LiteOS 等。</p>
 </div>
-<div class="section" id="id25">
-<h3>二十一世纪神人时代 <a class="footnote-reference brackets" href="#id34" id="id24">8</a><a class="headerlink" href="#id25" title="永久链接至标题">#</a></h3>
+<div class="section" id="id28">
+<h3>二十一世纪神人时代 <a class="footnote-reference brackets" href="#id37" id="id27">8</a><a class="headerlink" href="#id28" title="永久链接至标题">#</a></h3>
 <p>当前，大数据、人工智能、机器学习、高速移动互联网络、AR/VR 对操作系统等系统软件带来了新的挑战。如何有效支持和利用这些技术是未来操作系统的方向。我们看到了华为逐步推出的 OpenHarmony 系统；小米也推出了物联网软件平台小米 Vela ；阿里推出了 AliOS Thing；腾讯推出了Tencent OS；苹果公司接连推出 A14、M1 等基于 ARM 的 CPU，逐步开始淘汰 X86 CPU；微软推出 Windows 10 IoT，Google 推出 Fuchsia OS。大家都在做着各种位于云、边、端操作系统的技术调整和创新，构建多种形态的网络基础设施。可以发现操作系统的外延在放大，位于云、边、端的操作系统通过多种形态的网络基础设施，跳出了传统单机为主的运行模式，支持应用程序在分布式环境下的互联、互通以及互操作，从而进一步延伸为分布式操作系统。</p>
-<p>另外，随着人工智能和机器学习的快速发展，下一个与人工智能充分融合并带有分布式特征的操作系统即将到来，并试图通过这种操作系统带来的连贯用户体验，打通从数据中心、服务器、桌面、移动端、边缘设备等的整个 AI 和物联网 (IoT, Internet of Things) 的生态。也许这种未来操作系统与之前的操作系统相比，其最大的不同是具有了人工智能的属性，跳出了单个设备节点，通过多种网络从不同维度来管理多个设备。这种操作系统也许就是尤瓦尔·赫拉利所著的《未来简史》 <a class="footnote-reference brackets" href="#id34" id="id26">8</a> 中描述的“无所不能”的神人操作系统。</p>
+<p>另外，随着人工智能和机器学习的快速发展，下一个与人工智能充分融合并带有分布式特征的操作系统即将到来，并试图通过这种操作系统带来的连贯用户体验，打通从数据中心、服务器、桌面、移动端、边缘设备等的整个 AI 和物联网 (IoT, Internet of Things) 的生态。也许这种未来操作系统与之前的操作系统相比，其最大的不同是具有了人工智能的属性，跳出了单个设备节点，通过多种网络从不同维度来管理多个设备。这种操作系统也许就是尤瓦尔·赫拉利所著的《未来简史》 <a class="footnote-reference brackets" href="#id37" id="id29">8</a> 中描述的“无所不能”的神人操作系统。</p>
 <p>目前支持 AIoT 的操作系统设计实现在本书中还没有对应的章节，不过我们的同学也设计了 <a class="reference external" href="https://github.com/rcore-os/zCore">zCore操作系统</a> ，欢迎看完本书的同学能够尝试参与或独立设计面向未来的操作系统。</p>
 <dl class="footnote brackets">
-<dt class="label" id="id27"><span class="brackets"><a class="fn-backref" href="#id4">1</a></span></dt>
+<dt class="label" id="id30"><span class="brackets"><a class="fn-backref" href="#id7">1</a></span></dt>
 <dd><p>5亿年前的寒武纪期间生物种类突然丰富起来，呈爆炸式的增加，期间的典型生物是三叶虫。</p>
 </dd>
-<dt class="label" id="id28"><span class="brackets">2</span><span class="fn-backref">(<a href="#id7">1</a>,<a href="#id10">2</a>)</span></dt>
+<dt class="label" id="id31"><span class="brackets">2</span><span class="fn-backref">(<a href="#id10">1</a>,<a href="#id13">2</a>)</span></dt>
 <dd><p>4亿年前的泥盆纪期间鱼类空前繁荣，并在晚期出现了两栖动物。</p>
 </dd>
-<dt class="label" id="id29"><span class="brackets">3</span><span class="fn-backref">(<a href="#id8">1</a>,<a href="#id13">2</a>)</span></dt>
+<dt class="label" id="id32"><span class="brackets">3</span><span class="fn-backref">(<a href="#id11">1</a>,<a href="#id16">2</a>)</span></dt>
 <dd><p>3亿年前的二叠纪期间是一个承上启下的阶段，两栖类动物最繁盛，爬行动物逐渐繁荣。</p>
 </dd>
-<dt class="label" id="id30"><span class="brackets"><a class="fn-backref" href="#id14">4</a></span></dt>
+<dt class="label" id="id33"><span class="brackets"><a class="fn-backref" href="#id17">4</a></span></dt>
 <dd><p>2亿年前的侏罗纪期间温暖潮湿，爬行类动物的代表–恐龙成为当时的统治者，哺乳动物开始发展。</p>
 </dd>
-<dt class="label" id="id31"><span class="brackets"><a class="fn-backref" href="#id15">5</a></span></dt>
+<dt class="label" id="id34"><span class="brackets"><a class="fn-backref" href="#id18">5</a></span></dt>
 <dd><p>1亿年前的白垩纪期间温暖干旱，恐龙经历了从鼎盛到灭绝的巨大变化，哺乳动物兴起。</p>
 </dd>
-<dt class="label" id="id32"><span class="brackets">6</span><span class="fn-backref">(<a href="#id19">1</a>,<a href="#id21">2</a>)</span></dt>
+<dt class="label" id="id35"><span class="brackets">6</span><span class="fn-backref">(<a href="#id22">1</a>,<a href="#id24">2</a>)</span></dt>
 <dd><p>0.6亿年前的古近纪时期，哺乳动物迅速发展，且形态多样化，逐渐统治了地面。</p>
 </dd>
-<dt class="label" id="id33"><span class="brackets"><a class="fn-backref" href="#id22">7</a></span></dt>
+<dt class="label" id="id36"><span class="brackets"><a class="fn-backref" href="#id25">7</a></span></dt>
 <dd><p>尤瓦尔·赫拉利所著的“人类简史” 书中提到的智人遍布地球，可类比现在的Linux 。</p>
 </dd>
-<dt class="label" id="id34"><span class="brackets">8</span><span class="fn-backref">(<a href="#id24">1</a>,<a href="#id26">2</a>)</span></dt>
+<dt class="label" id="id37"><span class="brackets">8</span><span class="fn-backref">(<a href="#id27">1</a>,<a href="#id29">2</a>)</span></dt>
 <dd><p>尤瓦尔·赫拉利所著的“未来简史” 书中描述的神人可类比于未来支持AI的分布式操作系统 。</p>
 </dd>
-<dt class="label" id="unix25y"><span class="brackets">9</span><span class="fn-backref">(<a href="#id6">1</a>,<a href="#id17">2</a>)</span></dt>
+<dt class="label" id="unix25y"><span class="brackets">9</span><span class="fn-backref">(<a href="#id9">1</a>,<a href="#id20">2</a>)</span></dt>
 <dd><p>Peter H.Salus, A Quarter Century of UNIX, Addison-Wesley Publishing, 1997</p>
 </dd>
-<dt class="label" id="unix"><span class="brackets"><a class="fn-backref" href="#id18">10</a></span></dt>
+<dt class="label" id="unix"><span class="brackets"><a class="fn-backref" href="#id21">10</a></span></dt>
 <dd><p>Brain W. Kernighan, UNIX: A History and a Memoir, Independently published, 2020</p>
 </dd>
-<dt class="label" id="oshistory"><span class="brackets"><a class="fn-backref" href="#id11">11</a></span></dt>
+<dt class="label" id="oshistory"><span class="brackets"><a class="fn-backref" href="#id14">11</a></span></dt>
 <dd><p>Maarten Bullynck, What is an Operating System? A historical investigation (1954–1964), <a class="reference external" href="https://halshs.archives-ouvertes.fr/halshs-01541602/document">https://halshs.archives-ouvertes.fr/halshs-01541602/document</a></p>
 </dd>
-<dt class="label" id="man"><span class="brackets"><a class="fn-backref" href="#id12">12</a></span></dt>
+<dt class="label" id="man"><span class="brackets"><a class="fn-backref" href="#id15">12</a></span></dt>
 <dd><p>布鲁克斯(Brooks, F. P.), 人月神话(40周年中文纪念版),2015</p>
 </dd>
 </dl>
@@ -609,14 +632,19 @@
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">什么是操作系统</a><ul>
-<li><a class="reference internal" href="#id2">站在一万米的代码空间维度看</a></li>
-<li><a class="reference internal" href="#id3">站在计算机发展的时间尺度看</a><ul>
-<li><a class="reference internal" href="#id5">寒武纪生物大爆发时代 </a></li>
-<li><a class="reference internal" href="#id9">泥盆纪  鱼类时代和二叠纪   两栖动物时代</a></li>
-<li><a class="reference internal" href="#id16">侏罗纪  与白垩纪  的恐龙时代</a></li>
-<li><a class="reference internal" href="#id20">古近纪  哺乳动物时代</a></li>
-<li><a class="reference internal" href="#id23">第四纪智人时代 </a></li>
-<li><a class="reference internal" href="#id25">二十一世纪神人时代 </a></li>
+<li><a class="reference internal" href="#id2">站在一万米的代码空间维度看</a><ul>
+<li><a class="reference internal" href="#id3">系统软件</a></li>
+<li><a class="reference internal" href="#id4">执行环境</a></li>
+<li><a class="reference internal" href="#id5">操作系统的定义与组成</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id6">站在计算机发展的时间尺度看</a><ul>
+<li><a class="reference internal" href="#id8">寒武纪生物大爆发时代 </a></li>
+<li><a class="reference internal" href="#id12">泥盆纪  鱼类时代和二叠纪   两栖动物时代</a></li>
+<li><a class="reference internal" href="#id19">侏罗纪  与白垩纪  的恐龙时代</a></li>
+<li><a class="reference internal" href="#id23">古近纪  哺乳动物时代</a></li>
+<li><a class="reference internal" href="#id26">第四纪智人时代 </a></li>
+<li><a class="reference internal" href="#id28">二十一世纪神人时代 </a></li>
 </ul>
 </li>
 </ul>
