@@ -166,7 +166,7 @@
 - 线程可被操作系统调度来分时占用 CPU 执行；
 - 线程可以动态创建和退出；
 - 同进程下的多个线程不像进程一样存在父子关系，但有一个特殊的主线程在它所属进程被创建的时候产生，应用程序的 ``main`` 函数就运行在这个主线程上。当主线程退出后，整个进程立即退出，也就意味着不论进程下的其他线程处于何种状态也随之立即退出；
-- 线程可通过系统调用获得操作系统的服务。
+- 线程可通过系统调用获得操作系统的服务。注意线程和进程两个系列的系统调用不能混用。
 
 我们实现的线程模型建立在进程的地址空间抽象之上：同进程下的所有线程共享该进程的地址空间，包括代码段和数据段。从逻辑上来说某些段是由所有线程共享的（比如包含代码中的全局变量的全局数据段），而某些段是由某个线程独占的（比如操作系统为每个线程分配的栈），通常情况下程序员会遵循这种约定。然而，线程之间并不能严格做到隔离。举例来说，一个线程访问另一个线程的栈这种行为并不会被操作系统和硬件禁止。这也体现了线程和进程的不同：线程的诞生是为了方便共享，而进程更强调隔离。
 
@@ -190,14 +190,17 @@
 
 .. 当进程调用 ``thread_create`` 系统调用后，内核会在这个进程内部创建一个新的线程，这个线程能够访问到进程所拥有的代码段，堆和其他数据段。但内核会给这个新线程分配一个它专有的用户态栈，这样每个线程才能相对独立地被调度和执行。另外，由于用户态进程与内核之间有各自独立的页表，所以二者需要有一个跳板页 ``TRAMPOLINE`` 来处理用户态切换到内核态的地址空间平滑转换的事务。所以当出现线程后，在进程中的每个线程也需要有一个独立的跳板页 ``TRAMPOLINE`` 来完成同样的事务。
 
+简单线程管理
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+类似 ``getpid`` ，我们新增了一个 ``gettid`` 的系统调用可以获取当前线程的 TID，其 syscall ID 为1001 。由于比较简单，在这里不再赘述。
+
 线程退出及资源回收
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 在 C/Rust 语言实现的多线程应用中，当线程执行的函数返回之后线程会自动退出，在编程的时候无需对函数做任何特殊处理。其实现原理是当函数返回之后，会自动跳转到用户态一段预先设置好的代码，在这段代码中通过系统调用实现线程退出操作。在这里，我们为了让实现更加简单，约定线程函数需要在返回之前通过 ``exit`` 系统调用退出。这里 ``exit`` 系统调用的含义发生了变化：从进程退出变成线程退出。
 
 内核在收到线程发出的 ``exit`` 系统调用后，会回收线程占用的用户态资源，包括用户栈和 Trap 上下文等。线程占用的内核态资源（包括内核栈等）则需要在进程内使用 ``waittid`` 系统调用来回收，这样该线程占用的资源才能被完全回收。 ``waittid`` 的系统调用原型如下：
-
-两个系统调用的原型如下：
 
 .. code-block:: rust
     :linenos:
@@ -213,8 +216,9 @@
 进程相关的系统调用
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-在引入了线程机制后，进程相关的重要系统调用： ``fork`` 、 ``exec`` 、 ``waitpid`` 虽然在接口上没有变化，但在它要完成的功能上需要有一定的扩展。首先，需要注意到把以前进程中与处理器执行相关的部分拆分到线程中。这样，在通过 ``fork`` 创建进程其实也意味着要单独建立一个主线程来使用处理器，并为以后创建新的线程建立相应的线程控制块向量。相对而言， ``exec`` 和 ``waitpid`` 这两个系统调用要做的改动比较小，还是按照与之前进程的处理方式来进行。总体上看，进程相关的这三个系统调用还是保持了已有的进程操作的语义，并没有由于引入了线程，而带来大的变化。
+在引入了线程机制后，进程相关的重要系统调用： ``fork`` 、 ``exec`` 、 ``waitpid`` 虽然在接口上没有变化，但在它要完成的功能上需要有一定的扩展。首先，需要注意到把以前进程中与处理器执行相关的部分拆分到线程中。这样，在通过 ``fork`` 创建进程其实也意味着要单独建立一个主线程来使用处理器，并为以后创建新的线程建立相应的线程控制块向量。相对而言， ``exec`` 和 ``waitpid`` 这两个系统调用要做的改动比较小，还是按照与之前进程的处理方式来进行。
 
+而且，为了实现更加简单，我们要求每个应用对于 **线程和进程两个系列的系统调用只能使用其中之一** 。比如说，使用了进程系列的 ``fork`` 就不能使用线程系列的 ``thread_create`` ，这是因为很难定义如何 ``fork`` 一个多线程的进程。类似的，可以发现要将进程和线程模型融合起来需要做很多额外的工作。如果做了上述要求的话，我们就可以对进程-线程的融合模型进行简化。如果涉及到父子进程的交互，那么这些进程只会有一个主线程，基本等价于之前的进程模型；如果使用 ``thread_create`` 创建了新线程，那么我们只需考虑多个线程在这一个进程内的交互。因此，总体上看，进程相关的这三个系统调用还是保持了已有的进程操作的语义，并没有由于引入了线程，而带来大的变化。
 
 应用程序示例
 ----------------------------------------------
@@ -230,81 +234,161 @@
 
 
 .. code-block:: rust
-   :linenos:
+    :linenos:
 
-   pub fn thread_create(entry: usize, arg: usize) -> isize { sys_thread_create(entry, arg) }
+    // user/src/lib.rs
 
-   pub fn waittid(tid: usize) -> isize {
-       loop {
-           match sys_waittid(tid) {
-               -2 => { yield_(); }
-               exit_code => return exit_code,
-           }
-       }
-   }
+    pub fn thread_create(entry: usize, arg: usize) -> isize {
+        sys_thread_create(entry, arg)
+    }
 
+    pub fn waittid(tid: usize) -> isize {
+        loop {
+            match sys_waittid(tid) {
+                -2 => { yield_(); }
+                exit_code => return exit_code,
+            }
+        }
+    }
 
 ``waittid`` 等待一个线程标识符的值为 tid 的线程结束。在具体实现方面，我们看到当 ``sys_waittid`` 返回值为 -2 ，即要等待的线程存在但它却尚未退出的时候，主线程调用 ``yield_`` 主动交出 CPU 使用权，待下次 CPU 使用权被内核交还给它的时候再次调用 ``sys_waittid`` 查看要等待的线程是否退出。这样做是为了减小 CPU 资源的浪费以及尽可能简化内核的实现。
 
 
-多线程应用程序 -- threads
+多线程应用程序
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-多线程应用程序 -- ``threads`` 开始执行后，先调用 ``thread_create`` 创建了三个线程，加上进程自带的主线程，其实一共有四个线程。每个线程在打印了1000个字符后，会执行 ``exit`` 退出。进程通过 ``waittid`` 等待这三个线程结束后，最终结束进程的执行。下面是多线程应用程序 -- threads 的源代码：
+多线程应用程序 -- ``threads`` 开始执行后，先调用 ``thread_create`` 创建了三个线程，加上进程自带的主线程，其实一共有四个线程。每个线程在打印了 1000 个字符后，会执行 ``exit`` 退出。进程通过 ``waittid`` 等待这三个线程结束后，最终结束进程的执行。下面是多线程应用程序 -- ``threads`` 的源代码：
 
 .. code-block:: rust
-   :linenos:
+    :linenos:
 
-   //usr/src/bin/threads.rs
+    //usr/src/bin/threads.rs
 
-   #![no_std]
-   #![no_main]
+    #![no_std]
+    #![no_main]
 
-   #[macro_use]
-   extern crate user_lib;
-   extern crate alloc;
+    #[macro_use]
+    extern crate user_lib;
+    extern crate alloc;
 
-   use user_lib::{thread_create, waittid, exit};
-   use alloc::vec::Vec;
+    use user_lib::{thread_create, waittid, exit};
+    use alloc::vec::Vec;
 
-   pub fn thread_a() -> ! {
-       for _ in 0..1000 { print!("a"); }
-       exit(1)
-   }
+    pub fn thread_a() -> ! {
+        for _ in 0..1000 { print!("a"); }
+        exit(1)
+    }
 
-   pub fn thread_b() -> ! {
-       for _ in 0..1000 { print!("b"); }
-       exit(2) 
-   }
+    pub fn thread_b() -> ! {
+        for _ in 0..1000 { print!("b"); }
+        exit(2) 
+    }
 
-   pub fn thread_c() -> ! {
-       for _ in 0..1000 { print!("c"); }
-       exit(3)
-   }
+    pub fn thread_c() -> ! {
+        for _ in 0..1000 { print!("c"); }
+        exit(3)
+    }
 
-   #[no_mangle]
-   pub fn main() -> i32 {
-       let mut v = Vec::new();
-       v.push(thread_create(thread_a as usize, 0));
-       v.push(thread_create(thread_b as usize, 0));
-       v.push(thread_create(thread_c as usize, 0));
-       for tid in v.iter() {
-           let exit_code = waittid(*tid as usize);
-           println!("thread#{} exited with code {}", tid, exit_code);
-       }
-       println!("main thread exited.");
-       0
-   }
+    #[no_mangle]
+    pub fn main() -> i32 {
+        let mut v = Vec::new();
+        v.push(thread_create(thread_a as usize, 0));
+        v.push(thread_create(thread_b as usize, 0));
+        v.push(thread_create(thread_c as usize, 0));
+        for tid in v.iter() {
+            let exit_code = waittid(*tid as usize);
+            println!("thread#{} exited with code {}", tid, exit_code);
+        }
+        println!("main thread exited.");
+        0
+    }
+
+另一个名为 ``threads_arg`` 的应用和 ``threads`` 的功能相同，其不同在于利用 ``thread_create`` 可以传参的特性，从而只需编写一个线程函数。
+
+.. code-block:: rust
+    :linenos:
+
+    #![no_std]
+    #![no_main]
+
+    #[macro_use]
+    extern crate user_lib;
+    extern crate alloc;
+
+    use alloc::vec::Vec;
+    use user_lib::{exit, thread_create, waittid};
+
+    struct Argument {
+        pub ch: char,
+        pub rc: i32,
+    }
+
+    fn thread_print(arg: *const Argument) -> ! {
+        let arg = unsafe { &*arg };
+        for _ in 0..1000 {
+            print!("{}", arg.ch);
+        }
+        exit(arg.rc)
+    }
+
+    #[no_mangle]
+    pub fn main() -> i32 {
+        let mut v = Vec::new();
+        let args = [
+            Argument { ch: 'a', rc: 1 },
+            Argument { ch: 'b', rc: 2 },
+            Argument { ch: 'c', rc: 3 },
+        ];
+        for arg in args.iter() {
+            v.push(thread_create(
+                thread_print as usize,
+                arg as *const _ as usize,
+            ));
+        }
+        for tid in v.iter() {
+            let exit_code = waittid(*tid as usize);
+            println!("thread#{} exited with code {}", tid, exit_code);
+        }
+        println!("main thread exited.");
+        0
+    }
+
+这里传给创建的三个线程的参数放在主线程的栈上，在 ``thread_create`` 的时候提供的是对应参数的地址。参数会决定每个线程打印的字符和线程的返回码。
 
 线程管理的核心数据结构
 -----------------------------------------------
 
-为了在现有进程管理的基础上实现线程管理，我们需要改进一些数据结构包含的内容及接口。基本思路就是把进程中与处理器相关的部分分拆出来，形成线程相关的部分。
-本节将按照如下顺序来进行介绍：
+为了实现线程机制，我们需要将操作系统的 CPU 资源调度单位（也即“任务”）从之前的进程改为线程。这意味着调度器需要考虑更多的因素，比如当一个线程时间片用尽交出 CPU 使用权的时候，切换到同进程下还是不同进程下的线程的上下文切换开销往往有很大不同，可能影响到是否需要切换页表。不过我们为了实现更加简单，仍然采用 Round-Robin 调度算法，将所有线程一视同仁，不考虑它们属于哪个进程。
 
-- 任务控制块 ``TaskControlBlock`` ：表示线程的核心数据结构。
-- 任务管理器 ``TaskManager`` ：管理线程集合的核心数据结构。
-- 处理器管理结构 ``Processor`` ：用于线程调度，维护当前时刻处理器的状态。
+本章之前，进程管理的三种核心数据结构和一些软/硬件资源如下：
+
+第一个数据结构是任务（进程）控制块 ``TaskControlBlock`` ，可以在 ``os/src/task/task.rs`` 中找到。它除了记录当前任务的状态之外，还包含如下资源：
+
+- 进程标识符 ``pid`` ；
+- 内核栈 ``kernel_stack`` ；
+- 进程地址空间 ``memory_set`` ；
+- 进程地址空间中的用户栈和 Trap 上下文（进程控制块中相关字段为 ``trap_cx_ppn`` ）；
+- 文件描述符表 ``fd_table`` ；
+- 信号相关的字段。
+
+这些资源的生命周期基本上与进程的生命周期相同。但是在有了线程之后，我们需要将一些与代码执行相关的资源分离出来，让它们与相关线程的生命周期绑定。
+
+第二个数据结构是任务管理器 ``TaskManager`` ，可以在 ``os/src/task/manager.rs`` 中找到。它实质上是我们内核的调度器，可以决定一个任务时间片用尽或退出之后接下来执行哪个任务。
+
+第三个数据结构是处理器管理结构 ``Processor`` ，可以在 ``os/src/task/processor.rs`` 中找到。它维护了处理器当前在执行哪个任务，在处理系统调用的时候我们需要依据这里的记录来确定系统调用的发起者是哪个任务。
+
+本章的变更如下：
+
+- 进程控制块由之前的 ``TaskControlBlock`` 变成新增的 ``ProcessControlBlock`` （简称 PCB ），我们在其中保留进程的一些信息以及由进程下所有线程共享的一些资源。 PCB 可以在 ``os/src/task/process.rs`` 中找到。任务控制块 ``TaskControlBlock`` 则变成用来描述线程的线程控制块，包含线程的信息以及线程独占的资源。
+- 在资源管理方面，本章之前在 ``os/src/task/pid.rs`` 可以看到与进程相关的一些 RAII 风格的软/硬件资源，包括进程描述符 ``PidHandle`` 以及内核栈 ``KernelStack`` ，其中内核栈被分配在内核地址空间中且其位置由所属进程的进程描述符决定。本章将 ``pid.rs`` 替换为 ``id.rs`` ，仍然保留 ``PidHandle`` 和 ``KernelStack`` 两种资源，不过 ``KernelStack`` 变为一种线程独占的资源，我们可以在线程控制块 ``TaskControlBlock`` 中找到它。此外，我们还在 ``id.rs`` 中新增了 ``TaskUserRes`` 表示每个线程独占的用户态资源，还有一个各类资源的通用分配器 ``RecycleAllocator`` 。
+- CPU 资源调度单位仍为任务控制块 ``TaskControlBlock`` 不变。因此，基于任务控制块的任务控制器 ``TaskManager`` 和处理器管理结构 ``Processor`` 也基本不变，只有某些接口有小幅修改。
+
+.. 为了在现有进程管理的基础上实现线程管理，我们需要改进一些数据结构包含的内容及接口。基本思路就是把进程中与处理器相关的部分分拆出来，形成线程相关的部分。
+.. 本节将按照如下顺序来进行介绍：
+
+.. - 任务控制块 ``TaskControlBlock`` ：表示线程的核心数据结构。
+.. - 任务管理器 ``TaskManager`` ：管理线程集合的核心数据结构。
+.. - 处理器管理结构 ``Processor`` ：用于线程调度，维护当前时刻处理器的状态。
 
 
 线程控制块
