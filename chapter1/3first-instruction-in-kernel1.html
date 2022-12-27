@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="内核第一条指令（实践篇）" href="4first-instruction-in-kernel2.html" /><link rel="prev" title="移除标准库依赖" href="2remove-std.html" />
 
     <meta name="generator" content="sphinx-4.3.2, furo 2022.06.21"/>
-        <title>内核第一条指令（原理篇） - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
+        <title>内核第一条指令（基础篇） - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
@@ -190,7 +190,7 @@
 <li class="toctree-l2 has-children"><a class="reference internal" href="2remove-std.html">移除标准库依赖</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
 </ul>
 </li>
-<li class="toctree-l2 current has-children current-page"><a class="current reference internal" href="#">内核第一条指令（原理篇）</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+<li class="toctree-l2 current has-children current-page"><a class="current reference internal" href="#">内核第一条指令（基础篇）</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
 </ul>
 </li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="4first-instruction-in-kernel2.html">内核第一条指令（实践篇）</a><input class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" role="switch" type="checkbox"/><label for="toctree-checkbox-13"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
@@ -387,12 +387,12 @@
         </div>
         <article role="main">
           <div class="section" id="id1">
-<h1>内核第一条指令（原理篇）<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h1>
+<h1>内核第一条指令（基础篇）<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h1>
 <div class="toctree-wrapper compound">
 </div>
 <div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
-<p>接下来两节我们将进行构建“三叶虫”操作系统的第二步，即将我们的内核正确对接到 Qemu 模拟器上，使得 Qemu 模拟器可以成功执行内核的第一条指令。本节我们将介绍一些相关基础知识。首先介绍计算机的各个硬件组成部分，特别是 CPU 和物理内存；其次介绍 Qemu 模拟器的抽象模型、使用方法以及启动流程，作为补充我们还介绍了一般计算机的启动流程；最后我们介绍程序内存布局和编译流程，特别是链接的相关知识。这些理论知识可以帮助我们更好的理解下一节的实践操作背后的动机和目的。</p>
+<p>接下来两节我们将进行构建“三叶虫”操作系统的第二步，即将我们的内核正确加载到 Qemu 模拟器上，使得 Qemu 模拟器可以成功执行内核的第一条指令。本节我们将介绍一些相关基础知识，首先介绍计算机的各个硬件组成部分，特别是 CPU 和物理内存。其次介绍 Qemu 模拟器的抽象模型、使用方法以及启动流程。作为知识补充，我们还介绍了一般计算机的启动流程。最后我们介绍了程序内存布局和编译流程，特别是链接的相关知识。这些基本知识可以帮助我们更好的理解下一节的实践操作背后的动机和目的。</p>
 </div>
 <div class="section" id="id3">
 <h2>计算机组成基础<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
@@ -414,7 +414,7 @@
 </div>
 <div class="section" id="qemu">
 <h2>了解 Qemu 模拟器<a class="headerlink" href="#qemu" title="永久链接至标题">#</a></h2>
-<p>我们编写的内核将主要在 Qemu 模拟器上运行来检验其正确性。这样做主要是为了方便快捷，只需在命令行输入一行命令即可让内核跑起来。为了让我们的内核能够正确对接到 Qemu 模拟器上，我们首先要对 Qemu 模拟器有一定的了解。在本书中，我们使用软件 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 来模拟一台 64 位 RISC-V 架构的计算机，它包含一个 CPU 、一条物理内存以及若干 I/O 外设。它的具体配置（比如 CPU 的核数或是物理内存的大小）均可由用户自由调整。作为模拟器，在宿主机看来它只是一个用户程序，因此上面提到的资源都是它利用宿主机（即 Qemu 运行所在的平台，如 Linux/Windows/macOS）提供给它的资源模拟出来的。取决于模拟的方式不同，在 Qemu 上有些模拟出来的资源性能很高，甚至接近宿主机上原生资源的性能；而另一些资源在模拟过程中的开销较大，于是它的性能相较原生资源的退化较为严重。</p>
+<p>我们编写的内核将主要在 Qemu 模拟器上运行来检验其正确性。这样做主要是为了方便快捷，只需在命令行输入一行命令即可让内核跑起来。为了让我们的内核能够正确对接到 Qemu 模拟器上，我们首先要对 Qemu 模拟器有一定的了解。在本书中，我们使用软件 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 来模拟一台 64 位 RISC-V 架构的计算机，它包含CPU 、物理内存以及若干 I/O 外设。它的具体配置（比如 CPU 的核数或是物理内存的大小）均可由用户通过Qemu的执行参数选项来调整。作为模拟器，在宿主机看来它只是一个用户程序，因此上面提到的资源都是它利用宿主机（即 Qemu 运行所在的平台，如 Linux/Windows/macOS）提供给它的资源模拟出来的。在 Qemu 上模拟出来的某些硬件资源性能很高，甚至接近宿主机上原生资源的性能；而另一些硬件资源的模拟开销较大，从而导致Qemu模拟的整体硬件性能相对较慢。但对于本书所实践的各种操作系统而言，在当前x86-64处理器上的Qemu所模拟的硬件性能已经足够快了。</p>
 <p>接下来我们来看如何启动 Qemu 。从各章节代码中的 <code class="docutils literal notranslate"><span class="pre">os/Makefile</span></code> 可以看到，我们使用如下命令来启动 Qemu 并运行我们的内核：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="gp">$ </span>qemu-system-riscv64 <span class="se">\</span>
 <span class="linenos">2</span>    -machine virt <span class="se">\</span>
@@ -423,7 +423,7 @@
 <span class="linenos">5</span>    -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80200000
 </pre></div>
 </div>
-<p>其中：</p>
+<p>其中各个执行参数选项的含义如下：</p>
 <ul class="simple" id="term-bootloader">
 <li><p><code class="docutils literal notranslate"><span class="pre">-machine</span> <span class="pre">virt</span></code> 表示将模拟的 64 位 RISC-V 计算机设置为名为 <code class="docutils literal notranslate"><span class="pre">virt</span></code> 的虚拟计算机。我们知道，即使同属同一种指令集架构，也会有很多种不同的计算机配置，比如 CPU 的生产厂商和型号不同，支持的 I/O 外设种类也不同。关于 <code class="docutils literal notranslate"><span class="pre">virt</span></code> 平台的更多信息可以参考 <a class="footnote-reference brackets" href="#virt-platform" id="id4">1</a> 。Qemu 还支持模拟其他 RISC-V 计算机，其中包括由 SiFive 公司生产的著名的 HiFive Unleashed 开发板。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-nographic</span></code> 表示模拟器不需要提供图形界面，而只需要对外输出字符流。</p></li>
@@ -432,8 +432,8 @@
 </ul>
 <div class="section" id="id5">
 <h3>Qemu 启动流程<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
-<p id="term-physical-memory"><code class="docutils literal notranslate"><span class="pre">virt</span></code> 平台上，物理内存的起始物理地址为 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，物理内存的默认大小为 128MiB ，它可以通过 <code class="docutils literal notranslate"><span class="pre">-m</span></code> 选项进行配置。在本书中，我们只会用到最低的 8MiB 物理内存，对应的物理地址区间为 <code class="docutils literal notranslate"><span class="pre">[0x80000000,0x80800000)</span></code> 。如果使用上面给出的命令启动 Qemu ，那么在 Qemu 开始执行任何指令之前，首先两个文件将被加载到 Qemu 的物理内存中：即作为 bootloader 的 <code class="docutils literal notranslate"><span class="pre">rustsbi-qemu.bin</span></code> 被加载到物理内存以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头的区域上，同时内核镜像 <code class="docutils literal notranslate"><span class="pre">os.bin</span></code> 被加载到以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 开头的区域上。</p>
-<p>为什么加载到这两个位置呢？这与 Qemu 模拟计算机加电启动后的运行流程有关。一般来说，计算机加电之后的启动流程可以分成若干个阶段，每个阶段均由一层软件负责，每一层软件的功能是进行它应当承担的初始化工作，并在此之后跳转到下一层软件的入口地址，也就是将计算机的控制权移交给了下一层软件。Qemu 模拟的启动流程则可以分为三个阶段：第一个阶段由固化在 Qemu 内的一小段汇编程序负责；第二个阶段由 bootloader 负责；第三个阶段则由内核镜像负责。</p>
+<p id="term-physical-memory">在Qemu模拟的 <code class="docutils literal notranslate"><span class="pre">virt</span></code> 硬件平台上，物理内存的起始物理地址为 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，物理内存的默认大小为 128MiB ，它可以通过 <code class="docutils literal notranslate"><span class="pre">-m</span></code> 选项进行配置。在本书中，我们只会用到最低的 8MiB 物理内存，对应的物理地址区间为 <code class="docutils literal notranslate"><span class="pre">[0x80000000,0x80800000)</span></code> 。如果使用上面给出的命令启动 Qemu ，那么在 Qemu 开始执行任何指令之前，首先把两个文件加载到 Qemu 的物理内存中：即作把作为 bootloader 的 <code class="docutils literal notranslate"><span class="pre">rustsbi-qemu.bin</span></code> 加载到物理内存以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头的区域上，同时把内核镜像 <code class="docutils literal notranslate"><span class="pre">os.bin</span></code> 加载到以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 开头的区域上。</p>
+<p>为什么加载到这两个位置呢？这与 Qemu 模拟计算机加电启动后的运行流程有关。一般来说，计算机加电之后的启动流程可以分成若干个阶段，每个阶段均由一层软件或 <a class="reference internal" href="#term-firmware"><span class="std std-ref">固件</span></a> 负责，每一层软件或固件的功能是进行它应当承担的初始化工作，并在此之后跳转到下一层软件或固件的入口地址，也就是将计算机的控制权移交给了下一层软件或固件。Qemu 模拟的启动流程则可以分为三个阶段：第一个阶段由固化在 Qemu 内的一小段汇编程序负责；第二个阶段由 bootloader 负责；第三个阶段则由内核镜像负责。</p>
 <ul class="simple">
 <li><p>第一阶段：将必要的文件载入到 Qemu 物理内存之后，Qemu CPU 的程序计数器（PC, Program Counter）会被初始化为 <code class="docutils literal notranslate"><span class="pre">0x1000</span></code> ，因此 Qemu 实际执行的第一条指令位于物理地址 <code class="docutils literal notranslate"><span class="pre">0x1000</span></code> ，接下来它将执行寥寥数条指令并跳转到物理地址 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 对应的指令处并进入第二阶段。从后面的调试过程可以看出，该地址 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 被固化在 Qemu 中，作为 Qemu 的使用者，我们在不触及 Qemu 源代码的情况下无法进行更改。</p></li>
 <li><p>第二阶段：由于 Qemu 的第一阶段固定跳转到 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，我们需要将负责第二阶段的 bootloader <code class="docutils literal notranslate"><span class="pre">rustsbi-qemu.bin</span></code> 放在以物理地址 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 开头的物理内存中，这样就能保证 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 处正好保存 bootloader 的第一条指令。在这一阶段，bootloader 负责对计算机进行一些初始化工作，并跳转到下一阶段软件的入口，在 Qemu 上即可实现将计算机控制权移交给我们的内核镜像 <code class="docutils literal notranslate"><span class="pre">os.bin</span></code> 。这里需要注意的是，对于不同的 bootloader 而言，下一阶段软件的入口不一定相同，而且获取这一信息的方式和时间点也不同：入口地址可能是一个预先约定好的固定的值，也有可能是在 bootloader 运行期间才动态获取到的值。我们选用的 RustSBI 则是将下一阶段的入口地址预先约定为固定的 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> ，在 RustSBI 的初始化工作完成之后，它会跳转到该地址并将计算机控制权移交给下一阶段的软件——也即我们的内核镜像。</p></li>
@@ -443,13 +443,15 @@
 <p class="admonition-title">注解</p>
 <p><strong>真实计算机的加电启动流程</strong></p>
 <p>真实计算机的启动流程大致上也可以分为三个阶段：</p>
-<ul class="simple">
+</div>
+<blockquote id="term-firmware">
+<div><ul class="simple">
 <li><p>第一阶段：加电后 CPU 的 PC 寄存器被设置为计算机内部只读存储器（ROM，Read-only Memory）的物理地址，随后 CPU 开始运行 ROM 内的软件。我们一般将该软件称为固件（Firmware），它的功能是对 CPU 进行一些初始化操作，将后续阶段的 bootloader 的代码、数据从硬盘载入到物理内存，最后跳转到适当的地址将计算机控制权转移给 bootloader 。它大致对应于 Qemu 启动的第一阶段，即在物理地址 <code class="docutils literal notranslate"><span class="pre">0x1000</span></code> 处放置的若干条指令。可以看到 Qemu 上的固件非常简单，因为它并不需要负责将 bootloader 从硬盘加载到物理内存中，这个任务此前已经由 Qemu 自身完成了。</p></li>
 <li><p>第二阶段：bootloader 同样完成一些 CPU 的初始化工作，将操作系统镜像从硬盘加载到物理内存中，最后跳转到适当地址将控制权转移给操作系统。可以看到一般情况下 bootloader 需要完成一些数据加载工作，这也就是它名字中 loader 的来源。它对应于 Qemu 启动的第二阶段。在 Qemu 中，我们使用的 RustSBI 功能较弱，它并没有能力完成加载的工作，内核镜像实际上是和 bootloader 一起在 Qemu 启动之前加载到物理内存中的。</p></li>
 <li><p>第三阶段：控制权被转移给操作系统。由于篇幅所限后面我们就不再赘述了。</p></li>
 </ul>
 <p>值得一提的是，为了让计算机的启动更加灵活，bootloader 目前可能非常复杂：它可能也分为多个阶段，并且能管理一些硬件资源，从复杂性上它已接近一个传统意义上的操作系统。</p>
-</div>
+</div></blockquote>
 <p>基于上面对 Qemu 启动流程的介绍，我们可以知道为了让我们的内核镜像能够正确对接到 Qemu 和 RustSBI 上，我们提交给 Qemu 的内核镜像文件必须满足：该文件的开头即为内核待执行的第一条指令。但后面会讲到，在上一节中我们通过移除标准库依赖得到的可执行文件实际上并不满足该条件。因此，我们还需要对可执行文件进行一些操作才能得到可提交给 Qemu 的内核镜像。为了说明这些条件，首先我们需要了解一些关于程序内存布局和编译流程的知识。</p>
 </div>
 </div>
@@ -570,7 +572,7 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">内核第一条指令（原理篇）</a><ul>
+<li><a class="reference internal" href="#">内核第一条指令（基础篇）</a><ul>
 <li><a class="reference internal" href="#id2">本节导读</a></li>
 <li><a class="reference internal" href="#id3">计算机组成基础</a></li>
 <li><a class="reference internal" href="#qemu">了解 Qemu 模拟器</a><ul>
