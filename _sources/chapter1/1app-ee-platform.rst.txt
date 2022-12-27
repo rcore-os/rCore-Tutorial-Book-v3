@@ -133,7 +133,8 @@
    对于如下更简单的小应用程序，我们可以看到“用力过猛”的现代操作系统提供的执行环境支持：
 
    .. code-block:: rust
-
+      :linenos:
+      
       //ch1/donothing.rs
       fn main()  {
          //do nothing
