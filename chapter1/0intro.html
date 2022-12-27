@@ -390,11 +390,11 @@
 <h1>引言<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h1>
 <div class="section" id="id2">
 <h2>本章导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
-<p>本章展现了操作系统的一个基本目标：让应用与硬件隔离，简化了应用访问硬件的难度和复杂性。这也是远古操作系统雏形和现代的一些简单嵌入式操作系统的主要功能。具有这样功能的操作系统的形态就是一个函数库，可以被应用访问，并通过函数库的函数来访问硬件。</p>
+<p>本章展现了操作系统的一个基本目标：让应用与硬件隔离，简化了应用访问硬件的难度和复杂性。这也是远古操作系统雏形和现代的一些简单嵌入式操作系统的主要功能。具有这样功能的操作系统形态就是一个函数库，可以被应用访问，并通过函数库的函数来访问硬件。</p>
 <p>大多数程序员的第一行代码都从 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 开始，当我们满怀着好奇心在编辑器内键入仅仅数个字节，再经过几行命令编译（靠的是编译器）、运行（靠的是操作系统），终于在黑洞洞的终端窗口中看到期望中的结果的时候，一扇通往编程世界的大门已经打开。在本章第一节 <a class="reference internal" href="1app-ee-platform.html"><span class="doc">应用程序执行环境与平台支持</span></a> 中，可以看到用Rust语言编写的非常简单的“Hello, world”应用程序是如何被进一步拆解和分析的。</p>
-<p>不过我们能够隐约意识到编程工作能够如此方便简洁并不是理所当然的，实际上有着多层硬件和软件工具和支撑环境隐藏在它背后，才让我们不必付出那么多努力就能够创造出功能强大的应用程序。生成应用程序二进制执行代码所依赖的是以 <strong>编译器</strong> 为主的开发环境；运行应用程序执行码所依赖的是以 <strong>操作系统</strong> 为主的执行环境。</p>
-<p>本章主要是讲解如何设计和实现建立在裸机上的执行环境，从中对应用程序和它所依赖的执行环境有一个全面和深入的理解。</p>
-<p>本章我们的目标仍然只是输出 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> ，但这一次，我们将离开舒适区，基于一个几乎空无一物的平台从零开始搭建我们自己的高楼大厦，而不是仅仅通过一行语句就完成任务。所以，在接下来的内容中，我们将描述如何让 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 应用程序逐步脱离对编译器、运行时库和操作系统的现有复杂依赖，最终以最小的依赖需求能在裸机上运行。这时，我们也可把这个能在裸机上运行的 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 应用程序称为一种支持输出字符串的非常初级的寒武纪“三叶虫”操作系统，它其实就是一个给应用提供各种服务（比如输出字符串）的库，方便了单一应用程序在裸机上的开发与运行。输出字符串功能好比是三叶虫的眼睛，有了它，我们就有了最基本的调试功能，即通过在代码中的不同位置插入特定内容的输出语句来实现对程序运行的调试。</p>
+<p>不过我们能够隐约意识到编程工作能够如此方便简洁并不是理所当然的，实际上有着多层硬件和软件工具和支撑环境隐藏在它背后，才让我们不必付出那么多努力就能够创造出功能强大的应用程序。生成应用程序二进制执行代码所依赖的是以 <strong>编译器</strong> 为主的 <strong>开发环境</strong> ；运行应用程序执行码所依赖的是以 <strong>操作系统</strong> 为主的 <strong>执行环境</strong> 。</p>
+<p>本章主要是讲解如何设计和实现建立在裸机上的执行环境，并让应用程序能够在这样的执行环境中运行。从而让同学能够对应用程序和它所依赖的执行环境有一个全面和深入的理解。</p>
+<p>本章的目标仍然只是让应用程序输出 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 字符串，但这一次，我们将离开舒适区，基于一个几乎空无一物的硬件平台从零开始搭建我们自己的软件高楼大厦，而不是仅仅通过一行语句就完成任务。所以，在接下来的内容中，我们将描述如何让 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 应用程序逐步脱离对编译器、运行时库和操作系统的现有复杂依赖，最终以最小的依赖需求能在裸机上运行。这时，我们也可把这个能在裸机上运行的 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 应用程序所依赖的软件库称为一种支持输出字符串的非常初级的寒武纪“三叶虫”操作系统 – LibOS。LibOS其实就是一个给应用提供各种服务（比如输出字符串）的库，方便了单一应用程序在裸机上的开发与运行。输出字符串的功能好比是三叶虫的眼睛功能，有了它，我们就有了对软件的最基本的动态分析与调试功能，即通过在代码中的不同位置插入特定内容的输出语句来实现对应用程序和操作系统运行状态的分析与调试。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>最早的操作系统雏形是计算工资单的程序库</strong></p>
@@ -408,23 +408,19 @@
 </div>
 <div class="section" id="id5">
 <h2>实践体验<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
-<p>本章设计实现了一个支持显示字符串应用的简单操作系统–“三叶虫”操作系统，它的形态就是一个函数库，给应用程序提供了显示字符串的函数。</p>
+<p>本章设计实现了一个支持显示字符串应用的简单操作系统–“三叶虫”操作系统 – LibOS，它的形态就是一个函数库，给应用程序提供了显示字符串的函数。</p>
 <p>获取本章代码：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
 <span class="gp">$ </span><span class="nb">cd</span> rCore-Tutorial-v3
 <span class="gp">$ </span>git checkout ch1
 </pre></div>
 </div>
-<p>在 qemu 模拟器上运行本章代码，看看一个小应用程序是如何在QEMU模拟的计算机上运行的：</p>
+<p>在 Qemu 模拟器上运行本章代码，看看一个小应用程序是如何在Qemu模拟的计算机上运行的：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> os
 <span class="gp">$ </span>make run
 </pre></div>
 </div>
-<div class="admonition warning">
-<p class="admonition-title">警告</p>
-<p><strong>FIXME: 提供 wsl/macOS 等更多平台支持</strong></p>
-</div>
-<p>如果顺利的话，以 qemu 平台为例，将输出：</p>
+<p>如果顺利的话，以 Qemu 平台为例，将输出：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[RustSBI output]
 Hello, world!
 .text [0x80200000, 0x80202000)
@@ -435,7 +431,7 @@ boot_stack top=bottom=0x80214000, lower_bound=0x80204000
 Panicked at src/main.rs:46 Shutdown machine!
 </pre></div>
 </div>
-<p>除了 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 之外还有一些额外的信息，最后关机。</p>
+<p>除了 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 之外还有一些额外的动态运行信息，最后是应用程序和操作系统运行结束，Qemu模拟的计算机执行了关机操作。</p>
 </div>
 <div class="section" id="id6">
 <h2>本章代码树<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
@@ -467,10 +463,10 @@ Assembly    1 Files    11 Lines
 </div>
 <div class="section" id="id7">
 <h2>本章代码导读<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h2>
-<p>操作系统虽然是软件，但它不是常规的应用软件，需要运行在没有操作系统的裸机环境中。如果采用通常编程方法和编译手段，无法开发出操作系统。其中一个重要的原因是：编译器编译出的应用软件在缺省情况下是要链接标准库（Rust 编译器和 C 编译器都是这样的），而标准库是依赖于操作系统（如 Linux、Windows 等）的。所以，本章主要是让同学能够脱离常规应用软件开发的思路，理解如何开发没有操作系统支持的操作系统内核。</p>
-<p>为了做到这一步，首先需要写出不需要标准库的软件并通过编译。为此，先把一般应用所需要的标准库的组件给去掉，这会导致编译失败。然后再逐步添加不需要操作系统的极少的运行时支持代码，让编译器能够正常编译出不需要标准库的正常程序。但此时的程序没有显示输出，更没有输入等，但可以正常通过编译，这样就为进一步扩展程序内容打下了一个 <strong>可正常编译OS</strong> 的前期基础。具体可看 <a class="reference internal" href="2remove-std.html#term-remove-std"><span class="std std-ref">移除标准库依赖</span></a> 一节的内容。</p>
-<p>我们的内核主要在 Qemu 模拟器上运行，它可以模拟一台 64 位 RISC-V 计算机。为了让我们的内核能够正确对接到 Qemu 模拟器上，需要了解 Qemu 模拟器的启动流程，还需要一些程序内存布局和编译流程（特别是链接）相关知识，这样才能将我们的内核接入到正确的位置上使得它能够在 Qemu 上正常运行。我们会在内核中手写一条汇编指令，并使用 GDB 工具监控 Qemu 的执行流程确认这条指令被正确执行。具体可以参考 <a class="reference internal" href="3first-instruction-in-kernel1.html"><span class="doc">内核第一条指令（原理篇）</span></a> 和 <a class="reference internal" href="4first-instruction-in-kernel2.html"><span class="doc">内核第一条指令（实践篇）</span></a> 两节。</p>
-<p>我们想用 Rust 语言来实现内核的大多数功能，因此我们需要进一步将控制权从第一条指令转交给 Rust 入口。在 Rust 代码中，函数调用是不可或缺的基本控制流，为了使得函数调用能够正常进行，我们在跳转到 Rust 入口函数前还需要进行栈的初始化工作。为此我们详细介绍了函数调用和栈的相关背景知识，具体内容可参考 <a class="reference internal" href="5support-func-call.html"><span class="doc">为内核支持函数调用</span></a> 一节。最终，我们调用软件栈中相比内核更低一层的软件——也即 RustSBI 提供的服务来实现格式化输出和遇到致命错误时的关机功能，详情参考 <a class="reference internal" href="6print-and-shutdown-based-on-sbi.html"><span class="doc">基于 SBI 服务完成输出和关机</span></a> 一节。至此，我们便实现了在裸机上打印 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 的目标。</p>
+<p>LibOS操作系统虽然是软件，但它不是运行在通用操作系统（如Linux）上的一般应用软件，而是运行在裸机执行环境中的系统软件。如果采用通常的应用编程方法和编译手段，无法开发出这样的操作系统。其中一个重要的原因是：编译器（Rust 编译器和 C 编译器等）编译出的应用软件在缺省情况下是要链接标准库，而标准库是依赖于操作系统（如 Linux、Windows 等）的，但LibOS操作系统不依赖其他操作系统。所以，本章主要是让同学能够脱离常规应用软件开发的思路，理解如何开发没有操作系统支持的操作系统内核。</p>
+<p>为了做到这一步，首先需要写出不需要标准库的软件并通过编译。为此，先把一般应用所需要的标准库的组件给去掉，这会导致编译失败。然后再逐步添加不需要操作系统的极少的运行时支持代码，让编译器能够正常编译出不需要标准库的正常程序。但此时的程序没有显示输出，更没有输入等，但可以正常通过编译，这样就打下 <strong>可正常编译OS</strong> 的前期开发基础。具体可看 <a class="reference internal" href="2remove-std.html#term-remove-std"><span class="std std-ref">移除标准库依赖</span></a> 一节的内容。</p>
+<p>LibOS内核主要在 Qemu 模拟器上运行，它可以模拟一台 64 位 RISC-V 计算机。为了让LibOS内核能够正确对接到 Qemu 模拟器上，需要了解 Qemu 模拟器的启动流程，还需要一些程序内存布局和编译流程（特别是链接）相关知识，这样才能将LibOS内核加载到正确的内存位置上，并使得它能够在 Qemu 上正常运行。为了确认内核被加载到正确的内存位置，我们会在LibOS内核中手写一条汇编指令，并使用 GDB 工具监控 Qemu 的执行流程确认这条指令被正确执行。具体可以参考 <a class="reference internal" href="3first-instruction-in-kernel1.html"><span class="doc">内核第一条指令（原理篇）</span></a> 和 <a class="reference internal" href="4first-instruction-in-kernel2.html"><span class="doc">内核第一条指令（实践篇）</span></a> 两节。</p>
+<p>我们想用 Rust 语言来实现内核的大多数功能，因此我们需要进一步将控制权从第一条指令转交给 Rust 入口函数。在 Rust 代码中，函数调用是不可或缺的基本控制流，为了使得函数调用能够正常进行，我们在跳转到 Rust 入口函数前还需要进行栈的初始化工作。为此我们详细介绍了函数调用和栈的相关背景知识，具体内容可参考 <a class="reference internal" href="5support-func-call.html"><span class="doc">为内核支持函数调用</span></a> 一节。最终，我们调用软件栈中相比内核更低一层的软件——也即 RustSBI 提供的服务来实现格式化输出和遇到致命错误时的关机功能，详情参考 <a class="reference internal" href="6print-and-shutdown-based-on-sbi.html"><span class="doc">基于 SBI 服务完成输出和关机</span></a> 一节。至此，我们便实现了在裸机上实现输出 <code class="docutils literal notranslate"><span class="pre">Hello,</span> <span class="pre">world!</span></code> 字符串信息的目标。</p>
 <dl class="footnote brackets">
 <dt class="label" id="ostimeline"><span class="brackets">1</span><span class="fn-backref">(<a href="#id3">1</a>,<a href="#id4">2</a>)</span></dt>
 <dd><p><a class="reference external" href="https://en.wikipedia.org/wiki/Timeline_of_operating_systems">https://en.wikipedia.org/wiki/Timeline_of_operating_systems</a></p>
