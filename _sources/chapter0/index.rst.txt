@@ -12,7 +12,7 @@
    3os-hw-abstract
    4os-features
    5setup-devel-env
-   6hardware
    7exercise
    8answer
 
+.. chyyuu 注：可以把“6hardware”k210相关的内容放到某个附录中 ???
