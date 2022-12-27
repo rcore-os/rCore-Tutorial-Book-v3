@@ -390,6 +390,276 @@
 .. - 任务管理器 ``TaskManager`` ：管理线程集合的核心数据结构。
 .. - 处理器管理结构 ``Processor`` ：用于线程调度，维护当前时刻处理器的状态。
 
+接下来依次对它们进行介绍。
+
+通用资源分配器及线程相关的软硬件资源
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+在 ``os/src/task/id.rs`` 中，我们将之前的 ``PidAllocator`` 改造为通用的资源分配器 ``RecycleAllocator`` 用来分配多种不同的资源。这些资源均为 RAII 风格，可以在被 drop 掉之后自动进行资源回收：
+
+- 进程描述符 ``PidHandle`` ；
+- 线程独占的线程资源组 ``TaskUserRes`` ，其中包括线程描述符；
+- 线程独占的内核栈 ``KernelStack`` 。
+
+通用资源分配器 ``RecycleAllocator`` 的实现如下：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/id.rs
+
+    pub struct RecycleAllocator {
+        current: usize,
+        recycled: Vec<usize>,
+    }
+
+    impl RecycleAllocator {
+        pub fn new() -> Self {
+            RecycleAllocator {
+                current: 0,
+                recycled: Vec::new(),
+            }
+        }
+        pub fn alloc(&mut self) -> usize {
+            if let Some(id) = self.recycled.pop() {
+                id
+            } else {
+                self.current += 1;
+                self.current - 1
+            }
+        }
+        pub fn dealloc(&mut self, id: usize) {
+            assert!(id < self.current);
+            assert!(
+                !self.recycled.iter().any(|i| *i == id),
+                "id {} has been deallocated!",
+                id
+            );
+            self.recycled.push(id);
+        }
+    }
+
+分配与回收的算法与之前的 ``PidAllocator`` 一样，不过分配的内容从 PID 变为一个非负整数的通用标识符，可以用来表示多种不同资源。这个通用整数标识符可以直接用作进程的 PID 和进程内一个线程的 TID 。下面是 PID 的全局分配器 ``PID_ALLOCATOR`` ：
+
+.. code-block:: rust
+
+    // os/src/task/id.rs
+
+    lazy_static! {
+        static ref PID_ALLOCATOR: UPSafeCell<RecycleAllocator> =
+            unsafe { UPSafeCell::new(RecycleAllocator::new()) };
+    }
+
+    pub fn pid_alloc() -> PidHandle {
+        PidHandle(PID_ALLOCATOR.exclusive_access().alloc())
+    }
+
+    impl Drop for PidHandle {
+        fn drop(&mut self) {
+            PID_ALLOCATOR.exclusive_access().dealloc(self.0);
+        }
+    }
+
+调用 ``pid_alloc`` 可以从全局 PID 分配器中分配一个 PID 并构成一个 RAII 风格的 ``PidHandle`` 。当 ``PidHandle`` 被回收的时候则会自动调用 ``drop`` 方法在全局 PID 分配器将对应的 PID 回收。
+
+对于 TID 而言，每个进程控制块中都有一个给进程内的线程分配资源的通用分配器：
+
+.. code-block:: rust
+    :linenos:
+    :emphasize-lines: 12
+
+    // os/src/task/process.rs
+
+    pub struct ProcessControlBlock {
+        // immutable
+        pub pid: PidHandle,
+        // mutable
+        inner: UPSafeCell<ProcessControlBlockInner>,
+    }
+
+    pub struct ProcessControlBlockInner {
+        ...
+        pub task_res_allocator: RecycleAllocator,
+        ...
+    }
+
+    impl ProcessControlBlockInner {
+        pub fn alloc_tid(&mut self) -> usize {
+            self.task_res_allocator.alloc()
+        }
+
+        pub fn dealloc_tid(&mut self, tid: usize) {
+            self.task_res_allocator.dealloc(tid)
+        }
+    }
+
+可以看到进程控制块中有一个名为 ``task_res_allocator`` 的通用分配器，同时还提供了 ``alloc_tid`` 和 ``dealloc_tid`` 两个接口来分别在创建线程和销毁线程的时候分配和回收 TID 。除了 TID 之外，每个线程都有自己独立的用户栈和 Trap 上下文，且它们在所属进程的地址空间中的位置可由 TID 计算得到。参考新的进程地址空间如下图所示：
+
+.. image:: app-as-full-with-threads.png
+    :align: center
+    :width: 600px
+
+可以看到，在低地址空间中，在放置完应用 ELF 的所有段之后，会预留 4KiB 的空间作为保护页，得到地址 ``ustack_base`` ，这部分实现可以参考创建应用地址空间的 ``MemorySet::from_elf`` ， ``ustack_base`` 即为其第二个返回值。接下来从 ``ustack_base`` 开始按照 TID 从小到大的顺序向高地址放置线程的用户栈，两两之间预留一个保护页放置栈溢出。在高地址空间中，最高的虚拟页仍然作为跳板页，跳板页中放置的是只读的代码，因此线程之间可以共享。然而，每个线程需要有自己的 Trap 上下文，于是我们在跳板页的下面向低地址按照 TID 从小到大的顺序放置线程的 Trap 上下文。也就是说，只要知道线程的 TID ，我们就可以计算出线程在所属进程地址空间内的用户栈和 Trap 上下文的位置，计算方式由下面的代码给出：
+
+.. code-block:: rust
+
+    // os/src/config.rs
+
+    pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
+    pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - PAGE_SIZE;
+
+    // os/src/task/id.rs
+
+    fn trap_cx_bottom_from_tid(tid: usize) -> usize {
+        TRAP_CONTEXT_BASE - tid * PAGE_SIZE
+    }
+
+    fn ustack_bottom_from_tid(ustack_base: usize, tid: usize) -> usize {
+        ustack_base + tid * (PAGE_SIZE + USER_STACK_SIZE)
+    }
+
+线程的 TID 、用户栈和 Trap 上下文均和线程的生命周期相同，因此我们可以将它们打包到一起统一进行分配和回收。这就形成了名为 ``TaskUserRes`` 的线程资源集合，它可以在任务（线程）控制块 ``TaskControlBlock`` 中找到：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/id.rs
+
+    pub struct TaskUserRes {
+        pub tid: usize,
+        pub ustack_base: usize,
+        pub process: Weak<ProcessControlBlock>,
+    }
+
+    impl TaskUserRes {
+        pub fn new(
+            process: Arc<ProcessControlBlock>,
+            ustack_base: usize,
+            alloc_user_res: bool,
+        ) -> Self {
+            let tid = process.inner_exclusive_access().alloc_tid();
+            let task_user_res = Self {
+                tid,
+                ustack_base,
+                process: Arc::downgrade(&process),
+            };
+            if alloc_user_res {
+                task_user_res.alloc_user_res();
+            }
+            task_user_res
+        }
+
+        /// 在进程地址空间中实际映射线程的用户栈和 Trap 上下文。
+        pub fn alloc_user_res(&self) {
+            let process = self.process.upgrade().unwrap();
+            let mut process_inner = process.inner_exclusive_access();
+            // alloc user stack
+            let ustack_bottom = ustack_bottom_from_tid(self.ustack_base, self.tid);
+            let ustack_top = ustack_bottom + USER_STACK_SIZE;
+            process_inner.memory_set.insert_framed_area(
+                ustack_bottom.into(),
+                ustack_top.into(),
+                MapPermission::R | MapPermission::W | MapPermission::U,
+            );
+            // alloc trap_cx
+            let trap_cx_bottom = trap_cx_bottom_from_tid(self.tid);
+            let trap_cx_top = trap_cx_bottom + PAGE_SIZE;
+            process_inner.memory_set.insert_framed_area(
+                trap_cx_bottom.into(),
+                trap_cx_top.into(),
+                MapPermission::R | MapPermission::W,
+            );
+        }
+    }
+
+``TaskUserRes`` 中记录了进程分配的 TID ，用来计算线程用户栈位置的 ``ustack_base`` 。我们还需要所属进程的弱引用，因为 ``TaskUserRes`` 中的资源都在进程控制块中，特别是其中的用户栈和 Trap 上下文需要在进程地址空间 ``MemorySet`` 中进行映射。因此我们需要进程控制块来完成实际的资源分配和回收。
+
+在使用 ``TaskUserRes::new`` 新建的时候进程控制块会分配一个 TID 用于初始化，但并不一定调用 ``TaskUserRes::alloc_user_res`` 在进程地址空间中实际对用户栈和 Trap 上下文进行映射，这要取决于 ``new`` 参数中的 ``alloc_user_res`` 是否为真。举例来说，在 ``fork`` 子进程并创建子进程的主线程的时候，就不必再分配一次用户栈和 Trap 上下文，因为子进程拷贝了父进程的地址空间，这些内容已经被映射过了。因此这个时候 ``alloc_user_res`` 为假。其他情况下则需要进行映射。
+
+当线程退出之后， ``TaskUserRes`` 会随着线程控制块一起被回收，意味着进程分配给它的资源也会被回收：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/id.rs
+
+    impl TaskUserRes {
+        fn dealloc_user_res(&self) {
+            // dealloc tid
+            let process = self.process.upgrade().unwrap();
+            let mut process_inner = process.inner_exclusive_access();
+            // dealloc ustack manually
+            let ustack_bottom_va: VirtAddr = ustack_bottom_from_tid(self.ustack_base, self.tid).into();
+            process_inner
+                .memory_set
+                .remove_area_with_start_vpn(ustack_bottom_va.into());
+            // dealloc trap_cx manually
+            let trap_cx_bottom_va: VirtAddr = trap_cx_bottom_from_tid(self.tid).into();
+            process_inner
+                .memory_set
+                .remove_area_with_start_vpn(trap_cx_bottom_va.into());
+        }
+        pub fn dealloc_tid(&self) {
+            let process = self.process.upgrade().unwrap();
+            let mut process_inner = process.inner_exclusive_access();
+            process_inner.dealloc_tid(self.tid);
+        }
+    }
+
+    impl Drop for TaskUserRes {
+        fn drop(&mut self) {
+            self.dealloc_tid();
+            self.dealloc_user_res();
+        }
+    }
+
+可以看到我们依次调用 ``dealloc_tid`` 和 ``dealloc_user_res`` 使进程控制块回收掉当前 TID 并在进程地址空间中解映射线程用户栈和 Trap 上下文。
+
+接下来是内核栈 ``KernelStack`` 。与之前一样它是从内核高地址空间的跳板页下面开始分配，每两个内核栈中间用一个保护页隔开，因此总体地址空间布局和之前相同。不同的则是它的位置不再与 PID 或者 TID 挂钩，而是与一种新的内核栈标识符有关。我们需要新增一个名为 ``KSTACK_ALLOCATOR`` 的通用资源分配器来对内核栈标识符进行分配。
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/task/id.rs
+
+    lazy_static! {
+        static ref KSTACK_ALLOCATOR: UPSafeCell<RecycleAllocator> =
+            unsafe { UPSafeCell::new(RecycleAllocator::new()) };
+    }
+
+    pub struct KernelStack(pub usize);
+
+    /// Return (bottom, top) of a kernel stack in kernel space.
+    pub fn kernel_stack_position(kstack_id: usize) -> (usize, usize) {
+        let top = TRAMPOLINE - kstack_id * (KERNEL_STACK_SIZE + PAGE_SIZE);
+        let bottom = top - KERNEL_STACK_SIZE;
+        (bottom, top)
+    }
+
+    pub fn kstack_alloc() -> KernelStack {
+        let kstack_id = KSTACK_ALLOCATOR.exclusive_access().alloc();
+        let (kstack_bottom, kstack_top) = kernel_stack_position(kstack_id);
+        KERNEL_SPACE.exclusive_access().insert_framed_area(
+            kstack_bottom.into(),
+            kstack_top.into(),
+            MapPermission::R | MapPermission::W,
+        );
+        KernelStack(kstack_id)
+    }
+
+    impl Drop for KernelStack {
+        fn drop(&mut self) {
+            let (kernel_stack_bottom, _) = kernel_stack_position(self.0);
+            let kernel_stack_bottom_va: VirtAddr = kernel_stack_bottom.into();
+            KERNEL_SPACE
+                .exclusive_access()
+                .remove_area_with_start_vpn(kernel_stack_bottom_va.into());
+        }
+    }
+
+``KSTACK_ALLOCATOR`` 分配/回收的是内核栈标识符 ``kstack_id`` ，基于它可以用 ``kernel_stack_position`` 函数计算出内核栈在内核地址空间中的位置。进而， ``kstack_alloc`` 和 ``KernelStack::drop`` 分别在内核地址空间中通过映射/解映射完成内核栈的分配和回收。
+
+于是，我们就将通用资源分配器和三种软硬件资源的分配和回收机制介绍完了，这也是线程机制中最关键的一个部分。
 
 线程控制块
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
