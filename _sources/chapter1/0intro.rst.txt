@@ -103,11 +103,13 @@ LibOS操作系统的总体结构如下图所示：
 
 .. image:: ../../os-lectures/lec2/figs/lib-os-detail.png
    :align: center
-   :scale: 40 %
+   :scale: 30 %
    :name: lib-os-detail
    :alt: LibOS总体结构
 
 通过上图，大致可以看出Qemu把包含app和LibOS的image镜像加载到内存中，RustSBI（bootloader）完成基本的硬件初始化后，跳转到LibOS起始位置，LibOS首先进行app执行前的初始化工作，即建立栈空间和清零bss段，然后跳转到app去执行。app在执行过程中，会通过函数调用的方式得到LibOS提供的OS服务，如输出字符串等，避免了app与硬件直接交互的繁琐过程。
+
+注: 图中的S-Mode和M-Mode是RISC-V 处理器架构中的两种特权级别。S-Mode 指的是 Supervisor 模式，是操作系统使用的特权级别，可执行特权指令等。M-Mode是 Machine模式，其特权级别比S-Mode还高，可以访问RISC-V处理器中的所有系统资源。关于特权级的进一步描述可以看第二章的  :doc:`../chapter2/1rv-privilege` 中的详细说明。
 
 LibOS操作系统的源代码如下所示：
 
