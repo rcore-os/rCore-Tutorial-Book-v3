@@ -107,6 +107,8 @@ LibOS操作系统的总体结构如下图所示：
    :name: lib-os-detail
    :alt: LibOS总体结构
 
+通过上图，大致可以看出Qemu把包含app和LibOS的image镜像加载到内存中，RustSBI（bootloader）完成基本的硬件初始化后，跳转到LibOS起始位置，LibOS首先进行app执行前的初始化工作，即建立栈空间和清零bss段，然后跳转到app去执行。app在执行过程中，会通过函数调用的方式得到LibOS提供的OS服务，如输出字符串等，避免了app与硬件直接交互的繁琐过程。
+
 LibOS操作系统的源代码如下所示：
 
 .. code-block::
