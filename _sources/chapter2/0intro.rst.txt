@@ -167,7 +167,7 @@ BatchOS操作系统的总体结构如下图所示：
 
 通过上图，大致可以看出Qemu把包含多个app的列表和BatchOS的image镜像加载到内存中，RustSBI（bootloader）完成基本的硬件初始化后，跳转到BatchOS起始位置，BatchOS首先进行正常运行前的初始化工作，即建立栈空间和清零bss段，然后通过 `AppManager` 内核模块从app列表中依次加载各个app到指定的内存中在用户态执行。app在执行过程中，会通过系统调用的方式得到BatchOS提供的OS服务，如输出字符串等。
 
-LibOS操作系统的源代码如下所示：
+BatchOS操作系统的源代码如下所示：
 
 .. code-block::
 
