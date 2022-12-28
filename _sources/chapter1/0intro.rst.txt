@@ -107,6 +107,8 @@ LibOS操作系统的总体结构如下图所示：
    :name: lib-os-detail
    :alt: LibOS总体结构
 
+LibOS操作系统的源代码如下所示：
+
 .. code-block::
 
    ./os/src
