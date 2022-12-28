@@ -171,6 +171,30 @@
 本章代码树
 --------------------------------------
 
+伤齿龙操作系统 -- ProcessOS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec7/figs/process-os-detail.png
+   :align: center
+   :scale: 30 %
+   :name: process-os-detail
+   :alt: 伤齿龙操作系统 - Address Space OS总体结构
+
+通过上图，大致可以看出伤齿龙操作系统 -- ProcessOS在内部结构上没有特别大的改动，但把任务抽象进化成了进程抽象，其主要改动集中在进程管理的功能上，即通过提供新的系统调用服务：sys_fork(创建子进程)、sys_waitpid(等待子进程结束并回收子进程资源)、sys_exec（用新的应用内容覆盖当前进程，即达到执行新应用的目的）。为了让用户能够输入命令或执行程序的名字，ProcessOS还增加了一个 `read` 系统调用服务，这样用户通过操作系统的命令行接口 -- 新添加的 `shell` 应用程序发出命令，来动态地执行各种新的应用，提高了用户与操作系统之间的交互能力。
+
+而由于有了进程的新抽象，需要对已有任务控制块进行重构，ProcessOS中与进程相关的核心数据结构如下图所示：
+
+.. image:: ../../os-lectures/lec7/figs/process-os-key-structures.png
+   :align: center
+   :scale: 10 %
+   :name: process-os-key-structures
+   :alt: 进程相关的核心数据结构
+
+
+从上图可知，进程控制块 ``TaskControlBlock`` 包含与进程运行/切换/调度/地址空间相关的各种资源和信息。以前的任务管理器 ``TaskManager`` 分离为处理器管理结构 ``Processor`` 和新的 ``TaskManager`` 。 ``Processor`` 负责管理 CPU 上正在执行的任务和一些相关信息；而新的任务管理器 ``TaskManager`` 仅负责管理没在执行的所有任务，以及各种新的进程管理相关的系统调用服务。
+
+
+位于 ``ch5`` 分支上的伤齿龙操作系统 - ProcessOS的源代码如下所示：
+
 .. code-block::
     :linenos:
 

@@ -158,7 +158,6 @@
 <ul class="current">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="../chapter0/0intro.html">引言</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../chapter0/0intro.html#id10">本书章节导引</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../chapter0/1what-is-os.html">什么是操作系统</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
 </ul>
 </li>
@@ -502,6 +501,13 @@ Rust user shell
 </div>
 <div class="section" id="id7">
 <h2>本章代码树<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h2>
+<p>伤齿龙操作系统 – ProcessOS的总体结构如下图所示：</p>
+<a class="reference internal image-reference" href="../_images/process-os-detail.png" id="process-os-detail"><img alt="伤齿龙操作系统 - Address Space OS总体结构" class="align-center" id="process-os-detail" src="../_images/process-os-detail.png" style="width: 883.8px; height: 615.9px;" /></a>
+<p>通过上图，大致可以看出伤齿龙操作系统 – ProcessOS在内部结构上没有特别大的改动，但把任务抽象进化成了进程抽象，其主要改动集中在进程管理的功能上，即通过提供新的系统调用服务：sys_fork(创建子进程)、sys_waitpid(等待子进程结束并回收子进程资源)、sys_exec（用新的应用内容覆盖当前进程，即达到执行新应用的目的）。为了让用户能够输入命令或执行程序的名字，ProcessOS还增加了一个 <cite>read</cite> 系统调用服务，这样用户通过操作系统的命令行接口 – 新添加的 <cite>shell</cite> 应用程序发出命令，来动态地执行各种新的应用，提高了用户与操作系统之间的交互能力。</p>
+<p>而由于有了进程的新抽象，需要对已有任务控制块进行重构，ProcessOS中与进程相关的核心数据结构如下图所示：</p>
+<a class="reference internal image-reference" href="../_images/process-os-key-structures.png" id="process-os-key-structures"><img alt="进程相关的核心数据结构" class="align-center" id="process-os-key-structures" src="../_images/process-os-key-structures.png" style="width: 653.0px; height: 524.9px;" /></a>
+<p>从上图可知，进程控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 包含与进程运行/切换/调度/地址空间相关的各种资源和信息。以前的任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 分离为处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 和新的 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 。 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 负责管理 CPU 上正在执行的任务和一些相关信息；而新的任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 仅负责管理没在执行的所有任务，以及各种新的进程管理相关的系统调用服务。</p>
+<p>位于 <code class="docutils literal notranslate"><span class="pre">ch5</span></code> 分支上的伤齿龙操作系统 - ProcessOS的源代码如下所示：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>./os/src
 <span class="linenos"> 2</span>Rust        28 Files    1848 Lines
 <span class="linenos"> 3</span>Assembly     3 Files      86 Lines
