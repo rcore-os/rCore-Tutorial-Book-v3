@@ -392,8 +392,8 @@
 </div>
 <div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
-<p>承接上一节，本节我们将实践在 Qemu 上执行内核第一条指令。首先我们编写内核第一条指令并嵌入到我们的内核项目中，接着指定内核的内存布局使得我们的内核可以正确对接到 Qemu 中。由于 Qemu 的文件加载功能过于简单，它不支持完整的可执行文件，因此我们从内核可执行文件中剥离多余的元数据得到内核镜像并提供给 Qemu 。最后，我们使用 GDB 来跟踪 Qemu 的整个启动流程并验证内核的第一条指令被正确执行。</p>
-<p>提示：在进入本节之前请参考 <a class="reference internal" href="../chapter0/5setup-devel-env.html"><span class="doc">实验环境配置</span></a> 安装配置 Rust 相关软件包和 GDB 调试工具。</p>
+<p>承接上一节，本节我们将实践在 Qemu 上执行内核的第一条指令。首先我们编写内核第一条指令并嵌入到我们的内核项目中，接着指定内核的内存布局使得我们的内核可以正确对接到 Qemu 中。由于 Qemu 的文件加载功能过于简单，它不支持完整的可执行文件，因此我们从内核可执行文件中剥离多余的元数据得到内核镜像并提供给 Qemu 。最后，我们使用 GDB 来跟踪 Qemu 的整个启动流程并验证内核的第一条指令被正确执行。</p>
+<p>提示：在进入本节之前请参考 <a class="reference internal" href="../chapter0/5setup-devel-env.html"><span class="doc">实验环境配置</span></a> 安装配置 Rust 相关软件包、Qemu软件和 GDB 调试工具等。</p>
 </div>
 <div class="section" id="id3">
 <h2>编写内核第一条指令<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
@@ -417,11 +417,11 @@
 <span class="hll"><span class="linenos">8</span><span class="fm">global_asm!</span><span class="p">(</span><span class="fm">include_str!</span><span class="p">(</span><span class="s">&quot;entry.asm&quot;</span><span class="p">));</span><span class="w"></span>
 </span></pre></div>
 </div>
-<p>第 8 行，我们通过 <code class="docutils literal notranslate"><span class="pre">include_str!</span></code> 宏将同目录下的汇编代码 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 转化为字符串并通过 <code class="docutils literal notranslate"><span class="pre">global_asm!</span></code> 宏嵌入到代码中。可以看到，在经历了长时间的迭代之后， <code class="docutils literal notranslate"><span class="pre">global_asm!</span></code> 宏已被加入到 Rust 核心库 core 中。</p>
+<p>第 8 行，我们通过 <code class="docutils literal notranslate"><span class="pre">include_str!</span></code> 宏将同目录下的汇编代码 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 转化为字符串并通过 <code class="docutils literal notranslate"><span class="pre">global_asm!</span></code> 宏嵌入到代码中。</p>
 </div>
 <div class="section" id="id4">
 <h2>调整内核的内存布局<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
-<p id="term-linker-script">由于链接器默认的内存布局并不能符合我们的要求，为了实现与 Qemu 的正确对接，我们可以通过 <strong>链接脚本</strong> (Linker Script) 调整链接器的行为，使得最终生成的可执行文件的内存布局符合我们的预期。我们修改 Cargo 的配置文件来使用我们自己的链接脚本 <code class="docutils literal notranslate"><span class="pre">os/src/linker.ld</span></code> 而非使用默认的内存布局：</p>
+<p id="term-linker-script">由于链接器默认的内存布局并不能符合我们的要求，为了实现与 Qemu 正确对接，我们可以通过 <strong>链接脚本</strong> (Linker Script) 调整链接器的行为，使得最终生成的可执行文件的内存布局符合Qemu的预期，即内核第一条指令的地址应该位于 <cite>0x80200000</cite> 。我们修改 Cargo 的配置文件来使用我们自己的链接脚本 <code class="docutils literal notranslate"><span class="pre">os/src/linker.ld</span></code> 而非使用默认的内存布局：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span> <span class="o">//</span> <span class="n">os</span><span class="o">/.</span><span class="n">cargo</span><span class="o">/</span><span class="n">config</span>
 <span class="linenos">2</span> <span class="p">[</span><span class="n">build</span><span class="p">]</span>
 <span class="linenos">3</span> <span class="n">target</span> <span class="o">=</span> <span class="s2">&quot;riscv64gc-unknown-none-elf&quot;</span>
@@ -484,7 +484,7 @@
 </pre></div>
 </div>
 <p>第 1 行我们设置了目标平台为 riscv ；第 2 行我们设置了整个程序的入口点为之前定义的全局符号 <code class="docutils literal notranslate"><span class="pre">_start</span></code>；</p>
-<p>第 3 行定义了一个常量 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 为 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> ，也就是我们之前提到的初始化代码被放置的地址；</p>
+<p>第 3 行定义了一个常量 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 为 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> ，也就是我们之前提到内核的初始化代码被放置的地址；</p>
 <p>从第 5 行开始体现了链接过程中对输入的目标文件的段的合并。其中 <code class="docutils literal notranslate"><span class="pre">.</span></code> 表示当前地址，也就是链接器会从它指向的位置开始往下放置从输入的目标文件中收集来的段。我们可以对 <code class="docutils literal notranslate"><span class="pre">.</span></code> 进行赋值来调整接下来的段放在哪里，也可以创建一些全局符号赋值为 <code class="docutils literal notranslate"><span class="pre">.</span></code> 从而记录这一时刻的位置。我们还能够看到这样的格式：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">.</span><span class="n">rodata</span> <span class="p">:</span> <span class="p">{</span>
     <span class="o">*</span><span class="p">(</span><span class="o">.</span><span class="n">rodata</span><span class="p">)</span>
@@ -510,8 +510,8 @@
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>静态链接与动态链接</strong></p>
-<p>静态链接是指程序在编译时就将所有用到的函数库的目标文件链接到可执行文件中，这样会导致可执行文件容量较大，占用硬盘空间；而动态链接是指程序在编译时仅在可执行文件中记录用到哪些函数库和在这些函数库中用到了哪些符号，在操作系统执行该程序准备将可执行文件加载到内存时，操作系统会检查这些被记录的信息，将用到的函数库的代码和数据和程序一并加载到内存，并进行一些重定位工作。使用动态链接可以显著缩减可执行文件的容量，并使得程序不必在函数库更新后重新链接依然可用。</p>
-<p>根据以往的经验， Qemu 不支持在加载时动态链接，因此我们的内核采用静态链接进行编译。</p>
+<p>静态链接是指程序在编译时就将所有用到的函数库的目标文件链接到可执行文件中，这样会导致可执行文件容量较大，占用硬盘空间；而动态链接是指程序在编译时仅在可执行文件中记录用到哪些函数库和在这些函数库中用到了哪些符号，在操作系统执行该程序准备将可执行文件加载到内存时，操作系统会检查这些被记录的信息，将用到的函数库的代码和数据和程序一并加载到内存，并进行一些重定位工作，即对装入内存的目标程序中的指令或数据的内存地址进行修改，确保程序运行时能正确找到相关函数或数据。使用动态链接可以显著缩减可执行文件的容量，并使得程序不必在函数库更新后重新链接依然可用。</p>
+<p>根据以往的经验， Qemu 模拟的计算机不支持在加载时动态链接，因此我们的内核采用静态链接进行编译。</p>
 </div>
 </div>
 <div class="section" id="id5">
@@ -640,7 +640,7 @@
 <span class="gp">$</span><span class="nv">3</span> <span class="o">=</span> 0x0
 </pre></div>
 </div>
-<p>可以看到我们在 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 中编写的第一条指令可以在 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处找到。这里 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 是寄存器 <code class="docutils literal notranslate"><span class="pre">x1</span></code> 的别名， <code class="docutils literal notranslate"><span class="pre">p/d</span> <span class="pre">$x1</span></code> 可以以十进制打印寄存器 <code class="docutils literal notranslate"><span class="pre">x1</span></code> 的值，它的结果正确。最后，作为下一节的铺垫，我们可以检查此时栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 的值，可以发现它目前是 0 。下一节我们将设置好栈使得内核代码可以正常进行函数调用，随后将控制权转交给 Rust 代码。</p>
+<p>可以看到我们在 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 中编写的第一条指令可以在 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处找到。这里 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 是寄存器 <code class="docutils literal notranslate"><span class="pre">x1</span></code> 的别名， <code class="docutils literal notranslate"><span class="pre">p/d</span> <span class="pre">$x1</span></code> 可以以十进制打印寄存器 <code class="docutils literal notranslate"><span class="pre">x1</span></code> 的值，它的结果正确。最后，作为下一节的铺垫，我们可以检查此时栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 的值，可以发现它目前是 0 。下一节我们将设置好栈空间，使得内核代码可以正常进行函数调用，随后将控制权转交给 Rust 代码。</p>
 </div>
 </div>
 

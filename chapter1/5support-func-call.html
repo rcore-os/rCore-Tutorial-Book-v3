@@ -392,7 +392,7 @@
 </div>
 <div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
-<p>上一节我们成功在 Qemu 上执行了内核的第一条指令，它是我们在 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 中手写汇编代码得到的。然而，我们无论如何也不想仅靠手写汇编代码的方式编写我们的内核，绝大部分功能我们都想使用 Rust 语言来实现。不过为了将控制权转交给我们使用 Rust 语言编写的内核入口，我们确实需要手写若干行汇编代码。和之前一样，这些汇编代码放在 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 中并在控制权被转交给内核后最先被执行，但它们的功能会更加复杂：首先设置栈来在内核内使能函数调用，随后直接调用使用 Rust 编写的内核入口点，从而控制权便被移交给 Rust 代码。这就是构建“三叶虫”操作系统的第三个步骤。</p>
+<p>上一节我们成功在 Qemu 上执行了内核的第一条指令，它是我们在 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 中手写汇编代码得到的。然而，我们无论如何也不想仅靠手写汇编代码的方式编写我们的内核，绝大部分功能我们都想使用 Rust 语言来实现。不过为了将控制权转交给我们使用 Rust 语言编写的内核入口函数，我们确实需要手写若干行汇编代码进行一定的初始化工作。和之前一样，这些汇编代码放在 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 中，并在控制权被转交给内核相关函数前最先被执行，但它们的功能会更加复杂。首先需要设置栈空间，来在内核内使能函数调用，随后直接调用使用 Rust 编写的内核入口函数，从而控制权便被移交给 Rust 代码。这就是构建“三叶虫”操作系统的第三个步骤。</p>
 <p>在具体操作之前，我们首先会介绍很多函数调用和栈的背景知识。这些知识很重要，而且有一些思想会一直延续到后面的章节。但同时这些知识相对比较基础，因此我们在正式开始介绍之前给出了一个知识点清单，有一定基础的读者可以参照此清单进行选读。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
@@ -402,7 +402,9 @@
 <li><p>如何使得函数返回时能够跳转到调用该函数的下一条指令，即使该函数在代码中的多个位置被调用？</p></li>
 <li><p>对于一个函数而言，保证它调用某个子函数之前，以及该子函数返回到它之后（某些）通用寄存器的值保持不变有何意义？</p></li>
 <li><p>调用者函数和被调用者函数如何合作保证调用子函数前后寄存器内容保持不变？调用者保存和被调用者保存寄存器的保存与恢复各自由谁负责？它们暂时被保存在什么位置？它们于何时被保存和恢复（如函数的开场白/退场白）？</p></li>
-<li><p>在 RISC-V 架构上，调用者保存和被调用者保存寄存器如何划分（特别地，思考 sp 和 ra 是调用者还是被调用者保存寄存器？为什么？）？如何使用寄存器传递函数调用的参数和返回值？</p></li>
+<li><p>在 RISC-V 架构上，调用者保存和被调用者保存寄存器如何划分的？</p></li>
+<li><p><cite>sp</cite> 和 <cite>ra</cite> 是调用者还是被调用者保存寄存器，为什么这样约定？</p></li>
+<li><p>如何使用寄存器传递函数调用的参数和返回值？如果寄存器数量不够用了，如何传递函数调用的参数？</p></li>
 </ul>
 </div>
 </div>
@@ -413,9 +415,9 @@
 <p id="term-function-call">另一种控制流结构则显得更为复杂： <strong>函数调用</strong> (Function Call)。我们大概清楚调用函数整个过程中代码执行的顺序，如果是从源代码级的视角来看，我们会去执行被调用函数的代码，等到它返回之后，我们会回到调用函数对应语句的下一行继续执行。那么我们如何用汇编指令来实现这一过程？首先在调用的时候，需要有一条指令跳转到被调用函数的位置，这个看起来和其他控制结构没什么不同；但是在被调用函数返回的时候，我们却需要返回那条跳转过来的指令的下一条继续执行。这次用来返回的跳转究竟跳转到何处，在对应的函数调用发生之前是不知道的。比如，我们在两个不同的地方调用同一个函数，显然函数返回之后会回到不同的地址。这是一个很大的不同：其他控制流都只需要跳转到一个 <em>编译期固定下来</em> 的地址，而函数调用的返回跳转是跳转到一个 <em>运行时确定</em> （确切地说是在函数调用发生的时候）的地址。</p>
 <img alt="../_images/function-call.png" class="align-center" id="function-call" src="../_images/function-call.png" />
 <p>对此，指令集必须给用于函数调用的跳转指令一些额外的能力，而不只是单纯的跳转。在 RISC-V 架构上，有两条指令即符合这样的特征：</p>
-<div class="table-wrapper colwidths-given docutils container" id="id8">
-<table class="colwidths-given docutils align-center" id="id8">
-<caption><span class="caption-text">RISC-V 函数调用跳转指令</span><a class="headerlink" href="#id8" title="永久链接至表格">#</a></caption>
+<div class="table-wrapper colwidths-given docutils container" id="id7">
+<table class="colwidths-given docutils align-center" id="id7">
+<caption><span class="caption-text">RISC-V 函数调用跳转指令</span><a class="headerlink" href="#id7" title="永久链接至表格">#</a></caption>
 <colgroup>
 <col style="width: 40%" />
 <col style="width: 60%" />
@@ -444,7 +446,7 @@
 <p><strong>RISC-V 指令各部分含义</strong></p>
 <p>在大多数只与通用寄存器打交道的指令中， rs 表示 <strong>源寄存器</strong> (Source Register)， imm 表示 <strong>立即数</strong> (Immediate)，是一个常数，二者构成了指令的输入部分；而 rd 表示 <strong>目标寄存器</strong> (Destination Register)，它是指令的输出部分。rs 和 rd 可以在 32 个通用寄存器 x0~x31 中选取。但是这三个部分都不是必须的，某些指令只有一种输入类型，另一些指令则没有输出部分。</p>
 </div>
-<p id="term-pseudo-instruction">从中可以看出，这两条指令在设置 pc 寄存器完成跳转功能之前，还将当前跳转指令的下一条指令地址保存在 rd 寄存器中，即 <span class="math notranslate nohighlight">\(\text{rd}\leftarrow\text{pc}+4\)</span> 这条指令的含义。（这里假设所有指令的长度均为 4 字节）在 RISC-V 架构中，通常使用 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 寄存器（即 <code class="docutils literal notranslate"><span class="pre">x1</span></code> 寄存器）作为其中的 <code class="docutils literal notranslate"><span class="pre">rd</span></code> 对应的具体寄存器，因此在函数返回的时候，只需跳转回 <code class="docutils literal notranslate"><span class="pre">ra</span></code>  所保存的地址即可。事实上在函数返回的时候我们常常使用一条 <strong>伪指令</strong> (Pseudo Instruction) 跳转回调用之前的位置： <code class="docutils literal notranslate"><span class="pre">ret</span></code> 。它会被汇编器翻译为 <code class="docutils literal notranslate"><span class="pre">jalr</span> <span class="pre">x0,</span> <span class="pre">0(x1)</span></code>，含义为跳转到寄存器 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 保存的物理地址，由于 <code class="docutils literal notranslate"><span class="pre">x0</span></code> 是一个恒为 <code class="docutils literal notranslate"><span class="pre">0</span></code> 的寄存器，在 <code class="docutils literal notranslate"><span class="pre">rd</span></code> 中保存这一步被省略。</p>
+<p id="term-pseudo-instruction">从中可以看出，这两条指令在设置 pc 寄存器完成跳转功能之前，还将当前跳转指令的下一条指令地址保存在 rd 寄存器中，即 <span class="math notranslate nohighlight">\(\text{rd}\leftarrow\text{pc}+4\)</span> 这条指令的含义。（这里假设所有指令的长度均为 4 字节）在 RISC-V 架构中，通常使用 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 寄存器（即 <code class="docutils literal notranslate"><span class="pre">x1</span></code> 寄存器）作为其中的 <code class="docutils literal notranslate"><span class="pre">rd</span></code> 对应的具体寄存器，因此在函数返回的时候，只需跳转回 <code class="docutils literal notranslate"><span class="pre">ra</span></code>  所保存的地址即可。事实上在函数返回的时候我们常常使用一条 <strong>汇编伪指令</strong> (Pseudo Instruction) 跳转回调用之前的位置： <code class="docutils literal notranslate"><span class="pre">ret</span></code> 。它会被汇编器翻译为 <code class="docutils literal notranslate"><span class="pre">jalr</span> <span class="pre">x0,</span> <span class="pre">0(x1)</span></code>，含义为跳转到寄存器 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 保存的物理地址，由于 <code class="docutils literal notranslate"><span class="pre">x0</span></code> 是一个恒为 <code class="docutils literal notranslate"><span class="pre">0</span></code> 的寄存器，在 <code class="docutils literal notranslate"><span class="pre">rd</span></code> 中保存这一步被省略。</p>
 <p>总结一下，在进行函数调用的时候，我们通过 <code class="docutils literal notranslate"><span class="pre">jalr</span></code> 指令保存返回地址并实现跳转；而在函数即将返回的时候，则通过 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 伪指令回到跳转之前的下一条指令继续执行。这样，RISC-V 的这两条指令就实现了函数调用流程的核心机制。</p>
 <p>由于我们是在 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 寄存器中保存返回地址的，我们要保证它在函数执行的全程不发生变化，不然在 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 之后就会跳转到错误的位置。事实上编译器除了函数调用的相关指令之外确实基本上不使用 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 寄存器。也就是说，如果在函数中没有调用其他函数，那 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 的值不会变化，函数调用流程能够正常工作。但遗憾的是，在实际编写代码的时候我们常常会遇到函数 <strong>多层嵌套调用</strong> 的情形。我们很容易想象，如果函数不支持嵌套调用，那么编程将会变得多么复杂。如果我们试图在一个函数 <span class="math notranslate nohighlight">\(f\)</span> 中调用一个子函数，在跳转到子函数 <span class="math notranslate nohighlight">\(g\)</span> 的同时，ra 会被覆盖成这条跳转指令的下一条的地址，而 ra 之前所保存的函数 <span class="math notranslate nohighlight">\(f\)</span> 的返回地址将会 <cite>永久丢失</cite> 。</p>
 <p id="term-activation-record"><span id="term-function-context"></span>因此，若想正确实现嵌套函数调用的控制流，我们必须通过某种方式保证：在一个函数调用子函数的前后，<code class="docutils literal notranslate"><span class="pre">ra</span></code> 寄存器的值不能发生变化。但实际上，这并不仅仅局限于 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 一个寄存器，而是作用于所有的通用寄存器。这是因为，编译器是独立编译每个函数的，因此一个函数并不能知道它所调用的子函数修改了哪些寄存器。而站在一个函数的视角，在调用子函数的过程中某些寄存器的值被覆盖的确会对它接下来的执行产生影响。因此这是必要的。我们将由于函数调用，在控制流转移前后需要保持不变的寄存器集合称之为 <strong>函数调用上下文</strong> (Function Call Context) 。</p>
@@ -479,9 +481,9 @@
 <p><strong>RISC-V 架构上的 C 语言调用规范</strong></p>
 <p>RISC-V 架构上的 C 语言调用规范可以在 <a class="reference external" href="https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf">这里</a> 找到。
 它对通用寄存器的使用做出了如下约定：</p>
-<div class="table-wrapper colwidths-given docutils container" id="id9">
-<table class="colwidths-given docutils align-center" id="id9">
-<caption><span class="caption-text">RISC-V 寄存器功能分类</span><a class="headerlink" href="#id9" title="永久链接至表格">#</a></caption>
+<div class="table-wrapper colwidths-given docutils container" id="id8">
+<table class="colwidths-given docutils align-center" id="id8">
+<caption><span class="caption-text">RISC-V 寄存器功能分类</span><a class="headerlink" href="#id8" title="永久链接至表格">#</a></caption>
 <colgroup>
 <col style="width: 25%" />
 <col style="width: 25%" />
@@ -512,24 +514,24 @@
 <p>剩下的 5 个通用寄存器情况如下：</p>
 <ul class="simple">
 <li><p>zero( <code class="docutils literal notranslate"><span class="pre">x0</span></code> ) 之前提到过，它恒为零，函数调用不会对它产生影响；</p></li>
-<li><p>ra( <code class="docutils literal notranslate"><span class="pre">x1</span></code> ) 是被调用者保存的。被调用者函数可能也会调用函数，在调用之前就需要修改 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 使得这次调用能正确返回。因此，每个函数都需要在开头保存 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 到自己的栈帧中，并在结尾使用 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 返回之前将其恢复。</p></li>
-<li><p>sp( <code class="docutils literal notranslate"><span class="pre">x2</span></code> ) 是被调用者保存的。这个是之后就会提到的栈指针 (Stack Pointer) 寄存器。</p></li>
-<li><p>fp( <code class="docutils literal notranslate"><span class="pre">s0</span></code> )，它既可作为s0临时寄存器，也可作为栈帧指针（Frame Pointer）寄存器，表示当前栈帧的起始位置，是一个被调用者保存寄存器。</p></li>
+<li><p>ra( <code class="docutils literal notranslate"><span class="pre">x1</span></code> ) 是被调用者保存的。被调用者函数可能也会调用函数，在调用之前就需要修改 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 使得这次调用能正确返回。因此，每个函数都需要在开头保存 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 到自己的栈帧中，并在结尾使用 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 返回之前将其恢复。栈帧是当前执行函数用于存储局部变量和函数返回信息的内存结构。</p></li>
+<li><p>sp( <code class="docutils literal notranslate"><span class="pre">x2</span></code> ) 是被调用者保存的。这个是之后就会提到的栈指针 (Stack Pointer) 寄存器，它指向下一个将要被存储的栈顶位置。</p></li>
+<li><p>fp( <code class="docutils literal notranslate"><span class="pre">s0</span></code> )，它既可作为s0临时寄存器，也可作为栈帧指针（Frame Pointer）寄存器，表示当前栈帧的起始位置，是一个被调用者保存寄存器。fp 指向的栈帧起始位置 和 sp 指向的栈帧的当前栈顶位置形成了所对应函数栈帧的空间范围。</p></li>
 <li><p>gp( <code class="docutils literal notranslate"><span class="pre">x3</span></code> ) 和 tp( <code class="docutils literal notranslate"><span class="pre">x4</span></code> ) 在一个程序运行期间都不会变化，因此不必放在函数调用上下文中。它们的用途在后面的章节会提到。</p></li>
 </ul>
-<p>更加详细的内容可以参考 Cornell 大学的 <a class="reference external" href="http://www.cs.cornell.edu/courses/cs3410/2019sp/schedule/slides/10-calling-notes-bw.pdf">课件内容</a> 。</p>
+<p>更加详细的内容可以参考 Cornell 大学的 <a class="reference external" href="http://www.cs.cornell.edu/courses/cs3410/2019sp/schedule/slides/10-calling-notes-bw.pdf">CS 3410: Computer System Organization and Programming 课件内容</a> 。</p>
 </div>
 <p id="term-stack-frame"><span id="term-stack-pointer"></span><span id="term-stack"></span>之前我们讨论了函数调用上下文的保存/恢复时机以及寄存器的选择，但我们并没有详细说明这些寄存器保存在哪里，只是用“内存中的一块区域”草草带过。实际上，它更确切的名字是 <strong>栈</strong> (Stack) 。  <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器常用来保存 <strong>栈指针</strong> (Stack Pointer)，它指向内存中栈顶地址。在 RISC-V 架构中，栈是从高地址向低地址增长的。在一个函数中，作为起始的开场代码负责分配一块新的栈空间，即将 <code class="docutils literal notranslate"><span class="pre">sp</span></code>
-的值减小相应的字节数即可，于是物理地址区间 <span class="math notranslate nohighlight">\([\text{新sp},\text{旧sp})\)</span> 对应的物理内存的一部分便可以被这个函数用来进行函数调用上下文的保存/恢复，这块物理内存被称为这个函数的 <strong>栈帧</strong> (Stackframe)。同理，函数中的结尾代码负责将开场代码分配的栈帧回收，这也仅仅需要将 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 的值增加相同的字节数回到分配之前的状态。这也可以解释为什么 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 是一个被调用者保存寄存器。</p>
+的值减小相应的字节数即可，于是物理地址区间 <span class="math notranslate nohighlight">\([\text{新sp},\text{旧sp})\)</span> 对应的物理内存的一部分便可以被这个函数用来进行函数调用上下文的保存/恢复，这块物理内存被称为这个函数的 <strong>栈帧</strong> (Stack Frame)。同理，函数中的结尾代码负责将开场代码分配的栈帧回收，这也仅仅需要将 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 的值增加相同的字节数回到分配之前的状态。这也可以解释为什么 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 是一个被调用者保存寄存器。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>栈帧 stack frame</strong></p>
-<p>我们知道程序在执行函数调用时，调用者函数和被调用函数使用的是同一个栈。在通常的情况下，我们并不需要区分调用者函数和被调用函数分别使用了栈的哪个部分。但是，当我们需要在执行过程中对函数调用进行调试或backtrace的时候，这一信息就很重要了。简单的说，栈帧（stack frame）就是一个函数所使用的栈的一部分区域，所有函数的栈帧串起来就组成了一个完整的栈。一般而言，当前执行函数的栈帧的两个边界分别由栈指针 (Stack Pointer)寄存器和栈帧指针（frame pointer）寄存器来限定。</p>
+<p>我们知道程序在执行函数调用时，调用者函数和被调用函数使用的是同一个栈。在通常的情况下，我们并不需要区分调用者函数和被调用函数分别使用了栈的哪个部分。但是，当我们需要在执行过程中对函数调用进行调试或backtrace的时候，这一信息就很重要了。简单的说，栈帧（stack frame）就是一个函数所使用的栈的一部分区域，所有函数的栈帧串起来就组成了一个完整的函数调用栈。一般而言，当前执行函数的栈帧的两个边界分别由栈指针 (Stack Pointer)寄存器和栈帧指针（frame pointer）寄存器来限定。</p>
 </div>
-<div class="figure align-center" id="id10">
+<div class="figure align-center" id="id9">
 <img alt="../_images/CallStack.png" src="../_images/CallStack.png" />
 <p class="caption"><span class="caption-text">函数调用与栈帧：如图所示，我们能够看到在程序依次调用 a、调用 b、调用 c、c 返回、b 返回整个过程中栈帧的分配/回收以及 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器的变化。
-图中标有 a/b/c 的块分别代表函数 a/b/c 的栈帧。</span><a class="headerlink" href="#id10" title="永久链接至图片">#</a></p>
+图中标有 a/b/c 的块分别代表函数 a/b/c 的栈帧。</span><a class="headerlink" href="#id9" title="永久链接至图片">#</a></p>
 </div>
 <div class="admonition note" id="term-lifo">
 <p class="admonition-title">注解</p>
@@ -538,9 +540,9 @@
 <p>我们这里的栈与数据结构中的栈原理相同，在很多方面可以一一对应。栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 可以对应到指向栈顶的指针，对于栈帧的分配/回收可以分别对应到 <code class="docutils literal notranslate"><span class="pre">push</span></code> / <code class="docutils literal notranslate"><span class="pre">pop</span></code> 操作。如果将我们的栈看成一个内存分配器，它之所以可以这么简单，是因为它回收的内存一定是 <em>最近一次分配</em> 的内存，从而只需要类似 <code class="docutils literal notranslate"><span class="pre">push</span></code> / <code class="docutils literal notranslate"><span class="pre">pop</span></code> 的两种操作即可。</p>
 </div>
 <p>在合适的编译选项设置之下，一个函数的栈帧内容可能如下图所示：</p>
-<div class="figure align-center" id="id11">
+<div class="figure align-center" id="id10">
 <img alt="../_images/StackFrame.png" src="../_images/StackFrame.png" />
-<p class="caption"><span class="caption-text">函数栈帧中的内容</span><a class="headerlink" href="#id11" title="永久链接至图片">#</a></p>
+<p class="caption"><span class="caption-text">函数栈帧中的内容</span><a class="headerlink" href="#id10" title="永久链接至图片">#</a></p>
 </div>
 <p>它的开头和结尾分别在 sp(x2) 和 fp(s0) 所指向的地址。按照地址从高到低分别有以下内容，它们都是通过 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 加上一个偏移量来访问的：</p>
 <ul class="simple">
@@ -588,7 +590,7 @@
 <p>至此，我们基本上说明了函数调用是如何基于栈来实现的。不过我们可以暂时先忽略掉这些细节，因为我们现在只是需要在初始化阶段完成栈的设置，也就是设置好栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器，编译器会帮我们自动完成后面的函数调用相关机制的代码生成。麻烦的是， <code class="docutils literal notranslate"><span class="pre">sp</span></code> 的值也不能随便设置，至少我们需要保证它指向合法的物理内存，而且不能与程序的其他代码、数据段相交，因为在函数调用的过程中，栈区域里面的内容会被修改。如何保证这一点呢？</p>
 </div>
 <div class="section" id="jump-practice">
-<span id="id7"></span><h2>分配并使用启动栈<a class="headerlink" href="#jump-practice" title="永久链接至标题">#</a></h2>
+<span id="id6"></span><h2>分配并使用启动栈<a class="headerlink" href="#jump-practice" title="永久链接至标题">#</a></h2>
 <p>我们在 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 中分配启动栈空间，并在控制权被转交给 Rust 入口之前将栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 设置为栈顶的位置。</p>
 <div class="highlight-asm notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1"># os/src/entry.asm</span>
 <span class="linenos"> 2</span>    <span class="na">.section</span> <span class="no">.text.entry</span>
@@ -618,7 +620,7 @@
 </pre></div>
 </div>
 <p>前面我们提到过 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段一般放置需要被初始化为零的数据。然而栈并不需要在使用前被初始化为零，因为在函数调用的时候我们会插入栈帧覆盖已有的数据。我们尝试将其放置到全局数据 <code class="docutils literal notranslate"><span class="pre">.data</span></code> 段中但最后未能成功，因此才决定将其放置到 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段中。全局符号 <code class="docutils literal notranslate"><span class="pre">sbss</span></code> 和 <code class="docutils literal notranslate"><span class="pre">ebss</span></code> 分别指向 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段除 <code class="docutils literal notranslate"><span class="pre">.bss.stack</span></code> 以外的起始和终止地址，我们在使用这部分数据之前需要将它们初始化为零，这个过程将在下一节进行。</p>
-<p>回到 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> ，可以发现在控制权转交给 Rust 入口之前会执行两条指令，它们分别位于 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 的第 5、6 行。第 5 行我们将栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 设置为先前分配的启动栈栈顶地址，这样 Rust 代码在进行函数调用和返回的时候就可以正常在启动栈上分配和回收栈帧了。在我们设计好的内存布局中，这块启动栈所用的内存并不会和内核的其他代码、数据段产生冲突，它们是从物理上隔离的。然而如果启动栈溢出（比如在内核代码中出现了死递归），那么分配的栈帧将有可能覆盖内核其他部分的代码、数据从而出现十分诡异的错误。目前我们只能尽量避免栈溢出的情况发生，到了第四章，借助地址空间抽象和 MMU 硬件的帮助，我们可以做到完全禁止栈溢出。第 6 行我们通过伪指令 <code class="docutils literal notranslate"><span class="pre">call</span></code> 调用 Rust 编写的内核入口点 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 将控制权转交给 Rust 代码，该入口点在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 中实现：</p>
+<p>回到 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> ，可以发现在控制权转交给 Rust 入口之前会执行两条指令，它们分别位于 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 的第 5、6 行。第 5 行我们将栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 设置为先前分配的启动栈栈顶地址，这样 Rust 代码在进行函数调用和返回的时候就可以正常在启动栈上分配和回收栈帧了。在我们设计好的内存布局中，这块启动栈所用的内存并不会和内核的其他代码、数据段产生冲突，它们是从物理上隔离的。然而如果启动栈溢出（比如在内核代码中出现了太多的函数调用），那么分配的栈帧将有可能覆盖内核其他部分的代码、数据从而出现十分诡异的错误。目前我们只能尽量避免栈溢出的情况发生，到了第四章，借助地址空间抽象和 MMU 硬件的帮助，我们可以做到完全禁止栈溢出。第 6 行我们通过伪指令 <code class="docutils literal notranslate"><span class="pre">call</span></code> 调用 Rust 编写的内核入口点 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 将控制权转交给 Rust 代码，该入口点在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 中实现：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
 <span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">rust_main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -626,8 +628,8 @@
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>这里需要注意的是需要通过宏将 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 标记为 <code class="docutils literal notranslate"><span class="pre">#[no_mangle]</span></code> 以避免编译器对它的名字进行混淆，不然在链接的时候， <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 将找不到 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 提供的外部符号 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 从而导致链接失败。在 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 函数的开场白中，我们将第一次在栈上分配栈帧并保存函数调用上下文，它也是内核运行全程最深的栈帧。</p>
-<p>我们顺便完成对 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的清零。这是内核很重要的一部分初始化工作，在使用任何被分配到 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的全局变量之前我们需要确保 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段已被清零。我们就在 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 的开头完成这一工作，由于控制权已经被转交给 Rust ，我们终于不用手写汇编代码而是可以用 Rust 来实现这一功能了：</p>
+<p>这里需要注意的是需要通过宏将 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 标记为 <code class="docutils literal notranslate"><span class="pre">#[no_mangle]</span></code> 以避免编译器对它的名字进行混淆，不然在链接的时候， <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 将找不到 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 提供的外部符号 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 从而导致链接失败。在 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 函数的开场白中，我们将第一次在栈上分配栈帧并保存函数调用上下文，它也是内核运行全程中最底层的栈帧。</p>
+<p>在内核初始化中，需要先完成对 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的清零。这是内核很重要的一部分初始化工作，在使用任何被分配到 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的全局变量之前我们需要确保 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段已被清零。我们就在 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 的开头完成这一工作，由于控制权已经被转交给 Rust ，我们终于不用手写汇编代码而是可以用 Rust 来实现这一功能了：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/main.rs</span>
 <span class="linenos"> 2</span><span class="cp">#[no_mangle]</span><span class="w"></span>
 <span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">rust_main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
