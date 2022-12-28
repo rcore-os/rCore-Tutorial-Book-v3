@@ -661,14 +661,15 @@
 
 于是，我们就将通用资源分配器和三种软硬件资源的分配和回收机制介绍完了，这也是线程机制中最关键的一个部分。
 
-线程控制块
+进程和线程控制块
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-在内核中，每个线程的执行状态和线程上下文等均保存在一个被称为任务控制块 (TCB, Task Control Block) 的结构中，它是内核对线程进行管理的核心数据结构。在内核看来，它就等价于一个线程。
-
+在引入线程机制之后，线程就代替进程成为了 CPU 资源的调度单位——任务。因此，代码执行有关的一些内容被分离到任务（线程）控制块中，其中包括线程状态、各类上下文和线程独占的一些资源等。线程控制块 ``TaskControlBlock`` 是内核对线程进行管理的核心数据结构。在内核看来，它就等价于一个线程。
 
 .. code-block:: rust
-   :linenos:
+    :linenos:
+
+    // os/src/task/task.rs
 
     pub struct TaskControlBlock {
         // immutable
@@ -686,42 +687,15 @@
         pub exit_code: Option<i32>,
     }
 
+线程控制块中的不变量有所属进程的弱引用和自身的内核栈。在可变的 inner 里面则保存了线程资源集合 ``TaskUserRes`` 和 Trap 上下文。任务上下文 ``TaskContext`` 仍然保留在线程控制块中，这样才能正常进行线程切换。此外，还有线程状态 ``TaskStatus`` 和线程退出码 ``exit_code`` 。
 
-线程控制块就是任务控制块（TaskControlBlock），主要包括在线程初始化之后就不再变化的元数据：线程所属的进程和线程的内核栈，以及在运行过程中可能发生变化的元数据： ``UPSafeCell<TaskControlBlockInner>`` 。大部分的细节放在 ``TaskControlBlockInner`` 中：
-
-之前进程中的定义不存在的：
-
-- ``res : TaskUserRes`` 指出了用户态的线程代码执行需要的信息，这些在线程初始化之后就不再变化：
+进程控制块中则保留进程内所有线程共享的资源：
 
 .. code-block:: rust
-   :linenos:
+    :linenos:
+    :emphasize-lines: 18, 19
 
-    pub struct TaskUserRes {
-        pub tid: usize,
-        pub ustack_base: usize,
-        pub process: Weak<ProcessControlBlock>,
-    }
-
-
-- tid：线程标识符
-- ustack_base：线程的栈顶地址
-- process：线程所属的进程
-
-与之前进程中的定义相同/类似的部分：
-
-- ``trap_cx_ppn`` 指出了应用地址空间中线程的 Trap 上下文被放在的物理页帧的物理页号。
-- ``task_cx`` 保存暂停线程的线程上下文，用于线程切换。
-- ``task_status`` 维护当前线程的执行状态。
-- ``exit_code`` 线程退出码。
-
-
-包含线程的进程控制块
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-把线程相关数据单独组织成数据结构后，进程的结构也需要进行一定的调整：
-
-.. code-block:: rust
-   :linenos:
+    // os/src/task/process.rs
 
     pub struct ProcessControlBlock {
         // immutable
@@ -731,19 +705,30 @@
     }
 
     pub struct ProcessControlBlockInner {
-        ...
+        pub is_zombie: bool,
+        pub memory_set: MemorySet,
+        pub parent: Option<Weak<ProcessControlBlock>>,
+        pub children: Vec<Arc<ProcessControlBlock>>,
+        pub exit_code: i32,
+        pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
+        pub signals: SignalFlags,
         pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
         pub task_res_allocator: RecycleAllocator,
+        ...
     }
 
-从中可以看出，进程把与处理器执行相关的部分都移到了 ``TaskControlBlock`` 中，并组织为一个线程控制块向量中，这就自然对应到多个线程的管理上了。而 ``RecycleAllocator`` 是对之前的 ``PidAllocator`` 的一个升级版，即一个相对通用的资源分配器，可用于分配进程标识符（PID）和线程的内核栈（KernelStack）。
+其中 ``pid`` 为进程标识符，它在进程创建后的整个生命周期中不再变化。可变的 inner 中的变化如下：
 
-.. chyyuu 加一个PidAllocator的链接???
+- 第 18 行在进程控制块里面设置一个向量保存进程下所有线程的任务控制块；
+- 第 19 行是进程为进程内的线程分配资源的通用资源分配器 ``RecycleAllocator`` 。
 
-线程与处理器管理结构
+任务管理器与处理器管理结构
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-线程管理的结构是线程管理器，即任务管理器，位于 ``os/src/task/manager.rs`` 中，其数据结构和方法与之前章节中进程的任务管理器完全一样，只不过管理单位从之前的任务（进程）换成了线程。而处理器管理结构 ``Processor`` 负责维护 CPU 状态、调度和特权级切换等事务。其数据结构与之前章节中进程的处理器管理结构完全一样。但在相关方法上面，由于多个线程有各自的用户栈和跳板页，所以有些不同，下面会进一步分析。
+任务管理器 ``TaskManager`` 和处理器管理结构 ``Processor`` 分别在 ``task/manager.rs`` 和 ``task/processor.rs`` 中。它们的接口和功能和之前基本上一致，但是由于任务控制块 ``TaskControlBlock`` 和进程控制块 ``ProcessControlBlock`` 和之前章节的语义不同，部分接口略有改动。
+
+
+.. 线程管理的结构是线程管理器，即任务管理器，位于 ``os/src/task/manager.rs`` 中，其数据结构和方法与之前章节中进程的任务管理器完全一样，只不过管理单位从之前的任务（进程）换成了线程。而处理器管理结构 ``Processor`` 负责维护 CPU 状态、调度和特权级切换等事务。其数据结构与之前章节中进程的处理器管理结构完全一样。但在相关方法上面，由于多个线程有各自的用户栈和跳板页，所以有些不同，下面会进一步分析。
 
 .. chyyuu 加一个taskmanager,processor的链接???
 

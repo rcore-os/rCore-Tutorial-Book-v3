@@ -941,86 +941,75 @@
 <p>于是，我们就将通用资源分配器和三种软硬件资源的分配和回收机制介绍完了，这也是线程机制中最关键的一个部分。</p>
 </div>
 <div class="section" id="id17">
-<h3>线程控制块<a class="headerlink" href="#id17" title="永久链接至标题">#</a></h3>
-<p>在内核中，每个线程的执行状态和线程上下文等均保存在一个被称为任务控制块 (TCB, Task Control Block) 的结构中，它是内核对线程进行管理的核心数据结构。在内核看来，它就等价于一个线程。</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 2</span><span class="w">     </span><span class="c1">// immutable</span>
-<span class="linenos"> 3</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">process</span>: <span class="nc">Weak</span><span class="o">&lt;</span><span class="n">ProcessControlBlock</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">kstack</span>: <span class="nc">KernelStack</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">     </span><span class="c1">// mutable</span>
-<span class="linenos"> 6</span><span class="w">     </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">TaskControlBlockInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 8</span>
-<span class="linenos"> 9</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">res</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">TaskUserRes</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_cx_ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">exit_code</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="kt">i32</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">15</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<h3>进程和线程控制块<a class="headerlink" href="#id17" title="永久链接至标题">#</a></h3>
+<p>在引入线程机制之后，线程就代替进程成为了 CPU 资源的调度单位——任务。因此，代码执行有关的一些内容被分离到任务（线程）控制块中，其中包括线程状态、各类上下文和线程独占的一些资源等。线程控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 是内核对线程进行管理的核心数据结构。在内核看来，它就等价于一个线程。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/task.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="c1">// immutable</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">process</span>: <span class="nc">Weak</span><span class="o">&lt;</span><span class="n">ProcessControlBlock</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">kstack</span>: <span class="nc">KernelStack</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="c1">// mutable</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">TaskControlBlockInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">10</span>
+<span class="linenos">11</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">res</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">TaskUserRes</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_cx_ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">exit_code</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="kt">i32</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">17</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>线程控制块就是任务控制块（TaskControlBlock），主要包括在线程初始化之后就不再变化的元数据：线程所属的进程和线程的内核栈，以及在运行过程中可能发生变化的元数据： <code class="docutils literal notranslate"><span class="pre">UPSafeCell&lt;TaskControlBlockInner&gt;</span></code> 。大部分的细节放在 <code class="docutils literal notranslate"><span class="pre">TaskControlBlockInner</span></code> 中：</p>
-<p>之前进程中的定义不存在的：</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">res</span> <span class="pre">:</span> <span class="pre">TaskUserRes</span></code> 指出了用户态的线程代码执行需要的信息，这些在线程初始化之后就不再变化：</p></li>
-</ul>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskUserRes</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">2</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">tid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">3</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">ustack_base</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">4</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">process</span>: <span class="nc">Weak</span><span class="o">&lt;</span><span class="n">ProcessControlBlock</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">5</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<p>线程控制块中的不变量有所属进程的弱引用和自身的内核栈。在可变的 inner 里面则保存了线程资源集合 <code class="docutils literal notranslate"><span class="pre">TaskUserRes</span></code> 和 Trap 上下文。任务上下文 <code class="docutils literal notranslate"><span class="pre">TaskContext</span></code> 仍然保留在线程控制块中，这样才能正常进行线程切换。此外，还有线程状态 <code class="docutils literal notranslate"><span class="pre">TaskStatus</span></code> 和线程退出码 <code class="docutils literal notranslate"><span class="pre">exit_code</span></code> 。</p>
+<p>进程控制块中则保留进程内所有线程共享的资源：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/process.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="c1">// immutable</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">pid</span>: <span class="nc">PidHandle</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="c1">// mutable</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">ProcessControlBlockInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">is_zombie</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">memory_set</span>: <span class="nc">MemorySet</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">parent</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Weak</span><span class="o">&lt;</span><span class="n">ProcessControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">children</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">ProcessControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">fd_table</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">signals</span>: <span class="nc">SignalFlags</span><span class="p">,</span><span class="w"></span>
+<span class="hll"><span class="linenos">18</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">tasks</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+</span><span class="hll"><span class="linenos">19</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_res_allocator</span>: <span class="nc">RecycleAllocator</span><span class="p">,</span><span class="w"></span>
+</span><span class="linenos">20</span><span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos">21</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
+<p>其中 <code class="docutils literal notranslate"><span class="pre">pid</span></code> 为进程标识符，它在进程创建后的整个生命周期中不再变化。可变的 inner 中的变化如下：</p>
 <ul class="simple">
-<li><p>tid：线程标识符</p></li>
-<li><p>ustack_base：线程的栈顶地址</p></li>
-<li><p>process：线程所属的进程</p></li>
-</ul>
-<p>与之前进程中的定义相同/类似的部分：</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">trap_cx_ppn</span></code> 指出了应用地址空间中线程的 Trap 上下文被放在的物理页帧的物理页号。</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">task_cx</span></code> 保存暂停线程的线程上下文，用于线程切换。</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">task_status</span></code> 维护当前线程的执行状态。</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">exit_code</span></code> 线程退出码。</p></li>
+<li><p>第 18 行在进程控制块里面设置一个向量保存进程下所有线程的任务控制块；</p></li>
+<li><p>第 19 行是进程为进程内的线程分配资源的通用资源分配器 <code class="docutils literal notranslate"><span class="pre">RecycleAllocator</span></code> 。</p></li>
 </ul>
 </div>
 <div class="section" id="id18">
-<h3>包含线程的进程控制块<a class="headerlink" href="#id18" title="永久链接至标题">#</a></h3>
-<p>把线程相关数据单独组织成数据结构后，进程的结构也需要进行一定的调整：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 2</span><span class="w">     </span><span class="c1">// immutable</span>
-<span class="linenos"> 3</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">pid</span>: <span class="nc">PidHandle</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">     </span><span class="c1">// mutable</span>
-<span class="linenos"> 5</span><span class="w">     </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">ProcessControlBlockInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 7</span>
-<span class="linenos"> 8</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">     </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">tasks</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">     </span><span class="k">pub</span><span class="w"> </span><span class="n">task_res_allocator</span>: <span class="nc">RecycleAllocator</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">12</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-</pre></div>
+<h3>任务管理器与处理器管理结构<a class="headerlink" href="#id18" title="永久链接至标题">#</a></h3>
+<p>任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 和处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 分别在 <code class="docutils literal notranslate"><span class="pre">task/manager.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">task/processor.rs</span></code> 中。它们的接口和功能和之前基本上一致，但是由于任务控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 和进程控制块 <code class="docutils literal notranslate"><span class="pre">ProcessControlBlock</span></code> 和之前章节的语义不同，部分接口略有改动。</p>
 </div>
-<p>从中可以看出，进程把与处理器执行相关的部分都移到了 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 中，并组织为一个线程控制块向量中，这就自然对应到多个线程的管理上了。而 <code class="docutils literal notranslate"><span class="pre">RecycleAllocator</span></code> 是对之前的 <code class="docutils literal notranslate"><span class="pre">PidAllocator</span></code> 的一个升级版，即一个相对通用的资源分配器，可用于分配进程标识符（PID）和线程的内核栈（KernelStack）。</p>
 </div>
 <div class="section" id="id19">
-<h3>线程与处理器管理结构<a class="headerlink" href="#id19" title="永久链接至标题">#</a></h3>
-<p>线程管理的结构是线程管理器，即任务管理器，位于 <code class="docutils literal notranslate"><span class="pre">os/src/task/manager.rs</span></code> 中，其数据结构和方法与之前章节中进程的任务管理器完全一样，只不过管理单位从之前的任务（进程）换成了线程。而处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 负责维护 CPU 状态、调度和特权级切换等事务。其数据结构与之前章节中进程的处理器管理结构完全一样。但在相关方法上面，由于多个线程有各自的用户栈和跳板页，所以有些不同，下面会进一步分析。</p>
-</div>
-</div>
-<div class="section" id="id20">
-<h2>线程管理机制的设计与实现<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h2>
+<h2>线程管理机制的设计与实现<a class="headerlink" href="#id19" title="永久链接至标题">#</a></h2>
 <p>在上述线程模型和内核数据结构的基础上，我们还需完成线程管理的基本实现，从而构造出一个完整的“达科塔盗龙”操作系统。本节将分析如何实现线程管理：</p>
 <ul class="simple">
 <li><p>线程创建、线程退出与等待线程结束</p></li>
 <li><p>线程执行中的特权级切换</p></li>
 <li><p>进程管理中与线程相关的处理</p></li>
 </ul>
+<div class="section" id="id20">
+<h3>线程创建、线程退出与等待线程结束<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h3>
 <div class="section" id="id21">
-<h3>线程创建、线程退出与等待线程结束<a class="headerlink" href="#id21" title="永久链接至标题">#</a></h3>
-<div class="section" id="id22">
-<h4>线程创建<a class="headerlink" href="#id22" title="永久链接至标题">#</a></h4>
+<h4>线程创建<a class="headerlink" href="#id21" title="永久链接至标题">#</a></h4>
 <p>当一个进程执行中发出了创建线程的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_thread_create</span></code> 后，操作系统就需要在当前进程的基础上创建一个线程了，这里重点是需要了解创建线程控制块，在线程控制块中初始化各个成员变量，建立好进程和线程的关系等。只有建立好这些成员变量，才能给线程建立一个灵活方便的执行环境。这里列出支持线程正确运行所需的重要的执行环境要素：</p>
 <ul class="simple">
 <li><p>线程的用户态栈：确保在用户态的线程能正常执行函数调用；</p></li>
@@ -1074,8 +1063,8 @@
 <li><p>第25~32行，初始化位于该线程在用户态地址空间中的 Trap 上下文：设置线程的函数入口点和用户栈，使得第一次进入用户态时能从线程起始位置开始正确执行；设置好内核栈和陷入函数指针 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> ，保证在 Trap 的时候用户态的线程能正确进入内核态。</p></li>
 </ul>
 </div>
-<div class="section" id="id23">
-<h4>线程退出<a class="headerlink" href="#id23" title="永久链接至标题">#</a></h4>
+<div class="section" id="id22">
+<h4>线程退出<a class="headerlink" href="#id22" title="永久链接至标题">#</a></h4>
 <p>当一个非主线程的其他线程发出 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 系统调用时，内核会调用 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 函数退出当前线程并切换到下一个线程，但不会导致其所属进程的退出。当 <code class="docutils literal notranslate"><span class="pre">主线程</span></code> 即进程发出这个系统调用，当内核收到这个系统调用后，会回收整个进程（这包括了其管理的所有线程）资源，并退出。具体实现如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
 <span class="linenos"> 2</span>
@@ -1144,8 +1133,8 @@
 </ul>
 <p>上述实现中很大一部分与第五章讲解的 <a class="reference internal" href="../chapter5/3implement-process-mechanism.html#process-exit"><span class="std std-ref">进程的退出</span></a> 的功能实现大致相同。</p>
 </div>
-<div class="section" id="id24">
-<h4>等待线程结束<a class="headerlink" href="#id24" title="永久链接至标题">#</a></h4>
+<div class="section" id="id23">
+<h4>等待线程结束<a class="headerlink" href="#id23" title="永久链接至标题">#</a></h4>
 <p>主线程通过系统调用 <code class="docutils literal notranslate"><span class="pre">sys_waittid</span></code> 来等待其他线程的结束。具体实现如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/thread.rs</span>
 <span class="linenos"> 2</span>
@@ -1187,8 +1176,8 @@
 </ul>
 </div>
 </div>
-<div class="section" id="id25">
-<h3>线程执行中的特权级切换和调度切换<a class="headerlink" href="#id25" title="永久链接至标题">#</a></h3>
+<div class="section" id="id24">
+<h3>线程执行中的特权级切换和调度切换<a class="headerlink" href="#id24" title="永久链接至标题">#</a></h3>
 <p>线程执行中的特权级切换与第三章中 <strong>任务切换的设计与实现</strong> 小节中讲解的过程是一致的。而线程执行中的调度切换过程与第五章的 <strong>进程调度机制</strong> 小节中讲解的过程是一致的。
 这里就不用再赘述一遍了。</p>
 <dl class="footnote brackets">
@@ -1275,19 +1264,18 @@
 </li>
 <li><a class="reference internal" href="#id15">线程管理的核心数据结构</a><ul>
 <li><a class="reference internal" href="#id16">通用资源分配器及线程相关的软硬件资源</a></li>
-<li><a class="reference internal" href="#id17">线程控制块</a></li>
-<li><a class="reference internal" href="#id18">包含线程的进程控制块</a></li>
-<li><a class="reference internal" href="#id19">线程与处理器管理结构</a></li>
+<li><a class="reference internal" href="#id17">进程和线程控制块</a></li>
+<li><a class="reference internal" href="#id18">任务管理器与处理器管理结构</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id20">线程管理机制的设计与实现</a><ul>
-<li><a class="reference internal" href="#id21">线程创建、线程退出与等待线程结束</a><ul>
-<li><a class="reference internal" href="#id22">线程创建</a></li>
-<li><a class="reference internal" href="#id23">线程退出</a></li>
-<li><a class="reference internal" href="#id24">等待线程结束</a></li>
+<li><a class="reference internal" href="#id19">线程管理机制的设计与实现</a><ul>
+<li><a class="reference internal" href="#id20">线程创建、线程退出与等待线程结束</a><ul>
+<li><a class="reference internal" href="#id21">线程创建</a></li>
+<li><a class="reference internal" href="#id22">线程退出</a></li>
+<li><a class="reference internal" href="#id23">等待线程结束</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id25">线程执行中的特权级切换和调度切换</a></li>
+<li><a class="reference internal" href="#id24">线程执行中的特权级切换和调度切换</a></li>
 </ul>
 </li>
 </ul>
