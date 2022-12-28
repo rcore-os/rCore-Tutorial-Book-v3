@@ -99,6 +99,14 @@
 本章代码树
 ------------------------------------------------
 
+LibOS操作系统的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec2/figs/lib-os-detail.png
+   :align: center
+   :scale: 40 %
+   :name: lib-os-detail
+   :alt: LibOS总体结构
+
 .. code-block::
 
    ./os/src
