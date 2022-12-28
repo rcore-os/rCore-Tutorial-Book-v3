@@ -982,39 +982,199 @@
 <span class="linenos">17</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">signals</span>: <span class="nc">SignalFlags</span><span class="p">,</span><span class="w"></span>
 <span class="hll"><span class="linenos">18</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">tasks</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span><span class="w"></span>
 </span><span class="hll"><span class="linenos">19</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_res_allocator</span>: <span class="nc">RecycleAllocator</span><span class="p">,</span><span class="w"></span>
-</span><span class="linenos">20</span><span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+</span><span class="linenos">20</span><span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="c1">// 其他同步互斥相关资源</span>
 <span class="linenos">21</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
 <p>其中 <code class="docutils literal notranslate"><span class="pre">pid</span></code> 为进程标识符，它在进程创建后的整个生命周期中不再变化。可变的 inner 中的变化如下：</p>
 <ul class="simple">
-<li><p>第 18 行在进程控制块里面设置一个向量保存进程下所有线程的任务控制块；</p></li>
+<li><p>第 18 行在进程控制块里面设置一个向量保存进程下所有线程的任务控制块。其布局与文件描述符表比较相似，可以看成一组可以拓展的线程控制块插槽；</p></li>
 <li><p>第 19 行是进程为进程内的线程分配资源的通用资源分配器 <code class="docutils literal notranslate"><span class="pre">RecycleAllocator</span></code> 。</p></li>
 </ul>
 </div>
 <div class="section" id="id18">
 <h3>任务管理器与处理器管理结构<a class="headerlink" href="#id18" title="永久链接至标题">#</a></h3>
-<p>任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 和处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 分别在 <code class="docutils literal notranslate"><span class="pre">task/manager.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">task/processor.rs</span></code> 中。它们的接口和功能和之前基本上一致，但是由于任务控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 和进程控制块 <code class="docutils literal notranslate"><span class="pre">ProcessControlBlock</span></code> 和之前章节的语义不同，部分接口略有改动。</p>
+<p>任务管理器 <code class="docutils literal notranslate"><span class="pre">TaskManager</span></code> 和处理器管理结构 <code class="docutils literal notranslate"><span class="pre">Processor</span></code> 分别在 <code class="docutils literal notranslate"><span class="pre">task/manager.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">task/processor.rs</span></code> 中。它们的接口和功能和之前基本上一致，但是由于任务控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 和进程控制块 <code class="docutils literal notranslate"><span class="pre">ProcessControlBlock</span></code> 和之前章节的语义不同，部分接口略有改动。让我们再总体回顾一下它们对外提供的接口：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/manager.rs</span>
+
+<span class="sd">/// 全局变量：</span>
+<span class="sd">/// 1. 全局任务管理器 TASK_MANAGER</span>
+<span class="sd">/// 2. 全局 PID-进程控制块映射 PID2TCB</span>
+
+<span class="sd">/// 将线程加入就绪队列</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">add_task</span><span class="p">(</span><span class="n">task</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">);</span><span class="w"></span>
+<span class="sd">/// 将线程移除出就绪队列</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">remove_task</span><span class="p">(</span><span class="n">task</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">);</span><span class="w"></span>
+<span class="sd">/// 从就绪队列中选出一个线程分配 CPU 资源</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">fetch_task</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="sd">/// 根据 PID 查询进程控制块</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">pid2process</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">ProcessControlBlock</span><span class="o">&gt;&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="sd">/// 增加一对 PID-进程控制块映射</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">insert_into_pid2process</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">process</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">ProcessControlBlock</span><span class="o">&gt;</span><span class="p">);</span><span class="w"></span>
+<span class="sd">/// 删除一对 PID-进程控制块映射</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">remove_from_pid2process</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+
+<span class="c1">// os/src/task/processor.rs</span>
+
+<span class="sd">/// 全局变量：当前处理器管理结构 PROCESSOR</span>
+
+<span class="sd">/// CPU 的调度主循环</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">run_tasks</span><span class="p">();</span><span class="w"></span>
+<span class="sd">/// 取出当前处理器正在执行的线程</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">take_current_task</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="sd">/// 当前线程控制块/进程控制块/进程地址空间satp/线程Trap上下文</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_task</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_process</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">ProcessControlBlock</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_user_token</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_trap_cx</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">TrapContext</span><span class="p">;</span><span class="w"></span>
+<span class="sd">/// 当前线程Trap上下文在进程地址空间中的地址</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_trap_cx_user_va</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="sd">/// 当前线程内核栈在内核地址空间中的地址</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_kstack_top</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="sd">/// 将当前线程的内核态上下文保存指定位置，并切换到调度主循环</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">schedule</span><span class="p">(</span><span class="n">switched_task_cx_ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">);</span><span class="w"></span>
+</pre></div>
+</div>
 </div>
 </div>
 <div class="section" id="id19">
 <h2>线程管理机制的设计与实现<a class="headerlink" href="#id19" title="永久链接至标题">#</a></h2>
-<p>在上述线程模型和内核数据结构的基础上，我们还需完成线程管理的基本实现，从而构造出一个完整的“达科塔盗龙”操作系统。本节将分析如何实现线程管理：</p>
+<p>在上述线程模型和内核数据结构的基础上，我们还需完成线程管理的基本实现，从而构造出一个完整的“达科塔盗龙”操作系统。这里将从如下几个角度分析如何实现线程管理：</p>
 <ul class="simple">
-<li><p>线程创建、线程退出与等待线程结束</p></li>
-<li><p>线程执行中的特权级切换</p></li>
-<li><p>进程管理中与线程相关的处理</p></li>
+<li><p>线程生命周期管理</p></li>
+<li><p>线程执行中的调度和特权级切换</p></li>
 </ul>
 <div class="section" id="id20">
-<h3>线程创建、线程退出与等待线程结束<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h3>
+<h3>线程生命周期管理<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h3>
+<p>线程生命周期管理包括线程从创建到退出的整个过程以及过程中的资源分配与回收。</p>
 <div class="section" id="id21">
 <h4>线程创建<a class="headerlink" href="#id21" title="永久链接至标题">#</a></h4>
-<p>当一个进程执行中发出了创建线程的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_thread_create</span></code> 后，操作系统就需要在当前进程的基础上创建一个线程了，这里重点是需要了解创建线程控制块，在线程控制块中初始化各个成员变量，建立好进程和线程的关系等。只有建立好这些成员变量，才能给线程建立一个灵活方便的执行环境。这里列出支持线程正确运行所需的重要的执行环境要素：</p>
+<p>线程创建有两种方式：第一种是在创建进程的时候默认为这个进程创建一个主线程（创建进程又分为若干种方式）；第二种是通过 <code class="docutils literal notranslate"><span class="pre">thread_create</span></code> 系统调用在当前进程内创建一个新的线程。</p>
+<p>创建进程的第一种方式是调用 <code class="docutils literal notranslate"><span class="pre">ProcessControlBlock::new</span></code> 创建初始进程 <code class="docutils literal notranslate"><span class="pre">INITPROC</span></code> ：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/process.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">ProcessControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">elf_data</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="nc">Arc</span><span class="o">&lt;</span><span class="bp">Self</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="c1">// memory_set with elf program headers/trampoline/trap context/user stack</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">memory_set</span><span class="p">,</span><span class="w"> </span><span class="n">ustack_base</span><span class="p">,</span><span class="w"> </span><span class="n">entry_point</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemorySet</span>::<span class="n">from_elf</span><span class="p">(</span><span class="n">elf_data</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="c1">// allocate a pid</span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">pid_handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pid_alloc</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="c1">// create PCB</span>
+<span class="linenos">10</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">..</span><span class="p">.;</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">        </span><span class="c1">// create a main thread, we should allocate ustack and trap_cx here</span>
+<span class="linenos">12</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskControlBlock</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">            </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">process</span><span class="p">),</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">            </span><span class="n">ustack_base</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">            </span><span class="kc">true</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">        </span><span class="p">));</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">        </span><span class="c1">// prepare trap_cx of main thread</span>
+<span class="linenos">18</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">ustack_top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">res</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">ustack_top</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">kstack_top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">kstack</span><span class="p">.</span><span class="n">get_top</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">        </span><span class="o">*</span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TrapContext</span>::<span class="n">app_init_context</span><span class="p">(</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">            </span><span class="n">entry_point</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">            </span><span class="n">ustack_top</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">            </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">token</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">            </span><span class="n">kstack_top</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">            </span><span class="n">trap_handler</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">        </span><span class="p">);</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">        </span><span class="c1">// add main thread to the process</span>
+<span class="linenos">31</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">task</span><span class="p">)));</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">process_inner</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">34</span><span class="w">        </span><span class="n">insert_into_pid2process</span><span class="p">(</span><span class="n">process</span><span class="p">.</span><span class="n">getpid</span><span class="p">(),</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">process</span><span class="p">));</span><span class="w"></span>
+<span class="linenos">35</span><span class="w">        </span><span class="c1">// add main thread to scheduler</span>
+<span class="linenos">36</span><span class="w">        </span><span class="n">add_task</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">37</span><span class="w">        </span><span class="n">process</span><span class="w"></span>
+<span class="linenos">38</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">39</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">40</span>
+<span class="linenos">41</span><span class="c1">// os/src/task/mod.rs</span>
+<span class="linenos">42</span>
+<span class="linenos">43</span><span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">44</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">INITPROC</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">ProcessControlBlock</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">45</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">inode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open_file</span><span class="p">(</span><span class="s">&quot;initproc&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">46</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inode</span><span class="p">.</span><span class="n">read_all</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">47</span><span class="w">        </span><span class="n">ProcessControlBlock</span>::<span class="n">new</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">as_slice</span><span class="p">())</span><span class="w"></span>
+<span class="linenos">48</span><span class="w">    </span><span class="p">};</span><span class="w"></span>
+<span class="linenos">49</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>其中的要点在于：</p>
+<ul class="simple">
+<li><p>第 10 和 12 行分别创建进程 PCB 和主线程的 TCB ；</p></li>
+<li><p>第 18~29 行获取所需的信息并填充主线程的 Trap 上下文；</p></li>
+<li><p>第 32 行将主线程插入到进程的线程列表中。因为此时该列表为空，只需直接 <code class="docutils literal notranslate"><span class="pre">push</span></code> 即可；</p></li>
+<li><p>第 34 行维护 PID-进程控制块映射。</p></li>
+<li><p>第 36 行将主线程加入到任务管理器使得它可以被调度。</p></li>
+</ul>
+<p>创建进程的第二种方式是 <code class="docutils literal notranslate"><span class="pre">fork</span></code> 出新进程：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/process.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">ProcessControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="sd">/// Only support processes with a single thread.</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">fork</span><span class="p">(</span><span class="bp">self</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="bp">Self</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Arc</span><span class="o">&lt;</span><span class="bp">Self</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">parent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">parent</span><span class="p">.</span><span class="n">thread_count</span><span class="p">(),</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="c1">// clone parent&#39;s memory_set completely including trampoline/ustacks/trap_cxs</span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">memory_set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemorySet</span>::<span class="n">from_existed_user</span><span class="p">(</span><span class="o">&amp;</span><span class="n">parent</span><span class="p">.</span><span class="n">memory_set</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">        </span><span class="c1">// alloc a pid</span>
+<span class="linenos">11</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pid_alloc</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">        </span><span class="c1">// copy fd table</span>
+<span class="linenos">13</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">new_fd_table</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">parent</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">            </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">        </span><span class="c1">// create child process pcb</span>
+<span class="linenos">18</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">..</span><span class="p">.;</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">        </span><span class="c1">// add child</span>
+<span class="linenos">20</span><span class="w">        </span><span class="n">parent</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">child</span><span class="p">));</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">        </span><span class="c1">// create main thread of child process</span>
+<span class="linenos">22</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskControlBlock</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">            </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">child</span><span class="p">),</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">            </span><span class="n">parent</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">                </span><span class="p">.</span><span class="n">get_task</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">                </span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">                </span><span class="p">.</span><span class="n">res</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">                </span><span class="p">.</span><span class="n">as_ref</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">                </span><span class="p">.</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">                </span><span class="p">.</span><span class="n">ustack_base</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">            </span><span class="c1">// here we do not allocate trap_cx or ustack again</span>
+<span class="linenos">32</span><span class="w">            </span><span class="c1">// but mention that we allocate a new kstack here</span>
+<span class="linenos">33</span><span class="w">            </span><span class="kc">false</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">34</span><span class="w">        </span><span class="p">));</span><span class="w"></span>
+<span class="linenos">35</span><span class="w">        </span><span class="c1">// attach task to child process</span>
+<span class="linenos">36</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">child_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">child</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">37</span><span class="w">        </span><span class="n">child_inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">task</span><span class="p">)));</span><span class="w"></span>
+<span class="linenos">38</span><span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">child_inner</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">39</span><span class="w">        </span><span class="c1">// modify kstack_top in trap_cx of this thread</span>
+<span class="linenos">40</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">41</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">42</span><span class="w">        </span><span class="n">trap_cx</span><span class="p">.</span><span class="n">kernel_sp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">kstack</span><span class="p">.</span><span class="n">get_top</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">43</span><span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">44</span><span class="w">        </span><span class="n">insert_into_pid2process</span><span class="p">(</span><span class="n">child</span><span class="p">.</span><span class="n">getpid</span><span class="p">(),</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">child</span><span class="p">));</span><span class="w"></span>
+<span class="linenos">45</span><span class="w">        </span><span class="c1">// add this thread to scheduler</span>
+<span class="linenos">46</span><span class="w">        </span><span class="n">add_task</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">47</span><span class="w">        </span><span class="n">child</span><span class="w"></span>
+<span class="linenos">48</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">49</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>第 18 行创建子进程的 PCB ，并在第 20 行将其加入到当前进程的子进程列表中。</p></li>
+<li><p>第 22~34 行创建子进程的主线程控制块，注意它继承了父进程的 <code class="docutils literal notranslate"><span class="pre">ustack_base</span></code> ，并且不用重新分配用户栈和 Trap 上下文。在第 37 行将主线程加入到子进程中。</p></li>
+<li><p>子进程的主线程基本上继承父进程的主线程 Trap 上下文，但是其中的内核栈地址需要修改，见第 42 行。</p></li>
+<li><p>第 44 行将子进程插入到 PID-进程控制块映射中。第 46 行将子进程的主线程加入到任务管理器中。</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">exec</span></code> 也是进程模型中的重要操作，它虽然并不会创建新的进程但会替换进程的地址空间。在引入线程机制后，其实现也需要更新，但原理与前面介绍的类似，由于篇幅原因不再赘述，感兴趣的同学可自行了解。</p>
+<p>第二种创建线程的方式是通过 <code class="docutils literal notranslate"><span class="pre">thread_create</span></code> 系统调用。重点是需要了解创建线程控制块，在线程控制块中初始化各个成员变量，建立好进程和线程的关系等。只有建立好这些成员变量，才能给线程建立一个灵活方便的执行环境。这里列出支持线程正确运行所需的重要的执行环境要素：</p>
 <ul class="simple">
 <li><p>线程的用户态栈：确保在用户态的线程能正常执行函数调用；</p></li>
 <li><p>线程的内核态栈：确保线程陷入内核后能正常执行函数调用；</p></li>
-<li><p>线程的跳板页：确保线程能正确的进行用户态与内核态间的切换；</p></li>
-<li><p>线程上下文：即线程用到的寄存器信息，用于线程切换。</p></li>
+<li><p>线程共享的跳板页和线程独占的 Trap 上下文：确保线程能正确的进行用户态与内核态间的切换；</p></li>
+<li><p>线程的任务上下文：线程在内核态的寄存器信息，用于线程切换。</p></li>
 </ul>
 <p>线程创建的具体实现如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/thread.rs</span>
@@ -1055,130 +1215,160 @@
 </div>
 <p>上述代码主要完成了如下事务：</p>
 <ul class="simple">
-<li><p>第4-5行，找到当前正在执行的线程 <code class="docutils literal notranslate"><span class="pre">task</span></code> 和此线程所属的进程 <code class="docutils literal notranslate"><span class="pre">process</span></code> 。</p></li>
-<li><p>第7-11行，调用 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::new</span></code> 方法，创建一个新的线程 <code class="docutils literal notranslate"><span class="pre">new_task</span></code> ，在创建过程中，建立与进程 <code class="docutils literal notranslate"><span class="pre">process</span></code> 的所属关系，分配了线程用户态栈、内核态栈、用于异常/中断的跳板页。</p></li>
-<li><p>第13行，把线程挂到调度队列中。</p></li>
-<li><p>第19-22行，把线程接入到所属进程的线程列表 <code class="docutils literal notranslate"><span class="pre">tasks</span></code> 中。</p></li>
-<li><p>第25~32行，初始化位于该线程在用户态地址空间中的 Trap 上下文：设置线程的函数入口点和用户栈，使得第一次进入用户态时能从线程起始位置开始正确执行；设置好内核栈和陷入函数指针 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> ，保证在 Trap 的时候用户态的线程能正确进入内核态。</p></li>
+<li><p>第 4~5 行，找到当前正在执行的线程 <code class="docutils literal notranslate"><span class="pre">task</span></code> 和此线程所属的进程 <code class="docutils literal notranslate"><span class="pre">process</span></code> 。</p></li>
+<li><p>第 7~11 行，调用 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock::new</span></code> 方法，创建一个新的线程 <code class="docutils literal notranslate"><span class="pre">new_task</span></code> ，在创建过程中，建立与进程 <code class="docutils literal notranslate"><span class="pre">process</span></code> 的所属关系，分配了线程资源组 <code class="docutils literal notranslate"><span class="pre">TaskUserRes</span></code> 和其他资源。</p></li>
+<li><p>第 13 行，把线程挂到调度队列中。</p></li>
+<li><p>第 19~22 行，把线程接入到所属进程的线程列表 <code class="docutils literal notranslate"><span class="pre">tasks</span></code> 中。</p></li>
+<li><p>第 25~32 行，初始化位于该线程在用户态地址空间中的 Trap 上下文：设置线程的函数入口点和用户栈，使得第一次进入用户态时能从指定位置开始正确执行；设置好内核栈和陷入函数指针 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> ，保证在 Trap 的时候用户态的线程能正确进入内核态。</p></li>
 </ul>
 </div>
 <div class="section" id="id22">
 <h4>线程退出<a class="headerlink" href="#id22" title="永久链接至标题">#</a></h4>
-<p>当一个非主线程的其他线程发出 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 系统调用时，内核会调用 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 函数退出当前线程并切换到下一个线程，但不会导致其所属进程的退出。当 <code class="docutils literal notranslate"><span class="pre">主线程</span></code> 即进程发出这个系统调用，当内核收到这个系统调用后，会回收整个进程（这包括了其管理的所有线程）资源，并退出。具体实现如下：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
-<span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exit</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="n">exit_code</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unreachable in sys_exit!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 7</span>
-<span class="linenos"> 8</span><span class="c1">// os/src/task/mod.rs</span>
-<span class="linenos"> 9</span>
-<span class="linenos">10</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exit_current_and_run_next</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">take_current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">process</span><span class="p">.</span><span class="n">upgrade</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">tid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">res</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">tid</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">    </span><span class="c1">// record exit code</span>
-<span class="linenos">16</span><span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">exit_code</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">    </span><span class="c1">// here we do not remove the thread since we are still using the kstack</span>
-<span class="linenos">19</span><span class="w">    </span><span class="c1">// it will be deallocated when sys_waittid is called</span>
-<span class="linenos">20</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">    </span><span class="c1">// however, if this is the main thread of current process</span>
-<span class="linenos">23</span><span class="w">    </span><span class="c1">// the process should terminate at once</span>
-<span class="linenos">24</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">tid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">        </span><span class="c1">// mark this process as a zombie process</span>
-<span class="linenos">27</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">is_zombie</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">        </span><span class="c1">// record exit code of main process</span>
-<span class="linenos">29</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">exit_code</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">30</span>
-<span class="linenos">31</span><span class="w">        </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">32</span><span class="w">            </span><span class="c1">// move all child processes under init process</span>
-<span class="linenos">33</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">initproc_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">INITPROC</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">34</span><span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">process_inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">35</span><span class="w">                </span><span class="n">child</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">parent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">downgrade</span><span class="p">(</span><span class="o">&amp;</span><span class="n">INITPROC</span><span class="p">));</span><span class="w"></span>
-<span class="linenos">36</span><span class="w">                </span><span class="n">initproc_inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">child</span><span class="p">.</span><span class="n">clone</span><span class="p">());</span><span class="w"></span>
-<span class="linenos">37</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">38</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">39</span>
-<span class="linenos">40</span><span class="w">        </span><span class="c1">// deallocate user res (including tid/trap_cx/ustack) of all threads</span>
-<span class="linenos">41</span><span class="w">        </span><span class="c1">// it has to be done before we dealloc the whole memory_set</span>
-<span class="linenos">42</span><span class="w">        </span><span class="c1">// otherwise they will be deallocated twice</span>
-<span class="linenos">43</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">process_inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">.</span><span class="n">iter</span><span class="p">().</span><span class="n">filter</span><span class="p">(</span><span class="o">|</span><span class="n">t</span><span class="o">|</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">is_some</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">44</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">45</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">46</span><span class="w">            </span><span class="n">task_inner</span><span class="p">.</span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">47</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">48</span>
-<span class="linenos">49</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">50</span><span class="w">        </span><span class="c1">// deallocate other data in user space i.e. program code/data section</span>
-<span class="linenos">51</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">memory_set</span><span class="p">.</span><span class="n">recycle_data_pages</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">52</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">53</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">process</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">54</span><span class="w">    </span><span class="c1">// we do not have to save task context</span>
-<span class="linenos">55</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">_unused</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskContext</span>::<span class="n">zero_init</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">56</span><span class="w">    </span><span class="n">schedule</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">_unused</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">_</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">57</span><span class="p">}</span><span class="w"></span>
+<p>线程可以通过 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 系统调用退出：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/process.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exit</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="n">exit_code</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unreachable in sys_exit!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>上述代码主要完成了如下事务：</p>
+<p>无论当前线程是否是主线程，都会调用 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 。如果是主线程，将会导致整个进程退出，从而其他线程也会退出；否则的话，只有当前线程会退出。下面是具体实现：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/mod.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exit_current_and_run_next</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">take_current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">process</span><span class="p">.</span><span class="n">upgrade</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">tid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">res</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">tid</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="c1">// record exit code</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">exit_code</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">    </span><span class="c1">// here we do not remove the thread since we are still using the kstack</span>
+<span class="linenos">12</span><span class="w">    </span><span class="c1">// it will be deallocated when sys_waittid is called</span>
+<span class="linenos">13</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="c1">// however, if this is the main thread of current process</span>
+<span class="linenos">16</span><span class="w">    </span><span class="c1">// the process should terminate at once</span>
+<span class="linenos">17</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">tid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">getpid</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">        </span><span class="n">remove_from_pid2process</span><span class="p">(</span><span class="n">pid</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">        </span><span class="c1">// mark this process as a zombie process</span>
+<span class="linenos">23</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">is_zombie</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">        </span><span class="c1">// record exit code of main process</span>
+<span class="linenos">25</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">exit_code</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">26</span>
+<span class="linenos">27</span><span class="w">        </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">            </span><span class="c1">// move all child processes under init process</span>
+<span class="linenos">29</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">initproc_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">INITPROC</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">process_inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">                </span><span class="n">child</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">parent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">downgrade</span><span class="p">(</span><span class="o">&amp;</span><span class="n">INITPROC</span><span class="p">));</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">                </span><span class="n">initproc_inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">child</span><span class="p">.</span><span class="n">clone</span><span class="p">());</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">34</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">35</span>
+<span class="linenos">36</span><span class="w">        </span><span class="c1">// deallocate user res (including tid/trap_cx/ustack) of all threads</span>
+<span class="linenos">37</span><span class="w">        </span><span class="c1">// it has to be done before we dealloc the whole memory_set</span>
+<span class="linenos">38</span><span class="w">        </span><span class="c1">// otherwise they will be deallocated twice</span>
+<span class="linenos">39</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">recycle_res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="o">&lt;</span><span class="n">TaskUserRes</span><span class="o">&gt;</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">40</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">process_inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">.</span><span class="n">iter</span><span class="p">().</span><span class="n">filter</span><span class="p">(</span><span class="o">|</span><span class="n">t</span><span class="o">|</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">is_some</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">41</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">42</span><span class="w">            </span><span class="c1">// if other tasks are Ready in TaskManager or waiting for a timer to be</span>
+<span class="linenos">43</span><span class="w">            </span><span class="c1">// expired, we should remove them.</span>
+<span class="linenos">44</span><span class="w">            </span><span class="c1">//</span>
+<span class="linenos">45</span><span class="w">            </span><span class="c1">// Mention that we do not need to consider Mutex/Semaphore since they</span>
+<span class="linenos">46</span><span class="w">            </span><span class="c1">// are limited in a single process. Therefore, the blocked tasks are</span>
+<span class="linenos">47</span><span class="w">            </span><span class="c1">// removed when the PCB is deallocated.</span>
+<span class="linenos">48</span><span class="w">            </span><span class="n">remove_inactive_task</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">task</span><span class="p">));</span><span class="w"></span>
+<span class="linenos">49</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">50</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">res</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">res</span><span class="p">.</span><span class="n">take</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">51</span><span class="w">                </span><span class="n">recycle_res</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">res</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">52</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">53</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">54</span><span class="w">        </span><span class="c1">// dealloc_tid and dealloc_user_res require access to PCB inner, so we</span>
+<span class="linenos">55</span><span class="w">        </span><span class="c1">// need to collect those user res first, then release process_inner</span>
+<span class="linenos">56</span><span class="w">        </span><span class="c1">// for now to avoid deadlock/double borrow problem.</span>
+<span class="linenos">57</span><span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">process_inner</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">58</span><span class="w">        </span><span class="n">recycle_res</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">59</span>
+<span class="linenos">60</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">61</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">62</span><span class="w">        </span><span class="c1">// deallocate other data in user space i.e. program code/data section</span>
+<span class="linenos">63</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">memory_set</span><span class="p">.</span><span class="n">recycle_data_pages</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">64</span><span class="w">        </span><span class="c1">// drop file descriptors</span>
+<span class="linenos">65</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">66</span><span class="w">        </span><span class="c1">// remove all tasks</span>
+<span class="linenos">67</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">68</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">69</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">process</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">70</span><span class="w">    </span><span class="c1">// we do not have to save task context</span>
+<span class="linenos">71</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">_unused</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskContext</span>::<span class="n">zero_init</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">72</span><span class="w">    </span><span class="n">schedule</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">_unused</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">_</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">73</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
 <ul class="simple">
-<li><p>第11-21行，回收线程的各种资源。</p></li>
-<li><p>第24-53行，如果是主线程发出的退去请求，则回收整个进程的部分资源，并退出进程。第 33~37 行所做的事情是将当前进程的所有子进程挂在初始进程 INITPROC 下面，其做法是遍历每个子进程，修改其父进程为初始进程，并加入初始进程的孩子向量中。第 49 行将当前进程的孩子向量清空。</p></li>
-<li><p>第55-56行，进行线程调度切换。</p></li>
+<li><p>第 4 行将当前线程从处理器管理结构 <code class="docutils literal notranslate"><span class="pre">PROCESSOR</span></code> 中移除，随后在第 9 行在线程控制块中记录退出码并在第 10 行回收当前线程的线程资源组 <code class="docutils literal notranslate"><span class="pre">TaskUserRes</span></code> 。</p></li>
+<li><p>第 17~68 行针对当前线程是所属进程主线程的情况退出整个进程和其他的所有线程（此时主线程已经在上一步中被移除）。其判断条件为第 17 行的当前线程 TID 是否为 0 ，这是主线程的特征。具体来说：</p></li>
+<li><p>第 20~25 行更新 PID-进程控制块映射，将进程标记为僵尸进程然后记录进程退出码， <strong>进程退出码即为其主线程退出码</strong> 。</p></li>
+<li><p>第 29~33 行将子进程挂到初始进程 INITPROC 下面。</p></li>
+<li><p>第 36~58 行回收所有线程的 <code class="docutils literal notranslate"><span class="pre">TaskUserRes</span></code> ，为了保证进程控制块的独占访问，我们需要先将所有的线程的 <code class="docutils literal notranslate"><span class="pre">TaskUserRes</span></code> 收集到向量 <code class="docutils literal notranslate"><span class="pre">recycle_res</span></code> 中。在第 57 行独占访问结束后，第 58 行通过清空 <code class="docutils literal notranslate"><span class="pre">recycle_res</span></code> 自动回收所有的 <code class="docutils literal notranslate"><span class="pre">TaskUserRes</span></code> 。</p></li>
+<li><p>第 60~67 行依次清空子进程列表、回收进程地址空间中用于存放数据的物理页帧、清空文件描述符表并最终移除所有线程。注意我们在回收物理页帧之前必须将 <code class="docutils literal notranslate"><span class="pre">TaskUserRes</span></code> 清空，不然相关物理页帧会被回收两次。目前这种回收顺序并不是最好的实现，同学可以想想看有没有更合适的实现。</p></li>
 </ul>
-<p>上述实现中很大一部分与第五章讲解的 <a class="reference internal" href="../chapter5/3implement-process-mechanism.html#process-exit"><span class="std std-ref">进程的退出</span></a> 的功能实现大致相同。</p>
+<p>这里特别需要注意的是在第 48 行，主线程退出的时候可能有一些线程处于就绪状态等在任务管理器 <code class="docutils literal notranslate"><span class="pre">TASK_MANAGER</span></code> 的队列中，我们需要及时调用 <code class="docutils literal notranslate"><span class="pre">remove_inactive_task</span></code> 函数将它们从队列中移除，不然将导致它们的引用计数不能成功归零并回收资源，最终导致内存溢出。</p>
 </div>
 <div class="section" id="id23">
 <h4>等待线程结束<a class="headerlink" href="#id23" title="永久链接至标题">#</a></h4>
-<p>主线程通过系统调用 <code class="docutils literal notranslate"><span class="pre">sys_waittid</span></code> 来等待其他线程的结束。具体实现如下：</p>
+<p>如果调用 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 退出的不是进程的主线程，那么 <code class="docutils literal notranslate"><span class="pre">sys_exit</span></code> 之后该线程的资源并没有被完全回收，这一点和进程比较像。我们还需要另一个线程调用 <code class="docutils literal notranslate"><span class="pre">waittid</span></code> 系统调用才能收集该线程的退出码并彻底回收该线程的资源：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/thread.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_waittid</span><span class="p">(</span><span class="n">tid</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">process</span><span class="p">.</span><span class="n">upgrade</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="c1">// a thread cannot wait for itself</span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">res</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">tid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">tid</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">exit_code</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="kt">i32</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">waited_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process_inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">tid</span><span class="p">].</span><span class="n">as_ref</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">waited_task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">waited_task</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">waited_exit_code</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">waited_task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">exit_code</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">            </span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">waited_exit_code</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">        </span><span class="c1">// waited thread does not exist</span>
-<span class="linenos">20</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">exit_code</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">exit_code</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">        </span><span class="c1">// dealloc the exited thread</span>
-<span class="linenos">24</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">tid</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">        </span><span class="n">exit_code</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">        </span><span class="c1">// waited thread has not exited</span>
-<span class="linenos">28</span><span class="w">        </span><span class="o">-</span><span class="mi">2</span><span class="w"></span>
-<span class="linenos">29</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">30</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="sd">/// thread does not exist, return -1</span>
+<span class="linenos"> 4</span><span class="sd">/// thread has not exited yet, return -2</span>
+<span class="linenos"> 5</span><span class="sd">/// otherwise, return thread&#39;s exit code</span>
+<span class="linenos"> 6</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_waittid</span><span class="p">(</span><span class="n">tid</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">process</span><span class="p">.</span><span class="n">upgrade</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">    </span><span class="c1">// a thread cannot wait for itself</span>
+<span class="linenos">12</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">res</span><span class="p">.</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">().</span><span class="n">tid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">tid</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">exit_code</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="kt">i32</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">waited_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process_inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">tid</span><span class="p">].</span><span class="n">as_ref</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">waited_task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">waited_task</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">waited_exit_code</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">waited_task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">().</span><span class="n">exit_code</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">            </span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">waited_exit_code</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">        </span><span class="c1">// waited thread does not exist</span>
+<span class="linenos">23</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">exit_code</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">exit_code</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">        </span><span class="c1">// dealloc the exited thread</span>
+<span class="linenos">27</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">tid</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">        </span><span class="n">exit_code</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">        </span><span class="c1">// waited thread has not exited</span>
+<span class="linenos">31</span><span class="w">        </span><span class="o">-</span><span class="mi">2</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">33</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>上述代码主要完成了如下事务：</p>
 <ul class="simple">
-<li><p>第9-10行，如果是线程等自己，返回错误.</p></li>
-<li><p>第12-21行，如果找到 <code class="docutils literal notranslate"><span class="pre">tid</span></code> 对应的退出线程，则收集该退出线程的退出码 <code class="docutils literal notranslate"><span class="pre">exit_tid</span></code> ，否则返回错误（退出线程不存在）。</p></li>
-<li><p>第22-29行，如果退出码存在，则清空进程中对应此退出线程的线程控制块（至此，线程所占资源算是全部清空了），否则返回错误（线程还没退出）。</p></li>
+<li><p>第 12~14 行，如果是线程等自己，返回错误.</p></li>
+<li><p>第 17~24 行，如果找到 <code class="docutils literal notranslate"><span class="pre">tid</span></code> 对应的退出线程，则收集该退出线程的退出码 <code class="docutils literal notranslate"><span class="pre">exit_tid</span></code> ，否则返回错误（退出线程不存在）。</p></li>
+<li><p>第 25~32 行，如果退出码存在，则在第 27 行从进程的线程向量中将被等待的线程删除。这意味着该函数返回之后，被等待线程的 TCB 的引用计数将被归零从而相关资源被完全回收。否则，返回错误（线程还没退出）。</p></li>
 </ul>
 </div>
 </div>
 <div class="section" id="id24">
 <h3>线程执行中的特权级切换和调度切换<a class="headerlink" href="#id24" title="永久链接至标题">#</a></h3>
-<p>线程执行中的特权级切换与第三章中 <strong>任务切换的设计与实现</strong> 小节中讲解的过程是一致的。而线程执行中的调度切换过程与第五章的 <strong>进程调度机制</strong> 小节中讲解的过程是一致的。
-这里就不用再赘述一遍了。</p>
+<p>在特权级切换方面，注意到在创建每个线程的时候，我们都正确设置了其用户态线程函数入口地址、用户栈、内核栈以及一些相关信息，于是第一次返回用户态之后能够按照我们的期望正确执行。后面在用户态和内核态间切换沿用的是前面的 Trap 上下文保存与恢复机制，本章并没有修改。有需要的同学可以回顾第二章和第四章的有关内容。</p>
+<p>在线程切换方面，我们将任务上下文移至线程控制块中并依然沿用第三章的任务切换机制。同时，线程调度算法我们仍然采取第三章中时间片轮转的 Round-Robin 算法。</p>
+<p>因此，这里我们就不再重复介绍这两种机制了。</p>
 <dl class="footnote brackets">
 <dt class="label" id="dak"><span class="brackets">1</span><span class="fn-backref">(<a href="#id3">1</a>,<a href="#id6">2</a>)</span></dt>
 <dd><p>达科塔盗龙是一种生存于距今6700万-6500万年前白垩纪晚期的兽脚类驰龙科恐龙，它主打的并不是霸王龙的力量路线，而是利用自己修长的后肢来提高敏捷度和奔跑速度。它全身几乎都长满了羽毛，可能会滑翔或者其他接近飞行行为的行动模式。</p>
@@ -1268,7 +1458,7 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#id19">线程管理机制的设计与实现</a><ul>
-<li><a class="reference internal" href="#id20">线程创建、线程退出与等待线程结束</a><ul>
+<li><a class="reference internal" href="#id20">线程生命周期管理</a><ul>
 <li><a class="reference internal" href="#id21">线程创建</a></li>
 <li><a class="reference internal" href="#id22">线程退出</a></li>
 <li><a class="reference internal" href="#id23">等待线程结束</a></li>
