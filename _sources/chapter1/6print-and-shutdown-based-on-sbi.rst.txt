@@ -45,6 +45,7 @@
 在 ``sbi.rs`` 中我们定义 RustSBI 支持的服务类型常量，它们并未被完全用到：
 
 .. code-block:: rust
+    :linenos:
 
     // os/src/sbi.rs
     #![allow(unused)] // 此行请放在该文件最开头
@@ -61,17 +62,19 @@
 如字面意思，服务 ``SBI_CONSOLE_PUTCHAR`` 可以用来在屏幕上输出一个字符。我们将这个功能封装成 ``console_putchar`` 函数：
 
 .. code-block:: rust
+    :linenos:
 
     // os/src/sbi.rs
     pub fn console_putchar(c: usize) {
         sbi_call(SBI_CONSOLE_PUTCHAR, c, 0, 0);
     }
 
-注意我们并未使用 ``sbi_call`` 的返回值，因为它并不重要。如果读者有兴趣的话，可以试着在 ``rust_main`` 中调用 ``console_putchar`` 来在屏幕上输出 ``OK`` 。接着在 Qemu 上运行一下，我们便可看到由我们自己输出的第一条 log 了。
+注意我们并未使用 ``sbi_call`` 的返回值，因为它并不重要。如果同学们有兴趣的话，可以试着在 ``rust_main`` 中调用 ``console_putchar`` 来在屏幕上输出 ``OK`` 。接着在 Qemu 上运行一下，我们便可看到由我们自己输出的第一条 log 了。
 
-类似的，还可以将关机服务 ``SBI_SHUTDOWN`` 封装成 ``shutdown`` 函数：
+类似上述方式，我们还可以将关机服务 ``SBI_SHUTDOWN`` 封装成 ``shutdown`` 函数：
 
 .. code-block:: rust
+    :linenos:
 
     // os/src/sbi.rs
     pub fn shutdown() -> ! {
@@ -130,12 +133,53 @@
 
 现在我们可以在 ``rust_main`` 中使用 ``print!`` 和 ``println!`` 宏进行格式化输出了，如有兴趣的话可以输出 ``Hello, world!`` 试一下。
 
+.. note::
+
+    **Rust Tips：Rust Trait**
+
+    在 Rust 语言中，trait（中文翻译：特质、特征）是一种类型，用于描述一组方法的集合。trait 可以用来定义接口（interface），并可以被其他类型实现。
+    举个例子，假设我们有一个简单的Rust程序，其中有一个名为 Shape 的 trait，用于描述形状：
+
+    .. code-block:: rust
+        :linenos:
+
+        trait Shape {
+            fn area(&self) -> f64;
+        }
+
+
+    我们可以使用这个 trait 来定义一个圆形类型：
+
+    .. code-block:: rust
+        :linenos:
+
+        struct Circle {
+            radius: f64,
+        }
+
+        impl Shape for Circle {
+            fn area(&self) -> f64 {
+                3.14 * self.radius * self.radius
+            }
+        }
+
+    这样，我们就可以使用 Circle 类型的实例调用 area 方法了。
+
+    .. code-block:: rust
+        :linenos:
+
+        let c = Circle { radius: 1.0 };
+        println!("Circle area: {}", c.area());  // 输出: Circle area: 3.14    
+
+
+
 处理致命错误
 -----------------------------------------------
 
 错误处理是编程的重要一环，它能够保证程序的可靠性和可用性，使得程序能够从容应对更多突发状况而不至于过早崩溃。不同于 C 的返回错误编号 ``errno`` 模型和 C++/Java 的 ``try-catch`` 异常捕获模型，Rust 将错误分为可恢复和不可恢复错误两大类。这里我们主要关心不可恢复错误。和 C++/Java 中一个异常被抛出后始终得不到处理一样，在 Rust 中遇到不可恢复错误，程序会直接报错退出。例如，使用 ``panic!`` 宏便会直接触发一个不可恢复错误并使程序退出。不过在我们的内核中，目前不可恢复错误的处理机制还不完善：
 
 .. code-block:: rust
+    :linenos:
 
     // os/src/lang_items.rs
     use core::panic::PanicInfo;
@@ -148,6 +192,7 @@
 可以看到，在目前的实现中，当遇到不可恢复错误的时候，被标记为语义项 ``#[panic_handler]`` 的 ``panic`` 函数将会被调用，然而其中只是一个死循环，会使得计算机卡在这里。借助前面实现的 ``println!`` 宏和 ``shutdown`` 函数，我们可以在 ``panic`` 函数中打印错误信息并关机：
 
 .. code-block:: rust
+    :linenos:
 
     // os/src/main.rs
     #![feature(panic_info_message)]
@@ -176,6 +221,7 @@
 为了测试我们的实现是否正确，我们将 ``rust_main`` 改为：
 
 .. code-block:: rust
+    :linenos:
 
     // os/src/main.rs
     #[no_mangle]
@@ -193,7 +239,7 @@
     Hello, world!
     Panicked at src/main.rs:26 Shutdown machine!
 
-可以看到，panic 所在的源文件和代码行数被正确报告，这将为我们后续章节的开发和调试带来很大方便。
+可以看到，panic 所在的源文件和代码行数被正确报告，这将为我们后续章节的开发和调试带来很大方便。到这里，我们就实现了一个可以在Qemu模拟的计算机上运行的裸机应用程序，其具体内容就是上述的 `rust_main`函数，而其他部分，如 `entry.asm` 、 `lang_items.rs` 、`console.rs` 、 `sbi.rs` 则形成了支持裸机应用程序的寒武纪“三叶虫”操作系统 -- LibOS 。
 
 .. note::
 
