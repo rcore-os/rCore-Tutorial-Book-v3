@@ -242,7 +242,41 @@
 本章代码树
 -----------------------------------
 
-这里以位于 ``ch3`` 分支上的分时多任务系统为例。
+锯齿螈多道程序操作系统 - Multiprog OS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec4/figs/jcy-multiprog-os-detail.png
+   :align: center
+   :scale: 30 %
+   :name: jcy-os-detail
+   :alt: 锯齿螈多道程序操作系统 -- Multiprog OS总体结构
+
+通过上图，大致可以看出Qemu把包含多个app的列表和MultiprogOS的image镜像加载到内存中，RustSBI（bootloader）完成基本的硬件初始化后，跳转到MultiprogOS起始位置，MultiprogOS首先进行正常运行前的初始化工作，即建立栈空间和清零bss段，然后通过改进的 `AppManager` 内核模块从app列表中把所有app都加载到内存中，并按指定顺序让app在用户态一个接一个地执行。app在执行过程中，会通过系统调用的方式得到MultiprogOS提供的OS服务，如输出字符串等。
+
+
+始初龙协作式多道程序操作系统 -- CoopOS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec4/figs/more-task-multiprog-os-detail.png
+   :align: center
+   :scale: 20 %
+   :name: more-task-multiprog-os-detail
+   :alt: 始初龙协作式多道程序操作系统 -- CoopOS总体结构
+
+通过上图，大致可以看出相对于MultiprogOS，CoopOS进一步改进了 `AppManager` 内核模块，可以通过 `task` 任务控制块来管理应用程序的执行过程，支持应用程序主动放弃 CPU 并切换到另一个应用继续执行，从而提高系统整体执行效率。应用程序在运行时有自己所在的内存空间和栈，确保被切换时相关信息不会被其他应用破坏。如果当前应用程序正在运行，则该应用对应的任务处于运行（Running）状态；如果该应用主动放弃处理器，则该应用对应的任务处于就绪（Ready）状态。操作系统进行任务切换时，需要把要暂停任务的上下文（即任务用到的通用寄存器）保存起来，把要继续执行的任务的上下文恢复为暂停前的内容，这样就能让不同的应用协同使用处理器了。
+
+
+腔骨龙分时多任务操作系统 -- TimesharingOS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec4/figs/time-task-multiprog-os-detail.png
+   :align: center
+   :scale: 20 %
+   :name: time-task-multiprog-os-detail
+   :alt: 腔骨龙分时多任务操作系统 -- TimesharingOS总体结构
+
+通过上图，大致可以看出相对于CoopOS，TimesharingOS最大的变化是改进了 `Trap_handler` 内核模块，支持时钟中断，从而可以抢占应用的执行。并通过进一步改进 `AppManager` 内核模块，提供任务调度功能，这样可以在收到时钟中断后统计任务的使用时间片，如果任务的时间片用完后，则切换任务。从而可以公平和高效地分时执行多个应用，提高系统的整体效率。
+
+位于 ``ch3`` 分支上的腔骨龙分时多任务操作系统 -- TimesharingOS 的源代码如下所示：
+
+这里
 
 .. code-block::
     :linenos:
