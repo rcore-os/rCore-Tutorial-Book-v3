@@ -446,6 +446,10 @@ Shell: Process 2 exited with code 0
 </div>
 <div class="section" id="id5">
 <h2>本章代码树<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
+<p>霸王龙操作系统 – ProcessOS的总体结构如下图所示：</p>
+<a class="reference internal image-reference" href="../_images/fsos-fsdisk.png" id="filesystem-os-detail"><img alt="霸王龙操作系统 - Address Space OS总体结构" class="align-center" id="filesystem-os-detail" src="../_images/fsos-fsdisk.png" style="width: 683.6999999999999px; height: 473.09999999999997px;" /></a>
+<p>通过上图，大致可以看出霸王龙操作系统 – FilesystemOS增加了对文件系统的支持，并对应用程序提供了文件访问相关的系统调用服务。在进程管理上，进一步扩展资源管理的范围，把打开的文件相关信息放到 <cite>fd table</cite> 数据结构中，纳入进程的管辖中，并以此为基础，提供 sys_open、sys_close、sys_read、sys_write 与访问文件相关的系统调用服务。在设备管理层面，增加了块设备驱动 –  <cite>BlockDrv</cite> ，通过访问块设备数据来读写文件系统与文件的各种数据。文件系统 – EasyFS 成为 FilesystemOS的核心内核模块，完成文件与存储块之间的数据/地址映射关系，通过块设备驱动 BlockDrv 进行基于存储块的读写。其核心数据结构包括： Superblock（表示整个文件系统结构）、inode bitmap（表示存放inode磁盘块空闲情况的位图）、data bitmap（表示存放文件数据磁盘块空闲情况的位图）、inode blks（存放文件元数据的磁盘块）和data blks（存放文件数据的磁盘块）。EasyFS中的块缓存管理器 <code class="docutils literal notranslate"><span class="pre">BlockManager</span></code> 在内存中管理有限个 <code class="docutils literal notranslate"><span class="pre">BlockCache</span></code> 磁盘块缓存，并通过Blk Interface(与块设备驱动对接的读写操作接口）与BlockDrv 块设备驱动程序进行互操作。</p>
+<p>位于 <code class="docutils literal notranslate"><span class="pre">ch6</span></code> 分支上的霸王龙操作系统 - FilesystemOS的源代码如下所示：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos">  1</span>./os/src
 <span class="linenos">  2</span>Rust        32 Files    2893 Lines
 <span class="linenos">  3</span>Assembly     3 Files      88 Lines
