@@ -107,7 +107,7 @@
 -----------------------------------------
 
 
-霸王龙操作系统 -- ProcessOS的总体结构如下图所示：
+霸王龙操作系统 -- FilesystemOS的总体结构如下图所示：
 
 .. image:: ../../os-lectures/lec9/figs/fsos-fsdisk.png
    :align: center
