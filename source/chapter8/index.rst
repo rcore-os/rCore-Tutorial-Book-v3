@@ -10,6 +10,7 @@
    1thread
    1thread-kernel
    2lock
+   2lock-legacy
    3semaphore
    4condition-variable
    5concurrency-problem
