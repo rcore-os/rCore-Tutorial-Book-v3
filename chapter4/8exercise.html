@@ -447,17 +447,17 @@
 <h4>mmap 和 munmap 匿名映射<a class="headerlink" href="#mmap-munmap" title="永久链接至标题">#</a></h4>
 <p><a class="reference external" href="https://man7.org/linux/man-pages/man2/mmap.2.html">mmap</a> 在 Linux 中主要用于在内存中映射文件，本次实验简化它的功能，仅用于申请内存。</p>
 <p>请实现 mmap 和 munmap 系统调用，mmap 定义如下：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">sys_mmap</span><span class="p">(</span><span class="n">start</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">port</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">sys_mmap</span><span class="p">(</span><span class="n">start</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">prot</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span>
 </pre></div>
 </div>
 <ul class="simple">
 <li><p>syscall ID：222</p></li>
-<li><p>申请长度为 len 字节的物理内存（不要求实际物理内存位置，可以随便找一块），将其映射到 start 开始的虚存，内存页属性为 port</p></li>
+<li><p>申请长度为 len 字节的物理内存（不要求实际物理内存位置，可以随便找一块），将其映射到 start 开始的虚存，内存页属性为 prot</p></li>
 <li><dl class="simple">
 <dt>参数：</dt><dd><ul>
 <li><p>start 需要映射的虚存起始地址，要求按页对齐</p></li>
 <li><p>len 映射字节长度，可以为 0</p></li>
-<li><p>port：第 0 位表示是否可读，第 1 位表示是否可写，第 2 位表示是否可执行。其他位无效且必须为 0</p></li>
+<li><p>prot：第 0 位表示是否可读，第 1 位表示是否可写，第 2 位表示是否可执行。其他位无效且必须为 0</p></li>
 </ul>
 </dd>
 </dl>
@@ -473,8 +473,8 @@
 <li><dl class="simple">
 <dt>可能的错误：</dt><dd><ul>
 <li><p>start 没有按页大小对齐</p></li>
-<li><p>port &amp; !0x7 != 0 (port 其余位必须为0)</p></li>
-<li><p>port &amp; 0x7 = 0 (这样的内存无意义)</p></li>
+<li><p>prot &amp; !0x7 != 0 (prot 其余位必须为0)</p></li>
+<li><p>prot &amp; 0x7 = 0 (这样的内存无意义)</p></li>
 <li><p>[start, start + len) 中存在已经被映射的页</p></li>
 <li><p>物理内存不足</p></li>
 </ul>
@@ -505,7 +505,7 @@
 </dl>
 </li>
 </ul>
-<p>TIPS：注意 port 参数的语义，它与内核定义的 MapPermission 有明显不同！</p>
+<p>TIPS：注意 prot 参数的语义，它与内核定义的 MapPermission 有明显不同！</p>
 </div>
 <div class="section" id="id7">
 <h4>实验要求<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h4>
