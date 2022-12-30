@@ -396,7 +396,7 @@
 <p><strong>Dijkstra 教授设计出信号量机制</strong></p>
 <p>Dijkstra 教授带领他的小团队在设计开发THE操作系统的过程中，异步中断触发的难以重现的并发错误，让他们在调试操作系统中碰到了困难。这种困难激发了Dijkstra团队的灵感，他们设计了操作系统的分层结构来避免操作系统的复杂性负担，同时还设计了信号量机制和对应的P和V操作，来确保线程对共享变量的灵活互斥访问，并支持线程之间的同步操作。P和V是来自荷兰语单词“测试”和“增加”的首字母，是很罕见的非英语来源的操作系统术语。</p>
 <p><strong>贝尔实验室Victor A. Vyssotsky提出线程（thread）概念</strong></p>
-<p>1964年开始设计的Multics操作系统已经有进程的概念，也有多处理器并行处理的GE 645硬件设计，甚至提出了线程（ <strong>thead</strong> ）的概念。1966年，参与Multics开发的MIT博士生 Jerome Howard Saltzer在其博士毕业论文的一个注脚提到贝尔实验室的Victor A. Vyssotsky用 <strong>thread</strong> 这个名称来表示处理器（processor）执行程序（program）代码序列这个过程的抽象概念，Saltzer进一步把”进程（process）”描述为处理器执行程序代码的当前状态（即线程）和可访问的地址空间。但他们并没有建立类似信号量这样的有效机制来避免并发带来的同步互斥问题。</p>
+<p>1964年开始设计的Multics操作系统已经有进程的概念，也有多处理器并行处理的GE 645硬件设计，甚至提出了线程（ <strong>thread</strong> ）的概念。1966年，参与Multics开发的MIT博士生 Jerome Howard Saltzer在其博士毕业论文的一个注脚提到贝尔实验室的Victor A. Vyssotsky用 <strong>thread</strong> 这个名称来表示处理器（processor）执行程序（program）代码序列这个过程的抽象概念，Saltzer进一步把”进程（process）”描述为处理器执行程序代码的当前状态（即线程）和可访问的地址空间。但他们并没有建立类似信号量这样的有效机制来避免并发带来的同步互斥问题。</p>
 <p><strong>Brinch Hansen、Tony Hoare和Dijkstra提出管程机制</strong></p>
 <p>丹麦的Brinch Hansen，英国的Tony Hoare和Dijkstra并不满足于信号量来解决操作系统和应用中的并发问题。因为对于复杂一些的同步互斥问题（如哲学家问题），如果使用信号量机制不小心，容易引起死锁等错误。在 1971年的研讨会上，他们三人开始讨论管程（Monitor）的想法，希望设计一种更高级的并发管理语言结构，便于程序员开发并发程序。在1972年春天，Brinch Hansen 在他写的“操作系统原理”教科书中，提出了管程的概念，并把这一概念嵌入到了Concurrent Pascal 编程语言中，然后他和他的学生再接再厉，在PDP 11/45计算机上编写了Concurrent Pascal 编译器，并用Concurrent Pascal 编写了Solo操作系统。Brinch Hansen在操作系统和语言级并发处理方面的开创性工作影响了后续的操作系统并发处理机制（如条件变量等）和不少的编程语言并发方案。</p>
 <p>Brinch Hansen的两句名言：</p>
@@ -485,7 +485,7 @@
 </ul>
 </div>
 <p>在后续的章节中，会大量使用上述术语，如果现在还不够理解，没关系，随着后续的一步一步的分析和实验，相信大家能够掌握上述术语的实际含义。</p>
-<p>为了解决数据不一致问题和竞态条件问题，操作系统需要提供一些保障机制（比如互斥、同步等），无论操作系统如何调度（当然需要是正常情况下的调度）这些对共享数据进行读写的线程，各个线程都能得到预期的共享数据的正确访问结果。常见的同步互斥机制包括：互斥锁（Mutex Lock）、信号量（Semaphore）、条件变量（Conditional Variable）等。</p>
+<p>为了解决数据不一致问题和竞态条件问题，操作系统需要提供一些保障机制（比如互斥、同步等），无论操作系统如何调度（当然需要是正常情况下的调度）这些对共享数据进行读写的线程，各个线程都能得到预期的共享数据的正确访问结果。操作系统中常见的同步互斥机制包括：互斥锁（Mutex Lock）、信号量（Semaphore）、条件变量（Conditional Variable）等。</p>
 </div>
 <div class="section" id="id5">
 <h3>互斥锁<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
@@ -697,134 +697,66 @@
 </div>
 <div class="section" id="id9">
 <h2>本章代码树<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h2>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos">  1</span>     .
-<span class="linenos">  2</span>     ├── bootloader
-<span class="linenos">  3</span>     │   └── rustsbi-qemu.bin
-<span class="linenos">  4</span>     ├── dev-env-info.md
-<span class="linenos">  5</span>     ├── Dockerfile
-<span class="linenos">  6</span>     ├── easy-fs
-<span class="linenos">  7</span>     │   ├── Cargo.lock
-<span class="linenos">  8</span>     │   ├── Cargo.toml
-<span class="linenos">  9</span>     │   └── src
-<span class="linenos"> 10</span>     │       ├── bitmap.rs
-<span class="linenos"> 11</span>     │       ├── block_cache.rs
-<span class="linenos"> 12</span>     │       ├── block_dev.rs
-<span class="linenos"> 13</span>     │       ├── efs.rs
-<span class="linenos"> 14</span>     │       ├── layout.rs
-<span class="linenos"> 15</span>     │       ├── lib.rs
-<span class="linenos"> 16</span>     │       └── vfs.rs
-<span class="linenos"> 17</span>     ├── easy-fs-fuse
-<span class="linenos"> 18</span>     │   ├── Cargo.lock
-<span class="linenos"> 19</span>     │   ├── Cargo.toml
-<span class="linenos"> 20</span>     │   └── src
-<span class="linenos"> 21</span>     │       └── main.rs
-<span class="linenos"> 22</span>     ├── LICENSE
-<span class="linenos"> 23</span>     ├── Makefile
-<span class="linenos"> 24</span>     ├── os
-<span class="linenos"> 25</span>     │   ├── build.rs
-<span class="linenos"> 26</span>     │   ├── Cargo.lock
-<span class="linenos"> 27</span>     │   ├── Cargo.toml
-<span class="linenos"> 28</span>     │   ├── last-qemu
-<span class="linenos"> 29</span>     │   ├── Makefile
-<span class="linenos"> 30</span>     │   └── src
-<span class="linenos"> 31</span>     │       ├── config.rs
-<span class="linenos"> 32</span>     │       ├── console.rs
-<span class="linenos"> 33</span>     │       ├── drivers
-<span class="linenos"> 34</span>     │       │   ├── block
-<span class="linenos"> 35</span>     │       │   │   ├── mod.rs
-<span class="linenos"> 36</span>     │       │   │   ├── sdcard.rs
-<span class="linenos"> 37</span>     │       │   │   └── virtio_blk.rs
-<span class="linenos"> 38</span>     │       │   └── mod.rs
-<span class="linenos"> 39</span>     │       ├── entry.asm
-<span class="linenos"> 40</span>     │       ├── fs
-<span class="linenos"> 41</span>     │       │   ├── inode.rs
-<span class="linenos"> 42</span>     │       │   ├── mod.rs
-<span class="linenos"> 43</span>     │       │   ├── pipe.rs
-<span class="linenos"> 44</span>     │       │   └── stdio.rs
-<span class="linenos"> 45</span>     │       ├── lang_items.rs
-<span class="linenos"> 46</span>     │       ├── link_app.S
-<span class="linenos"> 47</span>     │       ├── linker-qemu.ld
-<span class="linenos"> 48</span>     │       ├── loader.rs
-<span class="linenos"> 49</span>     │       ├── main.rs
-<span class="linenos"> 50</span>     │       ├── mm
-<span class="linenos"> 51</span>     │       │   ├── address.rs
-<span class="linenos"> 52</span>     │       │   ├── frame_allocator.rs
-<span class="linenos"> 53</span>     │       │   ├── heap_allocator.rs
-<span class="linenos"> 54</span>     │       │   ├── memory_set.rs
-<span class="linenos"> 55</span>     │       │   ├── mod.rs
-<span class="linenos"> 56</span>     │       │   └── page_table.rs
-<span class="linenos"> 57</span>     │       ├── sbi.rs
-<span class="linenos"> 58</span>     │       ├── sync
-<span class="linenos"> 59</span>     │       │   ├── mod.rs
-<span class="linenos"> 60</span>     │       │   ├── mutex.rs
-<span class="linenos"> 61</span>     │       │   ├── semaphore.rs
-<span class="linenos"> 62</span>     │       │   └── up.rs
-<span class="linenos"> 63</span>     │       ├── syscall
-<span class="linenos"> 64</span>     │       │   ├── fs.rs
-<span class="linenos"> 65</span>     │       │   ├── mod.rs
-<span class="linenos"> 66</span>     │       │   ├── process.rs
-<span class="linenos"> 67</span>     │       │   ├── sync.rs
-<span class="linenos"> 68</span>     │       │   └── thread.rs
-<span class="linenos"> 69</span>     │       ├── task
-<span class="linenos"> 70</span>     │       │   ├── context.rs
-<span class="linenos"> 71</span>     │       │   ├── id.rs
-<span class="linenos"> 72</span>     │       │   ├── manager.rs
-<span class="linenos"> 73</span>     │       │   ├── mod.rs
-<span class="linenos"> 74</span>     │       │   ├── processor.rs
-<span class="linenos"> 75</span>     │       │   ├── process.rs
-<span class="linenos"> 76</span>     │       │   ├── switch.rs
-<span class="linenos"> 77</span>     │       │   ├── switch.S
-<span class="linenos"> 78</span>     │       │   └── task.rs
-<span class="linenos"> 79</span>     │       ├── timer.rs
-<span class="linenos"> 80</span>     │       └── trap
-<span class="linenos"> 81</span>     │           ├── context.rs
-<span class="linenos"> 82</span>     │           ├── mod.rs
-<span class="linenos"> 83</span>     │           └── trap.S
-<span class="linenos"> 84</span>     ├── pushall.sh
-<span class="linenos"> 85</span>     ├── README.md
-<span class="linenos"> 86</span>     ├── rust-toolchain
-<span class="linenos"> 87</span>     └── user
-<span class="linenos"> 88</span>         ├── Cargo.lock
-<span class="linenos"> 89</span>         ├── Cargo.toml
-<span class="linenos"> 90</span>         ├── Makefile
-<span class="linenos"> 91</span>         └── src
-<span class="linenos"> 92</span>             ├── bin
-<span class="linenos"> 93</span>             │   ├── cat.rs
-<span class="linenos"> 94</span>             │   ├── cmdline_args.rs
-<span class="linenos"> 95</span>             │   ├── exit.rs
-<span class="linenos"> 96</span>             │   ├── fantastic_text.rs
-<span class="linenos"> 97</span>             │   ├── filetest_simple.rs
-<span class="linenos"> 98</span>             │   ├── forktest2.rs
-<span class="linenos"> 99</span>             │   ├── forktest.rs
-<span class="linenos">100</span>             │   ├── forktest_simple.rs
-<span class="linenos">101</span>             │   ├── forktree.rs
-<span class="linenos">102</span>             │   ├── hello_world.rs
-<span class="linenos">103</span>             │   ├── huge_write.rs
-<span class="linenos">104</span>             │   ├── initproc.rs
-<span class="linenos">105</span>             │   ├── matrix.rs
-<span class="linenos">106</span>             │   ├── mpsc_sem.rs
-<span class="linenos">107</span>             │   ├── phil_din_mutex.rs
-<span class="linenos">108</span>             │   ├── pipe_large_test.rs
-<span class="linenos">109</span>             │   ├── pipetest.rs
-<span class="linenos">110</span>             │   ├── race_adder_atomic.rs
-<span class="linenos">111</span>             │   ├── race_adder_loop.rs
-<span class="linenos">112</span>             │   ├── race_adder_mutex_blocking.rs
-<span class="linenos">113</span>             │   ├── race_adder_mutex_spin.rs
-<span class="linenos">114</span>             │   ├── race_adder.rs
-<span class="linenos">115</span>             │   ├── run_pipe_test.rs
-<span class="linenos">116</span>             │   ├── sleep.rs
-<span class="linenos">117</span>             │   ├── sleep_simple.rs
-<span class="linenos">118</span>             │   ├── stack_overflow.rs
-<span class="linenos">119</span>             │   ├── threads_arg.rs
-<span class="linenos">120</span>             │   ├── threads.rs
-<span class="linenos">121</span>             │   ├── user_shell.rs
-<span class="linenos">122</span>             │   ├── usertests.rs
-<span class="linenos">123</span>             │   └── yield.rs
-<span class="linenos">124</span>             ├── console.rs
-<span class="linenos">125</span>             ├── lang_items.rs
-<span class="linenos">126</span>             ├── lib.rs
-<span class="linenos">127</span>             ├── linker.ld
-<span class="linenos">128</span>             └── syscall.rs
+<p>达科塔盗龙操作系统 – Thread&amp;Coroutine OS的总体结构如下图所示：</p>
+<a class="reference internal image-reference" href="../_images/thread-coroutine-os-detail.png" id="thread-coroutine-os-detail"><img alt="达科塔盗龙操作系统 -- Thread&amp;Coroutine OS总体结构" class="align-center" id="thread-coroutine-os-detail" src="../_images/thread-coroutine-os-detail.png" style="width: 787.8000000000001px; height: 521.6px;" /></a>
+<p>从上图中可以看到，Thread&amp;Coroutine OS 增加了在用户态管理的用户态线程/用户态协程，以及在内核态管理的用户态线程。对于用户态管理的用户态线程和协程，新增了一个运行在用户态的 <cite>Thread/Coroutine Manager</cite> 运行时库（Runtime Lib），这个不需要改动操作系统内核。 而对于内核态管理的用户态线程，则需要新增线程控制块（Thread Control Block, TCB）结构，把之前进程控制块（Process Control Block, PCB）中与执行相关的内容剥离给了线程控制块。同时，进一步重构进程控制块，把线程控制块列表作为进程控制块中的一部分资源，这样一个进程控制块就可以管理多个线程了。最后还提供与线程相关的系统调用，如创建线程、等待线程结束等，以支持多线程应用的执行。</p>
+<p>这里，我们可以把进程、线程和协程中的控制流执行看出是一种任务（Task）的执行过程，如下图所示：</p>
+<a class="reference internal image-reference" href="../_images/task-abstracts.png" id="task-abstracts"><img alt="进程、线程和协程中的控制流抽象--任务（Task）" class="align-center" id="task-abstracts" src="../_images/task-abstracts.png" style="width: 550.8000000000001px; height: 299.40000000000003px;" /></a>
+<p>在上图中，可以看出进程包含线程（即有栈协程），线程包含无栈协程，形成一个层次包含关系。而与它们执行相关的重点是切换控制流，即任务切换，关键就是保存于恢复任务上下文，任务上下文的核心部分就是每个任务所分时共享的硬件寄存器内容。对于无栈协程，切换这些寄存器就够了；对于拥有独立栈的线程而言，还需进一步切换线程栈；如果是拥有独立地址空间的进程而言，那还需进一步切换地址空间（即切换页表）。</p>
+<p>进一步增加了同步互斥机制的慈母龙操作系统 – SyncMutexOS的总体结构如下图所示：</p>
+<a class="reference internal image-reference" href="../_images/syncmutex-os-detail.png" id="ipc-os-detail"><img alt="慈母龙操作系统 -- SyncMutexOS总体结构" class="align-center" id="ipc-os-detail" src="../_images/syncmutex-os-detail.png" style="width: 787.8000000000001px; height: 521.6px;" /></a>
+<p>在上图中，可以看出在进程控制块中，增加了互斥锁（Mutex）、信号量（Semaphore）和条件变量（Condvar）这三种资源，并提供了与这三种同步互斥资源相关的系统调用。这样多线程应用就可以使用这三种同步互斥机制来解决各种同步互斥问题，如生产者消费者问题、哲学家问题、读者写者问题等。</p>
+<p>位于 <code class="docutils literal notranslate"><span class="pre">ch8</span></code> 分支上的慈母龙操作系统 – SyncMutexOS的源代码如下所示：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>     .
+<span class="linenos"> 2</span>     ├── ...
+<span class="linenos"> 3</span>     ├── os
+<span class="linenos"> 4</span>     │   ├── ...
+<span class="linenos"> 5</span>     │   └── src
+<span class="linenos"> 6</span>     │       ├── ...
+<span class="linenos"> 7</span>     │       ├── sync (新增：同步互斥子模块 sync)
+<span class="linenos"> 8</span>     │       │   ├── mod.rs
+<span class="linenos"> 9</span>     │       │   ├── condvar.rs（条件变量实现）
+<span class="linenos">10</span>     │       │   ├── mutex.rs （互斥锁实现）
+<span class="linenos">11</span>     │       │   └── semaphore.rs （信号量实现）
+<span class="linenos">12</span>     │       ├── syscall
+<span class="linenos">13</span>     │       │   ├── ...
+<span class="linenos">14</span>     │       │   ├── mod.rs（增加与线程/同步互斥相关的系统调用定义）
+<span class="linenos">15</span>     │       │   ├── sync.rs（增加与同步互斥相关的系统调用具体实现）
+<span class="linenos">16</span>     │       │   └── thread.rs（增加与线程相关的系统调用具体实现）
+<span class="linenos">17</span>     │       ├── task (重构进程管理子模块，以支持线程)
+<span class="linenos">18</span>     │       │   ├── ...
+<span class="linenos">19</span>     │       │   ├── process.rs（包含线程控制块的进程控制块）
+<span class="linenos">20</span>     │       │   └── task.rs（线程控制块）
+<span class="linenos">21</span>     │       ├── timer.rs （增加支持线程睡眠一段时间的功能）
+<span class="linenos">22</span>     │       └── trap
+<span class="linenos">23</span>     │           ├── context.rs
+<span class="linenos">24</span>     │           ├── mod.rs
+<span class="linenos">25</span>     │           └── trap.S
+<span class="linenos">26</span>     └── user
+<span class="linenos">27</span>         ├── ...
+<span class="linenos">28</span>             ├── src
+<span class="linenos">29</span>             │   ├── bin (新增各种多线程/协程/同步互斥测试用例)
+<span class="linenos">30</span>             │   │   ├── ...
+<span class="linenos">31</span>             │   │   ├── early_exit2.rs（多线程测例）
+<span class="linenos">32</span>             │   │   ├── early_exit.rs（多线程测例）
+<span class="linenos">33</span>             │   │   ├── eisenberg.rs （面向n个线程的Eisenberg&amp;McGuire 软件同步互斥示例）
+<span class="linenos">34</span>             │   │   ├── mpsc_sem.rs（基于信号量的生产者消费者问题示例）
+<span class="linenos">35</span>             │   │   ├── peterson.rs（面向2个线程的Peterson软件同步互斥示例）
+<span class="linenos">36</span>             │   │   ├── phil_din_mutex.rs（基于互斥锁的哲学家就餐问题示例）
+<span class="linenos">37</span>             │   │   ├── race_adder_arg.rs（具有竞态条件错误情况的多线程累加计算示例）
+<span class="linenos">38</span>             │   │   ├── race_adder_atomic.rs（基于原子变量的多线程累加计算示例）
+<span class="linenos">39</span>             │   │   ├── race_adder_loop.rs（具有竞态条件错误情况的多线程累加计算示例）
+<span class="linenos">40</span>             │   │   ├── race_adder_mutex_blocking.rss（基于可睡眠互斥锁的多线程累加计算示例）
+<span class="linenos">41</span>             │   │   ├── race_adder_mutex_spin.rs（基于忙等互斥锁的多线程累加计算示例）
+<span class="linenos">42</span>             │   │   ├── race_adder.rs（具有竞态条件错误情况的多线程累加计算示例）
+<span class="linenos">43</span>             │   │   ├── stackful_coroutine.rs（用户态多线程（有栈协程）管理运行时库和多线程示例）
+<span class="linenos">44</span>             │   │   ├── stackless_coroutine.rs（用户态无栈协程管理运行时库和多协程示例）
+<span class="linenos">45</span>             │   │   ├── sync_sem.rs（基于信号量的多线程同步示例）
+<span class="linenos">46</span>             │   │   ├── test_condvar.rs（基于条件变量和互斥锁的多线程同步示例）
+<span class="linenos">47</span>             │   │   ├── threads_arg.rs（带参数的多线程示例）
+<span class="linenos">48</span>             │   │   ├── threads.rs（无参数的多线程示例）
+<span class="linenos">49</span>             │   │   └── usertests.rs（运行所有应用的示例）
+<span class="linenos">50</span>             │   └── ...
 </pre></div>
 </div>
 </div>

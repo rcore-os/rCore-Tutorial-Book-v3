@@ -40,7 +40,7 @@
 
 	**贝尔实验室Victor A. Vyssotsky提出线程（thread）概念**
 
-	1964年开始设计的Multics操作系统已经有进程的概念，也有多处理器并行处理的GE 645硬件设计，甚至提出了线程（ **thead** ）的概念。1966年，参与Multics开发的MIT博士生 Jerome Howard Saltzer在其博士毕业论文的一个注脚提到贝尔实验室的Victor A. Vyssotsky用 **thread** 这个名称来表示处理器（processor）执行程序（program）代码序列这个过程的抽象概念，Saltzer进一步把"进程（process）"描述为处理器执行程序代码的当前状态（即线程）和可访问的地址空间。但他们并没有建立类似信号量这样的有效机制来避免并发带来的同步互斥问题。
+	1964年开始设计的Multics操作系统已经有进程的概念，也有多处理器并行处理的GE 645硬件设计，甚至提出了线程（ **thread** ）的概念。1966年，参与Multics开发的MIT博士生 Jerome Howard Saltzer在其博士毕业论文的一个注脚提到贝尔实验室的Victor A. Vyssotsky用 **thread** 这个名称来表示处理器（processor）执行程序（program）代码序列这个过程的抽象概念，Saltzer进一步把"进程（process）"描述为处理器执行程序代码的当前状态（即线程）和可访问的地址空间。但他们并没有建立类似信号量这样的有效机制来避免并发带来的同步互斥问题。
 
 	**Brinch Hansen、Tony Hoare和Dijkstra提出管程机制**
 
@@ -160,7 +160,7 @@
 
 在后续的章节中，会大量使用上述术语，如果现在还不够理解，没关系，随着后续的一步一步的分析和实验，相信大家能够掌握上述术语的实际含义。
 
-为了解决数据不一致问题和竞态条件问题，操作系统需要提供一些保障机制（比如互斥、同步等），无论操作系统如何调度（当然需要是正常情况下的调度）这些对共享数据进行读写的线程，各个线程都能得到预期的共享数据的正确访问结果。常见的同步互斥机制包括：互斥锁（Mutex Lock）、信号量（Semaphore）、条件变量（Conditional Variable）等。
+为了解决数据不一致问题和竞态条件问题，操作系统需要提供一些保障机制（比如互斥、同步等），无论操作系统如何调度（当然需要是正常情况下的调度）这些对共享数据进行读写的线程，各个线程都能得到预期的共享数据的正确访问结果。操作系统中常见的同步互斥机制包括：互斥锁（Mutex Lock）、信号量（Semaphore）、条件变量（Conditional Variable）等。
 
 互斥锁
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -413,139 +413,93 @@
 
 本章代码树
 -----------------------------------------
+达科塔盗龙操作系统 -- Thread&Coroutine OS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec11/figs/thread-coroutine-os-detail.png
+   :align: center
+   :scale: 20 %
+   :name: thread-coroutine-os-detail
+   :alt: 达科塔盗龙操作系统 -- Thread&Coroutine OS总体结构
+
+从上图中可以看到，Thread&Coroutine OS 增加了在用户态管理的用户态线程/用户态协程，以及在内核态管理的用户态线程。对于用户态管理的用户态线程和协程，新增了一个运行在用户态的 `Thread/Coroutine Manager` 运行时库（Runtime Lib），这个不需要改动操作系统内核。 而对于内核态管理的用户态线程，则需要新增线程控制块（Thread Control Block, TCB）结构，把之前进程控制块（Process Control Block, PCB）中与执行相关的内容剥离给了线程控制块。同时，进一步重构进程控制块，把线程控制块列表作为进程控制块中的一部分资源，这样一个进程控制块就可以管理多个线程了。最后还提供与线程相关的系统调用，如创建线程、等待线程结束等，以支持多线程应用的执行。
+
+这里，我们可以把进程、线程和协程中的控制流执行看出是一种任务（Task）的执行过程，如下图所示：
+
+.. image:: ../../os-lectures/lec11/figs/task-abstracts.png
+   :align: center
+   :scale: 10 %
+   :name: task-abstracts
+   :alt: 进程、线程和协程中的控制流抽象--任务（Task）
+
+在上图中，可以看出进程包含线程（即有栈协程），线程包含无栈协程，形成一个层次包含关系。而与它们执行相关的重点是切换控制流，即任务切换，关键就是保存于恢复任务上下文，任务上下文的核心部分就是每个任务所分时共享的硬件寄存器内容。对于无栈协程，切换这些寄存器就够了；对于拥有独立栈的线程而言，还需进一步切换线程栈；如果是拥有独立地址空间的进程而言，那还需进一步切换地址空间（即切换页表）。
+
+
+进一步增加了同步互斥机制的慈母龙操作系统 -- SyncMutexOS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec12/figs/syncmutex-os-detail.png
+   :align: center
+   :scale: 20 %
+   :name: ipc-os-detail
+   :alt: 慈母龙操作系统 -- SyncMutexOS总体结构
+
+在上图中，可以看出在进程控制块中，增加了互斥锁（Mutex）、信号量（Semaphore）和条件变量（Condvar）这三种资源，并提供了与这三种同步互斥资源相关的系统调用。这样多线程应用就可以使用这三种同步互斥机制来解决各种同步互斥问题，如生产者消费者问题、哲学家问题、读者写者问题等。
+
+
+位于 ``ch8`` 分支上的慈母龙操作系统 -- SyncMutexOS的源代码如下所示：
 
 .. code-block::
    :linenos:
 
 	.
-	├── bootloader
-	│   └── rustsbi-qemu.bin
-	├── dev-env-info.md
-	├── Dockerfile
-	├── easy-fs
-	│   ├── Cargo.lock
-	│   ├── Cargo.toml
-	│   └── src
-	│       ├── bitmap.rs
-	│       ├── block_cache.rs
-	│       ├── block_dev.rs
-	│       ├── efs.rs
-	│       ├── layout.rs
-	│       ├── lib.rs
-	│       └── vfs.rs
-	├── easy-fs-fuse
-	│   ├── Cargo.lock
-	│   ├── Cargo.toml
-	│   └── src
-	│       └── main.rs
-	├── LICENSE
-	├── Makefile
+	├── ...
 	├── os
-	│   ├── build.rs
-	│   ├── Cargo.lock
-	│   ├── Cargo.toml
-	│   ├── last-qemu
-	│   ├── Makefile
+	│   ├── ...
 	│   └── src
-	│       ├── config.rs
-	│       ├── console.rs
-	│       ├── drivers
-	│       │   ├── block
-	│       │   │   ├── mod.rs
-	│       │   │   ├── sdcard.rs
-	│       │   │   └── virtio_blk.rs
-	│       │   └── mod.rs
-	│       ├── entry.asm
-	│       ├── fs
-	│       │   ├── inode.rs
+	│       ├── ...
+	│       ├── sync (新增：同步互斥子模块 sync)
 	│       │   ├── mod.rs
-	│       │   ├── pipe.rs
-	│       │   └── stdio.rs
-	│       ├── lang_items.rs
-	│       ├── link_app.S
-	│       ├── linker-qemu.ld
-	│       ├── loader.rs
-	│       ├── main.rs
-	│       ├── mm
-	│       │   ├── address.rs
-	│       │   ├── frame_allocator.rs
-	│       │   ├── heap_allocator.rs
-	│       │   ├── memory_set.rs
-	│       │   ├── mod.rs
-	│       │   └── page_table.rs
-	│       ├── sbi.rs
-	│       ├── sync
-	│       │   ├── mod.rs
-	│       │   ├── mutex.rs
-	│       │   ├── semaphore.rs
-	│       │   └── up.rs
+	│       │   ├── condvar.rs（条件变量实现）
+	│       │   ├── mutex.rs （互斥锁实现）
+	│       │   └── semaphore.rs （信号量实现） 
 	│       ├── syscall
-	│       │   ├── fs.rs
-	│       │   ├── mod.rs
-	│       │   ├── process.rs
-	│       │   ├── sync.rs
-	│       │   └── thread.rs
-	│       ├── task
-	│       │   ├── context.rs
-	│       │   ├── id.rs
-	│       │   ├── manager.rs
-	│       │   ├── mod.rs
-	│       │   ├── processor.rs
-	│       │   ├── process.rs
-	│       │   ├── switch.rs
-	│       │   ├── switch.S
-	│       │   └── task.rs
-	│       ├── timer.rs
+	│       │   ├── ...
+	│       │   ├── mod.rs（增加与线程/同步互斥相关的系统调用定义）
+	│       │   ├── sync.rs（增加与同步互斥相关的系统调用具体实现）
+	│       │   └── thread.rs（增加与线程相关的系统调用具体实现）
+	│       ├── task (重构进程管理子模块，以支持线程)
+	│       │   ├── ...
+	│       │   ├── process.rs（包含线程控制块的进程控制块）
+	│       │   └── task.rs（线程控制块）
+	│       ├── timer.rs （增加支持线程睡眠一段时间的功能）
 	│       └── trap
 	│           ├── context.rs
 	│           ├── mod.rs
 	│           └── trap.S
-	├── pushall.sh
-	├── README.md
-	├── rust-toolchain
 	└── user
-	    ├── Cargo.lock
-	    ├── Cargo.toml
-	    ├── Makefile
-	    └── src
-	        ├── bin
-	        │   ├── cat.rs
-	        │   ├── cmdline_args.rs
-	        │   ├── exit.rs
-	        │   ├── fantastic_text.rs
-	        │   ├── filetest_simple.rs
-	        │   ├── forktest2.rs
-	        │   ├── forktest.rs
-	        │   ├── forktest_simple.rs
-	        │   ├── forktree.rs
-	        │   ├── hello_world.rs
-	        │   ├── huge_write.rs
-	        │   ├── initproc.rs
-	        │   ├── matrix.rs
-	        │   ├── mpsc_sem.rs
-	        │   ├── phil_din_mutex.rs
-	        │   ├── pipe_large_test.rs
-	        │   ├── pipetest.rs
-	        │   ├── race_adder_atomic.rs
-	        │   ├── race_adder_loop.rs
-	        │   ├── race_adder_mutex_blocking.rs
-	        │   ├── race_adder_mutex_spin.rs
-	        │   ├── race_adder.rs
-	        │   ├── run_pipe_test.rs
-	        │   ├── sleep.rs
-	        │   ├── sleep_simple.rs
-	        │   ├── stack_overflow.rs
-	        │   ├── threads_arg.rs
-	        │   ├── threads.rs
-	        │   ├── user_shell.rs
-	        │   ├── usertests.rs
-	        │   └── yield.rs
-	        ├── console.rs
-	        ├── lang_items.rs
-	        ├── lib.rs
-	        ├── linker.ld
-	        └── syscall.rs
-
+	    ├── ...
+		├── src
+		│   ├── bin (新增各种多线程/协程/同步互斥测试用例)
+		│   │   ├── ...
+		│   │   ├── early_exit2.rs（多线程测例）
+		│   │   ├── early_exit.rs（多线程测例）
+		│   │   ├── eisenberg.rs （面向n个线程的Eisenberg&McGuire 软件同步互斥示例）
+		│   │   ├── mpsc_sem.rs（基于信号量的生产者消费者问题示例）
+		│   │   ├── peterson.rs（面向2个线程的Peterson软件同步互斥示例）
+		│   │   ├── phil_din_mutex.rs（基于互斥锁的哲学家就餐问题示例）
+		│   │   ├── race_adder_arg.rs（具有竞态条件错误情况的多线程累加计算示例）
+		│   │   ├── race_adder_atomic.rs（基于原子变量的多线程累加计算示例）
+		│   │   ├── race_adder_loop.rs（具有竞态条件错误情况的多线程累加计算示例）
+		│   │   ├── race_adder_mutex_blocking.rss（基于可睡眠互斥锁的多线程累加计算示例）
+		│   │   ├── race_adder_mutex_spin.rs（基于忙等互斥锁的多线程累加计算示例）
+		│   │   ├── race_adder.rs（具有竞态条件错误情况的多线程累加计算示例）
+		│   │   ├── stackful_coroutine.rs（用户态多线程（有栈协程）管理运行时库和多线程示例）
+		│   │   ├── stackless_coroutine.rs（用户态无栈协程管理运行时库和多协程示例）
+		│   │   ├── sync_sem.rs（基于信号量的多线程同步示例）
+		│   │   ├── test_condvar.rs（基于条件变量和互斥锁的多线程同步示例）
+		│   │   ├── threads_arg.rs（带参数的多线程示例）
+		│   │   ├── threads.rs（无参数的多线程示例）
+		│   │   └── usertests.rs（运行所有应用的示例）
+		│   └── ...
 
 本章代码导读
 -----------------------------------------------------
