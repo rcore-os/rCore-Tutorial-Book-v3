@@ -348,7 +348,7 @@
 	Thread 2: releasing semaphore
 
 
-上述的示例都是在用户态实现的应用程序，其中的Thread、Mutex和Condvar是需要应用程序所在的操作系统（这里就是Linux）提供相应的支持的。在本章中，我们会在自己写的操作系统中实现Thread、Mutex、Condvar和Semaphore 机制，从而对同步互斥的原理有更加深入的了解，对应操作系统如何支持这些同步互斥底层机制有全面的掌握。
+上述的示例都是在用户态实现的应用程序，其中的Thread、Mutex和Condvar需要应用程序所在的操作系统（这里就是Linux）提供相应的支持。在本章中，我们会在自己写的操作系统中实现Thread、Mutex、Condvar和Semaphore 机制，从而对同步互斥的原理有更加深入的了解，对应操作系统如何支持这些同步互斥底层机制有全面的掌握。
 
 实践体验
 -----------------------------------------
@@ -503,3 +503,164 @@
 
 本章代码导读
 -----------------------------------------------------
+
+在本章实现支持多线程的达科塔盗龙操作系统 -- Thread&Coroutine OS过程中，需要考虑如下一些关键点：线程的总体结构、管理线程执行的线程控制块数据结构、以及对线程管理相关的重要函数：线程创建和线程切换。这些关键点既可以在用户态实现，也可在内核态实现。
+
+
+线程设计与实现
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+在  :doc:`./1thread` 一节中讲述了设计实现用户态线程管理运行时库的过程，这其实是第三章中 :ref:`任务切换的设计与实现 <term-task-switch-impl>` 和 :ref:`协作式调度 <term-coop-impl>` 的一种更简单的用户态实现。首先是要构建多线程的基本执行环境，即定义线程控制块数据结构，包括线程执行状态、线程执行上下文（使用的通用寄存器集合）等。然后是要实现线程创建和线程切换这两个关键函数。这两个函数的关键就是构建线程的上下文和切换线程的上下文。当线程启动后，不会被抢占，所以需要线程通过 `yield_task` 函数主动放弃处理器，从而把处理器控制权交还给用户态线程管理运行时库，让其选择其他处于就绪态的线程执行。
+
+在  :doc:`./1thread-kernel` 一节中讲述了在操作系统内部设计实现内核态线程管理的实现过程，这其实基于第三章中 :ref:`任务切换的设计与实现 <term-task-switch-impl>` 和 :ref:`抢占式调度 <term-preempt-sched>` 的进一步改进实现。这涉及到对进程的重构，把以前的线程管理相关数据结构转移到线程控制块中，并把线程作为一种资源，放在进程控制块中。这样与线程相关的关键部分包括：
+
+- 任务控制块 TaskControlBlock ：表示线程的核心数据结构
+- 任务管理器 TaskManager ：管理线程集合的核心数据结构
+- 处理器管理结构 Processor ：用于线程调度，维护线程的处理器状态
+- 线程切换：涉及特权级切换和线程上下文切换
+
+进程控制块和线程控制块的主要部分如下所示：
+
+.. code-block:: Rust
+    :linenos:
+
+	// os/src/task/tasks.rs
+	// 线程控制块
+	pub struct TaskControlBlock {
+		pub process: Weak<ProcessControlBlock>, //线程所属的进程控制块
+		pub kstack: KernelStack,//任务（线程）的内核栈
+		inner: UPSafeCell<TaskControlBlockInner>,
+	}
+	pub struct TaskControlBlockInner {
+		pub res: Option<TaskUserRes>,  //任务（线程）用户态资源
+		pub trap_cx_ppn: PhysPageNum,//trap上下文地址
+		pub task_cx: TaskContext,//任务（线程）上下文
+		pub task_status: TaskStatus,//任务（线程）状态
+		pub exit_code: Option<i32>,//任务（线程）退出码
+	}
+	// os/src/task/process.rs
+	// 进程控制块
+	pub struct ProcessControlBlock {
+		pub pid: PidHandle,  //进程ID
+		inner: UPSafeCell<ProcessControlBlockInner>,
+	}
+	pub struct ProcessControlBlockInner {
+		pub tasks: Vec<Option<Arc<TaskControlBlock>>>, //线程控制块列表
+		...
+	}
+
+接下来就是相关的线程管理功能的设计与实现了。首先是线程创建，即当一个进程执行中发出系统调用 `sys_thread_create`` 后，操作系统就需要在当前进程控制块中创建一个线程控制块，并在线程控制块中初始化各个成员变量，建立好进程和线程的关系等，关键要素包括：
+
+- 线程的用户态栈：确保在用户态的线程能正常执行函数调用
+- 线程的内核态栈：确保线程陷入内核后能正常执行函数调用
+- 线程的跳板页：确保线程能正确的进行用户态<–>内核态切换
+- 线程上下文：即线程用到的寄存器信息，用于线程切换
+
+创建线程的主要代码如下所示：
+
+.. code-block:: Rust
+    :linenos:
+
+	pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
+		// 创建新线程
+		let new_task = Arc::new(TaskControlBlock::new(...
+		// 把线程加到就绪调度队列中
+		add_task(Arc::clone(&new_task));
+		// 把线程控制块加入到进程控制块中
+		let tasks = &mut process_inner.tasks;
+		tasks[new_task_tid] = Some(Arc::clone(&new_task));
+		//建立trap/task上下文
+		*new_task_trap_cx = TrapContext::app_init_context(
+			entry,
+			new_task_res.ustack_top(),
+			kernel_token(),
+		... 
+
+而关于线程切换和线程调度这两部分在之前已经介绍过。线程切换与第三章中介绍的特权级上下文切换和任务上下文切换的设计与实现是一致的，线程执行中的调度切换过程与第六章中介绍的进程调度机制是一致的。这里就不再进一步赘述了。
+
+同步互斥机制的设计实现
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+在实现支持同步互斥机制的慈母龙操作系统 -- SyncMutexOS中，包括三种同步互斥机制，在  :doc:`./2lock-legacy` 一节中讲述了互斥锁的设计与实现，在  :doc:`./3semaphore` 一节中讲述了信号量的设计与实现，在  :doc:`./4condition-variable` 一节中讲述了条件变量的设计与实现。无论哪种同步互斥机制，都需要确保操作系统任意抢占线程，调度和切换线程的执行，都可以保证线程执行的互斥需求和同步需求，从而能够得到可预测和可重现的共享资源访问结果。这三种用于多线程的同步互斥机制所对应的内核数据结构都在进程控制块中，以进程资源的形式存在。
+
+.. code-block:: Rust
+    :linenos:
+
+	// 进程控制块内部结构
+	pub struct ProcessControlBlockInner {
+		...
+		pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,     // 互斥锁列表
+		pub semaphore_list: Vec<Option<Arc<Semaphore>>>, // 信号量列表
+		pub condvar_list: Vec<Option<Arc<Condvar>>>,     // 条件变量列表
+	}
+
+在互斥锁的设计实现中，设计了一个更底层的 `UPSafeCellSafeCell<T>` 类型，用于支持在单核处理器上安全地在线程间共享可变全局变量。这个类型大致结构如下所示：
+
+.. code-block:: Rust
+    :linenos:
+
+	pub struct UPSafeCell<T> { //允许在单核上安全使用可变全局变量
+		inner: RefCell<T>,  //提供内部可变性和运行时借用检查
+	}
+	unsafe impl<T> Sync for UPSafeCell<T> {} //声明支持全局变量安全地在线程间共享
+	impl<T> UPSafeCell<T> {
+		pub unsafe fn new(value: T) -> Self {
+			Self { inner: RefCell::new(value) }
+		}
+		pub fn exclusive_access(&self) -> RefMut<'_, T> {
+			self.inner.borrow_mut()  //得到它包裹的数据的独占访问权
+		}
+	}
+
+并基于此设计了 `Mutex` 互斥锁类型，可进一步细化为忙等型互斥锁和睡眠型互斥锁，二者的大致结构如下所示：
+
+.. code-block:: Rust
+    :linenos:
+
+	pub struct MutexSpin {
+		locked: UPSafeCell<bool>,  //locked是被UPSafeCell包裹的布尔全局变量
+	}
+	pub struct MutexBlocking {
+		inner: UPSafeCell<MutexBlockingInner>,
+	}
+	pub struct MutexBlockingInner {
+		locked: bool,
+		wait_queue: VecDeque<Arc<TaskControlBlock>>, //等待获取锁的线程等待队列
+	}
+
+在上述代码片段的第9行，可以看到挂在睡眠型互斥锁上的线程，会被放入到互斥锁的等待队列 `wait_queue` 中。 `Mutex` 互斥锁类型实现了 `lock` 和 `unlock` 两个方法完成获取锁和释放锁操作。而系统调用 `sys_mutex_create` 、 `sys_mutex_lock` 、 `sys_mutex_unlock` 这几个系统调用，是提供给多线程应用程序实现互斥锁的创建、获取锁和释放锁的同步互斥操作。
+
+信号量 `Semaphore` 类型的大致结构如下所示：
+
+.. code-block:: Rust
+    :linenos:
+
+	pub struct Semaphore {
+		pub inner: UPSafeCell<SemaphoreInner>, //UPSafeCell包裹的内部可变结构
+	}
+
+	pub struct SemaphoreInner {
+		pub count: isize, //信号量的计数值
+		pub wait_queue: VecDeque<Arc<TaskControlBlock>>, //信号量的等待队列
+	}
+
+在上述代码片段的第7行，可以看到挂在信号量上的线程，会被放入到信号量的等待队列 `wait_queue` 中。信号量 `Semaphore` 类型实现了 `up` 和 `down` 两个方法完成获取获取信号量和释放信号量的操作。而系统调用 `sys_semaphore_create` 、 `sys_semaphore_up` 、 `sys_semaphore_down` 这几个系统调用，是提供给多线程应用程序实现信号量的创建、获取和释放的同步互斥操作。
+
+
+条件变量 `Condvar` 类型的大致结构如下所示：
+
+
+.. code-block:: Rust
+    :linenos:
+
+	pub struct Condvar {
+		pub inner: UPSafeCell<CondvarInner>, //UPSafeCell包裹的内部可变结构
+	}
+
+	pub struct CondvarInner {
+		pub wait_queue: VecDeque<Arc<TaskControlBlock>>,//等待队列
+	}
+
+在上述代码片段的第7行，可以看到挂在条件变量上的线程，会被放入到条件变量的等待队列 `wait_queue` 中。条件变量 `Condvar` 类型实现了 `wait` 和 `signal` 两个方法完成获取等待条件变量和通知信号量的操作。而系统调用 `sys_condvar_create` 、 `sys_condvar_wait` 、 `sys_condvar_signal` 这几个系统调用，是提供给多线程应用程序实现条件变量的创建、等待和通知的同步互斥操作。	
+
+同学可能会注意到，上述的睡眠型互斥锁、信号量和条件变量的数据结构几乎相同，都会把挂起的线程放到等待队列中。但是它们的具体实现还是有区别的，这需要同学了解这三种同步互斥机制的操作原理，再看看它们的方法对的设计与实现：互斥锁的lock和unlock、信号量的up和down、条件变量的wait和signal，就可以看到它们的具体区别了。
