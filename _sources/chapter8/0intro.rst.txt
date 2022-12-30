@@ -38,7 +38,7 @@
 
 	Dijkstra 教授带领他的小团队在设计开发THE操作系统的过程中，异步中断触发的难以重现的并发错误，让他们在调试操作系统中碰到了困难。这种困难激发了Dijkstra团队的灵感，他们设计了操作系统的分层结构来避免操作系统的复杂性负担，同时还设计了信号量机制和对应的P和V操作，来确保线程对共享变量的灵活互斥访问，并支持线程之间的同步操作。P和V是来自荷兰语单词“测试”和“增加”的首字母，是很罕见的非英语来源的操作系统术语。
 
-	**贝尔实验室Victor A. Vyssotsky提出线程（thead）概念**
+	**贝尔实验室Victor A. Vyssotsky提出线程（thread）概念**
 
 	1964年开始设计的Multics操作系统已经有进程的概念，也有多处理器并行处理的GE 645硬件设计，甚至提出了线程（ **thead** ）的概念。1966年，参与Multics开发的MIT博士生 Jerome Howard Saltzer在其博士毕业论文的一个注脚提到贝尔实验室的Victor A. Vyssotsky用 **thread** 这个名称来表示处理器（processor）执行程序（program）代码序列这个过程的抽象概念，Saltzer进一步把"进程（process）"描述为处理器执行程序代码的当前状态（即线程）和可访问的地址空间。但他们并没有建立类似信号量这样的有效机制来避免并发带来的同步互斥问题。
 
@@ -72,35 +72,31 @@
 
 简单地说，线程是进程的组成部分，进程可包含1 -- n个线程，属于同一个进程的线程共享进程的资源，比如地址空间，打开的文件等。线程基本上由线程ID、执行状态、当前指令指针(PC)、寄存器集合和栈组成。线程是可以被操作系统或用户态调度器独立调度（Scheduling）和分派（Dispatch）的基本单位。
 
-在本章之前，进程是程序的基本执行实体，是程序关于某数据集合上的一次运行活动，是系统进行资源（处理器，地址空间和文件等）分配和调度的基本单位。在有了线程后，对进程的定义也要调整了，进程是线程的资源容器，线程成为了程序的基本执行实体。
+在本章之前，进程是程序的基本执行实体，是程序对某数据集合进行操作的一次执行过程，是系统进行资源（处理器，地址空间和文件等）分配和调度的基本单位。在有了线程后，对进程的定义也要调整了，进程是线程的资源容器，线程成为了程序的基本执行实体。
 
 
 .. hint::
 
    **线程与进程的区别**
    
-   下面的比较是以线程为调度对象的操作系统作为分析对象：
+   注：下面的比较是把以线程为调度对象的操作系统作为分析对象：
 
    * 进程间相互独立（即资源隔离），同一进程的各线程间共享进程的资源（即资源共享）；
    * 子进程和父进程有不同的地址空间和资源，而多个线程（没有父子关系）则共享同一所属进程的地址空间和资源；
    * 每个线程有其自己的执行上下文（线程ID、程序计数器、寄存器集合和执行栈），而进程的执行上下文包括其管理的所有线程的执行上下文和地址空间（故同一进程下的线程间上下文切换比进程间上下文切换要快）；
    * 线程是一个可调度/分派/执行的实体（线程有就绪、阻塞和运行三种基本执行状态），进程不是可调度/分派/执行的的实体，而是线程的资源容器；
-   * 进程间通信需要通过IPC机制（如管道等）， 属于同一进程的线程间可以共享“即直接读写”进程的数据，但需要同步互斥机制的辅助，以保证数据的一致性。
+   * 进程间通信需要通过IPC机制（如管道等）， 属于同一进程的线程间可以共享“即直接读写”进程的数据，但需要同步互斥机制的辅助，避免出现数据不一致性以及不确定计算结果的问题。
 
 
 同步互斥
 ~~~~~~~~~~~~~~~~~~~~~~
 
-在上面提到了同步互斥和数据一致性，它们的含义是什么呢？ 当多个线程共享同一进程的地址空间时，每个线程都可以访问属于这个进程的数据（全局变量）。如果每个线程使用到的变量都是其他线程不会读取或者修改的话，那么就不存在一致性问题。如果变量是只读的，多个线程读取该变量也不会有一致性问题。但是，当一个线程修改变量时，其他线程在读取这个变量时，可能会看到一个不一致的值。甚至其他线程可能同时尝试修改变量。这就是数据不一致性的问题。
+在上面提到了数据不一致性、不确定的计算结果，意味在操作系统的执行过程中，可能存在并发问题，并导致程序或操作系统执行失败。我们先给出 **线程的数据一致性** 的定义：在单处理器（即只有一个核的CPU）下，如果某线程更新了一个可被其他线程读到的共享数据，那么后续其他线程都能读到这个最新被更新的共享数据。当多个线程共享同一进程的地址空间时，每个线程都可以访问属于这个进程的数据（全局变量）。如果每个线程使用到的变量都是其他线程不会读取或者修改的话，各个线程访问的变量与预期结果一样，那么就不存在一致性问题。如果变量是只读的，多个线程读取该变量与预期结果一致，也不会有一致性问题。
+
+但是，当某些线程在修改变量，而其他线程在读取这个变量时，由于线程之间的执行顺序不能提前预知（取决于操作系统的调度），导致各个线程对同一变量的读写操作序列不确定，这就会导致不同线程可能会看到与预期结果不一样的值，这就出现了数据不一致性的问题，而且每次执行的结果不确定。我们把这种两个或多个线程在竞争访问同一资源时，执行结果取决于它们的不可预知的执行顺序的情况称为**线程的竞态条件（race condition）**。竞态条件是一种常见的并发问题，可能导致应用程序或操作系统执行失败。
 
 
-.. note::
-
-	**线程的数据一致性**
-
-	线程的数据一致性的定义：在单处理器（即只有一个核的CPU）下，如果某线程更新了一个可被其他线程读到的共享数据，那么后续其他线程都能读到这个最新被更新的共享数据。
-
-为什么会出现线程的数据不一致问题呢？其根本原因是 **调度的不可控性** ：即读写共享变量的代码片段会随时可能被操作系统调度和切换。先看看如下的伪代码例子：
+出现线程的数据不一致问题和竞态条件问题的根本原因是 **调度的不可控性** ：即读写共享变量的代码片段会随时可能被操作系统调度和切换。先看看如下的伪代码例子：
 
 .. code-block:: rust
     :linenos:
@@ -155,15 +151,204 @@
 	- 临界区（critical section）：访问共享资源的一段代码。
 	- 竞态条件（race condition）：多个线程/进程都进入临界区时，都试图更新共享的数据结构，导致产生了不期望的结果。
 	- 不确定性（indeterminate）： 多个线程/进程在执行过程中出现了竞态条件，导致执行结果取决于哪些线程在何时运行，即执行结果不确定，而开发者期望得到的是确定的结果。
-	- 互斥（mutual exclusion）：一种操作原语，能保证同一时间只有一个线程进入临界区，从而避免出现竞态，并产生确定的执行结果。
 	- 原子性（atomic）：一系列操作要么全部完成，要么一个都没执行，不会看到中间状态。在数据库领域，具有原子性的一系列操作称为事务（transaction）。
+	- 互斥（mutual exclusion）：一种原子性操作，能保证同一时间只有一个线程进入临界区，从而避免出现竞态条件，并产生确定的预期执行结果。
 	- 同步（synchronization）：多个并发执行的进程/线程在一些关键点上需要互相等待，这种相互制约的等待称为进程/线程同步。
 	- 死锁（dead lock）：一个线程/进程集合里面的每个线程/进程都在等待只能由这个集合中的其他一个线程/进程（包括他自身）才能引发的事件，这种情况就是死锁。
 	- 饥饿（hungry）：指一个可运行的线程/进程尽管能继续执行，但由于操作系统的调度而被无限期地忽视，导致不能执行的情况。
 
 
-在后续的章节中，会大量使用上述术语，如果现在还不够理解，没关系，随着后续的一步一步的分析和实验，相信大家能够掌握上述术语的实际含义。	
+在后续的章节中，会大量使用上述术语，如果现在还不够理解，没关系，随着后续的一步一步的分析和实验，相信大家能够掌握上述术语的实际含义。
 
+为了解决数据不一致问题和竞态条件问题，操作系统需要提供一些保障机制（比如互斥、同步等），无论操作系统如何调度（当然需要是正常情况下的调度）这些对共享数据进行读写的线程，各个线程都能得到预期的共享数据的正确访问结果。常见的同步互斥机制包括：互斥锁（Mutex Lock）、信号量（Semaphore）、条件变量（Conditional Variable）等。
+
+互斥锁
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+互斥锁是操作系统中用于保护共享资源的机制。互斥锁能够确保在任何时候只有一个线程访问共享资源，从而避免资源竞争导致的数据不一致的问题。可以使用Rust标准库中的 std::sync::Mutex 类型来实现互斥锁。下面是一个使用互斥锁保护共享变量的示例：
+
+
+.. code-block:: Rust
+    :linenos:
+
+	use std::sync::{Arc, Mutex};
+	use std::thread;
+
+	fn main() {
+		// 创建一个可变的整数并将其包装在 Mutex 中
+		let data = Arc::new(Mutex::new(0));
+
+		// 创建两个线程，并传递 `data` 的 Arc 实例给它们
+		let data_clone = data.clone();
+		let handle1 = thread::spawn(move || {
+			let mut data = data_clone.lock().unwrap();
+			*data += 1;
+		});
+
+		let data_clone = data.clone();
+		let handle2 = thread::spawn(move || {
+			let mut data = data_clone.lock().unwrap();
+			*data += 1;
+		});
+
+		// 等待两个线程结束
+		handle1.join().unwrap();
+		handle2.join().unwrap();
+
+		// 输出结果
+		println!("Result: {}", *data.lock().unwrap());
+	}
+
+在上面的代码中，两个线程都会尝试访问 data 变量，但是因为它被包装在了 Mutex 中，所以只有一个线程能够获取锁并访问变量。在获取互斥锁的时候，线程会被挂起，直到另一个线程释放了锁。最终的输出结果是 `2`。
+
+
+
+
+条件变量
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+条件变量是操作系统中的一种同步原语，可用于在多个线程之间进行协作，即允许一个线程在另一个线程完成某些操作之前等待。条件变量与互斥锁经常一起使用，以保证在同一时刻只有一个线程在访问共享资源。
+
+在 Rust 中，条件变量是由 std::sync::Condvar 结构体表示的。条件变量需要配合互斥体（由 std::sync::Mutex 结构体表示）使用，因为条件变量用于在互斥体保护的条件下通知等待的线程。
+
+.. code-block:: Rust
+    :linenos:
+
+	fn main() {
+		use std::sync::{Arc, Condvar, Mutex};
+		use std::thread;
+
+		let pair = Arc::new((Mutex::new(false), Condvar::new()));
+		let pair2 = Arc::clone(&pair);
+
+		// Inside of our lock, spawn a new thread, and then wait for it to start.
+		thread::spawn(move || {
+			let (lock, cvar) = &*pair2;
+			let mut started = lock.lock().unwrap();
+			*started = true;
+			// We notify the condvar that the value has changed.
+			cvar.notify_one();
+		});
+
+		// Wait for the thread to start up.
+		let (lock, cvar) = &*pair;
+		let mut started = lock.lock().unwrap();
+		while !*started {
+			started = cvar.wait(started).unwrap();
+		}
+	}
+
+这是一个使用 Rust 中的条件变量（Condvar）和互斥锁（Mutex）来同步两个线程进行协作的示例。在这个示例中，新线程通过更改布尔值并通知条件变量来发送信号，而主线程则使用条件变量来等待信号。首先，它定义了一个元组 (Mutex<bool>, Condvar)，并使用 Arc（原子引用计数）将其包装在一个可共享的指针中。这个指针有两个副本，因此两个线程都可以访问这个元组。然后，它启动了一个新的线程，并在这个线程内部使用互斥锁来更改共享的布尔值。最后，它使用条件变量来等待这个布尔值被更改，然后退出循环。
+
+信号量
+~~~~~~~~~~~~~~~~~~~~~
+
+信号量是操作系统中的一种同步原语，用于在多个线程或进程之间共享资源时进行互斥访问。它通常是一个整数值，用于计数指定数量的资源可用。当一个线程需要使用资源时，它会执行信号量的 `acquire` 操作，如果信号量的值小于等于零，则线程将被挂起，（直到信号量的值变为正数，则会被唤醒）；否则将信号量的值减一，操作正常返回。另一方面，当一个线程完成使用资源后，它可以执行信号量的 `release` 操作，将信号量的值加一，并唤醒一个或所有挂起的线程。Rust 标准库中没有信号量类型，但我们可以用Mutex和Condvar来构造信号量类型。 
+
+.. code-block:: Rust
+    :linenos:
+
+	use std::sync::{Condvar, Mutex};
+
+	pub struct Semaphore {
+		condvar: Condvar,
+		counter: Mutex<isize>,
+	}
+
+	impl Semaphore {
+		pub fn new(var: isize) -> Semaphore {
+			Semaphore {
+				condvar: Condvar::new(),
+				counter: Mutex::new(var),
+			}
+		}
+		pub fn acquire(&self) {
+			// gain access to the atomic integer
+			let mut count = self.counter.lock().unwrap();
+
+			// wait so long as the value of the integer <= 0
+			while *count <= 0 {
+				count = self.condvar.wait(count).unwrap();
+			}
+
+			// decrement our count to indicate that we acquired
+			// one of the resources
+			*count -= 1;
+		}
+		pub fn release(&self) {
+			// gain access to the atomic integer
+			let mut count = self.counter.lock().unwrap();
+
+			// increment its value
+			*count += 1;
+
+			// notify one of the waiting threads
+			self.condvar.notify_one();
+		}
+	}
+
+
+我们构造的 `Semaphore` 类型包含了三个方法：
+
+- `new(var)` 方法创建一个信号量，并初始化信号量值 `counter`的为 `var`；
+- `acquire()` 方法将信号量值减一，如果信号量的值已经为零，则线程通过条件变量 `condvar` 的 `wait` 操作将自己挂起；
+- `release()` 方法将信号量值加一，并通过条件变量 `condvar` 的 `notify_one` 操作唤醒一个挂起线程。
+
+
+有了信号量，我们就可以建立使用信号量的示例程序，该程序创建了三个线程，每个线程都会调用 acquire 方法获取信号量，然后输出一条消息，最后在信号量上调用 release 方法释放信号量。
+
+
+.. code-block:: Rust
+    :linenos:
+
+	use std::sync::Arc;
+	use std::thread;
+	fn main() {
+		//let sem = Semaphore::new(1);
+		// 创建信号量，并设置允许同时访问的线程数为 2。
+		let semaphore = Arc::new(Semaphore::new(2));
+
+		// 创建三个线程。
+		let threads = (0..3)
+			.map(|i| {
+				let semaphore = semaphore.clone();
+				thread::spawn(move || {
+					// 在信号量上调用 acquire 方法获取信号量。
+					semaphore.acquire();
+
+					// 输出消息。
+					println!("Thread {}: acquired semaphore", i);
+
+					// 模拟执行耗时操作。
+					thread::sleep(std::time::Duration::from_secs(1));
+
+					// 在信号量上调用 release 方法释放信号量。
+					println!("Thread {}: releasing semaphore", i);
+					semaphore.release();
+				})
+			})
+			.collect::<Vec<_>>();
+
+		// 等待所有线程完成。
+		for thread in threads {
+			thread.join().unwrap();
+		}
+	}
+
+
+这段代码创建了一个名为 `semaphore` 的信号量，并设置允许并发操作的线程数为 2。然后创建了三个线程，在每个线程中，首先调用信号量的 `acquire`` 方法来尝试获取信号量。如果获取了信号量，就可以输出一条消息，并模拟执行一些耗时操作，最后调用信号量的 `release` 方法来释放信号量，从而让其他线程有机会获取信号量并继续执行。该示例运行的结果如下所示：
+
+.. code-block:: console
+
+	Thread 0: acquired semaphore
+	Thread 1: acquired semaphore
+	Thread 0: releasing semaphore
+	Thread 1: releasing semaphore
+	Thread 2: acquired semaphore
+	Thread 2: releasing semaphore
+
+
+上述的示例都是在用户态实现的应用程序，其中的Thread、Mutex和Condvar是需要应用程序所在的操作系统（这里就是Linux）提供相应的支持的。在本章中，我们会在自己写的操作系统中实现Thread、Mutex、Condvar和Semaphore 机制，从而对同步互斥的原理有更加深入的了解，对应操作系统如何支持这些同步互斥底层机制有全面的掌握。
 
 实践体验
 -----------------------------------------
@@ -214,7 +399,7 @@
 	>>
 
 
-我们可以看到5个代表“哲学家”的线程通过操作系统的 **信号量** 互斥机制在进行“THINKING”、“EATING”、“WAITING”的日常生活。没有哲学家由于拿不到筷子而饥饿，也没有相邻的两个哲学家同时拿到同一个筷子。
+我们可以看到5个代表“哲学家”的线程通过操作系统的 **Mutex** 互斥机制在进行“THINKING”、“EATING”、“WAITING”的日常生活。没有哲学家由于拿不到筷子而饥饿，也没有相邻的两个哲学家同时拿到同一个筷子。
 
 
 .. note::

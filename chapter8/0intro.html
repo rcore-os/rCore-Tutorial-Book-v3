@@ -395,7 +395,7 @@
 <p>在1962年，荷兰的E.W.Dijkstra 教授和他的团队正在为 Electrologica X8 计算机设计开发了 <strong>THE 操作系统</strong> 。他们观察到如果多个程序在执行中访问共享变量，可能会产生冲突和结果不确定。在E.W.Dijkstra 教授在信号量机制的研究中，提出了多个“sequential processes”可以通过信号量机制合作访问共享变量，避免冲突导致结果不确定。这里的“sequential processes”的含义就是后续的线程。</p>
 <p><strong>Dijkstra 教授设计出信号量机制</strong></p>
 <p>Dijkstra 教授带领他的小团队在设计开发THE操作系统的过程中，异步中断触发的难以重现的并发错误，让他们在调试操作系统中碰到了困难。这种困难激发了Dijkstra团队的灵感，他们设计了操作系统的分层结构来避免操作系统的复杂性负担，同时还设计了信号量机制和对应的P和V操作，来确保线程对共享变量的灵活互斥访问，并支持线程之间的同步操作。P和V是来自荷兰语单词“测试”和“增加”的首字母，是很罕见的非英语来源的操作系统术语。</p>
-<p><strong>贝尔实验室Victor A. Vyssotsky提出线程（thead）概念</strong></p>
+<p><strong>贝尔实验室Victor A. Vyssotsky提出线程（thread）概念</strong></p>
 <p>1964年开始设计的Multics操作系统已经有进程的概念，也有多处理器并行处理的GE 645硬件设计，甚至提出了线程（ <strong>thead</strong> ）的概念。1966年，参与Multics开发的MIT博士生 Jerome Howard Saltzer在其博士毕业论文的一个注脚提到贝尔实验室的Victor A. Vyssotsky用 <strong>thread</strong> 这个名称来表示处理器（processor）执行程序（program）代码序列这个过程的抽象概念，Saltzer进一步把”进程（process）”描述为处理器执行程序代码的当前状态（即线程）和可访问的地址空间。但他们并没有建立类似信号量这样的有效机制来避免并发带来的同步互斥问题。</p>
 <p><strong>Brinch Hansen、Tony Hoare和Dijkstra提出管程机制</strong></p>
 <p>丹麦的Brinch Hansen，英国的Tony Hoare和Dijkstra并不满足于信号量来解决操作系统和应用中的并发问题。因为对于复杂一些的同步互斥问题（如哲学家问题），如果使用信号量机制不小心，容易引起死锁等错误。在 1971年的研讨会上，他们三人开始讨论管程（Monitor）的想法，希望设计一种更高级的并发管理语言结构，便于程序员开发并发程序。在1972年春天，Brinch Hansen 在他写的“操作系统原理”教科书中，提出了管程的概念，并把这一概念嵌入到了Concurrent Pascal 编程语言中，然后他和他的学生再接再厉，在PDP 11/45计算机上编写了Concurrent Pascal 编译器，并用Concurrent Pascal 编写了Solo操作系统。Brinch Hansen在操作系统和语言级并发处理方面的开创性工作影响了后续的操作系统并发处理机制（如条件变量等）和不少的编程语言并发方案。</p>
@@ -418,29 +418,25 @@
 <div class="section" id="term-thread-define">
 <span id="id3"></span><h3>线程定义<a class="headerlink" href="#term-thread-define" title="永久链接至标题">#</a></h3>
 <p>简单地说，线程是进程的组成部分，进程可包含1 – n个线程，属于同一个进程的线程共享进程的资源，比如地址空间，打开的文件等。线程基本上由线程ID、执行状态、当前指令指针(PC)、寄存器集合和栈组成。线程是可以被操作系统或用户态调度器独立调度（Scheduling）和分派（Dispatch）的基本单位。</p>
-<p>在本章之前，进程是程序的基本执行实体，是程序关于某数据集合上的一次运行活动，是系统进行资源（处理器，地址空间和文件等）分配和调度的基本单位。在有了线程后，对进程的定义也要调整了，进程是线程的资源容器，线程成为了程序的基本执行实体。</p>
+<p>在本章之前，进程是程序的基本执行实体，是程序对某数据集合进行操作的一次执行过程，是系统进行资源（处理器，地址空间和文件等）分配和调度的基本单位。在有了线程后，对进程的定义也要调整了，进程是线程的资源容器，线程成为了程序的基本执行实体。</p>
 <div class="admonition hint">
 <p class="admonition-title">提示</p>
 <p><strong>线程与进程的区别</strong></p>
-<p>下面的比较是以线程为调度对象的操作系统作为分析对象：</p>
+<p>注：下面的比较是把以线程为调度对象的操作系统作为分析对象：</p>
 <ul class="simple">
 <li><p>进程间相互独立（即资源隔离），同一进程的各线程间共享进程的资源（即资源共享）；</p></li>
 <li><p>子进程和父进程有不同的地址空间和资源，而多个线程（没有父子关系）则共享同一所属进程的地址空间和资源；</p></li>
 <li><p>每个线程有其自己的执行上下文（线程ID、程序计数器、寄存器集合和执行栈），而进程的执行上下文包括其管理的所有线程的执行上下文和地址空间（故同一进程下的线程间上下文切换比进程间上下文切换要快）；</p></li>
 <li><p>线程是一个可调度/分派/执行的实体（线程有就绪、阻塞和运行三种基本执行状态），进程不是可调度/分派/执行的的实体，而是线程的资源容器；</p></li>
-<li><p>进程间通信需要通过IPC机制（如管道等）， 属于同一进程的线程间可以共享“即直接读写”进程的数据，但需要同步互斥机制的辅助，以保证数据的一致性。</p></li>
+<li><p>进程间通信需要通过IPC机制（如管道等）， 属于同一进程的线程间可以共享“即直接读写”进程的数据，但需要同步互斥机制的辅助，避免出现数据不一致性以及不确定计算结果的问题。</p></li>
 </ul>
 </div>
 </div>
 <div class="section" id="id4">
 <h3>同步互斥<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
-<p>在上面提到了同步互斥和数据一致性，它们的含义是什么呢？ 当多个线程共享同一进程的地址空间时，每个线程都可以访问属于这个进程的数据（全局变量）。如果每个线程使用到的变量都是其他线程不会读取或者修改的话，那么就不存在一致性问题。如果变量是只读的，多个线程读取该变量也不会有一致性问题。但是，当一个线程修改变量时，其他线程在读取这个变量时，可能会看到一个不一致的值。甚至其他线程可能同时尝试修改变量。这就是数据不一致性的问题。</p>
-<div class="admonition note">
-<p class="admonition-title">注解</p>
-<p><strong>线程的数据一致性</strong></p>
-<p>线程的数据一致性的定义：在单处理器（即只有一个核的CPU）下，如果某线程更新了一个可被其他线程读到的共享数据，那么后续其他线程都能读到这个最新被更新的共享数据。</p>
-</div>
-<p>为什么会出现线程的数据不一致问题呢？其根本原因是 <strong>调度的不可控性</strong> ：即读写共享变量的代码片段会随时可能被操作系统调度和切换。先看看如下的伪代码例子：</p>
+<p>在上面提到了数据不一致性、不确定的计算结果，意味在操作系统的执行过程中，可能存在并发问题，并导致程序或操作系统执行失败。我们先给出 <strong>线程的数据一致性</strong> 的定义：在单处理器（即只有一个核的CPU）下，如果某线程更新了一个可被其他线程读到的共享数据，那么后续其他线程都能读到这个最新被更新的共享数据。当多个线程共享同一进程的地址空间时，每个线程都可以访问属于这个进程的数据（全局变量）。如果每个线程使用到的变量都是其他线程不会读取或者修改的话，各个线程访问的变量与预期结果一样，那么就不存在一致性问题。如果变量是只读的，多个线程读取该变量与预期结果一致，也不会有一致性问题。</p>
+<p>但是，当某些线程在修改变量，而其他线程在读取这个变量时，由于线程之间的执行顺序不能提前预知（取决于操作系统的调度），导致各个线程对同一变量的读写操作序列不确定，这就会导致不同线程可能会看到与预期结果不一样的值，这就出现了数据不一致性的问题，而且每次执行的结果不确定。我们把这种两个或多个线程在竞争访问同一资源时，执行结果取决于它们的不可预知的执行顺序的情况称为**线程的竞态条件（race condition）**。竞态条件是一种常见的并发问题，可能导致应用程序或操作系统执行失败。</p>
+<p>出现线程的数据不一致问题和竞态条件问题的根本原因是 <strong>调度的不可控性</strong> ：即读写共享变量的代码片段会随时可能被操作系统调度和切换。先看看如下的伪代码例子：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">//全局共享变量 NUM初始化为 0</span>
 <span class="linenos"> 2</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">NUM</span><span class="w"> </span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
 <span class="linenos"> 3</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
@@ -481,18 +477,180 @@
 <li><p>临界区（critical section）：访问共享资源的一段代码。</p></li>
 <li><p>竞态条件（race condition）：多个线程/进程都进入临界区时，都试图更新共享的数据结构，导致产生了不期望的结果。</p></li>
 <li><p>不确定性（indeterminate）： 多个线程/进程在执行过程中出现了竞态条件，导致执行结果取决于哪些线程在何时运行，即执行结果不确定，而开发者期望得到的是确定的结果。</p></li>
-<li><p>互斥（mutual exclusion）：一种操作原语，能保证同一时间只有一个线程进入临界区，从而避免出现竞态，并产生确定的执行结果。</p></li>
 <li><p>原子性（atomic）：一系列操作要么全部完成，要么一个都没执行，不会看到中间状态。在数据库领域，具有原子性的一系列操作称为事务（transaction）。</p></li>
+<li><p>互斥（mutual exclusion）：一种原子性操作，能保证同一时间只有一个线程进入临界区，从而避免出现竞态条件，并产生确定的预期执行结果。</p></li>
 <li><p>同步（synchronization）：多个并发执行的进程/线程在一些关键点上需要互相等待，这种相互制约的等待称为进程/线程同步。</p></li>
 <li><p>死锁（dead lock）：一个线程/进程集合里面的每个线程/进程都在等待只能由这个集合中的其他一个线程/进程（包括他自身）才能引发的事件，这种情况就是死锁。</p></li>
 <li><p>饥饿（hungry）：指一个可运行的线程/进程尽管能继续执行，但由于操作系统的调度而被无限期地忽视，导致不能执行的情况。</p></li>
 </ul>
 </div>
 <p>在后续的章节中，会大量使用上述术语，如果现在还不够理解，没关系，随着后续的一步一步的分析和实验，相信大家能够掌握上述术语的实际含义。</p>
-</div>
+<p>为了解决数据不一致问题和竞态条件问题，操作系统需要提供一些保障机制（比如互斥、同步等），无论操作系统如何调度（当然需要是正常情况下的调度）这些对共享数据进行读写的线程，各个线程都能得到预期的共享数据的正确访问结果。常见的同步互斥机制包括：互斥锁（Mutex Lock）、信号量（Semaphore）、条件变量（Conditional Variable）等。</p>
 </div>
 <div class="section" id="id5">
-<h2>实践体验<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
+<h3>互斥锁<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
+<p>互斥锁是操作系统中用于保护共享资源的机制。互斥锁能够确保在任何时候只有一个线程访问共享资源，从而避免资源竞争导致的数据不一致的问题。可以使用Rust标准库中的 std::sync::Mutex 类型来实现互斥锁。下面是一个使用互斥锁保护共享变量的示例：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">sync</span>::<span class="p">{</span><span class="n">Arc</span><span class="p">,</span><span class="w"> </span><span class="n">Mutex</span><span class="p">};</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">thread</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 3</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">            </span><span class="c1">// 创建一个可变的整数并将其包装在 Mutex 中</span>
+<span class="linenos"> 6</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="mi">0</span><span class="p">));</span><span class="w"></span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="w">            </span><span class="c1">// 创建两个线程，并传递 `data` 的 Arc 实例给它们</span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">data_clone</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">handle1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">thread</span>::<span class="n">spawn</span><span class="p">(</span><span class="k">move</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data_clone</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">                    </span><span class="o">*</span><span class="n">data</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">            </span><span class="p">});</span><span class="w"></span>
+<span class="linenos">14</span>
+<span class="linenos">15</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">data_clone</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">handle2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">thread</span>::<span class="n">spawn</span><span class="p">(</span><span class="k">move</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data_clone</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">                    </span><span class="o">*</span><span class="n">data</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">            </span><span class="p">});</span><span class="w"></span>
+<span class="linenos">20</span>
+<span class="linenos">21</span><span class="w">            </span><span class="c1">// 等待两个线程结束</span>
+<span class="linenos">22</span><span class="w">            </span><span class="n">handle1</span><span class="p">.</span><span class="n">join</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">            </span><span class="n">handle2</span><span class="p">.</span><span class="n">join</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">24</span>
+<span class="linenos">25</span><span class="w">            </span><span class="c1">// 输出结果</span>
+<span class="linenos">26</span><span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Result: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">data</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>在上面的代码中，两个线程都会尝试访问 data 变量，但是因为它被包装在了 Mutex 中，所以只有一个线程能够获取锁并访问变量。在获取互斥锁的时候，线程会被挂起，直到另一个线程释放了锁。最终的输出结果是 <cite>2</cite>。</p>
+</div>
+<div class="section" id="id6">
+<h3>条件变量<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
+<p>条件变量是操作系统中的一种同步原语，可用于在多个线程之间进行协作，即允许一个线程在另一个线程完成某些操作之前等待。条件变量与互斥锁经常一起使用，以保证在同一时刻只有一个线程在访问共享资源。</p>
+<p>在 Rust 中，条件变量是由 std::sync::Condvar 结构体表示的。条件变量需要配合互斥体（由 std::sync::Mutex 结构体表示）使用，因为条件变量用于在互斥体保护的条件下通知等待的线程。</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="w">            </span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">sync</span>::<span class="p">{</span><span class="n">Arc</span><span class="p">,</span><span class="w"> </span><span class="n">Condvar</span><span class="p">,</span><span class="w"> </span><span class="n">Mutex</span><span class="p">};</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">            </span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">thread</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 4</span>
+<span class="linenos"> 5</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">pair</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">((</span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="kc">false</span><span class="p">),</span><span class="w"> </span><span class="n">Condvar</span>::<span class="n">new</span><span class="p">()));</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">pair2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pair</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="w">            </span><span class="c1">// Inside of our lock, spawn a new thread, and then wait for it to start.</span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="n">thread</span>::<span class="n">spawn</span><span class="p">(</span><span class="k">move</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">lock</span><span class="p">,</span><span class="w"> </span><span class="n">cvar</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;*</span><span class="n">pair2</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">started</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lock</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">                    </span><span class="o">*</span><span class="n">started</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">                    </span><span class="c1">// We notify the condvar that the value has changed.</span>
+<span class="linenos">14</span><span class="w">                    </span><span class="n">cvar</span><span class="p">.</span><span class="n">notify_one</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">            </span><span class="p">});</span><span class="w"></span>
+<span class="linenos">16</span>
+<span class="linenos">17</span><span class="w">            </span><span class="c1">// Wait for the thread to start up.</span>
+<span class="linenos">18</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">lock</span><span class="p">,</span><span class="w"> </span><span class="n">cvar</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;*</span><span class="n">pair</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">started</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lock</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="o">!*</span><span class="n">started</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">                    </span><span class="n">started</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cvar</span><span class="p">.</span><span class="n">wait</span><span class="p">(</span><span class="n">started</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>这是一个使用 Rust 中的条件变量（Condvar）和互斥锁（Mutex）来同步两个线程进行协作的示例。在这个示例中，新线程通过更改布尔值并通知条件变量来发送信号，而主线程则使用条件变量来等待信号。首先，它定义了一个元组 (Mutex&lt;bool&gt;, Condvar)，并使用 Arc（原子引用计数）将其包装在一个可共享的指针中。这个指针有两个副本，因此两个线程都可以访问这个元组。然后，它启动了一个新的线程，并在这个线程内部使用互斥锁来更改共享的布尔值。最后，它使用条件变量来等待这个布尔值被更改，然后退出循环。</p>
+</div>
+<div class="section" id="id7">
+<h3>信号量<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
+<p>信号量是操作系统中的一种同步原语，用于在多个线程或进程之间共享资源时进行互斥访问。它通常是一个整数值，用于计数指定数量的资源可用。当一个线程需要使用资源时，它会执行信号量的 <cite>acquire</cite> 操作，如果信号量的值小于等于零，则线程将被挂起，（直到信号量的值变为正数，则会被唤醒）；否则将信号量的值减一，操作正常返回。另一方面，当一个线程完成使用资源后，它可以执行信号量的 <cite>release</cite> 操作，将信号量的值加一，并唤醒一个或所有挂起的线程。Rust 标准库中没有信号量类型，但我们可以用Mutex和Condvar来构造信号量类型。</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">sync</span>::<span class="p">{</span><span class="n">Condvar</span><span class="p">,</span><span class="w"> </span><span class="n">Mutex</span><span class="p">};</span><span class="w"></span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">Semaphore</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">            </span><span class="n">condvar</span>: <span class="nc">Condvar</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">            </span><span class="n">counter</span>: <span class="nc">Mutex</span><span class="o">&lt;</span><span class="kt">isize</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="k">impl</span><span class="w"> </span><span class="n">Semaphore</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">var</span>: <span class="kt">isize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Semaphore</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">                    </span><span class="n">Semaphore</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">                            </span><span class="n">condvar</span>: <span class="nc">Condvar</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">                            </span><span class="n">counter</span>: <span class="nc">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">var</span><span class="p">),</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">                    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">            </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">                    </span><span class="c1">// gain access to the atomic integer</span>
+<span class="linenos">17</span><span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">counter</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">18</span>
+<span class="linenos">19</span><span class="w">                    </span><span class="c1">// wait so long as the value of the integer &lt;= 0</span>
+<span class="linenos">20</span><span class="w">                    </span><span class="k">while</span><span class="w"> </span><span class="o">*</span><span class="n">count</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">                            </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">condvar</span><span class="p">.</span><span class="n">wait</span><span class="p">(</span><span class="n">count</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">                    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">23</span>
+<span class="linenos">24</span><span class="w">                    </span><span class="c1">// decrement our count to indicate that we acquired</span>
+<span class="linenos">25</span><span class="w">                    </span><span class="c1">// one of the resources</span>
+<span class="linenos">26</span><span class="w">                    </span><span class="o">*</span><span class="n">count</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">            </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">                    </span><span class="c1">// gain access to the atomic integer</span>
+<span class="linenos">30</span><span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">counter</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">31</span>
+<span class="linenos">32</span><span class="w">                    </span><span class="c1">// increment its value</span>
+<span class="linenos">33</span><span class="w">                    </span><span class="o">*</span><span class="n">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">34</span>
+<span class="linenos">35</span><span class="w">                    </span><span class="c1">// notify one of the waiting threads</span>
+<span class="linenos">36</span><span class="w">                    </span><span class="bp">self</span><span class="p">.</span><span class="n">condvar</span><span class="p">.</span><span class="n">notify_one</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">37</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">38</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>我们构造的 <cite>Semaphore</cite> 类型包含了三个方法：</p>
+<ul class="simple">
+<li><p><cite>new(var)</cite> 方法创建一个信号量，并初始化信号量值 <cite>counter`的为 `var</cite>；</p></li>
+<li><p><cite>acquire()</cite> 方法将信号量值减一，如果信号量的值已经为零，则线程通过条件变量 <cite>condvar</cite> 的 <cite>wait</cite> 操作将自己挂起；</p></li>
+<li><p><cite>release()</cite> 方法将信号量值加一，并通过条件变量 <cite>condvar</cite> 的 <cite>notify_one</cite> 操作唤醒一个挂起线程。</p></li>
+</ul>
+<p>有了信号量，我们就可以建立使用信号量的示例程序，该程序创建了三个线程，每个线程都会调用 acquire 方法获取信号量，然后输出一条消息，最后在信号量上调用 release 方法释放信号量。</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">sync</span>::<span class="n">Arc</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">thread</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">            </span><span class="c1">//let sem = Semaphore::new(1);</span>
+<span class="linenos"> 5</span><span class="w">            </span><span class="c1">// 创建信号量，并设置允许同时访问的线程数为 2。</span>
+<span class="linenos"> 6</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">semaphore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">Semaphore</span>::<span class="n">new</span><span class="p">(</span><span class="mi">2</span><span class="p">));</span><span class="w"></span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="w">            </span><span class="c1">// 创建三个线程。</span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">threads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="o">..</span><span class="mi">3</span><span class="p">)</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">                    </span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">i</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">                            </span><span class="kd">let</span><span class="w"> </span><span class="n">semaphore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">semaphore</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">                            </span><span class="n">thread</span>::<span class="n">spawn</span><span class="p">(</span><span class="k">move</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">                                    </span><span class="c1">// 在信号量上调用 acquire 方法获取信号量。</span>
+<span class="linenos">14</span><span class="w">                                    </span><span class="n">semaphore</span><span class="p">.</span><span class="n">acquire</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">15</span>
+<span class="linenos">16</span><span class="w">                                    </span><span class="c1">// 输出消息。</span>
+<span class="linenos">17</span><span class="w">                                    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Thread {}: acquired semaphore&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">18</span>
+<span class="linenos">19</span><span class="w">                                    </span><span class="c1">// 模拟执行耗时操作。</span>
+<span class="linenos">20</span><span class="w">                                    </span><span class="n">thread</span>::<span class="n">sleep</span><span class="p">(</span><span class="n">std</span>::<span class="n">time</span>::<span class="n">Duration</span>::<span class="n">from_secs</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span><span class="w"></span>
+<span class="linenos">21</span>
+<span class="linenos">22</span><span class="w">                                    </span><span class="c1">// 在信号量上调用 release 方法释放信号量。</span>
+<span class="linenos">23</span><span class="w">                                    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Thread {}: releasing semaphore&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">                                    </span><span class="n">semaphore</span><span class="p">.</span><span class="n">release</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">                            </span><span class="p">})</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">                    </span><span class="p">})</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">                    </span><span class="p">.</span><span class="n">collect</span>::<span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">_</span><span class="o">&gt;&gt;</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">28</span>
+<span class="linenos">29</span><span class="w">            </span><span class="c1">// 等待所有线程完成。</span>
+<span class="linenos">30</span><span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">thread</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">threads</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">                    </span><span class="n">thread</span><span class="p">.</span><span class="n">join</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>这段代码创建了一个名为 <cite>semaphore</cite> 的信号量，并设置允许并发操作的线程数为 2。然后创建了三个线程，在每个线程中，首先调用信号量的 <cite>acquire`</cite> 方法来尝试获取信号量。如果获取了信号量，就可以输出一条消息，并模拟执行一些耗时操作，最后调用信号量的 <cite>release</cite> 方法来释放信号量，从而让其他线程有机会获取信号量并继续执行。该示例运行的结果如下所示：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">Thread 0: acquired semaphore</span>
+<span class="go">Thread 1: acquired semaphore</span>
+<span class="go">Thread 0: releasing semaphore</span>
+<span class="go">Thread 1: releasing semaphore</span>
+<span class="go">Thread 2: acquired semaphore</span>
+<span class="go">Thread 2: releasing semaphore</span>
+</pre></div>
+</div>
+<p>上述的示例都是在用户态实现的应用程序，其中的Thread、Mutex和Condvar是需要应用程序所在的操作系统（这里就是Linux）提供相应的支持的。在本章中，我们会在自己写的操作系统中实现Thread、Mutex、Condvar和Semaphore 机制，从而对同步互斥的原理有更加深入的了解，对应操作系统如何支持这些同步互斥底层机制有全面的掌握。</p>
+</div>
+</div>
+<div class="section" id="id8">
+<h2>实践体验<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h2>
 <p>获取本章代码：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
 <span class="gp">$ </span><span class="nb">cd</span> rCore-Tutorial-v3
@@ -529,7 +687,7 @@
 <span class="o">&gt;&gt;</span>
 </pre></div>
 </div>
-<p>我们可以看到5个代表“哲学家”的线程通过操作系统的 <strong>信号量</strong> 互斥机制在进行“THINKING”、“EATING”、“WAITING”的日常生活。没有哲学家由于拿不到筷子而饥饿，也没有相邻的两个哲学家同时拿到同一个筷子。</p>
+<p>我们可以看到5个代表“哲学家”的线程通过操作系统的 <strong>Mutex</strong> 互斥机制在进行“THINKING”、“EATING”、“WAITING”的日常生活。没有哲学家由于拿不到筷子而饥饿，也没有相邻的两个哲学家同时拿到同一个筷子。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>哲学家就餐问题</strong></p>
@@ -537,8 +695,8 @@
 <p>有5个哲学家共用一张圆桌，分别坐在周围的5张椅子上，在圆桌上有5个碗和5只筷子，他们的生活方式是交替地进行思考和进餐。平时，每个哲学家进行思考，饥饿时便试图拿起其左右最靠近他的筷子，只有在他拿到两只筷子时才能进餐。进餐完毕，放下筷子继续思考。</p>
 </div>
 </div>
-<div class="section" id="id6">
-<h2>本章代码树<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
+<div class="section" id="id9">
+<h2>本章代码树<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h2>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos">  1</span>     .
 <span class="linenos">  2</span>     ├── bootloader
 <span class="linenos">  3</span>     │   └── rustsbi-qemu.bin
@@ -670,8 +828,8 @@
 </pre></div>
 </div>
 </div>
-<div class="section" id="id7">
-<h2>本章代码导读<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h2>
+<div class="section" id="id10">
+<h2>本章代码导读<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h2>
 </div>
 </div>
 
@@ -736,11 +894,14 @@
 <li><a class="reference internal" href="#id2">本章导读</a><ul>
 <li><a class="reference internal" href="#term-thread-define">线程定义</a></li>
 <li><a class="reference internal" href="#id4">同步互斥</a></li>
+<li><a class="reference internal" href="#id5">互斥锁</a></li>
+<li><a class="reference internal" href="#id6">条件变量</a></li>
+<li><a class="reference internal" href="#id7">信号量</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id5">实践体验</a></li>
-<li><a class="reference internal" href="#id6">本章代码树</a></li>
-<li><a class="reference internal" href="#id7">本章代码导读</a></li>
+<li><a class="reference internal" href="#id8">实践体验</a></li>
+<li><a class="reference internal" href="#id9">本章代码树</a></li>
+<li><a class="reference internal" href="#id10">本章代码导读</a></li>
 </ul>
 </li>
 </ul>
