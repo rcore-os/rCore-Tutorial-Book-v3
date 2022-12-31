@@ -435,7 +435,8 @@
 <li><p>CPU 在执行指令的时候会进行一些调度或优化。</p></li>
 </ol>
 <p>那么按照顺序首先来检查第一步，即编译器生成的汇编代码是否正确。可以用如下命令反汇编可执行文件 <code class="docutils literal notranslate"><span class="pre">adder</span></code> 生成汇编代码 <code class="docutils literal notranslate"><span class="pre">adder.asm</span></code> ：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>rust-objdump -D adder &gt; adder.asm
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>rustup component add llvm-tools-preview
+<span class="gp">$ </span>rust-objdump -D adder &gt; adder.asm
 </pre></div>
 </div>
 <p>在 <code class="docutils literal notranslate"><span class="pre">adder.asm</span></code> 中找到传给每个线程的闭包函数（这部分是我们自己写的，更容易出错）的汇编代码：</p>
@@ -500,11 +501,107 @@
 </div>
 <p>我们可以得出结论：编译器生成的汇编代码是符合我们的预期的。那么接下来进行第二步，操作系统的调度是否会影响结果的正确性呢？在具体分析之前，我们先对汇编代码进行简化，只保留直接与结果相关的部分。那么，可以看成每个线程进行 <code class="docutils literal notranslate"><span class="pre">PER_THREAD</span></code> 次操作，每次操作按顺序进行下面三个步骤：</p>
 <ol class="arabic simple">
-<li><p>使用访存指令，从全局变量 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的地址 addr 加载 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的值到寄存器 reg；</p></li>
+<li><p>使用访存指令，从全局变量 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的地址 addr 加载 <code class="docutils literal notranslate"><span class="pre">A</span></code> 当前的值到寄存器 reg；</p></li>
 <li><p>使用算术指令将寄存器 reg 的值加一；</p></li>
 <li><p>使用访存指令，将 reg 的值写回到全局变量 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的地址 addr，至此 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的值成功加一。</p></li>
 </ol>
-<p>这是一个可以认为与具体指令集架构无关的过程。</p>
+<p>这是一个可以认为与具体指令集架构无关的过程。因为对于传统的计算机架构而言，在 ALU 上进行的算术指令需要以寄存器为载体，而不能直接在 RAM 上进行操作。在此基础上，我们可以建立简化版的线程执行模型，如下图所示：</p>
+<a class="reference internal image-reference" href="../_images/adder-example-1.png"><img alt="../_images/adder-example-1.png" class="align-center" src="../_images/adder-example-1.png" style="width: 300px;" /></a>
+<p id="term-interleave">目前有两个线程 T0 和 T1 ，二者都是从上到下顺序执行。我们将 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 的操作打包成包含三条指令的一个块，剩下的绿色区域则表示与操作无关的那些指令。每个线程都会有一种幻觉就是它能够从头到尾独占 CPU 执行，但实际上操作系统会通过抢占式调度划分时间片使它们 <strong>交错</strong> (Interleave) 运行。注意时钟中断可能在执行任意一条指令之后触发，因此时间片之间的边界可能是任意一条指令。下图是一种可能的时间片划分方式：</p>
+<a class="reference internal image-reference" href="../_images/adder-example-2.png"><img alt="../_images/adder-example-2.png" class="align-center" src="../_images/adder-example-2.png" style="width: 600px;" /></a>
+<p>我们暂时只考虑单 CPU 的简单情况。按照时间顺序，CPU 依次执行 T0 的时间片 0、T1 的时间片 1、T0 的时间片 2 和 T1 的时间片 3，在相邻两个时间片之间会进行一次线程切换。注意到在这种划分方式中，两个线程各有一个操作块被划分到多个时间片完成。图片的右侧展示了 CPU 视角的指令执行过程，我们仅关注操作块中的指令，并尝试模拟一下：</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="colwidths-given docutils align-default">
+<colgroup>
+<col style="width: 24%" />
+<col style="width: 18%" />
+<col style="width: 29%" />
+<col style="width: 29%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>动作</p></th>
+<th class="head"><p>所属线程</p></th>
+<th class="head"><p>寄存器 reg 的值（动作后）</p></th>
+<th class="head"><p>addr 处的值（动作后）</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>切换到 T0</p></td>
+<td><p>T0</p></td>
+<td><ul class="simple">
+<li></li>
+</ul>
+</td>
+<td><p>v</p></td>
+</tr>
+<tr class="row-odd"><td><p>LOAD reg, addr</p></td>
+<td><p>T0</p></td>
+<td><p>v</p></td>
+<td><p>v</p></td>
+</tr>
+<tr class="row-even"><td><p>ADD reg, 1</p></td>
+<td><p>T0</p></td>
+<td><p>v+1</p></td>
+<td><p>v</p></td>
+</tr>
+<tr class="row-odd"><td><p>T0 切换到 T1</p></td>
+<td><p>T1</p></td>
+<td><ul class="simple">
+<li></li>
+</ul>
+</td>
+<td><p>v</p></td>
+</tr>
+<tr class="row-even"><td><p>LOAD reg, addr</p></td>
+<td><p>T1</p></td>
+<td><p>v</p></td>
+<td><p>v</p></td>
+</tr>
+<tr class="row-odd"><td><p>ADD reg, 1</p></td>
+<td><p>T1</p></td>
+<td><p>v+1</p></td>
+<td><p>v</p></td>
+</tr>
+<tr class="row-even"><td><p>T1 切换到 T0</p></td>
+<td><p>T0</p></td>
+<td><p>v+1</p></td>
+<td><p>v</p></td>
+</tr>
+<tr class="row-odd"><td><p>STORE reg, addr</p></td>
+<td><p>T0</p></td>
+<td><p>v+1</p></td>
+<td><p>v+1</p></td>
+</tr>
+<tr class="row-even"><td><p>T0 切换到 T1</p></td>
+<td><p>T1</p></td>
+<td><p>v+1</p></td>
+<td><p>v+1</p></td>
+</tr>
+<tr class="row-odd"><td><p>STORE reg, addr</p></td>
+<td><p>T1</p></td>
+<td><p>v+1</p></td>
+<td><p>v+1</p></td>
+</tr>
+<tr class="row-even"><td><p>T1 切换出去</p></td>
+<td><ul class="simple">
+<li></li>
+</ul>
+</td>
+<td><ul class="simple">
+<li></li>
+</ul>
+</td>
+<td><p>v+1</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>假设开始之前全局变量 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的值为 v ，而在这来自两个线程的四个时间片中包含了完整的两个 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 的操作块，那么结束之后 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的值应该变成 v+2 。然而我们模拟下来的结果却是 v+1 ，这是为什么呢？首先需要说明的是，尽管两个线程都使用寄存器 reg 中转，但是它们之间并不会产生冲突，因为在线程切换的时候会对线程上下文进行保存与恢复，其中也包括寄存器 reg 。因此我们可以认为两个线程均有一份自己独占的寄存器。言归正传，我们从结果入手进行分析， <code class="docutils literal notranslate"><span class="pre">A</span></code> 最终的值来源于我们在这段时间对它进行的最后一次写入，这次写入由 T1 进行，但是为什么 T1 会写入 v+1 而不是 v+2 呢？从 T1 的视角来看，首先要读取 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的值到 reg ，发现是 v ，这一点就很奇怪，好像此前 T0 什么都没做一样。而后 T1 将 reg 的值加一变成 v+1 ，于是最后写入的也是这个值。所以，问题的关键在于 T0 将自己的 reg 更新为 v+1 之后，还没来得及写回到 <code class="docutils literal notranslate"><span class="pre">A</span></code> ，就被操作系统切换到 T1 ，因此 T1 会看到 v 而不是 v+1 。等再切换回 T0 将 v+1 写入到 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的时候已经为时已晚，因为已经过了关键的 T1 读取 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的时间点了，于是这次写入无法对 T1 产生任何影响，也无法影响到最终的结果了。因此，在这种情况下，由于操作系统的抢占式调度，可以看到 T0 的 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 操作完全在做无用功，于是最终结果比期望少 1 。</p>
+<p id="term-race-condition"><span id="term-indeterminate"></span>从上个例子可以看出，操作系统的调度有可能使得两个线程上的操作块 <strong>交错</strong> 出现，也就是说两个操作块从开始到结束的时间区间存在交集。一旦出现这种情况，便会导致结果出现偏差。最终的结果取决于这种交错的情况出现多少次，如果完全没有出现则结果正确；否则出现次数越多，结果偏差越大。这就能够解释为什么我们每次运行 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 会得到不同的结果。这种运行结果 <strong>不确定</strong> (Indeterminate)，且取决于像是操作系统的调度顺序这种无法控制的外部事件的情况被称为 <strong>竞态条件</strong> (Race Condition) 。在 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 中，竞态条件导致了我们预料之外的结果，因此它应当被认为是一个 bug 。</p>
+<p>我们尝试更加形象的说明为什么操作块交错出现就会有问题。在写程序的时候，我们需要做的是通过软件控制一些资源，这些资源可能是软件资源或者硬件资源。软件资源可能包括保存在内存中的一些数据结构，硬件资源可能是内存的一部分或者某些 I/O 设备。在资源被初始化之后，资源处于一种合法（Valid）状态，这里的合法状态是指资源符合一些特定的约束条件从而具有该种资源所应该具有的特征。以我们耳熟能详的链表数据结构为例，一个合法的链表应该满足每个节点的 next 指针均为空指针或者指向合法的内存区域。同时，next 指针不能形成环。当然，实际上还有更多的约束条件，我们使用自然语言很难完全表述它们。总之，只有满足所有的约束条件，我们才说这是一个合法的链表。</p>
+<p id="term-intermediate-state">每种资源可能都有多种不同的控制方式，每种控制方式称为对这种资源的一种操作。比如说，如果将链表看成一种资源，那么链表的插入和删除就是两种对链表的操作。每一种操作仅在资源处于合法状态时才能进行，且在操作完成之后保证资源仍旧处于合法状态。设想我们要实现链表的插入操作，这必须在待操作的数据结构是一个合法的链表这一前提下才能进行，不然我们的操作将完全没有意义。我们还需要保证插入之后链表依然合法，才称得上是正确的实现。但是资源并非任意时刻均处于合法状态。因为一般来说操作都比较复杂，会分成多个阶段多条指令完成。通常，处于合法状态的资源在操作时会变成不合法的 <strong>中间状态</strong> (Intermediate State)，待操作结束之后再重回合法状态。以我们的多线程计数器 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 为例，状态转移过程如下：</p>
+<a class="reference internal image-reference" href="../_images/adder-state-machine.png"><img alt="../_images/adder-state-machine.png" class="align-center" src="../_images/adder-state-machine.png" style="width: 400px;" /></a>
+<p>这里我们将全局变量 <code class="docutils literal notranslate"><span class="pre">A</span></code> 视为一种资源，操作 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 为一个三阶段操作。我们可以用有限状态自动机来描述资源 <code class="docutils literal notranslate"><span class="pre">A</span></code> 和操作 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> ：状态机中一共有 3 种状态，一个合法状态和两个不合法的中间状态 0 和 1。对于每次操作，第一条指令 <code class="docutils literal notranslate"><span class="pre">A</span></code> 从合法状态转移到中间状态 0；第二条指令 <code class="docutils literal notranslate"><span class="pre">A</span></code> 从中间状态 0 转移到中间状态 1；第三条指令 <code class="docutils literal notranslate"><span class="pre">A</span></code> 从中间状态 1 转移回合法状态。将操作块交错的情况代入到状态机中，最开始切换到 T0 之前 <code class="docutils literal notranslate"><span class="pre">A</span></code> 处于合法状态，接下来切换到 T0 执行了第一、二条指令之后 <code class="docutils literal notranslate"><span class="pre">A</span></code> 转移到中间状态 1，而此时操作系统切换到 T1 ， T1 又开始执行第一条指令。问题来了：我们发现中间状态 1 并没有定义此时再执行第一条指令应该如何转移。如果去执行的话，就会产生未定义行为并可能永远无法使 <code class="docutils literal notranslate"><span class="pre">A</span></code> 回到合法状态。不过，由于 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 中 <code class="docutils literal notranslate"><span class="pre">A</span></code> 只是一个整数，我们会发现 <code class="docutils literal notranslate"><span class="pre">A</span></code> 仍能回到合法状态，只是结果不对。如果换成一种复杂的数据结构，就会产生极其微妙且难以调试的结果。</p>
 </div>
 </div>
 
