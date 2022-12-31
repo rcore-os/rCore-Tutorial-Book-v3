@@ -399,24 +399,52 @@
 <p>后来随着网络的普及，又出现了一类设备：网络设备。网络面向报文而不是面向字符流或数据块，还具有数据丢失等可靠性问题，因此将网络设备映射为常见的文件比较困难。为此UNIX的早期继承者BSD（Berkeley Software Distribution）提出了socket接口和对应操作，形成了事实上的TCP/IP网络API标准。</p>
 <p>再后来随着个人电脑的普及，计算机已经进入寻常百姓家中，计算机的功能和控制范围进一步放大，各种类型的I/O设备层出不穷。GPU、声卡、显卡等外设已经很难归类到上述的三种分类中，所以它们也就形成了各自独立的设备类型。各种设备出现时间有早晚，功能特点各异，这也使得现有的操作系统在设备驱动的设计和实现上面比较繁杂。</p>
 <p>从CPU与外设的交互方式的发展过程来看，CPU可管理的设备数量越来越多，CPU与设备之间的数据传递性能（延迟和吞吐量）也越来越强。总体上看，CPU连接的外设有如下的发展过程：</p>
-<p><strong>简单设备</strong></p>
-<p>CPU连接的设备不多，设备性能较低，所以CPU可通过I/O接口（如嵌入式系统中的通用输入输出GPIO接口）直接控制I/O设备（如简单的发光二极管等），这在简单的单片机和微处理器控制设备中经常见到。其特点是CPU发出I/O命令或数据，可立刻驱动I/O设备并产生相应的效果。</p>
-<p><strong>多设备</strong></p>
-<p>CPU连接的设备越来越多，需要在CPU与I/O设备之间增加了一层–I/O控制器（如串口控制器等）。CPU可通过对I/O控制器进行编程来控制各种设备。其特点是CPU给I/O控制器发出I/O命令或读写数据，由I/O控制器来直接控制I/O设备和传达I/O设备的信息给CPU。CPU还需通过访问I/O控制器相关寄存器获取I/O设备的当前状态。其特点是CPU需要轮询检查设备情况，对于低速设备（如串口等）而言，高速CPU和低速设备之间是一种串行执行的过程，导致CPU利用率低。 随着设备的增多，I/O控制器也逐渐通用化（如各种总线接口等），把不同设备连接在一起，并能把设备间共性的部分进行集中管理。</p>
-<p>同时，为了简化CPU与各种设备的连接，出现了 <strong>总线（bus）</strong> 。总线代表连接在一起的设备需要共同遵守的I/O时序，不同总线（如I2c总线、USB总线、PCI总线等）的I/O时序是不同的。</p>
-<p><strong>支持中断的设备</strong></p>
-<p>CPU与外设的性能差距在加大，为了不让CPU把时间浪费在等待外设上，即为了解决CPU利用率低的问题，I/O控制器扩展了中断机制（如Intel推出的8259可编程中断控制器）。CPU发出I/O命令后，无需轮询忙等，可以干其他事情。但外设完成I/O操作后，会通过I/O控制器产生外部中断，让CPU来响应这个外部中断。由于CPU无需一直等待外设执行I/O操作，这样就能让CPU和外设并行执行，提高整个系统的执行效率。</p>
+</div>
+<div class="section" id="id4">
+<h3><strong>简单设备</strong><a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
+<p>计算机发展早期，CPU连接的设备不多，设备性能较低，所以CPU可通过I/O接口（如嵌入式系统中的通用输入输出GPIO接口）直接控制I/O设备（如简单的发光二极管等），这在简单的单片机和微处理器控制设备中经常见到。其特点是CPU发出I/O命令或数据，可立刻驱动I/O设备并产生相应的效果。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p><strong>中断并非总是比PIO好</strong></p>
-<p>尽管中断可以做到计算与I/O的重叠，但这仅在快速CPU和慢速设备之间的数据交换速率差异大的情况下上有意义。否则，如果设备的处理速度也很快（比如高速网卡的速率可以达到1000Gbps），那么额外的中断处理和中断上下文切换、进程上下文切换等的代价反而会超过其提高CPU利用率的收益。如果一个或多个设备在短时间内产生大量的外设中断，可能会使得系统过载，并且让操作系统应付不过来，从而引发活锁 <a class="footnote-reference brackets" href="#mr96" id="id4">1</a> 。在上述比较特殊的情况下，采用轮询的方式反而更有效，可以在操作系统自身的调度上提供更多的控制，甚至绕过操作系统直接让应用管理和控制外设。</p>
-</div>
-<p><strong>高吞吐量设备</strong></p>
-<p>某些高性能外设（SSD，网卡等）的性能在逐步提高，如果每次中断产生的I/O数据传输量少，那么I/O设备（如硬盘/SSD等）要在短期内传输大量数据就会频繁中断CPU，导致中断处理的总体开销很大，系统效率会降低。通过DMA（Direct Memory Access，直接内存访问）控制器（如Intel推出8237DMA控制器等），可以让外设在CPU没有访问内存的时间段中，以数据块的方式进行外设和内存之间的数据传输，且不需要CPU的干预。这样I/O设备的传输效率就大大提高了。CPU只需在开始传送前发出DMA指令，并在外设结束DMA操作后响应其发出的中断信息即可。</p>
+<p><strong>GPIO</strong></p>
+<p>GPIO（General-Purpose Input/Output）是一种输入/输出接口，可以在微控制器或嵌入式系统上使用。它由一组可编程的引脚组成，可以作为输入或输出使用。GPIO引脚可以控制或感测电平，并且可以用于连接各种类型的传感器和输出设备，如LED、按钮、马达和各种类型的传感器。</p>
+<p>GPIO引脚可以配置为输入或输出，并且可以通过软件控制其电平。在输入模式下，GPIO引脚可以感测外部电平变化，如按钮按下或传感器发出的信号。在输出模式下，GPIO引脚可以控制外部设备的状态，如LED亮或灭或电机转动。GPIO可用于实现软件定义的功能，这意味着可以在设备驱动程序中来控制GPIO引脚的状态。</p>
 </div>
 </div>
 <div class="section" id="id5">
-<h2>I/O传输方式<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
+<h3><strong>基于总线的多设备</strong><a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
+<p>随着计算机技术的发展，CPU连接的设备越来越多，需要在CPU与I/O设备之间增加了一层–I/O控制器（如串口控制器等）。CPU可通过对I/O控制器进行编程来控制各种设备。其特点是CPU给I/O控制器发出I/O命令或读写数据，由I/O控制器来直接控制I/O设备和传达I/O设备的信息给CPU。CPU还需通过访问I/O控制器相关寄存器获取I/O设备的当前状态。其特点是CPU需要轮询检查设备情况，对于低速设备（如串口等）而言，高速CPU和低速设备之间是一种串行执行的过程，导致CPU利用率低。 随着设备的增多，I/O控制器也逐渐通用化（如各种总线接口等），把不同设备连接在一起，并能把设备间共性的部分进行集中管理。</p>
+<p>同时，为了简化CPU与各种设备的连接，出现了 <strong>总线（bus）</strong> 。总线定义了连接在一起的设备需要共同遵守连接方式和I/O时序等，不同总线（如SPI总线、I2C总线、USB总线、PCI总线等）的连接方式和I/O时序是不同的。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>总线</strong></p>
+<p>计算机中的总线是一种用于在计算机中连接不同设备的电气传输路径。它可以用于在计算机的主板和外部设备之间传输数据。SPI (Serial Peripheral Interface)、I2C (Inter-Integrated Circuit)、USB (Universal Serial Bus) 和 PCI (Peripheral Component Interconnect) 总线都是用于在电脑和外部设备之间传输数据技术。但它们之间有一些显著的区别。</p>
+<p>连接方式：</p>
+<ul class="simple">
+<li><p>SPI总线使用四根线来连接设备。它通常使用四条线路，一个用于传输数据（MOSI），一个用于接收数据（MISO），一个用于时钟（SCK），另一个用于选择设备（SS）。</p></li>
+<li><p>I2C总线使用两根线来连接设备。它通常使用两个线路，一个用于传输数据（SDA），另一个用于时钟（SCL）。</p></li>
+<li><p>USB总线使用一个与电脑相连的小型接口来连接设备。USB接口通常是具有四个针的立体声连接器。</p></li>
+<li><p>PCI总线使用一条板载总线来连接电脑的中央处理器（CPU）和周边设备。这个总线通常是一条板载在主板上的总线，它使用一组插座和插头来连接设备。</p></li>
+</ul>
+<p>在速度上，I2C总线的传输速度较慢，通常在几KB/s~几百KB/s。SPI总线的传输速度较快，通常在几MB/s。USB总线设备的传输速度更快，通常在几MB/s~几GB/s。PCI总线的传输速度最快，可达到几GB/s~几十GB/s。</p>
+<p>在应用领域方面SPI总线和I2C总线通常用于嵌入式系统中，连接传感器、显示器和存储设备等外设。USB总线和PCI总线通常用于桌面和服务器计算机中，连接打印机、键盘、鼠标、硬盘、网卡等外设。</p>
+</div>
+</div>
+<div class="section" id="id6">
+<h3><strong>支持中断的设备</strong><a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
+<p>随着处理器技术的高速发展，CPU与外设的性能差距在加大，为了不让CPU把时间浪费在等待外设上，即为了解决CPU利用率低的问题，I/O控制器扩展了中断机制（如Intel推出的8259可编程中断控制器）。CPU发出I/O命令后，无需轮询忙等，可以干其他事情。但外设完成I/O操作后，会通过I/O控制器产生外部中断，让CPU来响应这个外部中断。由于CPU无需一直等待外设执行I/O操作，这样就能让CPU和外设并行执行，提高整个系统的执行效率。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>中断并非总是比PIO好</strong></p>
+<p>尽管中断可以做到计算与I/O的重叠，但这仅在快速CPU和慢速设备之间的数据交换速率差异大的情况下上有意义。否则，如果设备的处理速度也很快（比如高速网卡的速率可以达到1000Gbps），那么额外的中断处理和中断上下文切换、进程上下文切换等的代价反而会超过其提高CPU利用率的收益。如果一个或多个设备在短时间内产生大量的外设中断，可能会使得系统过载，并且让操作系统应付不过来，从而引发活锁 <a class="footnote-reference brackets" href="#mr96" id="id7">1</a> 。在上述比较特殊的情况下，采用轮询的方式反而更有效，可以在操作系统自身的调度上提供更多的控制，甚至绕过操作系统直接让应用管理和控制外设。</p>
+</div>
+</div>
+<div class="section" id="id8">
+<h3><strong>高吞吐量设备</strong><a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
+<p>外设技术的发展也在加速，某些高性能外设（SSD，网卡等）的性能在逐步提高，如果每次中断产生的I/O数据传输量少，那么I/O设备（如硬盘/SSD等）要在短期内传输大量数据就会频繁中断CPU，导致中断处理的总体开销很大，系统效率会降低。通过DMA（Direct Memory Access，直接内存访问）控制器（如Intel推出8237DMA控制器等），可以让外设在CPU没有访问内存的时间段中，以数据块的方式进行外设和内存之间的数据传输，且不需要CPU的干预。这样I/O设备的传输效率就大大提高了。CPU只需在开始传送前发出DMA指令，并在外设结束DMA操作后响应其发出的中断信息即可。</p>
+</div>
+</div>
+<div class="section" id="id9">
+<h2>I/O传输方式<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h2>
 <p>在上述的I/O设备发展过程可以看到， CPU主要有三种方式可以与外设进行数据传输：Programmed I/O (简称PIO)、Interrupt、Direct Memory Access (简称DMA)。</p>
 <div class="section" id="programmed-i-o">
 <h3>Programmed I/O<a class="headerlink" href="#programmed-i-o" title="永久链接至标题">#</a></h3>
@@ -441,10 +469,10 @@
 </div></blockquote>
 </div>
 </div>
-<div class="section" id="id6">
-<h2>I/O设备抽象<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
-<div class="section" id="id7">
-<h3>I/O接口的交互协议<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
+<div class="section" id="id10">
+<h2>I/O设备抽象<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h2>
+<div class="section" id="id11">
+<h3>I/O接口的交互协议<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h3>
 <p>对于一个外设而言，它包含了两部分重要组成部分。第一部分是对外向系统其他部分展现的设备I/O接口（hardware I/O interface），这样操作系统才能通过接口来管理控制外设。所有设备都有自己的特定接口以及典型交互的协议。第二部分是对内的内部结构，包含了设备相关物理实现。由于外在接口的多样性，使得操作系统难以统一管理外设。</p>
 <p>如果我们不考虑具体的设备，而是站在一个高度抽象的角度来让软件管理设备，那么我们就不用太关注设备的内部结构，而重点考虑设备的接口如何进行简化。其实一个简化的抽象设备接口需要包括三部分：状态、命令、数据。软件可以读取并查看设备的当前状态，从而根据设备当前状态决定下一步的I/O访问请求；而软件是通过一系列的命令来要求设备完成某个具体的I/O访问请求；在完成一个I/O访问请求中，会涉及到将数据传给设备或从设备接收数据。CPU与设备间的I/O接口的交互协议如下所示：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="k">while</span><span class="w"> </span><span class="n">STATUS</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">BUSY</span><span class="w"> </span><span class="p">{};</span><span class="w">   </span><span class="c1">// 等待设备执行完毕</span>
@@ -468,8 +496,8 @@
 <p>站在软件的角度来看，为提高一大块数据传输效率引入的DMA机制并没有改变抽象设备接口的四个部分。仅仅是上面协议伪码中的 <code class="docutils literal notranslate"><span class="pre">data</span></code> 变成了  <code class="docutils literal notranslate"><span class="pre">data</span> <span class="pre">block</span></code> 。这样传输单个数据产生的中断频度会大大降低，从而进一步提高CPU利用率和系统效率。</p>
 <p>这里描述了站在软件角度上的抽象设备接口的交互协议。如果站在操作系统的角度，还需把这种设备抽象稍微再具体一点，从而能够在操作系统中实现对设备的管理。</p>
 </div>
-<div class="section" id="id8">
-<h3>基于文件的I/O设备抽象<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
+<div class="section" id="id12">
+<h3>基于文件的I/O设备抽象<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
 <p>计算机专家为此进行了诸多的探索，希望能给I/O设备提供一个统一的抽象。首先是把本来专门针对存储类I/O设备的文件进行扩展，认为所有的I/O设备都是文件，这就是传统UNIX中常见的设备文件。所有的I/O设备按照文件的方式进行处理。你可以在Linux下执行如下命令，看到各种各样的设备文件：</p>
 <div class="highlight-Shell notranslate"><div class="highlight"><pre><span></span>$ ls /dev
 i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
@@ -479,8 +507,8 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 <p><code class="docutils literal notranslate"><span class="pre">ioctl</span></code> 这名字第一次出现在Unix第七版中，他在很多类unix系统（比如Linux、Mac OSX等）都有提供，不过不同系统的请求码对应的设备有所不同。Microsoft Windows在Win32 API里提供了相似的函数，叫做DeviceIoControl。</p>
 <p>表面上看，基于设备文件的设备管理得到了大部分通用操作系统的支持，且这种 <code class="docutils literal notranslate"><span class="pre">ioctl</span></code> 系统调用很灵活，但它的问题是太灵活了，请求码的定义无规律可循，文件的接口太面向用户应用，并没有挖掘出操作系统在进行I/O设备处理过程中的共性特征。所以文件这个抽象还不足覆盖到操作系统对设备进行管理的整个执行过程中。</p>
 </div>
-<div class="section" id="id9">
-<h3>基于流的I/O设备抽象<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
+<div class="section" id="id13">
+<h3>基于流的I/O设备抽象<a class="headerlink" href="#id13" title="永久链接至标题">#</a></h3>
 <p>在UNIX操作系统的发展的过程中，出现了网络等更加复杂的设备，也随之出现了 <code class="docutils literal notranslate"><span class="pre">流</span> <span class="pre">stream</span></code> 这样的面向I/O设备管理的抽象。Dennis M. Ritchie在1984年写了一个技术报告“A Stream Input-Output System”，详细介绍了基于流的I/O设备的抽象设计。现在看起来，是希望把UNIX中的管道（pipe）机制拓展到内核的设备驱动中。</p>
 <p>流是用户进程和设备或伪设备之间的全双工连接。它由几个线性连接的处理模块（module）组成，类似于一个shell程序中的管道（pipe），只是数据双向流动。流中的模块通过向邻居模块传递消息来进行通信。除了一些用于流量控制的常规变量，模块不需要访问其邻居模块的其他数据。此外，一个模块只为每个邻居提供一个入口点，即一个接受消息的例程。</p>
 <img alt="../_images/stream.png" class="align-center" id="stream" src="../_images/stream.png" />
@@ -504,8 +532,8 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 </div>
 </div>
 </div>
-<div class="section" id="id10">
-<h2>I/O执行模型<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h2>
+<div class="section" id="id14">
+<h2>I/O执行模型<a class="headerlink" href="#id14" title="永久链接至标题">#</a></h2>
 <p>从用户进程的角度看，用户进程是通过I/O相关的系统调用（简称I/O系统调用）来进行I/O操作的。在UNIX环境中，I/O系统调用有多种不同类型的执行模型。根据Richard Stevens的经典书籍“UNIX Network Programming Volume 1: The Sockets Networking ”的6.2节“I/O Models ”的介绍，大致可以分为五种I/O执行模型(I/O Execution Model，简称IO Model, IO模型)：</p>
 <ul class="simple">
 <li><p>blocking IO</p></li>
@@ -586,7 +614,7 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 <p>有人可能会说，执行非阻塞IO系统调用的用户进程并没有被阻塞。其实这里定义中所指的 <strong>IO操作</strong> 是指实际的 <strong>IO操作</strong> 。比如，非阻塞IO在执行 <code class="docutils literal notranslate"><span class="pre">read</span></code> 系统调用的时候，如果内核中的IO数据没有准备好，这时候不会block进程。但是当内核中的IO数据准备好且收到用户进程发出的 <code class="docutils literal notranslate"><span class="pre">read</span></code> 系统调用时（处于第二阶段）， 内核中的 <code class="docutils literal notranslate"><span class="pre">read</span></code> 系统调用的实现会将数据从kernel拷贝到用户内存中，这个时候进程是可以被阻塞的。</p>
 <p>而异步IO则不一样，当用户进程发起IO操作之后，就直接返回做其它事情去了，直到内核发送一个通知，告诉用户进程说IO完成。在这整个过程中，用户进程完全没有被阻塞。</p>
 <dl class="footnote brackets">
-<dt class="label" id="mr96"><span class="brackets"><a class="fn-backref" href="#id4">1</a></span></dt>
+<dt class="label" id="mr96"><span class="brackets"><a class="fn-backref" href="#id7">1</a></span></dt>
 <dd><p>Jeffrey Mogul and K. K. Ramakrishnan, Eliminating Receive Livelock in an Interrupt-driven Kernel, USENIX ATC 1996, San Diego, CA, January 1996</p>
 </dd>
 </dl>
@@ -655,22 +683,26 @@ i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 <li><a class="reference internal" href="#id1">本节导读</a></li>
 <li><a class="reference internal" href="#id2">I/O设备概述</a><ul>
 <li><a class="reference internal" href="#id3">I/O设备的发展</a></li>
+<li><a class="reference internal" href="#id4"><strong>简单设备</strong></a></li>
+<li><a class="reference internal" href="#id5"><strong>基于总线的多设备</strong></a></li>
+<li><a class="reference internal" href="#id6"><strong>支持中断的设备</strong></a></li>
+<li><a class="reference internal" href="#id8"><strong>高吞吐量设备</strong></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id5">I/O传输方式</a><ul>
+<li><a class="reference internal" href="#id9">I/O传输方式</a><ul>
 <li><a class="reference internal" href="#programmed-i-o">Programmed I/O</a></li>
 <li><a class="reference internal" href="#interrupt-based-i-o">Interrupt based I/O</a></li>
 <li><a class="reference internal" href="#direct-memory-access">Direct Memory Access</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id6">I/O设备抽象</a><ul>
-<li><a class="reference internal" href="#id7">I/O接口的交互协议</a></li>
-<li><a class="reference internal" href="#id8">基于文件的I/O设备抽象</a></li>
-<li><a class="reference internal" href="#id9">基于流的I/O设备抽象</a></li>
+<li><a class="reference internal" href="#id10">I/O设备抽象</a><ul>
+<li><a class="reference internal" href="#id11">I/O接口的交互协议</a></li>
+<li><a class="reference internal" href="#id12">基于文件的I/O设备抽象</a></li>
+<li><a class="reference internal" href="#id13">基于流的I/O设备抽象</a></li>
 <li><a class="reference internal" href="#virtioi-o">基于virtio的I/O设备抽象</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id10">I/O执行模型</a><ul>
+<li><a class="reference internal" href="#id14">I/O执行模型</a><ul>
 <li><a class="reference internal" href="#io-blocking-io">阻塞IO（blocking IO）</a></li>
 <li><a class="reference internal" href="#io-non-blocking-io">非阻塞IO（non-blocking IO）</a></li>
 <li><a class="reference internal" href="#io-io-multiplexing">多路复用IO（IO multiplexing）</a></li>
