@@ -2,10 +2,10 @@
 <html class="no-js" lang="zh_CN">
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
-    <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="virtio设备驱动程序" href="2device-driver-2.html" /><link rel="prev" title="I/O设备" href="1io-interface.html" />
+    <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="virtio设备驱动程序" href="2device-driver-2.html" /><link rel="prev" title="外设平台" href="2device-driver-0.html" />
 
     <meta name="generator" content="sphinx-4.3.2, furo 2022.06.21"/>
-        <title>外设平台与串口驱动程序 - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
+        <title>串口驱动程序 - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
@@ -305,7 +305,8 @@
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">第九章：I/O设备管理</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-34" name="toctree-checkbox-34" role="switch" type="checkbox"/><label for="toctree-checkbox-34"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1io-interface.html">I/O设备</a></li>
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">外设平台与串口驱动程序</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-0.html">外设平台</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">串口驱动程序</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2device-driver-2.html">virtio设备驱动程序</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="4exercise.html">练习</a><input class="toctree-checkbox" id="toctree-checkbox-35" name="toctree-checkbox-35" role="switch" type="checkbox"/><label for="toctree-checkbox-35"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
 </ul>
@@ -383,176 +384,87 @@
         </div>
         <article role="main">
           <div class="section" id="id1">
-<h1>外设平台与串口驱动程序<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h1>
+<h1>串口驱动程序<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h1>
 <div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
-<p>本节首先讲述了驱动程序要完成的主要功能，包括初始化设备，接收用户进程的I/O请求并给设备发出I
-/O命令，响应设备发出的通知，完成用户进程的I/O请求。然后介绍了计算机硬件系统中除了CPU/内存之外的其他重要的外设和相关I/O控制器，以及如何通过编程来获取外设相关信息。最后介绍了一个具体的物理设备串口的驱动程序的设计与实现。</p>
+<p>现在我们对如何了解计算机系统中给的外设信息，以及如何初始化或与外设进行交互有了基本的了解。接下来，我们需要看看如何在完整的操作系统中通过添加设备驱动程序来扩展应用访问外设的I/O能力。本节将通过介绍一个具体的物理设备串口的驱动程序的设计与实现，来分析如何在操作系统中添加设备驱动程序。</p>
 </div>
 <div class="section" id="id3">
-<h2>驱动程序概述<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
-<p>从操作系统架构上看，驱动程序与I/O设备靠的更近，离应用程序更远，这使得驱动程序需要站在协助所有进程的全局角度来处理各种I/O操作。这也就意味着在驱动程序的设计实现中，尽量不要与单个进程建立直接的联系，而是在全局角度对I/O设备进行统一处理。</p>
-<p>上面只是介绍了CPU和I/O设备之间的交互手段。如果从操作系统角度来看，我们还需要对特定设备编写驱动程序。它一般需要完成如下一些功能：</p>
-<ol class="arabic simple">
-<li><p>设备初始化，即完成对设备的初始配置，分配I/O操作所需的内存，设置好中断处理例程</p></li>
-<li><p>如果设备会产生中断，需要有处理这个设备中断的中断处理例程（Interrupt Handler）</p></li>
-<li><p>根据操作系统上层模块（如文件系统）的要求（如读磁盘数据），给I/O设备发出命令</p></li>
-<li><p>与操作系统上层模块进行交互，完成上层模块的要求（如上传读出的磁盘数据）</p></li>
-</ol>
-<p>从驱动程序I/O操作的执行模式上看，主要有两种模式的I/O操作：异步和同步。同步模式下的处理逻辑类似函数调用，从应用程序发出I/O请求，通过同步的系统调用传递到操作系统内核中，操作系统内核的各个层级进行相应处理，并最终把相关的I/O操作命令转给了驱动程序。一般情况下，驱动程序完成相应的I/O操作会比较慢（相对于CPU而言），所以操作系统会让代表应用程序的进程进入等待状态，进行进程切换。但相应的I/O操作执行完毕后（操作系统通过轮询或中断方式感知），操作系统会在合适的时机唤醒等待的进程，从而进程能够继续执行。</p>
-<p>异步I/O操作是一个效率更高的执行模式，即应用程序发出I/O请求后，并不会等待此I/O操作完成，而是继续处理应用程序的其它任务（这个任务切换会通过运行时库或操作系统来完成）。调用异步I/O操作的应用程序需要通过某种方式（比如某种异步通知机制）来确定I/O操作何时完成。这部分可以通过协程技术来实现，但目前我们不会就此展开讨论。</p>
-<p>编写驱动程序代码需要注意规避三方面的潜在风险的技术准备措施：</p>
-<ol class="arabic simple">
-<li><p>了解硬件规范：从而能够正确地与硬件交互，并能处理访问硬件出错的情况；</p></li>
-<li><p>了解操作系统，由于驱动程序与它所管理的设备会同时执行，也可能与操作系统其他模块并行/并发访问相关共享资源，所以需要考虑同步互斥的问题（后续会深入讲解操作系统同步互斥机制），并考虑到申请资源失败后的处理；</p></li>
-<li><p>理解驱动程序执行中所在的可能的上下文环境：如果是在进行中断处理（如在执行 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 函数），那是在中断上下文中执行；如果是在代表进程的内核线程中执行后续的I/O操作（如收发TCP包），那是在内核线程上下文执行。这样才能写出正确的驱动程序。</p></li>
-</ol>
+<h2>串口驱动程序<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
+<p>我们要管理是串口(UART)物理设备。我们在第一章其实就接触了串口，但当时是通过RustSBI来帮OS完成对串口的访问，即OS只需发出两种SBI调用请求就可以输出和获取字符了。但这种便捷性是有代价的。比如OS在调用获取字符的SBI调用请求后，RustSBI如果没收到串口字符，会返回 <code class="docutils literal notranslate"><span class="pre">-1</span></code> ，这样OS只能采用类似轮询的方式来继续查询。到第七章为止的串口驱动不支持中断是导致在多进程情况下，系统效率低下的主要原因之一。大家也不要遗憾，我们的第一阶段的目标是 <strong>Just do it</strong> ，先把OS做出来。在本节，我们需要逐步改进优化对串口的操作了。</p>
+<p>串口（Universal Asynchronous Receiver-Transmitter，简称UART）是一种在嵌入式系统中常用的用于传输、接收系列数据的外部设备。串行数据传输是逐位（bit）顺序发送数据的过程。了解QEMU模拟的兼容NS16550A硬件规范 <a class="footnote-reference brackets" href="#uart1" id="id4">1</a> <a class="footnote-reference brackets" href="#uart2" id="id5">2</a>  是写驱动程序的准备工作，建议同学们先阅读一下。每个UART使用8个I/O字节来访问其寄存器。下表 <a class="footnote-reference brackets" href="#uart1" id="id6">1</a> 显示了UART中每个寄存器的地址和基本含义。表中使用的 <cite>base</cite> 是串口设备的起始地址。在QEMU模拟的virt计算机中串口设备寄存器的MMIO起始地址为 <code class="docutils literal notranslate"><span class="pre">0x10000000</span></code> 。</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 8%" />
+<col style="width: 25%" />
+<col style="width: 22%" />
+<col style="width: 25%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>I/O port</p></th>
+<th class="head"><p>Read (DLAB=0)</p></th>
+<th class="head"><p>Write (DLAB=0)</p></th>
+<th class="head"><p>Read (DLAB=1)</p></th>
+<th class="head"><p>Write (DLAB=1)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>base</p></td>
+<td><p><strong>RBR</strong> receiver buffer</p></td>
+<td><p><strong>THR</strong> transmitter holding</p></td>
+<td><p><strong>DLL</strong> divisor latch LSB</p></td>
+<td><p><strong>DLL</strong> divisor latch LSB</p></td>
+</tr>
+<tr class="row-odd"><td><p>base+1</p></td>
+<td><p><strong>IER</strong> interrupt enable</p></td>
+<td><p><strong>IER</strong> interrupt enable</p></td>
+<td><p><strong>DLM</strong> divisor latch MSB</p></td>
+<td><p><strong>DLM</strong> divisor latch MSB</p></td>
+</tr>
+<tr class="row-even"><td><p>base+2</p></td>
+<td><p><strong>IIR</strong> interrupt identification</p></td>
+<td><p><strong>FCR</strong> FIFO control</p></td>
+<td><p><strong>IIR</strong> interrupt identification</p></td>
+<td><p><strong>FCR</strong> FIFO control</p></td>
+</tr>
+<tr class="row-odd"><td><p>base+3</p></td>
+<td><p><strong>LCR</strong> line control</p></td>
+<td><p><strong>LCR</strong> line control</p></td>
+<td><p><strong>LCR</strong> line control</p></td>
+<td><p><strong>LCR</strong> line control</p></td>
+</tr>
+<tr class="row-even"><td><p>base+4</p></td>
+<td><p><strong>MCR</strong> modem control</p></td>
+<td><p><strong>MCR</strong> modem control</p></td>
+<td><p><strong>MCR</strong> modem control</p></td>
+<td><p><strong>MCR</strong> modem control</p></td>
+</tr>
+<tr class="row-odd"><td><p>base+5</p></td>
+<td><p><strong>LSR</strong> line status</p></td>
+<td><p><em>factory test</em></p></td>
+<td><p><strong>LSR</strong> line status</p></td>
+<td><p><em>factory test</em></p></td>
+</tr>
+<tr class="row-even"><td><p>base+6</p></td>
+<td><p><strong>MSR</strong> modem status</p></td>
+<td><p><em>not used</em></p></td>
+<td><p><strong>MSR</strong> modem status</p></td>
+<td><p><em>not used</em></p></td>
+</tr>
+<tr class="row-odd"><td><p>base+7</p></td>
+<td><p><strong>SCR</strong> scratch</p></td>
+<td><p><strong>SCR</strong> scratch</p></td>
+<td><p><strong>SCR</strong> scratch</p></td>
+<td><p><strong>SCR</strong> scratch</p></td>
+</tr>
+</tbody>
+</table>
 </div>
-<div class="section" id="id4">
-<h2>硬件系统架构<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
-<div class="section" id="id5">
-<h3>设备树<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
-<p>首先，我们需要了解OS管理的计算机硬件系统– <code class="docutils literal notranslate"><span class="pre">QEMU</span> <span class="pre">riscv-64</span> <span class="pre">virt</span> <span class="pre">machine</span></code> 。这表示了一台虚拟的RISC-V 64计算机，CPU的个数是可以通过参数 <code class="docutils literal notranslate"><span class="pre">-cpu</span> <span class="pre">num</span></code> 配置的，内存也是可通过参数 <code class="docutils literal notranslate"><span class="pre">-m</span> <span class="pre">numM/G</span></code> 来配置。这是标配信息。这台虚拟计算机还有很多外设信息，每个设备在物理上连接到了父设备上最后再通过总线等连接起来构成一整个设备树。QEMU 可以把它模拟的机器细节信息全都导出到dtb格式的二进制文件中，并可通过 <code class="docutils literal notranslate"><span class="pre">dtc</span></code> （Device Tree Compiler）工具转成可理解的文本文件。如想详细了解这个文件的格式说明可以参考  <a class="reference external" href="https://www.devicetree.org/specifications/">Devicetree Specification</a> 。</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>qemu-system-riscv64 -machine virt -machine <span class="nv">dumpdtb</span><span class="o">=</span>riscv64-virt.dtb -bios default
-
-<span class="go">qemu-system-riscv64: info: dtb dumped to riscv64-virt.dtb. Exiting.</span>
-
-<span class="gp">$ </span>dtc -I dtb -O dts -o riscv64-virt.dts riscv64-virt.dtb
-
-<span class="gp">$ </span>less riscv64-virt.dts
-<span class="gp">#</span>就可以看到QEMU RV64 virt计算机的详细硬件（包括各种外设）细节，包括CPU，内存，串口，时钟和各种virtio设备的信息。
-</pre></div>
-</div>
-<p>一个典型的设备树如下图所示：</p>
-<img alt="../_images/device-tree.png" class="align-center" id="device-tree" src="../_images/device-tree.png" />
-<div class="admonition note">
-<p class="admonition-title">注解</p>
-<p><strong>设备节点属性</strong></p>
-<p>设备树的每个节点上都描述了对应设备的信息，如支持的协议是什么类型等等。而操作系统就是通过这些节点上的信息来实现对设备的识别的。具体而言，一个设备节点上会有几个标准属性，这里简要介绍我们需要用到的几个：</p>
-<ul class="simple">
-<li><p>compatible：该属性是一个字符串列表，由一个或多个定义了该设备的编程模型的字符串组成。其中的每个字符串的一般格式为 “manufacturer,model”，分别指一个出厂标签和具体模型。如 “virtio,mmio” 指的是这个设备通过 virtio 协议、MMIO（内存映射 I/O）方式来驱动</p></li>
-<li><p>model：指的是设备生产商给设备的型号</p></li>
-<li><p>reg：当一些很长的信息或者数据无法用其他标准属性来定义时，可以用 reg 段来自定义存储一些信息</p></li>
-</ul>
-</div>
-</div>
-<div class="section" id="id6">
-<h3>传递设备树信息<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
-<p>操作系统在启动后需要了解计算机系统中所有接入的设备，这就要有一个读取全部已接入设备信息的能力，而设备信息放在哪里，又是谁帮我们来做的呢？在 RISC-V 中，这个一般是由 bootloader，即 OpenSBI or RustSBI 固件完成的。它来完成对于包括物理内存在内的各外设的探测，将探测结果以 <strong>设备树二进制对象（DTB，Device Tree Blob）</strong> 的格式保存在物理内存中的某个地方。然后bootloader会启动操作系统，即把放置DTB的物理地址将放在 <code class="docutils literal notranslate"><span class="pre">a1</span></code> 寄存器中，而将会把 HART ID （<strong>HART，Hardware Thread，硬件线程，可以理解为执行的 CPU 核</strong>）放在 <code class="docutils literal notranslate"><span class="pre">a0</span></code> 寄存器上，然后跳转到操作系统的入口地址处继续执行。例如，我们可以查看 <code class="docutils literal notranslate"><span class="pre">virtio_drivers</span></code> crate中的在裸机环境下使用驱动程序的例子。我们只需要给 <cite>rust_main</cite> 函数增加两个参数（即 <code class="docutils literal notranslate"><span class="pre">a0</span></code> 和 <code class="docutils literal notranslate"><span class="pre">a1</span></code> 寄存器中的值 ）即可：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="c1">//virtio_drivers/examples/riscv/src/main.rs</span>
-<span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">(</span><span class="n">_hartid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">device_tree_paddr</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">   </span><span class="n">init_dt</span><span class="p">(</span><span class="n">device_tree_paddr</span><span class="p">);</span><span class="w"></span>
-<span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
-</pre></div>
-</div>
-<p>这样测试用例就获得了bootloader传来的放置DTB的物理地址。</p>
-</div>
-<div class="section" id="id7">
-<h3>解析设备树信息<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
-<p>对于解析设备树中的各种属性，我们不需要自己来实现这件事情，可以直接调用 <a class="reference external" href="https://github.com/rcore-os/device_tree-rs">rCore 中 device_tree 库</a> ，然后遍历树上节点即可：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 遍历设备树并初始化设备</span>
-<span class="k">fn</span> <span class="nf">init_dt</span><span class="p">(</span><span class="n">dtb</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">   </span><span class="n">info</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;device tree @ {:#x}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">dtb</span><span class="p">);</span><span class="w"></span>
-<span class="w">   </span><span class="c1">// 整个设备树的 Headers（用于验证和读取）</span>
-<span class="w">   </span><span class="cp">#[repr(C)]</span><span class="w"></span>
-<span class="w">   </span><span class="k">struct</span> <span class="nc">DtbHeader</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">      </span><span class="n">be_magic</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"></span>
-<span class="w">      </span><span class="n">be_size</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"></span>
-<span class="w">   </span><span class="p">}</span><span class="w"></span>
-<span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="n">header</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">&amp;*</span><span class="p">(</span><span class="n">dtb</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">DtbHeader</span><span class="p">)</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
-<span class="w">   </span><span class="c1">// from_be 是大小端序的转换（from big endian）</span>
-<span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="n">magic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">u32</span>::<span class="n">from_be</span><span class="p">(</span><span class="n">header</span><span class="p">.</span><span class="n">be_magic</span><span class="p">);</span><span class="w"></span>
-<span class="w">   </span><span class="k">const</span><span class="w"> </span><span class="n">DEVICE_TREE_MAGIC</span>: <span class="kt">u32</span> <span class="o">=</span><span class="w"> </span><span class="mh">0xd00dfeed</span><span class="p">;</span><span class="w"></span>
-<span class="w">   </span><span class="c1">// 验证 Device Tree Magic Number</span>
-<span class="w">   </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">magic</span><span class="p">,</span><span class="w"> </span><span class="n">DEVICE_TREE_MAGIC</span><span class="p">);</span><span class="w"></span>
-<span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">u32</span>::<span class="n">from_be</span><span class="p">(</span><span class="n">header</span><span class="p">.</span><span class="n">be_size</span><span class="p">);</span><span class="w"></span>
-<span class="w">   </span><span class="c1">// 拷贝dtb数据</span>
-<span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="n">dtb_data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">core</span>::<span class="n">slice</span>::<span class="n">from_raw_parts</span><span class="p">(</span><span class="n">dtb</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
-<span class="w">   </span><span class="c1">// 加载dtb数据</span>
-<span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="n">dt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DeviceTree</span>::<span class="n">load</span><span class="p">(</span><span class="n">dtb_data</span><span class="p">).</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;failed to parse device tree&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">   </span><span class="c1">// 遍历dtb数据</span>
-<span class="w">   </span><span class="n">walk_dt_node</span><span class="p">(</span><span class="o">&amp;</span><span class="n">dt</span><span class="p">.</span><span class="n">root</span><span class="p">);</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
-</pre></div>
-</div>
-<p>起始时有一步是验证 Magic Number，这是为了保证系统可靠性，验证这段内存是否存放了设备树信息。在遍历过程中，一旦发现了一个支持 “virtio,mmio” 的设备（其实就是 QEMU 模拟的各种virtio设备），就进入下一步加载驱动的逻辑。具体遍历设备树节点的实现如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">walk_dt_node</span><span class="p">(</span><span class="n">dt</span>: <span class="kp">&amp;</span><span class="nc">Node</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(</span><span class="n">compatible</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dt</span><span class="p">.</span><span class="n">prop_str_list</span><span class="p">(</span><span class="s">&quot;compatible&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="n">compatible</span><span class="p">.</span><span class="n">iter</span><span class="p">().</span><span class="n">any</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;virtio,mmio&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">         </span><span class="c1">//确定是virtio设备</span>
-<span class="w">         </span><span class="n">virtio_probe</span><span class="p">(</span><span class="n">dt</span><span class="p">);</span><span class="w"></span>
-<span class="w">      </span><span class="p">}</span><span class="w"></span>
-<span class="w">   </span><span class="p">}</span><span class="w"></span>
-<span class="w">   </span><span class="k">for</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">dt</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">      </span><span class="n">walk_dt_node</span><span class="p">(</span><span class="n">child</span><span class="p">);</span><span class="w"></span>
-<span class="w">   </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
-</pre></div>
-</div>
-<p>这是一个递归的过程，其中 <cite>virtio_probe</cite> 是分析具体virtio设备的函数，一旦找到这样的设备，就可以启动virtio设备初始化过程了。</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">virtio_probe</span><span class="p">(</span><span class="n">node</span>: <span class="kp">&amp;</span><span class="nc">Node</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">reg</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">node</span><span class="p">.</span><span class="n">prop_raw</span><span class="p">(</span><span class="s">&quot;reg&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">paddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reg</span><span class="p">.</span><span class="n">as_slice</span><span class="p">().</span><span class="n">read_be_u64</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">      </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">header</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="n">paddr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
-<span class="w">      </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">      </span><span class="k">match</span><span class="w"> </span><span class="n">header</span><span class="p">.</span><span class="n">device_type</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">DeviceType</span>::<span class="n">Block</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">virtio_blk</span><span class="p">(</span><span class="n">header</span><span class="p">),</span><span class="w"></span>
-<span class="w">            </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">            </span><span class="n">t</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">warn</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;Unrecognized virtio device: {:?}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">),</span><span class="w"></span>
-<span class="w">      </span><span class="p">}</span><span class="w"></span>
-<span class="w">   </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
-</pre></div>
-</div>
-<p><cite>virtio_probe</cite> 函数会进一步查找virtio设备节点中的`reg` 属性，从而可以找到virtio设备的具体类型（如 <cite>DeviceType::Block</cite> 块设备类型）等参数。这样我们就可以对具体的virtio设备进行初始化和进行具体I/O操作了。</p>
-</div>
-<div class="section" id="id8">
-<h3>平台级中断控制器<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
-<p>如果要让操作系统处理外设中断，就需要对中断控制器进行初始化设置。在RISC-V中，与外设连接的I/O控制器的一个重要组成是平台级中断控制器（Platform-Level Interrupt Controller，PLIC），它汇聚了各种外设的中断信号，并连接到CPU的外部中断引脚上。通过RISC-V的 <code class="docutils literal notranslate"><span class="pre">mie</span></code> 寄存器中的 <code class="docutils literal notranslate"><span class="pre">meie</span></code> 位，可以控制这个引脚是否接收外部中断信号。当然，通过RISC-V中M Mode的中断委托机制，也可以在RISC-V的S Mode下，通过 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 寄存器中的 <code class="docutils literal notranslate"><span class="pre">seie</span></code> 位，对中断信号是否接收进行控制。</p>
-<p>CPU可以通过MMIO方式来对PLIC进行管理，下面是一下与PLIC相关的寄存器：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">寄存器         地址      功能描述</span>
-<span class="go">Priority   0x0c00_0000       设置特定中断源的优先级</span>
-<span class="go">Pending        0x0c00_1000   包含已触发（正在处理）的中断列表</span>
-<span class="go">Enable         0x0c00_2000   启用/禁用某些中断源</span>
-<span class="go">Threshold  0x0c20_0000       设置中断能够触发的阈值</span>
-<span class="go">Claim      0x0c20_0004       按优先级顺序返回下一个中断</span>
-<span class="go">Complete   0x0c20_0004       写操作表示完成对特定中断的处理</span>
-</pre></div>
-</div>
-<p>在QEMU <code class="docutils literal notranslate"><span class="pre">qemu/include/hw/riscv/virt.h</span></code> 的源码中，可以看到</p>
-<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">UART0_IRQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">RTC_IRQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">VIRTIO_IRQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="cm">/* 1 to 8 */</span><span class="w"></span>
-<span class="w">    </span><span class="n">VIRTIO_COUNT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">PCIE_IRQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x20</span><span class="p">,</span><span class="w"> </span><span class="cm">/* 32 to 35 */</span><span class="w"></span>
-<span class="w">    </span><span class="n">VIRTIO_NDEV</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x35</span><span class="w"> </span><span class="cm">/* Arbitrary maximum number of interrupts */</span><span class="w"></span>
-<span class="p">};</span><span class="w"></span>
-</pre></div>
-</div>
-<p>可以看到串口UART0的中断号是10，virtio设备的中断号是1~8。通过 <code class="docutils literal notranslate"><span class="pre">dtc</span></code> （Device Tree Compiler）工具生成的文本文件，我们也可以发现上述中断信号信息，以及基于MMIO的外设寄存器信息。在后续的驱动程序中，这些信息我们可以用到。</p>
-<p>操作系统如要响应外设的中断，需要做两方面的初始化工作。首先是完成第三章讲解的中断初始化过程，并需要把 <code class="docutils literal notranslate"><span class="pre">sie</span></code> 寄存器中的 <code class="docutils literal notranslate"><span class="pre">seie</span></code> 位设置为1，让CPU能够接收通过PLIC传来的外部设备中断信号。然后还需要通过MMIO方式对PLIC的寄存器进行初始设置，才能让外设产生的中断传到CPU处。其主要操作包括：</p>
-<ul class="simple">
-<li><p>设置外设中断的优先级</p></li>
-<li><p>设置外设中断的阈值，优先级小于等于阈值的中断会被屏蔽</p></li>
-<li><p>激活外设中断，即把 <code class="docutils literal notranslate"><span class="pre">Enable</span></code> 寄存器的外设中断编号为索引的位设置为1</p></li>
-</ul>
-<p>但外设产生中断后，CPU并不知道具体是哪个设备传来的中断，这可以通过读PLIC的 <code class="docutils literal notranslate"><span class="pre">Claim</span></code> 寄存器来了解。 <code class="docutils literal notranslate"><span class="pre">Claim</span></code> 寄存器会返回PLIC接收到的优先级最高的中断；如果没有外设中断产生，读 <code class="docutils literal notranslate"><span class="pre">Claim</span></code> 寄存器会返回 0。</p>
-<p>操作系统在收到中断并完成中断处理后，还需通过PLIC中断处理完毕，即CPU需要在PLIC的 <code class="docutils literal notranslate"><span class="pre">Complete</span></code> 寄存器中写入对应中断号为索引的位，告知PLIC自己已经处理完毕。</p>
-<p>上述操作的具体实现，可以参考 <code class="docutils literal notranslate"><span class="pre">plic.rs</span></code> 中的代码。</p>
-</div>
-</div>
-<div class="section" id="id9">
-<h2>串口驱动程序<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h2>
-<p>完成上述前期准备工作后，我们就可以开始设计实现驱动程序了。
-首先我们要管理是物理上存在的串口设备。
-串口（Universal Asynchronous Receiver-Transmitter，简称UART）是一种在嵌入式系统中常用的用于传输、接收系列数据的外部设备。串行数据传输是逐位（bit）顺序发送数据的过程。</p>
-<p>我们在第一章其实就接触了串口，但当时是通过RustSBI来帮OS完成对串口的访问，即OS只需发出两种SBI调用请求就可以输出和获取字符了。但这种便捷性是有代价的。比如OS在调用获取字符的SBI调用请求后，RustSBI如果没收到串口字符，会返回 <code class="docutils literal notranslate"><span class="pre">-1</span></code> ，这样OS只能采用类似轮询的方式来继续查询。到第七章为止的串口驱动不支持中断是导致在多进程情况下，系统效率低下的主要原因之一。大家也不要遗憾，我们的第一阶段的目标是 <strong>Just do it</strong> ，先把OS做出来，在第二阶段再逐步优化改进。</p>
-<p>接下来，我们就需要开始尝试脱离RustSBI的帮助，在操作系统中完成支持中断机制的串口驱动。</p>
+<p>注：LCR 寄存器中的 DLAB 位设置为 0 或 1 ，会导致CPU访问的是不同的寄存器。比如，DLAB位为0时，读位于 <cite>base</cite> 处的串口寄存器是 <cite>RBR</cite>， DLAB位为1时，读位于 <cite>base</cite> 处的串口寄存器是 <cite>DLL</cite>。</p>
+<p>大致猜测完上述寄存器的含义后，我们就算是完成前期准备工作，在接下来的驱动程序设计中，会用到上述的部分寄存器。
+我们先尝试脱离RustSBI的帮助，在操作系统中完成支持中断机制的串口驱动。</p>
 <p>通过查找 <code class="docutils literal notranslate"><span class="pre">dtc</span></code> （Device Tree Compiler）工具生成的 <code class="docutils literal notranslate"><span class="pre">riscv64-virt.dts</span></code> 文件，我们可以看到串口设备相关的MMIO模式的寄存器信息和中断相关信息。</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>...
 chosen <span class="o">{</span>
@@ -577,55 +489,136 @@ uart@10000000 <span class="o">{</span>
 <li><p>串口发送出现错误</p></li>
 </ul>
 <p>这里我们仅关注有输入数据时串口产生的中断。</p>
-<p>了解QEMU模拟的兼容NS16550A硬件规范是写驱动程序的准备工作。在 UART 中，可访问的 I/O寄存器一共有8个。访问I/O寄存器的方法把串口寄存器的MMIO起始地址加上偏移量，就是各个寄存器的MMIO地址了。</p>
-<div class="section" id="id10">
-<h3>串口设备初始化<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
-<p>第一步是对串口进行初始化设置：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="kd">let</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UART_ADDR</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span><span class="w"></span>
-<span class="c1">// 偏移 3 指出每次传输的位数为 8 位，即一个字节</span>
-<span class="n">ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">3</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="mi">8</span><span class="p">);</span><span class="w"></span>
-<span class="c1">// 使能 FIFO缓冲队列</span>
-<span class="n">ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
-<span class="c1">// 使能中断</span>
-<span class="n">ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
-<span class="c1">// 设置输入产生的中断频率</span>
-<span class="kd">let</span><span class="w"> </span><span class="n">divisor</span><span class="w"> </span>: <span class="kt">u16</span> <span class="o">=</span><span class="w"> </span><span class="mi">592</span><span class="p">;</span><span class="w"></span>
-<span class="kd">let</span><span class="w"> </span><span class="n">divisor_least</span>: <span class="kt">u8</span> <span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">divisor</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xff</span><span class="p">).</span><span class="n">try_into</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="kd">let</span><span class="w"> </span><span class="n">divisor_most</span>:  <span class="kt">u8</span> <span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">divisor</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">8</span><span class="p">).</span><span class="n">try_into</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="kd">let</span><span class="w"> </span><span class="n">lcr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">3</span><span class="p">).</span><span class="n">read_volatile</span><span class="p">();</span><span class="w"></span>
-<span class="n">ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">3</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="n">lcr</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">7</span><span class="p">);</span><span class="w"></span>
-
-<span class="n">ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="n">divisor_least</span><span class="p">);</span><span class="w"></span>
-<span class="n">ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="n">divisor_most</span><span class="p">);</span><span class="w"></span>
-<span class="n">ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">3</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="n">lcr</span><span class="p">);</span><span class="w"></span>
+<p>在 UART 中，可访问的 I/O寄存器一共有8个。访问I/O寄存器的方法把串口寄存器的MMIO起始地址加上偏移量，就是各个寄存器的MMIO地址了。</p>
+<div class="section" id="id7">
+<h3>串口设备初始化<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
+<p>对串口进行初始化设置的相关代码如下所示：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/drivers/chardev/mod.rs</span>
+<span class="linenos"> 2</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">UART</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">CharDeviceImpl</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">CharDeviceImpl</span>::<span class="n">new</span><span class="p">());</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="c1">// os/src/boards/qemu.rs</span>
+<span class="linenos"> 7</span><span class="k">pub</span><span class="w"> </span><span class="k">type</span> <span class="nc">CharDeviceImpl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">crate</span>::<span class="n">drivers</span>::<span class="n">chardev</span>::<span class="n">NS16550a</span><span class="o">&lt;</span><span class="n">VIRT_UART</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="c1">// os/src/drivers/chardev/ns16550a.rs</span>
+<span class="linenos"> 9</span><span class="k">impl</span><span class="o">&lt;</span><span class="k">const</span><span class="w"> </span><span class="n">BASE_ADDR</span>: <span class="kt">usize</span><span class="o">&gt;</span><span class="w"> </span><span class="n">NS16550a</span><span class="o">&lt;</span><span class="n">BASE_ADDR</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">   </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NS16550aInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="n">ns16550a</span>: <span class="nc">NS16550aRaw</span>::<span class="n">new</span><span class="p">(</span><span class="n">BASE_ADDR</span><span class="p">),</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">            </span><span class="n">read_buffer</span>: <span class="nc">VecDeque</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">      </span><span class="p">};</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">      </span><span class="n">inner</span><span class="p">.</span><span class="n">ns16550a</span><span class="p">.</span><span class="n">init</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">      </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">            </span><span class="n">inner</span>: <span class="nc">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPIntrFreeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">inner</span><span class="p">)</span><span class="w"> </span><span class="p">},</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">            </span><span class="n">condvar</span>: <span class="nc">Condvar</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">21</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">22</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos">23</span><span class="k">impl</span><span class="w"> </span><span class="n">NS16550aRaw</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">   </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">init</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">read_end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">read_end</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mcr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MCR</span>::<span class="n">empty</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">      </span><span class="n">mcr</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">MCR</span>::<span class="n">DATA_TERMINAL_READY</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">      </span><span class="n">mcr</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">MCR</span>::<span class="n">REQUEST_TO_SEND</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">      </span><span class="n">mcr</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">MCR</span>::<span class="n">AUX_OUTPUT2</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">      </span><span class="n">read_end</span><span class="p">.</span><span class="n">mcr</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">mcr</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">ier</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">IER</span>::<span class="n">RX_AVAILABLE</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">      </span><span class="n">read_end</span><span class="p">.</span><span class="n">ier</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">ier</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>上述代码完成的主要工作包括：
-1. 设置每次传输的位数为 8 位，即一个 ASCII 码的大小
-2. 激活先进先出队列
-3. 使能中断，这意味着我们的输入可以通过中断进行通知
-4. 设置输入产生的中断频率</p>
+<p>上述代码完成的主要工作包括：</p>
 </div>
-<div class="section" id="id11">
-<h3>串口设备输入输出操作<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h3>
+<div class="section" id="id8">
+<h3>串口设备输入输出操作<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
 <p>先看串口输出，由于不设置和处理输出后产生中断的情况，使得整个输出操作比较简单。即向偏移量为 <code class="docutils literal notranslate"><span class="pre">0</span></code> 的串口控制寄存器的MMIO地址写8位字符即可。</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="kd">let</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UART_ADDR</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span><span class="w"></span>
-<span class="n">ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="n">c</span><span class="p">);</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/drivers/chardev/ns16550a.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">impl</span><span class="o">&lt;</span><span class="k">const</span><span class="w"> </span><span class="n">BASE_ADDR</span>: <span class="kt">usize</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CharDevice</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">NS16550a</span><span class="o">&lt;</span><span class="n">BASE_ADDR</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="k">fn</span> <span class="nf">write</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">ch</span>: <span class="kt">u8</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">      </span><span class="n">inner</span><span class="p">.</span><span class="n">ns16550a</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">ch</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="k">impl</span><span class="w"> </span><span class="n">NS16550aRaw</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">   </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">ch</span>: <span class="kt">u8</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">write_end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">write_end</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">      </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">write_end</span><span class="p">.</span><span class="n">lsr</span><span class="p">.</span><span class="n">read</span><span class="p">().</span><span class="n">contains</span><span class="p">(</span><span class="n">LSR</span>::<span class="n">THR_EMPTY</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">               </span><span class="n">write_end</span><span class="p">.</span><span class="n">thr</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">ch</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">               </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>但对于串口输入的处理，由于要考虑中断，相对就要复杂一些。对于操作系统的一般处理过程是，首先是能接收中断，即在 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 中通过访问 <code class="docutils literal notranslate"><span class="pre">scause</span></code> 寄存器，能够识别出有外部中断产生。然后再进一步通过读PLIC的 <code class="docutils literal notranslate"><span class="pre">Claim</span></code> 寄存器来了解是否是收到了串口发来的输入中断。如果确定是，就通过对串口寄存器的偏移量为 <code class="docutils literal notranslate"><span class="pre">0</span></code> 的串口控制寄存器的MMIO地址进行读一个字节的操作，从而获得通过串口输入的字符。</p>
-<p>在我们的具体实现中，与上述的一般中断处理过程不太一样。首先操作系统通过自定义的 <code class="docutils literal notranslate"><span class="pre">SBI_DEVICE_HANDLER</span></code> SBI调用，告知RustSBI在收到外部中断后，要跳转到的操作系统中处理外部中断的函数 <code class="docutils literal notranslate"><span class="pre">device_trap_handler</span></code> 。这样，在外部中断产生后，先由RustSBI在M Mode下接收的，并转到S Mode，交由 <code class="docutils literal notranslate"><span class="pre">device_trap_handler</span></code> 内核函数进一步处理。接下来就是 PLIC识别出是串口中断号 <code class="docutils literal notranslate"><span class="pre">10</span></code> 后，最终交由 <code class="docutils literal notranslate"><span class="pre">uart::InBuffer</span></code> 结构的 <code class="docutils literal notranslate"><span class="pre">peinding</span></code> 函数处理。</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="kd">let</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Uart</span>::<span class="n">new</span><span class="p">().</span><span class="n">get</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="bp">self</span><span class="p">.</span><span class="n">buffer</span><span class="p">[</span><span class="bp">self</span><span class="p">.</span><span class="n">write_idx</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c</span><span class="p">;</span><span class="w"></span>
-<span class="bp">self</span><span class="p">.</span><span class="n">write_idx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">write_idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">128</span><span class="p">;</span><span class="w"></span>
+<p>在以往的操作系统实现中，当一个进程通过 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用来获取串口字符时，并没有用上中断机制。但一个进程读不到字符的时候，将会被操作系统调度到就绪队列的尾部，等待下一次执行的时刻。这其实就是一种变相的轮询方式来获取串口的输入字符。这里其实是可以对进程管理做的一个改进，来避免进程通过轮询的方式检查串口字符输入。既然我们已经在上一章设计实现了让用户态线程挂起的同步互斥机制，我们就可以把自然地把这种机制也用来内核中，在外设不能及时提供资源的情况下，让想获取资源的线程或进程挂起，知道外设提供了资源，再唤醒进程继续执行。</p>
+<p>目前，支持中断的驱动可有效地支持等待的进程唤醒的操作。以串口为例，如果一个进程通过系统调用想获取串口输入，但此时串口还没有输入的字符，那么操作系统就设置一个进程等待串口输入的条件变量（条件变量包含一个等待队列），然后把当前进程设置等待状态，并挂在这个等待队列上，再把CPU让给其它就绪进程执行。对于串口输入的处理，由于要考虑中断，相对就要复杂一些。读字符串的代码如下所示：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">//os/src/fs/stdio.rs</span>
+<span class="linenos"> 2</span><span class="k">impl</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Stdin</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="k">fn</span> <span class="nf">read</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">user_buf</span>: <span class="nc">UserBuffer</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">      </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">user_buf</span><span class="p">.</span><span class="n">len</span><span class="p">(),</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">      </span><span class="c1">//println!(&quot;before UART.read() in Stdin::read()&quot;);</span>
+<span class="linenos"> 7</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">ch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UART</span><span class="p">.</span><span class="n">read</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">      </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="n">user_buf</span><span class="p">.</span><span class="n">buffers</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">as_mut_ptr</span><span class="p">().</span><span class="n">write_volatile</span><span class="p">(</span><span class="n">ch</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">      </span><span class="mi">1</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">13</span><span class="c1">// os/src/drivers/chardev/ns16550a.rs</span>
+<span class="linenos">14</span><span class="k">impl</span><span class="o">&lt;</span><span class="k">const</span><span class="w"> </span><span class="n">BASE_ADDR</span>: <span class="kt">usize</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CharDevice</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">NS16550a</span><span class="o">&lt;</span><span class="n">BASE_ADDR</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">   </span><span class="k">fn</span> <span class="nf">read</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">u8</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">      </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">read_buffer</span><span class="p">.</span><span class="n">pop_front</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">               </span><span class="k">return</span><span class="w"> </span><span class="n">ch</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">               </span><span class="kd">let</span><span class="w"> </span><span class="n">task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">condvar</span><span class="p">.</span><span class="n">wait_no_sched</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">               </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">               </span><span class="n">schedule</span><span class="p">(</span><span class="n">task_cx_ptr</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">26</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>这个 <code class="docutils literal notranslate"><span class="pre">uart::InBuffer</span></code> 结构实际上是一个环形队列，新的输入数据会覆盖队列中旧的输入数据。</p>
+<p>响应串口输入中断的代码如下所示：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/boards/qemu.rs</span>
+<span class="linenos"> 2</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">irq_handler</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">plic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">PLIC</span>::<span class="n">new</span><span class="p">(</span><span class="n">VIRT_PLIC</span><span class="p">)</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="n">intr_src_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">plic</span><span class="p">.</span><span class="n">claim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">IntrTargetPriority</span>::<span class="n">Supervisor</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">   </span><span class="k">match</span><span class="w"> </span><span class="n">intr_src_id</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">      </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">      </span><span class="mi">10</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">UART</span><span class="p">.</span><span class="n">handle_irq</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">   </span><span class="n">plic</span><span class="p">.</span><span class="n">complete</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">IntrTargetPriority</span>::<span class="n">Supervisor</span><span class="p">,</span><span class="w"> </span><span class="n">intr_src_id</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">10</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">11</span><span class="c1">// os/src/drivers/chardev/ns16550a.rs</span>
+<span class="linenos">12</span><span class="k">impl</span><span class="o">&lt;</span><span class="k">const</span><span class="w"> </span><span class="n">BASE_ADDR</span>: <span class="kt">usize</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CharDevice</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">NS16550a</span><span class="o">&lt;</span><span class="n">BASE_ADDR</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">   </span><span class="k">fn</span> <span class="nf">handle_irq</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">      </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_session</span><span class="p">(</span><span class="o">|</span><span class="n">inner</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">ns16550a</span><span class="p">.</span><span class="n">read</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">               </span><span class="n">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">               </span><span class="n">inner</span><span class="p">.</span><span class="n">read_buffer</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">ch</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">      </span><span class="p">});</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">condvar</span><span class="p">.</span><span class="n">signal</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+</pre></div>
 </div>
-<div class="section" id="id12">
-<h3>对进程管理的改进<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
-<p>在目前的操作系统实现中，当一个进程通过 <code class="docutils literal notranslate"><span class="pre">sys_read</span></code> 系统调用来获取串口字符时，并没有用上中断机制。但一个进程读不到字符的时候，将会被操作系统调度到就绪队列的尾部，等待下一次执行的时刻。这其实就是一种变相的轮询方式来获取串口的输入字符。这里其实是可以对进程管理做的一个改进，来避免进程通过轮询的方式检查串口字符输入。</p>
-<p>如果一个进程通过系统调用想获取串口输入，但此时串口还没有输入的字符，那么就设置一个进程等待串口输入的等待队列，然后把当前进程设置等待状态，并挂在这个等待队列上，把CPU让给其它就绪进程执行。当产生串口输入中断后，操作系统将查找等待串口输入的等待队列上的进程，把它唤醒并加入到就绪队列中。这样但这个进程再次执行时，就可以获取到串口数据了。</p>
+<p>对于操作系统的一般处理过程是，首先是能接收中断，即在 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 中通过访问 <code class="docutils literal notranslate"><span class="pre">scause</span></code> 寄存器，能够识别出有外部中断产生。然后再进一步通过读PLIC的 <code class="docutils literal notranslate"><span class="pre">Claim</span></code> 寄存器来了解是否是收到了串口发来的输入中断。如果PLIC识别出是串口，就会调用串口的中断处理例程。
+当产生串口有输入并产生中断后，操作系统通过对偏移量为 <code class="docutils literal notranslate"><span class="pre">0</span></code> 的串口寄存器的进行读操作，从而获得通过串口输入的字符，并存入 <code class="docutils literal notranslate"><span class="pre">NS16550aInner::read_buffer</span></code> 中。然后操作系统将查找等待串口输入的等待队列上的进程，把它唤醒并加入到就绪队列中。这样但这个进程再次执行时，就可以获取到串口数据了。</p>
+<dl class="footnote brackets">
+<dt class="label" id="uart1"><span class="brackets">1</span><span class="fn-backref">(<a href="#id4">1</a>,<a href="#id6">2</a>)</span></dt>
+<dd><p>Serial UART information， <a class="reference external" href="https://www.lammertbies.nl/comm/info/serial-uart">https://www.lammertbies.nl/comm/info/serial-uart</a></p>
+</dd>
+<dt class="label" id="uart2"><span class="brackets"><a class="fn-backref" href="#id5">2</a></span></dt>
+<dd><p>TECHNICAL DATA ON 16550， <a class="reference external" href="http://www.byterunner.com/16550.html">http://www.byterunner.com/16550.html</a></p>
+</dd>
+</dl>
 </div>
 </div>
 </div>
@@ -644,14 +637,14 @@ uart@10000000 <span class="o">{</span>
               </div>
               <svg><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="1io-interface.html">
+          <a class="prev-page" href="2device-driver-0.html">
               <svg><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">I/O设备</div>
+                <div class="title">外设平台</div>
                 
               </div>
             </a>
@@ -687,20 +680,11 @@ uart@10000000 <span class="o">{</span>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">外设平台与串口驱动程序</a><ul>
+<li><a class="reference internal" href="#">串口驱动程序</a><ul>
 <li><a class="reference internal" href="#id2">本节导读</a></li>
-<li><a class="reference internal" href="#id3">驱动程序概述</a></li>
-<li><a class="reference internal" href="#id4">硬件系统架构</a><ul>
-<li><a class="reference internal" href="#id5">设备树</a></li>
-<li><a class="reference internal" href="#id6">传递设备树信息</a></li>
-<li><a class="reference internal" href="#id7">解析设备树信息</a></li>
-<li><a class="reference internal" href="#id8">平台级中断控制器</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#id9">串口驱动程序</a><ul>
-<li><a class="reference internal" href="#id10">串口设备初始化</a></li>
-<li><a class="reference internal" href="#id11">串口设备输入输出操作</a></li>
-<li><a class="reference internal" href="#id12">对进程管理的改进</a></li>
+<li><a class="reference internal" href="#id3">串口驱动程序</a><ul>
+<li><a class="reference internal" href="#id7">串口设备初始化</a></li>
+<li><a class="reference internal" href="#id8">串口设备输入输出操作</a></li>
 </ul>
 </li>
 </ul>
