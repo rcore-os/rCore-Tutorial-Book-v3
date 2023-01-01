@@ -113,6 +113,7 @@
          let ier = IER::RX_AVAILABLE;
          read_end.ier.write(ier);
       }
+   }
 
 
 上述代码完成的主要工作包括：
