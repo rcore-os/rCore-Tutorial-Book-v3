@@ -8,6 +8,7 @@
 
    0intro
    1io-interface
+   2device-driver-0
    2device-driver-1
    2device-driver-2
    4exercise
