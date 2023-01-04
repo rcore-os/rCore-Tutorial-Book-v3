@@ -4,12 +4,35 @@ virtio设备驱动程序
 本节导读
 -----------------------------------------
 
-本节主要介绍了QEMU模拟的RISC-V计算机中的virtio设备的架构和重要组成部分，以及面向virtio设备的驱动程序的主要功能；并对virtio-blk设备及其驱动程序，virtio-gpu设备及其驱动程序进行了比较深入的分析。
+本节主要介绍了QEMU模拟的RISC-V计算机中的virtio设备的架构和重要组成部分，以及面向virtio设备的驱动程序主要功能；并对virtio-blk设备及其驱动程序，virtio-gpu设备及其驱动程序进行了比较深入的分析。这里选择virtio设备来进行介绍，主要考虑基于两点考虑，首先这些设备就是QEMU模拟的高性能物理外设，操作系统可以面向这些设备编写出合理的驱动程序（如Linux等操作系统中都有virtio设备的驱动程序，并被广泛应用于云计算虚拟化场景中。）；其次，各种类型的virtio设备，如块设备（virtio-blk）、网络设备（virtio-net）、键盘鼠标类设备（virtio-input）、显示设备（virtio-gpu）具有对应外设类型的共性特征、专有特征和与具体处理器无关的设备抽象性。通过对这些设备的分析和比较，能够比较快速地掌握各类设备的核心特点，并掌握编写裸机或操作系统驱动程序的关键技术。
 
 virtio设备
 -----------------------------------------
 
+virtio概述
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. chyyuu https://blogs.oracle.com/linux/post/introduction-to-virtio
+   https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html
+   https://ozlabs.org/~rusty/virtio-spec/virtio-paper.pdf
+   
+Rusty Russell 在2008年左右设计了virtio协议，并开发了相应的虚拟化解决方案 lguest，其主要目的是为了简化虚拟机（Hypervisor）的设备模拟，并提高虚拟机环境下的I/O性能。virtio 协议是对hypervisor 中的一组通用模拟设备的抽象，即virtio协议定义了虚拟设备的输入/输出接口。
+
+这到底意味着什么呢？从本质上讲，virtio是一个接口，允许运行在虚拟机上的操作系统和应用软件通过称为 virtio 设备的最小化虚拟设备使用其主机的设备。这些 virtio 设备具备功能最小化的特征，因为它们只需在能够发送和接收数据的必要条件的情况下实现。这是因为，virtio协议让主机处理其实际物理硬件设备上的大部分设置、维护和处理，从而极大减轻了运行在虚拟机中的virtio驱动编写的复杂性。
+
 virtio设备是虚拟外设，存在于QEMU模拟的RISC-V 64 virt 计算机中。而我们要在操作系统中实现virtio驱动程序，来管理和控制这些virtio虚拟设备。每一类virtio设备都有自己的virtio接口，virtio接口包括了数据结构和相关API的定义。这些定义中，有很多共性内容，也会有属于设备特定类型特征的非共性内容。
+
+VirtIO规范（Virtual I/O Device Specification）制定了一组通用模拟设备IO的抽象。Virtio是一种前后端架构，包括前端驱动（Guest内部）、后端设备（QEMU设备）、传输协议（vring）。
+
+virtio作为通用的IO虚拟化模型，是如何定义通用的IO控制面和数据面接口的？
+
+或者说，基于virtio的网络设备virtio-net和块存储设备virtio-blk，有哪些共通点？
+
+在linux内核下，有virtio、virtio-pci、virtio-net、virtio-blk等virtio相关驱动。这些驱动是如何组织的，多个驱动间是什么关系？
+一个virtio设备，是如何加入到虚拟机设备模型中，被内核发现和驱动的？
+virtio-net具体又提供了哪些标准接口？控制面和数据面接口是如何定义的？
+virtio技术为虚拟化而产生，但它能否脱离虚拟化环境使用？例如在普通的容器环境或者物理机环境？
+
 
 virtio架构
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

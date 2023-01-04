@@ -387,18 +387,30 @@
 <h1>virtio设备驱动程序<a class="headerlink" href="#virtio" title="永久链接至标题">#</a></h1>
 <div class="section" id="id1">
 <h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h2>
-<p>本节主要介绍了QEMU模拟的RISC-V计算机中的virtio设备的架构和重要组成部分，以及面向virtio设备的驱动程序的主要功能；并对virtio-blk设备及其驱动程序，virtio-gpu设备及其驱动程序进行了比较深入的分析。</p>
+<p>本节主要介绍了QEMU模拟的RISC-V计算机中的virtio设备的架构和重要组成部分，以及面向virtio设备的驱动程序主要功能；并对virtio-blk设备及其驱动程序，virtio-gpu设备及其驱动程序进行了比较深入的分析。这里选择virtio设备来进行介绍，主要考虑基于两点考虑，首先这些设备就是QEMU模拟的高性能物理外设，操作系统可以面向这些设备编写出合理的驱动程序（如Linux等操作系统中都有virtio设备的驱动程序，并被广泛应用于云计算虚拟化场景中。）；其次，各种类型的virtio设备，如块设备（virtio-blk）、网络设备（virtio-net）、键盘鼠标类设备（virtio-input）、显示设备（virtio-gpu）具有对应外设类型的共性特征、专有特征和与具体处理器无关的设备抽象性。通过对这些设备的分析和比较，能够比较快速地掌握各类设备的核心特点，并掌握编写裸机或操作系统驱动程序的关键技术。</p>
 </div>
 <div class="section" id="id2">
 <h2>virtio设备<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
-<p>virtio设备是虚拟外设，存在于QEMU模拟的RISC-V 64 virt 计算机中。而我们要在操作系统中实现virtio驱动程序，来管理和控制这些virtio虚拟设备。每一类virtio设备都有自己的virtio接口，virtio接口包括了数据结构和相关API的定义。这些定义中，有很多共性内容，也会有属于设备特定类型特征的非共性内容。</p>
 <div class="section" id="id3">
-<h3>virtio架构<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h3>
+<h3>virtio概述<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h3>
+<p>Rusty Russell 在2008年左右设计了virtio协议，并开发了相应的虚拟化解决方案 lguest，其主要目的是为了简化虚拟机（Hypervisor）的设备模拟，并提高虚拟机环境下的I/O性能。virtio 协议是对hypervisor 中的一组通用模拟设备的抽象，即virtio协议定义了虚拟设备的输入/输出接口。</p>
+<p>这到底意味着什么呢？从本质上讲，virtio是一个接口，允许运行在虚拟机上的操作系统和应用软件通过称为 virtio 设备的最小化虚拟设备使用其主机的设备。这些 virtio 设备具备功能最小化的特征，因为它们只需在能够发送和接收数据的必要条件的情况下实现。这是因为，virtio协议让主机处理其实际物理硬件设备上的大部分设置、维护和处理，从而极大减轻了运行在虚拟机中的virtio驱动编写的复杂性。</p>
+<p>virtio设备是虚拟外设，存在于QEMU模拟的RISC-V 64 virt 计算机中。而我们要在操作系统中实现virtio驱动程序，来管理和控制这些virtio虚拟设备。每一类virtio设备都有自己的virtio接口，virtio接口包括了数据结构和相关API的定义。这些定义中，有很多共性内容，也会有属于设备特定类型特征的非共性内容。</p>
+<p>VirtIO规范（Virtual I/O Device Specification）制定了一组通用模拟设备IO的抽象。Virtio是一种前后端架构，包括前端驱动（Guest内部）、后端设备（QEMU设备）、传输协议（vring）。</p>
+<p>virtio作为通用的IO虚拟化模型，是如何定义通用的IO控制面和数据面接口的？</p>
+<p>或者说，基于virtio的网络设备virtio-net和块存储设备virtio-blk，有哪些共通点？</p>
+<p>在linux内核下，有virtio、virtio-pci、virtio-net、virtio-blk等virtio相关驱动。这些驱动是如何组织的，多个驱动间是什么关系？
+一个virtio设备，是如何加入到虚拟机设备模型中，被内核发现和驱动的？
+virtio-net具体又提供了哪些标准接口？控制面和数据面接口是如何定义的？
+virtio技术为虚拟化而产生，但它能否脱离虚拟化环境使用？例如在普通的容器环境或者物理机环境？</p>
+</div>
+<div class="section" id="id4">
+<h3>virtio架构<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
 <p>总体上看，virtio 架构可以分为上中下三层，上层包括运行在QEMU模拟器上的前端操作系统中各种驱动程序模块，下层是在QEMU中模拟的各种后端 Device，中间层包含两部分：上面部分是virtio接口定义，即用于前后端通信的 virtio 虚拟队列（virtqueue），是前后端通信的接口，表示驱动程序与设备间的数据传输机制，不涉及具体实现；下面部分是virtio实现，即数据传输机制的具体实现–virtio-ring，主要由环形缓冲区和相关操作组成，用于保存前端驱动程序和后端虚拟设备之间进行命令和数据交互的信息。</p>
 <img alt="../_images/virtio-arch.png" class="align-center" id="virtio-arch" src="../_images/virtio-arch.png" />
 </div>
-<div class="section" id="id4">
-<h3>virtio设备<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
+<div class="section" id="id5">
+<h3>virtio设备<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
 <p>virtio设备支持三种设备呈现模式：</p>
 <ul class="simple">
 <li><p>Virtio Over MMIO，虚拟设备直接挂载到系统总线上，我们实验中的虚拟计算机就是这种呈现模式；</p></li>
@@ -480,11 +492,11 @@
 <p>接下来，我们将分析virtio驱动程序如何管理virtio设备来完成初始化和I/O操作的。</p>
 </div>
 </div>
-<div class="section" id="id5">
-<h2>virtio驱动程序<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
-<p>这部分内容是各种virtio驱动程序的共性部分，主要包括驱动程序与设备的交互步骤，初始化设备，以及驱动程序执行过程中的一些实现细节。</p>
 <div class="section" id="id6">
-<h3>驱动程序与设备之间的交互<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
+<h2>virtio驱动程序<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
+<p>这部分内容是各种virtio驱动程序的共性部分，主要包括驱动程序与设备的交互步骤，初始化设备，以及驱动程序执行过程中的一些实现细节。</p>
+<div class="section" id="id7">
+<h3>驱动程序与设备之间的交互<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
 <p>对于驱动程序和外设之间采用virtio机制（也可称为协议）进行交互的原理如下图所示。</p>
 <img alt="../_images/virtio-cpu-device-io2.png" class="align-center" id="virtio-cpu-device-io2" src="../_images/virtio-cpu-device-io2.png" />
 <p>驱动程序与外设可以共同访问约定的物理内存。这些物理内存将保存具体的I/O请求和I/O响应。当驱动程序想要向设备发送命令/数据时，它会在约定的物理内存中填充命令/数据，各个物理内存块所在的起始地址和大小信息放在描述符表的描述符中，再把这些描述符链接在一起，形成描述符链。</p>
@@ -498,8 +510,8 @@
 </ol>
 <img alt="../_images/vring.png" class="align-center" id="vring" src="../_images/vring.png" />
 </div>
-<div class="section" id="id7">
-<h3>virtio驱动程序的执行过程<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
+<div class="section" id="id8">
+<h3>virtio驱动程序的执行过程<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
 <p><strong>设备的初始化</strong></p>
 <p>操作系统通过某种方式（设备发现，基于设备树的查找等）找到virtio设备后，驱动程序进行设备初始化的常规步骤如下所示：</p>
 <ol class="arabic simple">
@@ -592,8 +604,8 @@
 <div class="section" id="virtio-blk">
 <h2>virtio-blk驱动程序<a class="headerlink" href="#virtio-blk" title="永久链接至标题">#</a></h2>
 <p>virtio-blk设备是一种virtio存储设备，在QEMU模拟的RISC-V 64计算机中，以MMIO的方式来与驱动程序进行交互。</p>
-<div class="section" id="id8">
-<h3>virtio-blk设备的关键数据结构<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
+<div class="section" id="id9">
+<h3>virtio-blk设备的关键数据结构<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
 <p>这里我们首先需要定义virtio-blk设备的结构：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos">2</span><span class="w">   </span><span class="n">header</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">,</span><span class="w"></span>
@@ -620,8 +632,8 @@
 </div>
 <p>其中成员变量 <code class="docutils literal notranslate"><span class="pre">free_head</span></code> 指空闲描述符链表头，初始时所有描述符通过 <code class="docutils literal notranslate"><span class="pre">next</span></code> 指针依次相连形成空闲链表，成员变量 <code class="docutils literal notranslate"><span class="pre">last_used_idx</span></code> 是指设备上次已取的已用环元素位置。成员变量 <code class="docutils literal notranslate"><span class="pre">avail_idx</span></code> 是指设备上次已取的已用环元素位置。</p>
 </div>
-<div class="section" id="id9">
-<h3>初始化virtio-blk设备<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
+<div class="section" id="id10">
+<h3>初始化virtio-blk设备<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
 <p>在 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> crate的 <code class="docutils literal notranslate"><span class="pre">examples\riscv\src\main.rs</span></code> 文件中的 <code class="docutils literal notranslate"><span class="pre">virtio_probe</span></code> 函数识别出virtio-blk设备后，会调用 <code class="docutils literal notranslate"><span class="pre">virtio_blk(header)</span></code> 来完成对virtio-blk设备的初始化过程。其实具体的初始化过程与virtio规范中描述的一般virtio设备的初始化过程大致一样，步骤（实际实现可以简化）如下：</p>
 <ol class="arabic simple">
 <li><p>（可忽略）通过将0写入状态寄存器来复位器件；</p></li>
@@ -755,8 +767,8 @@
 <div class="section" id="virtio-gpu">
 <h2>virtio-gpu驱动程序<a class="headerlink" href="#virtio-gpu" title="永久链接至标题">#</a></h2>
 <p>让操作系统能够显示图形是一个有趣的目标。这可以通过在QEMU或带显示屏的开发板上写显示驱动程序来完成。这里我们主要介绍如何驱动基于QEMU的virtio-gpu虚拟显示设备。大家不用担心这个驱动实现很困难，其实它主要完成的事情就是对显示内存进行写操作而已。我们看到的图形显示屏幕其实是由一个一个的像素点来组成的，显示驱动程序的主要目标就是把每个像素点用内存单元来表示，并把代表所有这些像素点的内存区域（也称显示内存，显存， frame buffer）“通知”显示I/O控制器（也称图形适配器，graphics adapter），然后显示I/O控制器会根据内存内容渲染到图形显示屏上。</p>
-<div class="section" id="id10">
-<h3>virtio-gpu设备的关键数据结构<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
+<div class="section" id="id11">
+<h3>virtio-gpu设备的关键数据结构<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h3>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOGpu</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">   </span><span class="n">header</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">,</span><span class="w"></span>
 <span class="linenos"> 3</span><span class="w">   </span><span class="n">rect</span>: <span class="nc">Rect</span><span class="p">,</span><span class="w"></span>
@@ -777,8 +789,8 @@
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">header</span></code> 结构是virtio设备的共有属性，包括版本号、设备id、设备特征等信息。显存区域 <code class="docutils literal notranslate"><span class="pre">frame_buffer_dma</span></code> 是一块要由操作系统或运行时分配的内存，后续的像素点的值就会写在这个区域中。virtio-gpu驱动程序与virtio-gpu设备之间通过两个 virtqueue 来进行交互访问，<code class="docutils literal notranslate"><span class="pre">control_queue</span></code> 用于驱动程序发送显示相关控制命令， <code class="docutils literal notranslate"><span class="pre">cursor_queue</span></code> 用于驱动程序发送显示鼠标更新的相关控制命令（这里暂时不用）。 <code class="docutils literal notranslate"><span class="pre">queue_buf_dma</span></code> 是存放控制命令和返回结果的内存， <code class="docutils literal notranslate"><span class="pre">queue_buf_send</span></code> 和 <code class="docutils literal notranslate"><span class="pre">queue_buf_recv</span></code> 是 <code class="docutils literal notranslate"><span class="pre">queue_buf_dma</span></code> 的切片。</p>
 </div>
-<div class="section" id="id11">
-<h3>初始化virtio-gpu设备<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h3>
+<div class="section" id="id12">
+<h3>初始化virtio-gpu设备<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
 <p>在 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> crate的 <code class="docutils literal notranslate"><span class="pre">examples\riscv\src\main.rs</span></code> 文件中的 <code class="docutils literal notranslate"><span class="pre">virtio_probe</span></code> 函数识别出virtio-gpu设备后，会调用 <code class="docutils literal notranslate"><span class="pre">virtio_gpu(header)</span></code> 函数来完成对virtio-gpu设备的初始化过程。virtio-gpu设备初始化的工作主要是查询显示设备的信息（如分辨率等），并将该信息用于初始显示扫描（scanout）设置。具体过程如下：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">impl</span><span class="w"> </span><span class="n">VirtIOGpu</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">header</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="bp">Self</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
@@ -888,8 +900,8 @@
 </div>
 </div>
 </div>
-<div class="section" id="id12">
-<h2>测试virtio设备<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h2>
+<div class="section" id="id13">
+<h2>测试virtio设备<a class="headerlink" href="#id13" title="永久链接至标题">#</a></h2>
 <p>在 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> crate的 <code class="docutils literal notranslate"><span class="pre">examples\riscv\src\main.rs</span></code> 文件是一个可让virtio-blk设备读写磁盘，让virtio-gpu设备显示图像的测试用例，我们可以通过执行如下命令来尝试这些virtio设备：</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$ <span class="nb">cd</span> virtio-driver/examples/riscv64
 $ make run
@@ -960,30 +972,31 @@ $ make run
 <li><a class="reference internal" href="#">virtio设备驱动程序</a><ul>
 <li><a class="reference internal" href="#id1">本节导读</a></li>
 <li><a class="reference internal" href="#id2">virtio设备</a><ul>
-<li><a class="reference internal" href="#id3">virtio架构</a></li>
-<li><a class="reference internal" href="#id4">virtio设备</a></li>
+<li><a class="reference internal" href="#id3">virtio概述</a></li>
+<li><a class="reference internal" href="#id4">virtio架构</a></li>
+<li><a class="reference internal" href="#id5">virtio设备</a></li>
 <li><a class="reference internal" href="#virtqueue"><strong>virtqueue虚拟队列</strong></a></li>
 <li><a class="reference internal" href="#mmiovirtio">基于MMIO方式的virtio设备</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id5">virtio驱动程序</a><ul>
-<li><a class="reference internal" href="#id6">驱动程序与设备之间的交互</a></li>
-<li><a class="reference internal" href="#id7">virtio驱动程序的执行过程</a></li>
+<li><a class="reference internal" href="#id6">virtio驱动程序</a><ul>
+<li><a class="reference internal" href="#id7">驱动程序与设备之间的交互</a></li>
+<li><a class="reference internal" href="#id8">virtio驱动程序的执行过程</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#virtio-blk">virtio-blk驱动程序</a><ul>
-<li><a class="reference internal" href="#id8">virtio-blk设备的关键数据结构</a></li>
-<li><a class="reference internal" href="#id9">初始化virtio-blk设备</a></li>
+<li><a class="reference internal" href="#id9">virtio-blk设备的关键数据结构</a></li>
+<li><a class="reference internal" href="#id10">初始化virtio-blk设备</a></li>
 <li><a class="reference internal" href="#virtio-blki-o">virtio-blk设备的I/O操作</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#virtio-gpu">virtio-gpu驱动程序</a><ul>
-<li><a class="reference internal" href="#id10">virtio-gpu设备的关键数据结构</a></li>
-<li><a class="reference internal" href="#id11">初始化virtio-gpu设备</a></li>
+<li><a class="reference internal" href="#id11">virtio-gpu设备的关键数据结构</a></li>
+<li><a class="reference internal" href="#id12">初始化virtio-gpu设备</a></li>
 <li><a class="reference internal" href="#virtio-gpui-o">virtio-gpu设备的I/O操作</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id12">测试virtio设备</a></li>
+<li><a class="reference internal" href="#id13">测试virtio设备</a></li>
 </ul>
 </li>
 </ul>
