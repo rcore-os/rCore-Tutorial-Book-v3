@@ -644,7 +644,9 @@
 </div>
 </div>
 <div class="section" id="id4">
-<h2>锁的基本思路<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
+<h2>锁的简介<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
+<div class="section" id="id5">
+<h3>锁机制的形态与功能<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
 <p>我们提到为了保证多线程能够正确并发访问共享资源，可以使用一种叫做 <strong>锁</strong> 的通用机制来对线程操作共享资源的 <strong>临界区</strong> 进行保护。这里的锁和现实生活中的含义很接近。回想一下我们如何使用常见于理发店或者游泳馆更衣室的公共储物柜：首先需要找到一个没有上锁的柜子并将物品存放进去。接着我们锁上柜子并拔出插在锁孔上的钥匙妥善保管。最后，当我们想取出物品时，我们使用钥匙打开存放物品的柜子并将钥匙留在锁孔上以便他人使用。至此，完整的使用流程结束。</p>
 <p>那么，如何使用类似的思路用锁机制保护临界区呢？锁是附加在一种共享资源上的一种标记，最简单的情况下它只需有两种状态：上锁和空闲。上锁状态表示此时已经有某个线程在该种共享资源的临界区中，故而为了正确性其他线程不能进入临界区。相反的，空闲状态则表示线程可以进入临界区。显然，线程成功进入临界区之后锁也需要从空闲转为上锁状态。锁的两个基本操作是 <strong>上锁</strong> 和 <strong>解锁</strong> ，在线程进入临界区之前和退出临界区之后分别需要成功上锁和解锁。通过这种方式，我们就可以保证临界区的互斥性。在引入锁机制之后，线程访问共享资源的流程如下：</p>
 <ul class="simple">
@@ -652,6 +654,9 @@
 <li><p>第二步在临界区内访问共享资源。只有持有共享资源锁的线程能够进入临界区，这就能够保证临界区的互斥性。</p></li>
 <li><p>第三步解锁：线程离开临界区之后将资源解锁并归还钥匙，我们说线程 <strong>释放了锁</strong> 。此时资源回到空闲状态。</p></li>
 </ul>
+</div>
+<div class="section" id="id6">
+<h3>锁的使用方法<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
 <p>Rust 在标准库中提供了互斥锁 <code class="docutils literal notranslate"><span class="pre">std::sync::Mutex&lt;T&gt;</span></code> ，它可以包裹一个类型为 <code class="docutils literal notranslate"><span class="pre">T</span></code> 的共享资源为它提供互斥访问。线程可以调用 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;::lock</span></code> 来获取锁，注意线程不一定立即就能拿到锁，所以它会等待持有锁的线程释放锁且自身抢到锁之后才会返回。其返回值为 <code class="docutils literal notranslate"><span class="pre">std::sync::MutexGuard&lt;T&gt;</span></code> （篇幅所限省略掉外层的 <code class="docutils literal notranslate"><span class="pre">Result</span></code> ），可以理解为前面描述中的一把钥匙，拿到它的线程也就拿到了锁，于是有资格独占共享资源并进入临界区。 <code class="docutils literal notranslate"><span class="pre">MutexGuard&lt;T&gt;</span></code> 提供内部可变性，可以看做可变引用 <code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">T</span></code> ，用来修改共享资源。它的另一种功能是用来开锁，它也是 RAII 风格的，在它被 drop 之后会将锁自动释放。</p>
 <p>让我们看看如何使用 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 来更正 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// adder.rs</span>
@@ -704,7 +709,19 @@
 </pre></div>
 </div>
 <p>其中锁 <code class="docutils literal notranslate"><span class="pre">LOCK</span></code> 用来保护共享资源 <code class="docutils literal notranslate"><span class="pre">A</span></code> 。此处， <code class="docutils literal notranslate"><span class="pre">LOCK</span></code> 有用的仅有那个描述锁状态（可能是上锁或空闲）的标记，它内部包裹的值反而无关紧要，其类型 <code class="docutils literal notranslate"><span class="pre">T</span></code> 可以随意选择。可以看到在这种实现中，锁 <code class="docutils literal notranslate"><span class="pre">LOCK</span></code> 和共享资源 <code class="docutils literal notranslate"><span class="pre">A</span></code> 是分离开的，这样实现更加灵活，但是更容易由于编码错误而出现 bug 。</p>
-<p>这一小节我们介绍了锁的形态：一种附加在共享资源上的标记，需要区分当前是否有线程在该种资源的临界区中。它支持两种基本操作：上锁和解锁。接着我们还介绍了 Rust 标准库提供的互斥锁 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 并通过例子演示了它的用法。接下来，我们将正式开始亲自动手根据上述需求尝试实现锁机制。</p>
+</div>
+<div class="section" id="id7">
+<h3>评价锁实现的指标<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
+<p>锁机制有多种不同的实现。对于一种实现而言，我们常常用以下的指标来从多个维度评估这种实现是否能够正确、高效地达成锁这种互斥原语应有的功能：</p>
+<span id="term-fairness"></span><span id="term-bounded-waiting"></span><span id="term-progress"></span><ul class="simple" id="term-starvation">
+<li><p>忙则等待：意思是当一个线程持有了共享资源的锁，此时资源处于繁忙状态，这个时候其他线程必须等待拿着锁的线程将锁释放后才有进入临界区的机会。这其实就是互斥访问的另一种说法。这种互斥性是锁实现中最重要的也是必须做到的目标，不然共享资源访问的正确性会受到影响。</p></li>
+<li><p><strong>空闲则入</strong> (Progress)：当资源处于空闲状态的时候，任何线程可以进入临界区。在某些实现中可能无法做到这一点，导致多线程的总体效率受到影响。</p></li>
+<li><p><strong>有界等待</strong> (Bounded Waiting)：当线程获取锁失败的时候首先需要等待锁被释放，但这并不意味着此后它能够立即抢到被释放的锁，因此此时可能还有其他的线程也处于等待状态。于是它可能需要等待一轮、二轮、多轮才能拿到锁，甚至在极端情况下永远拿不到锁。 <strong>有界等待</strong> 要求每个线程在等待有限长时间后最终总能够拿到锁。相对的，线程可能永远无法拿到锁的情况被称之为 <strong>饥饿</strong> (Starvation) 。这体现了锁实现分配共享资源给线程的 <strong>公平性</strong> (Fairness) 。</p></li>
+<li><p>让权等待：线程如何进行等待实际上也大有学问。这里所说的让权等待是指需要等待线程暂时主动或被动交出 CPU 使用权来让 CPU 做一些有意义的事情，这通常需要操作系统的支持。这样可以提升系统的总体效率。</p></li>
+</ul>
+<p>总的来说，忙则等待关系到互斥访问这一锁机制的最根本要求，是必须满足的；而剩下的三个指标关系到锁机制的效率，是可选的。</p>
+<p>这一小节我们介绍了锁的形态：一种附加在共享资源上的标记，需要区分当前是否有线程在该种资源的临界区中。它支持两种基本操作：上锁和解锁。接着我们还介绍了 Rust 标准库提供的互斥锁 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 并通过例子演示了它的用法。最后我们介绍了评价锁机制实现的一些指标，从中我们可以了解到怎样才可以称之为一个好的锁实现。接下来，我们将正式开始亲自动手根据上述需求尝试实现锁机制。</p>
+</div>
 </div>
 </div>
 
@@ -768,7 +785,12 @@
 <li><a class="reference internal" href="#">互斥锁</a><ul>
 <li><a class="reference internal" href="#id2">本节导读</a></li>
 <li><a class="reference internal" href="#id3">引子：多线程计数器</a></li>
-<li><a class="reference internal" href="#id4">锁的基本思路</a></li>
+<li><a class="reference internal" href="#id4">锁的简介</a><ul>
+<li><a class="reference internal" href="#id5">锁机制的形态与功能</a></li>
+<li><a class="reference internal" href="#id6">锁的使用方法</a></li>
+<li><a class="reference internal" href="#id7">评价锁实现的指标</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
