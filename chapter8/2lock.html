@@ -609,7 +609,7 @@
 <p id="term-mutual-exclusion"><span id="term-critical-section"></span><span id="term-shared-resources"></span><strong>共享资源</strong> (Shared Resources) 是指多个线程均能够访问的资源。线程对于共享资源进行操作的那部分代码被称为 <strong>临界区</strong> (Critical Section)。在多线程并发访问某种共享资源的时候，为了正确性，必须要满足 <strong>互斥</strong> (Mutual Exclusion) 访问要求，即同一时间最多只能有一个线程在这种共享资源的临界区之内。这样才能保证当一个线程开始操作时，共享资源总是处于合法状态，这保证了操作是有意义的。如果能够做到互斥访问的话，我们 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 出现 bug 的根源————即对于 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的操作可能交错出现的情况便能够被避免。</p>
 <p id="term-lock"><span id="term-mutex"></span>从 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 中可以看出，如果任由操作系统进行时间片切分和线程调度而不加任何特殊处理，是很难满足互斥访问要求的。那么应该如何实现互斥访问呢？接下来，我们将会尝试构建一组称之为 <strong>互斥锁</strong> (Mutex，源于 <strong>Mut</strong> ual <strong>Ex</strong> clusion，简称为 <strong>锁</strong> Lock) 的通用互斥原语来对临界区进行保护，从而在一般意义上保证互斥访问要求。这将是本节接下来的主要内容。</p>
 <p id="term-atomic-instruction">如果仅仅考虑 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 的话，其实不借助锁机制也能够解决问题。这是因为其中的共享资源为一个 64 位无符号整型，是一个十分简单的类型。对于这种原生类型，现代指令集架构额外提供一组 <strong>原子指令</strong> (Atomic Instruction) ，在某些架构上只需一条原子指令就能完成包括访存、算术运算在内的一系列功能。这就是说 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 操作其实只需一条原子指令就能完成。如果这样做的话，我们相当于 <strong>将临界区缩小为一条原子指令</strong> ，这已经是处理器执行指令和时间片切分的最小单位，因此我们不使用任何保护手段也能满足互斥要求。修改之后的代码如下：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// adder.rs</span>
+<div class="highlight-rust notranslate" id="ref-adder-fixed"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// adder_fixed.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">sync</span>::<span class="n">atomic</span>::<span class="p">{</span><span class="n">AtomicUsize</span><span class="p">,</span><span class="w"> </span><span class="n">Ordering</span><span class="p">};</span><span class="w"></span>
 <span class="linenos"> 4</span><span class="k">static</span><span class="w"> </span><span class="n">A</span>: <span class="nc">AtomicUsize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">AtomicUsize</span>::<span class="n">new</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
@@ -661,7 +661,7 @@
 <h3>锁的使用方法<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
 <p>Rust 在标准库中提供了互斥锁 <code class="docutils literal notranslate"><span class="pre">std::sync::Mutex&lt;T&gt;</span></code> ，它可以包裹一个类型为 <code class="docutils literal notranslate"><span class="pre">T</span></code> 的共享资源为它提供互斥访问。线程可以调用 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;::lock</span></code> 来获取锁，注意线程不一定立即就能拿到锁，所以它会等待持有锁的线程释放锁且自身抢到锁之后才会返回。其返回值为 <code class="docutils literal notranslate"><span class="pre">std::sync::MutexGuard&lt;T&gt;</span></code> （篇幅所限省略掉外层的 <code class="docutils literal notranslate"><span class="pre">Result</span></code> ），可以理解为前面描述中的一把钥匙，拿到它的线程也就拿到了锁，于是有资格独占共享资源并进入临界区。 <code class="docutils literal notranslate"><span class="pre">MutexGuard&lt;T&gt;</span></code> 提供内部可变性，可以看做可变引用 <code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">T</span></code> ，用来修改共享资源。它的另一种功能是用来开锁，它也是 RAII 风格的，在它被 drop 之后会将锁自动释放。</p>
 <p>让我们看看如何使用 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 来更正 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> ：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// adder.rs</span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// adder_mutex0.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">sync</span>::<span class="n">Mutex</span><span class="p">;</span><span class="w"></span>
 <span class="linenos"> 4</span><span class="k">const</span><span class="w"> </span><span class="n">THREAD_COUNT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
@@ -686,7 +686,7 @@
 </div>
 <p>第 6 行我们将共享资源用 <code class="docutils literal notranslate"><span class="pre">A</span></code> 使用 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 包裹。第 12~14 行构成一次完整的受锁保护的临界区访问：第 12 行获取锁；第 13 行是临界区；第 14 行循环的一次迭代结束，第 12 行的 <code class="docutils literal notranslate"><span class="pre">MutexGuard&lt;T&gt;</span></code> 退出作用域，于是它被 drop 之后自动解锁。</p>
 <p>在上面的做法中，锁以及被锁保护的共享资源被整合到一个数据结构中，这也是最为常见的做法。但在某些情况下，它们之间可以相互分离，参考下面的代码：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// adder.rs</span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// adder_mutex1.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">sync</span>::<span class="n">Mutex</span><span class="p">;</span><span class="w"></span>
 <span class="linenos"> 4</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
@@ -719,10 +719,120 @@
 <li><p>忙则等待：意思是当一个线程持有了共享资源的锁，此时资源处于繁忙状态，这个时候其他线程必须等待拿着锁的线程将锁释放后才有进入临界区的机会。这其实就是互斥访问的另一种说法。这种互斥性是锁实现中最重要的也是必须做到的目标，不然共享资源访问的正确性会受到影响。</p></li>
 <li><p><strong>空闲则入</strong> (Progress)：当资源处于空闲状态的时候，任何线程可以进入临界区。在某些实现中可能无法做到这一点，导致多线程的总体效率受到影响。</p></li>
 <li><p><strong>有界等待</strong> (Bounded Waiting)：当线程获取锁失败的时候首先需要等待锁被释放，但这并不意味着此后它能够立即抢到被释放的锁，因此此时可能还有其他的线程也处于等待状态。于是它可能需要等待一轮、二轮、多轮才能拿到锁，甚至在极端情况下永远拿不到锁。 <strong>有界等待</strong> 要求每个线程在等待有限长时间后最终总能够拿到锁。相对的，线程可能永远无法拿到锁的情况被称之为 <strong>饥饿</strong> (Starvation) 。这体现了锁实现分配共享资源给线程的 <strong>公平性</strong> (Fairness) 。</p></li>
-<li><p>让权等待：线程如何进行等待实际上也大有学问。这里所说的让权等待是指需要等待线程暂时主动或被动交出 CPU 使用权来让 CPU 做一些有意义的事情，这通常需要操作系统的支持。这样可以提升系统的总体效率。</p></li>
+<li><p>让权等待：线程如何进行等待实际上也大有学问。这里所说的让权等待是指需要等待的线程暂时主动或被动交出 CPU 使用权来让 CPU 做一些有意义的事情，这通常需要操作系统的支持。这样可以提升系统的总体效率。</p></li>
 </ul>
 <p>总的来说，忙则等待关系到互斥访问这一锁机制的最根本要求，是必须满足的；而剩下的三个指标关系到锁机制的效率，是可选的。</p>
 <p>这一小节我们介绍了锁的形态：一种附加在共享资源上的标记，需要区分当前是否有线程在该种资源的临界区中。它支持两种基本操作：上锁和解锁。接着我们还介绍了 Rust 标准库提供的互斥锁 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 并通过例子演示了它的用法。最后我们介绍了评价锁机制实现的一些指标，从中我们可以了解到怎样才可以称之为一个好的锁实现。接下来，我们将正式开始亲自动手根据上述需求尝试实现锁机制。</p>
+</div>
+</div>
+<div class="section" id="id8">
+<h2>锁的纯用户态软件实现<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h2>
+<p>在本节中，我们仅考虑在用户态使用锁机制保证多线程对共享资源的互斥访问的情形。此时在实现锁机制的时候，应用的执行环境的多个部分都有可能给我们带来一些帮助，从上到下它们分别是：</p>
+<ol class="arabic simple">
+<li><p>用户态软件的一些函数库；</p></li>
+<li><p>操作系统内核的支持；</p></li>
+<li><p>相关硬件机制或特殊指令的支持。</p></li>
+</ol>
+<p>为了简单起见，我们暂不考虑操作系统内核支持和硬件机制，看看能否仅基于用户态软件实现锁机制，如果无法实现或者实现得不好是由于哪些问题，应当如何改进。本节之前的例子 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 运行在我们的真实计算机上的 Linux/Windows 或其他操作系统上，不过当我们自己实现锁的时候，我们选择在一个比较简单的平台——即 Qemu 模拟出来的 <strong>单核</strong> 计算机上的我们自己实现支持多线程的“达科塔盗龙”操作系统上进行实现和测试。因为如果基于真实计算机和成熟的操作系统，多线程在 <strong>多核</strong> 上的执行模型比较复杂，为了正确实现需要了解很多相关知识。在 Qemu 上我们能最大限度简化问题，也同样能有机会讨论锁实现的一些核心问题。</p>
+<p>基于 <a class="reference internal" href="1thread-kernel.html"><span class="doc">内核态的线程管理</span></a> ，我们可以在自己的“达科塔盗龙”操作系统上实现 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 。代码如下：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/adder.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="cp">#![no_std]</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="cp">#![no_main]</span><span class="w"></span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span><span class="cp">#[macro_use]</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">alloc</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span><span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">vec</span>::<span class="nb">Vec</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">11</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span><span class="n">exit</span><span class="p">,</span><span class="w"> </span><span class="n">get_time</span><span class="p">,</span><span class="w"> </span><span class="n">thread_create</span><span class="p">,</span><span class="w"> </span><span class="n">waittid</span><span class="p">};</span><span class="w"></span>
+<span class="linenos">12</span>
+<span class="linenos">13</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">14</span><span class="k">const</span><span class="w"> </span><span class="n">PER_THREAD_DEFAULT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">15</span><span class="k">const</span><span class="w"> </span><span class="n">THREAD_COUNT_DEFAULT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">16</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">16</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">PER_THREAD</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">17</span>
+<span class="linenos">18</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">critical_section</span><span class="p">(</span><span class="n">t</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">cur</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">read_volatile</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">500</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">        </span><span class="o">*</span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">t</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">t</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">10007</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">23</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">    </span><span class="n">a</span><span class="p">.</span><span class="n">write_volatile</span><span class="p">(</span><span class="n">cur</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">25</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">26</span>
+<span class="linenos">27</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">f</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">28</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="k">usize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">PER_THREAD</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">        </span><span class="n">critical_section</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">t</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"></span>
+<span class="linenos">33</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">34</span>
+<span class="linenos">35</span><span class="cp">#[no_mangle]</span><span class="w"></span>
+<span class="linenos">36</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">(</span><span class="n">argc</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="o">&amp;</span><span class="kt">str</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">37</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">thread_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">THREAD_COUNT_DEFAULT</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">38</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">per_thread</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PER_THREAD_DEFAULT</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">39</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">argc</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">40</span><span class="w">        </span><span class="n">thread_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">parse</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">41</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">argc</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">42</span><span class="w">            </span><span class="n">per_thread</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">].</span><span class="n">parse</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">43</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">44</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">45</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">PER_THREAD</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">per_thread</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">46</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_time</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">47</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">48</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">thread_count</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">49</span><span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">f</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">50</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">51</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">tid</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="n">into_iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">52</span><span class="w">        </span><span class="n">waittid</span><span class="p">(</span><span class="n">tid</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">53</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">54</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;time cost is {}ms&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">get_time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">55</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">PER_THREAD</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">thread_count</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">56</span><span class="w">    </span><span class="mi">0</span><span class="w"></span>
+<span class="linenos">57</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>这里共享资源仍然为全局变量 <code class="docutils literal notranslate"><span class="pre">A</span></code> ，具体操作为开 <code class="docutils literal notranslate"><span class="pre">thread_count</span></code> 个线程，每个线程执行 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 操作 <code class="docutils literal notranslate"><span class="pre">PER_THREAD</span></code> 次。线程数和每个线程上的操作次数默认值分别由 <code class="docutils literal notranslate"><span class="pre">THREAD_COUNT_DEFAULT</span></code> 和 <code class="docutils literal notranslate"><span class="pre">PER_THREAD_DEFAULT</span></code> 给出，也可以通过命令行参数设置。例如，命令 <code class="docutils literal notranslate"><span class="pre">adder</span> <span class="pre">4</span> <span class="pre">1000</span></code> 可以调整为 4 个线程，每个线程执行 1000 次操作，详情参考第 37~45 行的命令行参数逻辑。</p>
+<p>每个线程在创建之后都会不带参数执行第 27 行的 <code class="docutils literal notranslate"><span class="pre">f</span></code> 函数，里面是一个循环。循环的每次迭代都会尝试进入临界区（第 18 行的 <code class="docutils literal notranslate"><span class="pre">critical_section</span></code> 函数），共迭代 <code class="docutils literal notranslate"><span class="pre">PER_THREAD</span></code> 次。临界区其实就是进行 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 的操作，但有两点不同：第一点是我们使用 <code class="docutils literal notranslate"><span class="pre">core::ptr::read/write_volatile</span></code> 而不是直接 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> ，这是为了生成的汇编代码严格遵循 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 的三阶段而不会被编译器误优化；第二点是我们插入了一些关于 <code class="docutils literal notranslate"><span class="pre">t</span></code> 的冗余操作，这并不影响到共享资源的访问，目的在于加大阶段之间的间隔，使得一次 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 操作更容易横跨两个时间片从而出现一些有趣的现象。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>Rust Tips: 易失性读写 read/write_volatile</strong></p>
+<p>有些时候，编译器会对一些访存行为进行优化。举例来说，如果我们写入一个内存位置并立即读取该位置，并且在同段时间内其他线程不会访问该内存位置，这意味着我们写入的值能够在 RAM 上保持不变。那么，编译器可能会认为读取到的值必定是此前写入的值，于是在最终的汇编码中读取内存的操作可能被优化掉。然而，有些时候，特别是访问 I/O 外设以 MMIO 方式映射的设备寄存器时，即使是相同的内存位置，对它进行读取和写入的含义可能完全不同，于是读取到的值和我们之前写入的值可能没有任何关系。连续两次读取同个设备寄存器也可能得到不同的结果。这种情况下，编译器对访存行为的修改显然是一种误优化。</p>
+<p>于是，在访问 I/O 设备寄存器或是与 RAM 特性不同的内存区域时，就要注意通过 <code class="docutils literal notranslate"><span class="pre">read/write_volatile</span></code> 来确保编译器完全按照我们的源代码生成汇编代码而不会自作主张进行删除或者重排访存操作等优化。若想更加深入了解 volatile 的含义，可以参考 <a class="reference external" href="https://doc.rust-lang.org/stable/std/ptr/fn.read_volatile.html#notes">Rust 官方文档</a> 。</p>
+</div>
+<p>在 <code class="docutils literal notranslate"><span class="pre">user/src/bin</span></code> 目录下我们还会看到很多 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 衍生出来的 <code class="docutils literal notranslate"><span class="pre">adder_*.rs</span></code> 测例，每个测例对应到一种锁实现。它们与 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 的主要不同在于临界区看起来是受保护的：在临界区 <code class="docutils literal notranslate"><span class="pre">critical_section</span></code> 的前后分别会调用上锁和解锁函数 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 和 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> ，每个测例的 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 和 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 的实现也是不同的。然而它们不全是正确的实现，效率也各不相同。</p>
+<div class="section" id="id9">
+<h3>单标记的简单尝试<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
+<p>我们知道锁的本质上是一个标记，表明目前是否已经有线程进入共享资源的临界区了。于是，最简单的实现思路就是加入一个新的全局变量用作这个标记：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/adder_simple_spin.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">OCCUPIED</span>: <span class="kt">bool</span> <span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 4</span>
+<span class="linenos"> 5</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="n">vload</span><span class="o">!</span><span class="p">(</span><span class="o">&amp;</span><span class="n">OCCUPIED</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="n">OCCUPIED</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">    </span><span class="n">OCCUPIED</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">12</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>我们使用一个新的全局变量 <code class="docutils literal notranslate"><span class="pre">OCCUPIED</span></code> 作为标记，表示当前是否有线程在临界区内。在 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 的时候，我们等待 <code class="docutils literal notranslate"><span class="pre">OCCUPIED</span></code> 变为 false （注意这里的 <code class="docutils literal notranslate"><span class="pre">vload!</span></code> 来自用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> ，和临界区中的 <code class="docutils literal notranslate"><span class="pre">volatile_read</span></code> 含义相同），这意味着没有线程在临界区内了，于是将标记修改为 true 并自己进入临界区。在退出临界区 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 的时候则只需将标记改成 false 。</p>
+<p id="term-spinning"><span id="term-busy-waiting"></span>第 6 行不断 while 循环直到标记被改为 false ，在循环体内则不做任何事情，这是一种典型的 <strong>忙等待</strong> (Busy Waiting) 策略，它也被形象地称为 <strong>自旋</strong> (Spinning) 。我们目前基于单核 CPU ，如果循环第一次迭代发现标记为 true 的话，在触发时钟中断切换到其他线程之前，无论多少次查看标记都必定为 true ，因为当前线程不会修改标记。这就会造成 CPU 资源的严重浪费。针对这种场景， Rust 提供了 <code class="docutils literal notranslate"><span class="pre">spin_loop_hint</span></code> 函数，我们可以在循环体内调用该函数来通知 CPU 当前线程正处于忙等待状态，于是 CPU 可能会进行一些优化（比如降频减少功耗等），其在不同平台上有不同表现。此外，如果我们有操作系统支持的话，便可以考虑锁实现评价指标中的“让权等待”，这个我们后面还会讲到。</p>
+<p>可以看到，总体上这种实现是非常简单的，但是它能够保证最关键的互斥访问吗？我们可以尝试运行一下测例，很遗憾，最后的结果并不正确！那么是哪里出了问题呢？根据原先的思路我们还是先检查 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 的汇编代码，我们将其简化为伪代码的形式（有兴趣的同学可以自行尝试），大致上分为三个阶段，每个阶段由一到多条指令组成：</p>
+<ol class="arabic simple">
+<li><p>将标记的值加载到寄存器 reg</p></li>
+<li><p>条件跳转，如果 reg 为 1 则跳转回第一阶段开始新一轮循环；否则向下进行</p></li>
+<li><p>将标记赋值为 1</p></li>
+</ol>
+<p>仿照最早的 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 的例子，我们很容易构造出一种时间片分割的方式使得互斥访问失效：假设某时刻标记 <code class="docutils literal notranslate"><span class="pre">OCCUPIED</span></code> 的值为 false ，线程 T0 和 T1 都准备进入临界区。假设先切换到 T0 ，它经历 1、2 阶段，看到标记为 false ，认为自己能够进入临界区，但是在执行关键的 3 阶段之前被操作系统切换到线程 T1 。T1 也经历 1、2阶段，由于 T0 并没有修改标记，它也认为自己能够进入临界区。接下来显然线程 T0 和 T1 能够同时进入临界区了，这就违背了互斥访问要求。</p>
+<p>问题的本质是：在这个实现中，标记 <code class="docutils literal notranslate"><span class="pre">OCCUPIED</span></code> 也成为了多线程均可访问的 <strong>共享资源</strong> ，那么 <strong>它也需求互斥访问</strong> 。而我们并没有吸取 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 的教训，我们让操作为多阶段多指令的 <code class="docutils literal notranslate"><span class="pre">OCCUPIED</span></code> 无任何保护的暴露在操作系统调度面前，那么自然也会发生和 <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 类似的问题。那么应该如何解决问题呢？参照 <a class="reference internal" href="#ref-adder-fixed"><span class="std std-ref">adder_fixed.rs</span></a> ，在硬件的支持下，将对标记的操作替换为原子操作显然很靠谱。但我们不禁要问，如果不依赖硬件，是否有一种纯软件的解决方案呢？其实在某些限制条件下是可以的，下面就介绍一个例子。</p>
+</div>
+<div class="section" id="id10">
+<h3>多标记的组合<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
 </div>
 </div>
 </div>
@@ -791,6 +901,11 @@
 <li><a class="reference internal" href="#id5">锁机制的形态与功能</a></li>
 <li><a class="reference internal" href="#id6">锁的使用方法</a></li>
 <li><a class="reference internal" href="#id7">评价锁实现的指标</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id8">锁的纯用户态软件实现</a><ul>
+<li><a class="reference internal" href="#id9">单标记的简单尝试</a></li>
+<li><a class="reference internal" href="#id10">多标记的组合</a></li>
 </ul>
 </li>
 </ul>
