@@ -1,0 +1,829 @@
+<!doctype html>
+<html class="no-js" lang="zh_CN">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="virtio_gpu设备驱动程序" href="2device-driver-4.html" /><link rel="prev" title="virtio设备驱动程序" href="2device-driver-2.html" />
+
+    <meta name="generator" content="sphinx-4.3.2, furo 2022.06.21"/>
+        <title>virtio_blk块设备驱动程序 - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    <link rel="stylesheet" type="text/css" href="../_static/my_style.css" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  
+  <span class="sidebar-brand-text">rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder=搜索 name="q" aria-label="搜索">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Part1 - Just do it!</span></p>
+<ul class="current">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../chapter0/index.html">第零章：操作系统概述</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../chapter0/0intro.html">引言</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter0/1what-is-os.html">什么是操作系统</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter0/2os-interface.html">操作系统的系统调用接口</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter0/3os-hw-abstract.html">操作系统抽象</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter0/4os-features.html">操作系统的特征</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter0/5setup-devel-env.html">实验环境配置</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter0/7exercise.html">练习</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter0/8answer.html">练习参考答案</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../chapter1/index.html">第一章：应用程序与基本执行环境</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../chapter1/0intro.html">引言</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter1/1app-ee-platform.html">应用程序执行环境与平台支持</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter1/2remove-std.html">移除标准库依赖</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter1/3first-instruction-in-kernel1.html">内核第一条指令（基础篇）</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter1/4first-instruction-in-kernel2.html">内核第一条指令（实践篇）</a><input class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" role="switch" type="checkbox"/><label for="toctree-checkbox-13"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter1/5support-func-call.html">为内核支持函数调用</a><input class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" role="switch" type="checkbox"/><label for="toctree-checkbox-14"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter1/6print-and-shutdown-based-on-sbi.html">基于 SBI 服务完成输出和关机</a><input class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" role="switch" type="checkbox"/><label for="toctree-checkbox-15"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter1/7exercise.html">练习</a><input class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" role="switch" type="checkbox"/><label for="toctree-checkbox-16"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter1/8answer.html">练习参考答案</a><input class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" role="switch" type="checkbox"/><label for="toctree-checkbox-17"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../chapter2/index.html">第二章：批处理系统</a><input class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" role="switch" type="checkbox"/><label for="toctree-checkbox-18"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../chapter2/0intro.html">引言</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter2/1rv-privilege.html">特权级机制</a><input class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" role="switch" type="checkbox"/><label for="toctree-checkbox-19"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter2/2application.html">实现应用程序</a><input class="toctree-checkbox" id="toctree-checkbox-20" name="toctree-checkbox-20" role="switch" type="checkbox"/><label for="toctree-checkbox-20"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter2/3batch-system.html">实现批处理操作系统</a><input class="toctree-checkbox" id="toctree-checkbox-21" name="toctree-checkbox-21" role="switch" type="checkbox"/><label for="toctree-checkbox-21"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter2/4trap-handling.html">实现特权级的切换</a><input class="toctree-checkbox" id="toctree-checkbox-22" name="toctree-checkbox-22" role="switch" type="checkbox"/><label for="toctree-checkbox-22"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter2/5exercise.html">练习</a><input class="toctree-checkbox" id="toctree-checkbox-23" name="toctree-checkbox-23" role="switch" type="checkbox"/><label for="toctree-checkbox-23"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter2/6answer.html">练习参考答案</a><input class="toctree-checkbox" id="toctree-checkbox-24" name="toctree-checkbox-24" role="switch" type="checkbox"/><label for="toctree-checkbox-24"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../chapter3/index.html">第三章：多道程序与分时多任务</a><input class="toctree-checkbox" id="toctree-checkbox-25" name="toctree-checkbox-25" role="switch" type="checkbox"/><label for="toctree-checkbox-25"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../chapter3/0intro.html">引言</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter3/1multi-loader.html">多道程序放置与加载</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter3/2task-switching.html">任务切换</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter3/3multiprogramming.html">多道程序与协作式调度</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter3/4time-sharing-system.html">分时多任务系统与抢占式调度</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter3/5exercise.html">练习</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter3/6answer.html">练习参考答案</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../chapter4/index.html">第四章：地址空间</a><input class="toctree-checkbox" id="toctree-checkbox-26" name="toctree-checkbox-26" role="switch" type="checkbox"/><label for="toctree-checkbox-26"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../chapter4/0intro.html">引言</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter4/1rust-dynamic-allocation.html">Rust 中的动态内存分配</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter4/2address-space.html">地址空间</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter4/3sv39-implementation-1.html">SV39 多级页表的硬件机制</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter4/4sv39-implementation-2.html">管理 SV39 多级页表</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter4/5kernel-app-spaces.html">内核与应用的地址空间</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter4/6multitasking-based-on-as.html">基于地址空间的分时多任务</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter4/7more-as.html">超越物理内存的地址空间</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter4/8exercise.html">练习</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter4/9answer.html">练习参考答案</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../chapter5/index.html">第五章：进程</a><input class="toctree-checkbox" id="toctree-checkbox-27" name="toctree-checkbox-27" role="switch" type="checkbox"/><label for="toctree-checkbox-27"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../chapter5/0intro.html">引言</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter5/1process.html">进程概念及重要系统调用</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter5/2core-data-structures.html">进程管理的核心数据结构</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter5/3implement-process-mechanism.html">进程管理机制的设计实现</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter5/4scheduling.html">进程调度</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter5/5exercise.html">练习</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter5/6answer.html">练习参考答案</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../chapter6/index.html">第六章：文件系统</a><input class="toctree-checkbox" id="toctree-checkbox-28" name="toctree-checkbox-28" role="switch" type="checkbox"/><label for="toctree-checkbox-28"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../chapter6/0intro.html">引言</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter6/1fs-interface.html">文件系统接口</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter6/2fs-implementation.html">简易文件系统 easy-fs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter6/3using-easy-fs-in-kernel.html">在内核中接入 easy-fs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter6/4exercise.html">练习</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter6/5answer.html">练习参考答案</a><input class="toctree-checkbox" id="toctree-checkbox-29" name="toctree-checkbox-29" role="switch" type="checkbox"/><label for="toctree-checkbox-29"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../chapter7/index.html">第七章：进程间通信与 I/O 重定向</a><input class="toctree-checkbox" id="toctree-checkbox-30" name="toctree-checkbox-30" role="switch" type="checkbox"/><label for="toctree-checkbox-30"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../chapter7/0intro.html">引言</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter7/1file-descriptor.html">基于文件的标准输入/输出</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter7/2pipe.html">管道</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter7/3cmdargs-and-redirection.html">命令行参数与标准 I/O 重定向</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter7/4signal.html">信号</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter7/5exercise.html">练习</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter7/6answer.html">练习参考答案</a><input class="toctree-checkbox" id="toctree-checkbox-31" name="toctree-checkbox-31" role="switch" type="checkbox"/><label for="toctree-checkbox-31"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../chapter8/index.html">第八章：并发</a><input class="toctree-checkbox" id="toctree-checkbox-32" name="toctree-checkbox-32" role="switch" type="checkbox"/><label for="toctree-checkbox-32"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../chapter8/0intro.html">引言</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter8/1thread.html">用户态的线程管理</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter8/1thread-kernel.html">内核态的线程管理</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter8/2lock.html">互斥锁</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter8/2lock-legacy.html">锁机制</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter8/3semaphore.html">信号量机制</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter8/4condition-variable.html">条件变量机制</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter8/5concurrency-problem.html">并发中的问题</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../chapter8/6exercise.html">练习</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../chapter8/7answer.html">练习参考答案</a><input class="toctree-checkbox" id="toctree-checkbox-33" name="toctree-checkbox-33" role="switch" type="checkbox"/><label for="toctree-checkbox-33"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">第九章：I/O设备管理</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-34" name="toctree-checkbox-34" role="switch" type="checkbox"/><label for="toctree-checkbox-34"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="0intro.html">引言</a></li>
+<li class="toctree-l2"><a class="reference internal" href="1io-interface.html">I/O设备</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-0.html">外设平台</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-1.html">串口驱动程序</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-2.html">virtio设备驱动程序</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">virtio_blk块设备驱动程序</a></li>
+<li class="toctree-l2"><a class="reference internal" href="2device-driver-4.html">virtio_gpu设备驱动程序</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="4exercise.html">练习</a><input class="toctree-checkbox" id="toctree-checkbox-35" name="toctree-checkbox-35" role="switch" type="checkbox"/><label for="toctree-checkbox-35"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="5answer.html">练习参考答案</a><input class="toctree-checkbox" id="toctree-checkbox-36" name="toctree-checkbox-36" role="switch" type="checkbox"/><label for="toctree-checkbox-36"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">附录</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../final-lab.html">综合练习</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../appendix-a/index.html">附录 A：Rust 系统编程入门</a><input class="toctree-checkbox" id="toctree-checkbox-37" name="toctree-checkbox-37" role="switch" type="checkbox"/><label for="toctree-checkbox-37"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../appendix-b/index.html">附录 B：常见工具的使用方法</a><input class="toctree-checkbox" id="toctree-checkbox-38" name="toctree-checkbox-38" role="switch" type="checkbox"/><label for="toctree-checkbox-38"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../appendix-c/index.html">附录 C：深入机器模式：RustSBI</a><input class="toctree-checkbox" id="toctree-checkbox-39" name="toctree-checkbox-39" role="switch" type="checkbox"/><label for="toctree-checkbox-39"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../appendix-d/index.html">附录 D：RISC-V相关信息</a><input class="toctree-checkbox" id="toctree-checkbox-40" name="toctree-checkbox-40" role="switch" type="checkbox"/><label for="toctree-checkbox-40"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../appendix-d/1asm.html">RISCV 汇编相关</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appendix-d/2rv.html">RISCV 硬件相关</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../appendix-e/index.html">附录 E：操作系统进一步介绍</a><input class="toctree-checkbox" id="toctree-checkbox-41" name="toctree-checkbox-41" role="switch" type="checkbox"/><label for="toctree-checkbox-41"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../terminology.html">术语中英文对照表</a><input class="toctree-checkbox" id="toctree-checkbox-42" name="toctree-checkbox-42" role="switch" type="checkbox"/><label for="toctree-checkbox-42"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">开发注记</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../setup-sphinx.html">修改和构建本项目</a><input class="toctree-checkbox" id="toctree-checkbox-43" name="toctree-checkbox-43" role="switch" type="checkbox"/><label for="toctree-checkbox-43"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../rest-example.html">reStructuredText 基本语法</a><input class="toctree-checkbox" id="toctree-checkbox-44" name="toctree-checkbox-44" role="switch" type="checkbox"/><label for="toctree-checkbox-44"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../log.html">更新日志</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <div class="section" id="virtio-blk">
+<h1>virtio_blk块设备驱动程序<a class="headerlink" href="#virtio-blk" title="永久链接至标题">#</a></h1>
+<div class="section" id="id1">
+<h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h2>
+<p>本节主要介绍了与操作系统无关的基本virtio_blk设备驱动程序的设计与实现，以及如何在操作系统中封装virtio_blk设备驱动程序，实现基于中断机制的I/O操作，提升计算机系统的整体性能。</p>
+</div>
+<div class="section" id="id2">
+<h2>virtio-blk驱动程序<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
+<p>virtio-blk设备是一种virtio存储设备，在QEMU模拟的RISC-V 64计算机中，以MMIO和中断等方式方式来与驱动程序进行交互。这里我们以Rust语言为例，给出virtio-blk设备驱动程序的设计与实现。主要包括如下内容：</p>
+<ul class="simple">
+<li><p>virtio-blk设备的关键数据结构</p></li>
+<li><p>初始化virtio-blk设备</p></li>
+<li><p>操作系统对接virtio-blk设备初始化</p></li>
+<li><p>virtio-blk设备的I/O操作</p></li>
+<li><p>操作系统对接virtio-blk设备I/O操作</p></li>
+</ul>
+</div>
+<div class="section" id="id3">
+<h2>virtio-blk设备的关键数据结构<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
+<p>这里我们首先需要定义virtio-blk设备的结构：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="p">,</span><span class="w"> </span><span class="n">H</span>: <span class="nc">Hal</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">2</span><span class="w">   </span><span class="n">header</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">3</span><span class="w">   </span><span class="n">queue</span>: <span class="nc">VirtQueue</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="p">,</span><span class="w"> </span><span class="n">H</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">4</span><span class="w">   </span><span class="n">capacity</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">5</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>其中的 <code class="docutils literal notranslate"><span class="pre">VirtIOHeader</span></code> 数据结构的内存布局与上一节描述 <a class="reference internal" href="2device-driver-2.html#term-virtio-mmio-regs"><span class="std std-ref">virt-mmio设备的寄存器内存布局</span></a> 是一致的。而 <code class="docutils literal notranslate"><span class="pre">VirtQueue</span></code> 数据结构与上一节描述的 <a class="reference internal" href="2device-driver-2.html#term-virtqueue"><span class="std std-ref">virtqueue</span></a> 在表达的含义上基本一致的。</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="cp">#[repr(C)]</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtQueue</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="p">,</span><span class="w"> </span><span class="n">H</span>: <span class="nc">Hal</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">   </span><span class="n">dma</span>: <span class="nc">DMA</span><span class="o">&lt;</span><span class="n">H</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="c1">// DMA guard</span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="n">desc</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span> <span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="n">Descriptor</span><span class="p">],</span><span class="w"> </span><span class="c1">// 描述符表</span>
+<span class="linenos"> 5</span><span class="w">   </span><span class="n">avail</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span> <span class="nc">mut</span><span class="w"> </span><span class="n">AvailRing</span><span class="p">,</span><span class="w"> </span><span class="c1">// 可用环 Available ring</span>
+<span class="linenos"> 6</span><span class="w">   </span><span class="n">used</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span> <span class="nc">mut</span><span class="w"> </span><span class="n">UsedRing</span><span class="p">,</span><span class="w"> </span><span class="c1">// 已用环 Used ring</span>
+<span class="linenos"> 7</span><span class="w">   </span><span class="n">queue_idx</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="c1">//虚拟队列索引值</span>
+<span class="linenos"> 8</span><span class="w">   </span><span class="n">queue_size</span>: <span class="kt">u16</span><span class="p">,</span><span class="w"> </span><span class="c1">// 虚拟队列长度</span>
+<span class="linenos"> 9</span><span class="w">   </span><span class="n">num_used</span>: <span class="kt">u16</span><span class="p">,</span><span class="w"> </span><span class="c1">// 已经使用的队列项目数</span>
+<span class="linenos">10</span><span class="w">   </span><span class="n">free_head</span>: <span class="kt">u16</span><span class="p">,</span><span class="w"> </span><span class="c1">// 空闲队列项目头的索引值</span>
+<span class="linenos">11</span><span class="w">   </span><span class="n">avail_idx</span>: <span class="kt">u16</span><span class="p">,</span><span class="w"> </span><span class="c1">//可用环的索引值</span>
+<span class="linenos">12</span><span class="w">   </span><span class="n">last_used_idx</span>: <span class="kt">u16</span><span class="p">,</span><span class="w"> </span><span class="c1">//上次已用环的索引值</span>
+<span class="linenos">13</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>其中成员变量 <code class="docutils literal notranslate"><span class="pre">free_head</span></code> 指空闲描述符链表头，初始时所有描述符通过 <code class="docutils literal notranslate"><span class="pre">next</span></code> 指针依次相连形成空闲链表，成员变量 <code class="docutils literal notranslate"><span class="pre">last_used_idx</span></code> 是指设备上次已取的已用环元素位置。成员变量 <code class="docutils literal notranslate"><span class="pre">avail_idx</span></code> 是指设备上次已取的已用环元素位置。</p>
+<p>这里出现的 <code class="docutils literal notranslate"><span class="pre">Hal</span></code> trait是 <cite>virtio_drivers</cite> 库中定义的一个trait，用于抽象出与具体操作系统相关的操作，主要与内存分配和虚实地址转换相关。这里我们只给出trait的定义，具体的实现在后续的章节中会给出。</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Hal</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="w">   </span><span class="sd">/// Allocates the given number of contiguous physical pages of DMA memory for virtio use.</span>
+<span class="linenos"> 3</span><span class="w">   </span><span class="k">fn</span> <span class="nf">dma_alloc</span><span class="p">(</span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="sd">/// Deallocates the given contiguous physical DMA memory pages.</span>
+<span class="linenos"> 5</span><span class="w">   </span><span class="k">fn</span> <span class="nf">dma_dealloc</span><span class="p">(</span><span class="n">paddr</span>: <span class="nc">PhysAddr</span><span class="p">,</span><span class="w"> </span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">   </span><span class="sd">/// Converts a physical address used for virtio to a virtual address which the program can</span>
+<span class="linenos"> 7</span><span class="w">   </span><span class="sd">/// access.</span>
+<span class="linenos"> 8</span><span class="w">   </span><span class="k">fn</span> <span class="nf">phys_to_virt</span><span class="p">(</span><span class="n">paddr</span>: <span class="nc">PhysAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">VirtAddr</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">   </span><span class="sd">/// Converts a virtual address which the program can access to the corresponding physical</span>
+<span class="linenos">10</span><span class="w">   </span><span class="sd">/// address to use for virtio.</span>
+<span class="linenos">11</span><span class="w">   </span><span class="k">fn</span> <span class="nf">virt_to_phys</span><span class="p">(</span><span class="n">vaddr</span>: <span class="nc">VirtAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">12</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id4">
+<h2>初始化virtio-blk设备<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
+<p>virtio-blk设备的初始化过程与virtio规范中描述的一般virtio设备的初始化过程大致一样，对其实现的初步分析在 <a class="reference internal" href="2device-driver-2.html#term-virtio-blk-init"><span class="std std-ref">virtio-blk初始化代码</span></a> 中。在设备初始化过程中读取了virtio-blk设备的配置空间的设备信息：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="n">capacity</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="w">   </span><span class="c1">//32个扇区，即16KB</span>
+<span class="linenos">2</span><span class="n">seg_max</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">254</span><span class="w"></span>
+<span class="linenos">3</span><span class="n">cylinders</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="w"></span>
+<span class="linenos">4</span><span class="n">heads</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span><span class="w"></span>
+<span class="linenos">5</span><span class="n">sectors</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="mi">63</span><span class="w"></span>
+<span class="linenos">6</span><span class="n">blk_size</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span><span class="w"> </span><span class="c1">//扇区大小为512字节</span>
+</pre></div>
+</div>
+<p>了解了virtio-blk设备的扇区个数，扇区大小和总体容量后，还需调用 `` VirtQueue::new`` 成员函数来创建虚拟队列 <code class="docutils literal notranslate"><span class="pre">VirtQueue</span></code> 数据结构的实例，这样才能进行后续的磁盘读写操作。这个函数主要完成的事情是分配虚拟队列的内存空间，并进行初始化：</p>
+<ul class="simple">
+<li><p>设定 <code class="docutils literal notranslate"><span class="pre">queue_size</span></code> （即虚拟队列的描述符条目数）为16；</p></li>
+<li><p>计算满足 <code class="docutils literal notranslate"><span class="pre">queue_size</span></code> 的描述符表 <code class="docutils literal notranslate"><span class="pre">desc</span></code> ，可用环 <code class="docutils literal notranslate"><span class="pre">avail</span></code> 和已用环 <code class="docutils literal notranslate"><span class="pre">used</span></code> 所需的物理空间的大小 – <code class="docutils literal notranslate"><span class="pre">size</span></code> ；</p></li>
+<li><p>基于上面计算的 <code class="docutils literal notranslate"><span class="pre">size</span></code> 分配物理空间； //VirtQueue.new()</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">VirtIOHeader.queue_set</span></code> 函数把虚拟队列的相关信息（内存地址等）写到virtio-blk设备的MMIO寄存器中；</p></li>
+<li><p>初始化VirtQueue实例中各个成员变量（主要是 <code class="docutils literal notranslate"><span class="pre">dma</span></code> ， <code class="docutils literal notranslate"><span class="pre">desc</span></code> ，<code class="docutils literal notranslate"><span class="pre">avail</span></code> ，<code class="docutils literal notranslate"><span class="pre">used</span></code> ）的值。</p></li>
+</ul>
+<p>做完这一步后，virtio-blk设备和设备驱动之间的虚拟队列接口就打通了，可以进行I/O数据读写了。但virtio_derivers 模块还没有与操作系统内核进行对接。我们还需在操作系统中封装virtio-blk设备，让操作系统内核能够识别并使用virtio-blk设备。首先操作系统需要建立一个表示virtio_blk设备的全局变量 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> ：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/drivers/block/virtio_blk.rs</span>
+<span class="linenos"> 2</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">   </span><span class="n">virtio_blk</span>: <span class="nc">UPIntrFreeCell</span><span class="o">&lt;</span><span class="n">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="nb">static</span><span class="p">,</span><span class="w"> </span><span class="n">VirtioHal</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="n">condvars</span>: <span class="nc">BTreeMap</span><span class="o">&lt;</span><span class="kt">u16</span><span class="p">,</span><span class="w"> </span><span class="n">Condvar</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="c1">// os/easy-fs/src/block_dev.rs</span>
+<span class="linenos"> 7</span><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">BlockDevice</span>: <span class="nb">Send</span> <span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Any</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">   </span><span class="k">fn</span> <span class="nf">read_block</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]);</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">   </span><span class="k">fn</span> <span class="nf">write_block</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">]);</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">   </span><span class="k">fn</span> <span class="nf">handle_irq</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">11</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">12</span><span class="c1">// os/src/boards/qemu.rs</span>
+<span class="linenos">13</span><span class="k">pub</span><span class="w"> </span><span class="k">type</span> <span class="nc">BlockDeviceImpl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">crate</span>::<span class="n">drivers</span>::<span class="n">block</span>::<span class="n">VirtIOBlock</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">14</span><span class="c1">// os/src/drivers/block/mod.rs</span>
+<span class="linenos">15</span><span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">   </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">BLOCK_DEVICE</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">BlockDevice</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">BlockDeviceImpl</span>::<span class="n">new</span><span class="p">());</span><span class="w"></span>
+<span class="linenos">17</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id5">
+<h2>操作系统对接virtio-blk设备初始化过程<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
+<p>从上面的代码可以看到，操作系统中表示表示virtio_blk设备的全局变量 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> 的类型是 <code class="docutils literal notranslate"><span class="pre">VirtIOBlock</span></code> ,封装了来自virtio_derivers 模块的 <code class="docutils literal notranslate"><span class="pre">VirtIOBlk</span></code> 类型。这样，操作系统内核就可以通过 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> 全局变量来访问virtio_blk设备了。而  <code class="docutils literal notranslate"><span class="pre">VirtIOBlock</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">condvars:</span> <span class="pre">BTreeMap&lt;u16,</span> <span class="pre">Condvar&gt;</span></code> 条件变量结构，是用于进程在等待 I/O读或写操作完全前，通过条件变量让进程处于挂起状态。当virtio_blk设备完成I/O操作后，会通过中断唤醒等待的进程。而操作系统对virtio_blk设备的初始化除了封装 <code class="docutils literal notranslate"><span class="pre">VirtIOBlk</span></code> 类型并调用 <code class="docutils literal notranslate"><span class="pre">VirtIOBlk::&lt;VirtioHal&gt;::new</span></code> 外，还需要初始化 <code class="docutils literal notranslate"><span class="pre">condvars</span></code> 条件变量结构，而每个条件变量对应着一个虚拟队列条目的编号，这意味着每次I/O请求都绑定了一个条件变量，让发出请求的线程/进程可以被挂起。</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">impl</span><span class="w"> </span><span class="n">VirtIOBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="w">   </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">virtio_blk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">            </span><span class="n">UPIntrFreeCell</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">               </span><span class="n">VirtIOBlk</span>::<span class="o">&lt;</span><span class="n">VirtioHal</span><span class="o">&gt;</span>::<span class="n">new</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="n">VIRTIO0</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)).</span><span class="n">unwrap</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">            </span><span class="p">)</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">      </span><span class="p">};</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">condvars</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BTreeMap</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">channels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">virtio_blk</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">virt_queue_size</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">channels</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">condvar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Condvar</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="n">condvars</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">condvar</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">      </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">            </span><span class="n">virtio_blk</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">            </span><span class="n">condvars</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">19</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>在上述初始化代码中，我们先看到看到 <code class="docutils literal notranslate"><span class="pre">VIRTIO0</span></code> ，这是 Qemu模拟的virtio_blk设备中控制寄存器的物理内存地址， <code class="docutils literal notranslate"><span class="pre">VirtIOBlk</span></code> 需要这个地址来对 <code class="docutils literal notranslate"><span class="pre">VirtIOHeader</span></code> 数据结构所表示的virtio_blk设备控制寄存器进行读写操作，从而完成对某个具体的virtio_blk设备的初始化过程。而且我们还看到了 <code class="docutils literal notranslate"><span class="pre">VirtioHal</span></code> 结构，它实现virtio_derivers 模块定义 <code class="docutils literal notranslate"><span class="pre">Hal</span></code> trait约定的方法 ，提供DMA内存分配和虚实地址映射操作，从而让virtio_derivers 模块中 <code class="docutils literal notranslate"><span class="pre">VirtIOBlk</span></code> 类型能够得到操作系统的服务。</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/drivers/bus/virtio.rs</span>
+<span class="linenos"> 2</span><span class="k">impl</span><span class="w"> </span><span class="n">Hal</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">VirtioHal</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">   </span><span class="k">fn</span> <span class="nf">dma_alloc</span><span class="p">(</span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">      </span><span class="c1">//分配页帧 page-frames</span>
+<span class="linenos"> 5</span><span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">pa</span>: <span class="nc">PhysAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ppn_base</span><span class="p">.</span><span class="n">into</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">      </span><span class="n">pa</span><span class="p">.</span><span class="mi">0</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span><span class="w">   </span><span class="k">fn</span> <span class="nf">dma_dealloc</span><span class="p">(</span><span class="n">pa</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">      </span><span class="c1">//释放页帧 page-frames</span>
+<span class="linenos">12</span><span class="w">      </span><span class="mi">0</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">14</span>
+<span class="linenos">15</span><span class="w">   </span><span class="k">fn</span> <span class="nf">phys_to_virt</span><span class="p">(</span><span class="n">addr</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">      </span><span class="n">addr</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">18</span>
+<span class="linenos">19</span><span class="w">   </span><span class="k">fn</span> <span class="nf">virt_to_phys</span><span class="p">(</span><span class="n">vaddr</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">      </span><span class="c1">//把虚地址转为物理地址</span>
+<span class="linenos">21</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">22</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="virtio-blki-o">
+<h2>virtio-blk设备的I/O操作<a class="headerlink" href="#virtio-blki-o" title="永久链接至标题">#</a></h2>
+<p>virtio-blk驱动程序发起的I/O请求包含操作类型(读或写)、起始扇区(块设备的最小访问单位的一个扇区的长度512字节)、内存地址、访问长度；请求处理完成后返回的I/O响应仅包含结果状态(成功或失败，读操作请求的读出扇区内容)。系统产生的一个I/O请求在内存中的数据结构分为三个部分：Header（请求头部，包含操作类型和起始扇区）；Data（数据区，包含地址和长度）；Status（结果状态），这些信息分别放在三个buffer，所以需要三个描述符。</p>
+<p>virtio-blk设备使用 <code class="docutils literal notranslate"><span class="pre">VirtQueue</span></code> 数据结构来表示虚拟队列进行数据传输，此数据结构主要由三段连续内存组成：描述符表 <code class="docutils literal notranslate"><span class="pre">Descriptor[]</span></code> 、环形队列结构的 <code class="docutils literal notranslate"><span class="pre">AvailRing</span></code> 和 <code class="docutils literal notranslate"><span class="pre">UsedRing</span></code>  。驱动程序和virtio-blk设备都能访问到此数据结构。</p>
+<p>描述符表由固定长度(16字节)的描述符Descriptor组成，其个数等于环形队列长度，其中每个Descriptor的结构为：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">struct</span> <span class="nc">Descriptor</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">2</span><span class="w">   </span><span class="n">addr</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">3</span><span class="w">   </span><span class="n">len</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">4</span><span class="w">   </span><span class="n">flags</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="n">DescFlags</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">5</span><span class="w">   </span><span class="n">next</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">6</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>包含四个域：addr代表某段内存的起始地址，长度为8个字节；len代表某段内存的长度，本身占用4个字节(因此代表的内存段最大为4GB)；flags代表内存段读写属性等，长度为2个字节；next代表下一个内存段对应的Descpriptor在描述符表中的索引，因此通过next字段可以将一个请求对应的多个内存段连接成链表。</p>
+<p>可用环 <code class="docutils literal notranslate"><span class="pre">AvailRing</span></code> 的结构为：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">struct</span> <span class="nc">AvailRing</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">2</span><span class="w">   </span><span class="n">flags</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">3</span><span class="w">   </span><span class="sd">/// A driver MUST NOT decrement the idx.</span>
+<span class="linenos">4</span><span class="w">   </span><span class="n">idx</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">5</span><span class="w">   </span><span class="n">ring</span>: <span class="p">[</span><span class="n">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="p">;</span><span class="w"> </span><span class="mi">32</span><span class="p">],</span><span class="w"> </span><span class="c1">// actual size: queue_size</span>
+<span class="linenos">6</span><span class="w">   </span><span class="n">used_event</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="c1">// unused</span>
+<span class="linenos">7</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>可用环由头部的 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 和 <code class="docutils literal notranslate"><span class="pre">idx</span></code> 域及 <code class="docutils literal notranslate"><span class="pre">ring</span></code> 数组组成： <code class="docutils literal notranslate"><span class="pre">flags</span></code> 与通知机制相关； <code class="docutils literal notranslate"><span class="pre">idx</span></code> 代表最新放入IO请求的编号，从零开始单调递增，将其对队列长度取余即可得该I/O请求在可用环数组中的索引；可用环数组元素用来存放I/O请求占用的首个描述符在描述符表中的索引，数组长度等于可用环的长度(不开启event_idx特性)。</p>
+<p>已用环 <code class="docutils literal notranslate"><span class="pre">UsedRing</span></code> 的结构为：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">struct</span> <span class="nc">UsedRing</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">2</span><span class="w">   </span><span class="n">flags</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">3</span><span class="w">   </span><span class="n">idx</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">4</span><span class="w">   </span><span class="n">ring</span>: <span class="p">[</span><span class="n">UsedElem</span><span class="p">;</span><span class="w"> </span><span class="mi">32</span><span class="p">],</span><span class="w">       </span><span class="c1">// actual size: queue_size</span>
+<span class="linenos">5</span><span class="w">   </span><span class="n">avail_event</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="c1">// unused</span>
+<span class="linenos">6</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>已用环由头部的 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 和 <code class="docutils literal notranslate"><span class="pre">idx</span></code> 域及 <code class="docutils literal notranslate"><span class="pre">ring</span></code> 数组组成： <code class="docutils literal notranslate"><span class="pre">flags</span></code> 与通知机制相关； <code class="docutils literal notranslate"><span class="pre">idx</span></code> 代表最新放入I/O响应的编号，从零开始单调递增，将其对队列长度取余即可得该I/O响应在已用环数组中的索引；已用环数组元素主要用来存放I/O响应占用的首个描述符在描述符表中的索引， 数组长度等于已用环的长度(不开启event_idx特性)。</p>
+<p>针对用户进程发出的I/O请求，经过系统调用，文件系统等一系列处理后，最终会形成对virtio-blk驱动程序的调用。对于写操作，具体实现如下：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">//virtio-drivers/src/blk.rs</span>
+<span class="linenos"> 2</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write_block</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="nb">Result</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">     </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">buf</span><span class="p">.</span><span class="n">len</span><span class="p">(),</span><span class="w"> </span><span class="n">BLK_SIZE</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">     </span><span class="kd">let</span><span class="w"> </span><span class="n">req</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BlkReq</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">         </span><span class="n">type_</span>: <span class="nc">ReqType</span>::<span class="n">Out</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w">         </span><span class="n">reserved</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">         </span><span class="n">sector</span>: <span class="nc">block_id</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u64</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">     </span><span class="p">};</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">     </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">resp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BlkResp</span>::<span class="n">default</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">     </span><span class="bp">self</span><span class="p">.</span><span class="n">queue</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="o">&amp;</span><span class="p">[</span><span class="n">req</span><span class="p">.</span><span class="n">as_buf</span><span class="p">(),</span><span class="w"> </span><span class="n">buf</span><span class="p">],</span><span class="w"> </span><span class="o">&amp;</span><span class="p">[</span><span class="n">resp</span><span class="p">.</span><span class="n">as_buf_mut</span><span class="p">()])</span><span class="o">?</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">     </span><span class="bp">self</span><span class="p">.</span><span class="n">header</span><span class="p">.</span><span class="n">notify</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">     </span><span class="k">while</span><span class="w"> </span><span class="o">!</span><span class="bp">self</span><span class="p">.</span><span class="n">queue</span><span class="p">.</span><span class="n">can_pop</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">         </span><span class="n">spin_loop</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">     </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">     </span><span class="bp">self</span><span class="p">.</span><span class="n">queue</span><span class="p">.</span><span class="n">pop_used</span><span class="p">()</span><span class="o">?</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">     </span><span class="k">match</span><span class="w"> </span><span class="n">resp</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">         </span><span class="n">RespStatus</span>::<span class="nb">Ok</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(()),</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">         </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">Error</span>::<span class="n">IoError</span><span class="p">),</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">     </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">20</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>基本流程如下：</p>
+<ol class="arabic simple">
+<li><p>一个完整的virtio-blk的I/O写请求由三部分组成，包括表示I/O写请求信息的结构 <code class="docutils literal notranslate"><span class="pre">BlkReq</span></code> ，要传输的数据块 <code class="docutils literal notranslate"><span class="pre">buf</span></code>，一个表示设备响应信息的结构 <code class="docutils literal notranslate"><span class="pre">BlkResp</span></code>  。这三部分需要三个描述符来表示；</p></li>
+<li><p>（驱动程序处理）接着调用 <code class="docutils literal notranslate"><span class="pre">VirtQueue.add</span></code> 函数，从描述符表中申请三个空闲描述符，每项指向一个内存块，填写上述三部分的信息，并将三个描述符连接成一个描述符链表；</p></li>
+<li><p>（驱动程序处理）接着调用 <code class="docutils literal notranslate"><span class="pre">VirtQueue.notify</span></code> 函数，写MMIO模式的 <code class="docutils literal notranslate"><span class="pre">queue_notify</span></code> 寄存器，即向 virtio-blk设备发出通知；</p></li>
+<li><p>（设备处理）virtio-blk设备收到通知后，通过比较 <code class="docutils literal notranslate"><span class="pre">last_avail</span></code> (初始为0)和 <code class="docutils literal notranslate"><span class="pre">AvailRing</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">idx</span></code> 判断是否有新的请求待处理(如果 <code class="docutils literal notranslate"><span class="pre">last_vail</span></code> 小于 <code class="docutils literal notranslate"><span class="pre">AvailRing</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">idx</span></code> ，则表示有新请求)。如果有，则 <code class="docutils literal notranslate"><span class="pre">last_avail</span></code> 加1，并以 <code class="docutils literal notranslate"><span class="pre">last_avail</span></code> 为索引从描述符表中找到这个I/O请求对应的描述符链来获知完整的请求信息，并完成存储块的I/O写操作；</p></li>
+<li><p>（设备处理）设备完成I/O写操作后(包括更新包含 <code class="docutils literal notranslate"><span class="pre">BlkResp</span></code> 的Descriptor)，将已完成I/O的描述符放入UsedRing对应的ring项中，并更新idx，代表放入一个响应；如果设置了中断机制，还会产生中断来通知操作系统响应中断；</p></li>
+<li><p>（驱动程序处理）驱动程序可用轮询机制查看设备是否有响应（持续调用  <code class="docutils literal notranslate"><span class="pre">VirtQueue.can_pop</span></code> 函数），通过比较内部的 <code class="docutils literal notranslate"><span class="pre">VirtQueue.last_used_idx</span></code> 和 <code class="docutils literal notranslate"><span class="pre">VirtQueue.used.idx</span></code> 判断是否有新的响应。如果有，则取出响应(并更新 <code class="docutils literal notranslate"><span class="pre">last_used_idx</span></code> )，将完成响应对应的三项Descriptor回收，最后将结果返回给用户进程。当然，也可通过中断机制来响应。</p></li>
+</ol>
+<p>I/O读请求的处理过程与I/O写请求的处理过程几乎一样，仅仅是 <code class="docutils literal notranslate"><span class="pre">BlkReq</span></code> 的内容不同，写操作中的 <code class="docutils literal notranslate"><span class="pre">req.type_</span></code> 是 <code class="docutils literal notranslate"><span class="pre">ReqType::Out</span></code>，而读操作中的 <code class="docutils literal notranslate"><span class="pre">req.type_</span></code> 是 <code class="docutils literal notranslate"><span class="pre">ReqType::In</span></code> 。具体可以看看 <code class="docutils literal notranslate"><span class="pre">virtio-drivers/src/blk.rs</span></code> 文件中的 <code class="docutils literal notranslate"><span class="pre">VirtIOBlk.read_block</span></code> 函数的实现。</p>
+<p>这种基于轮询的I/O访问方式效率比较差，为此，我们需要实现基于中断的I/O访问方式。为此在支持中断的 <code class="docutils literal notranslate"><span class="pre">write_block_nb</span></code> 方法：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">pub</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write_block_nb</span><span class="p">(</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="w">     </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">     </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">     </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">],</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">     </span><span class="n">resp</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">BlkResp</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="w"> </span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Result</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">     </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">buf</span><span class="p">.</span><span class="n">len</span><span class="p">(),</span><span class="w"> </span><span class="n">BLK_SIZE</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">     </span><span class="kd">let</span><span class="w"> </span><span class="n">req</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BlkReq</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">         </span><span class="n">type_</span>: <span class="nc">ReqType</span>::<span class="n">Out</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">         </span><span class="n">reserved</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">         </span><span class="n">sector</span>: <span class="nc">block_id</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u64</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">     </span><span class="p">};</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">     </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">queue</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="o">&amp;</span><span class="p">[</span><span class="n">req</span><span class="p">.</span><span class="n">as_buf</span><span class="p">(),</span><span class="w"> </span><span class="n">buf</span><span class="p">],</span><span class="w"> </span><span class="o">&amp;</span><span class="p">[</span><span class="n">resp</span><span class="p">.</span><span class="n">as_buf_mut</span><span class="p">()])</span><span class="o">?</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">14</span><span class="w">     </span><span class="bp">self</span><span class="p">.</span><span class="n">header</span><span class="p">.</span><span class="n">notify</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">     </span><span class="nb">Ok</span><span class="p">(</span><span class="n">token</span><span class="p">)</span><span class="w"></span>
+<span class="linenos">16</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">17</span>
+<span class="linenos">18</span><span class="c1">// Acknowledge interrupt.</span>
+<span class="linenos">19</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">ack_interrupt</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">     </span><span class="bp">self</span><span class="p">.</span><span class="n">header</span><span class="p">.</span><span class="n">ack_interrupt</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">21</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>与不支持中的 <code class="docutils literal notranslate"><span class="pre">write_block</span></code> 函数比起来， <code class="docutils literal notranslate"><span class="pre">write_block_nb</span></code> 函数更简单了，在发出I/O请求后，就直接返回了。 <code class="docutils literal notranslate"><span class="pre">read_block_nb</span></code> 函数的处理流程与此一致。而响应中断的 <code class="docutils literal notranslate"><span class="pre">ack_interrupt</span></code> 函数只是完成了非常基本的 virtio设备的中断响应操作。在virtio-drivers中实现的virtio设备驱动是看不到进程、条件变量等操作系统的各种关键要素，只有与操作系统内核对接，才能完整实现基于中断的I/O访问方式。</p>
+</div>
+<div class="section" id="id6">
+<h2>操作系统对接virtio-blk设备I/O处理<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
+<p>操作系统中的文件系统模块与操作系统中的块设备驱动程序 <code class="docutils literal notranslate"><span class="pre">VirtIOBlock</span></code> 直接交互，而操作系统中的块设备驱动程序 <code class="docutils literal notranslate"><span class="pre">VirtIOBlock</span></code> 封装了virtio-drivers中实现的virtio_blk设备驱动。在文件系统的介绍中，我们并没有深入分析virtio_blk设备。这里我们将介绍操作系统对接virtio_blk设备驱动并完成基于中断机制的I/O处理过程。</p>
+<p>接下来需要扩展文件系统对块设备驱动的I/O访问要求，这体现在  <code class="docutils literal notranslate"><span class="pre">BlockDevice</span></code> trait的新定义中增加了 <code class="docutils literal notranslate"><span class="pre">handle_irq</span></code> 方法，而操作系统的virtio_blk设备驱动程序中的 <code class="docutils literal notranslate"><span class="pre">VirtIOBlock</span></code> 实现了这个方法，并且实现了既支持轮询方式，也支持中断方式的块读写操作。</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// easy-fs/src/block_dev.rs</span>
+<span class="linenos"> 2</span><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">BlockDevice</span>: <span class="nb">Send</span> <span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Any</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">   </span><span class="k">fn</span> <span class="nf">read_block</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]);</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="k">fn</span> <span class="nf">write_block</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">]);</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">   </span><span class="c1">// 更新的部分：增加对块设备中断的处理</span>
+<span class="linenos"> 6</span><span class="w">   </span><span class="k">fn</span> <span class="nf">handle_irq</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="c1">// os/src/drivers/block/virtio_blk.rs</span>
+<span class="linenos"> 9</span><span class="k">impl</span><span class="w"> </span><span class="n">BlockDevice</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">VirtIOBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">   </span><span class="k">fn</span> <span class="nf">handle_irq</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">      </span><span class="bp">self</span><span class="p">.</span><span class="n">virtio_blk</span><span class="p">.</span><span class="n">exclusive_session</span><span class="p">(</span><span class="o">|</span><span class="n">blk</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(</span><span class="n">token</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">blk</span><span class="p">.</span><span class="n">pop_used</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">                  </span><span class="c1">// 唤醒等待该块设备I/O完成的线程/进程</span>
+<span class="linenos">14</span><span class="w">               </span><span class="bp">self</span><span class="p">.</span><span class="n">condvars</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="o">&amp;</span><span class="n">token</span><span class="p">).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">signal</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">      </span><span class="p">});</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">18</span>
+<span class="linenos">19</span><span class="w">   </span><span class="k">fn</span> <span class="nf">read_block</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">      </span><span class="c1">// 获取轮询或中断的配置标记</span>
+<span class="linenos">21</span><span class="w">      </span><span class="kd">let</span><span class="w"> </span><span class="n">nb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">DEV_NON_BLOCKING_ACCESS</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="n">nb</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 如果是中断方式</span>
+<span class="linenos">23</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">resp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BlkResp</span>::<span class="n">default</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">24</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">virtio_blk</span><span class="p">.</span><span class="n">exclusive_session</span><span class="p">(</span><span class="o">|</span><span class="n">blk</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">               </span><span class="c1">// 基于中断方式的块读请求</span>
+<span class="linenos">26</span><span class="w">               </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">blk</span><span class="p">.</span><span class="n">read_block_nb</span><span class="p">(</span><span class="n">block_id</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">resp</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">               </span><span class="c1">// 将当前线程/进程加入条件变量的等待队列</span>
+<span class="linenos">28</span><span class="w">               </span><span class="bp">self</span><span class="p">.</span><span class="n">condvars</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="o">&amp;</span><span class="n">token</span><span class="p">).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">wait_no_sched</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">29</span><span class="w">            </span><span class="p">});</span><span class="w"></span>
+<span class="linenos">30</span><span class="w">            </span><span class="c1">// 切换线程/进程</span>
+<span class="linenos">31</span><span class="w">            </span><span class="n">schedule</span><span class="p">(</span><span class="n">task_cx_ptr</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">32</span><span class="w">            </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="w"></span>
+<span class="linenos">33</span><span class="w">               </span><span class="n">resp</span><span class="p">.</span><span class="n">status</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">34</span><span class="w">               </span><span class="n">RespStatus</span>::<span class="nb">Ok</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">35</span><span class="w">               </span><span class="s">&quot;Error when reading VirtIOBlk&quot;</span><span class="w"></span>
+<span class="linenos">36</span><span class="w">            </span><span class="p">);</span><span class="w"></span>
+<span class="linenos">37</span><span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 如果是轮询方式，则进行轮询式的块读请求</span>
+<span class="linenos">38</span><span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">virtio_blk</span><span class="w"></span>
+<span class="linenos">39</span><span class="w">               </span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">()</span><span class="w"></span>
+<span class="linenos">40</span><span class="w">               </span><span class="p">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">block_id</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"></span>
+<span class="linenos">41</span><span class="w">               </span><span class="p">.</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;Error when reading VirtIOBlk&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">42</span><span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">43</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">write_block</span></code> 写操作与 <code class="docutils literal notranslate"><span class="pre">read_block</span></code> 读操作的处理过程一致，这里不再赘述。</p>
+<p>然后需要对操作系统整体的中断处理过程进行调整，以支持对基于中断方式的块读写操作：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/trap/mode.rs</span>
+<span class="linenos"> 2</span><span class="c1">//在用户态接收到外设中断</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">   </span><span class="k">crate</span>::<span class="n">board</span>::<span class="n">irq_handler</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="c1">//在内核态接收到外设中断</span>
+<span class="linenos"> 7</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_from_kernel</span><span class="p">(</span><span class="n">_trap_cx</span>: <span class="kp">&amp;</span><span class="nc">TrapContext</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">   </span><span class="k">crate</span>::<span class="n">board</span>::<span class="n">irq_handler</span><span class="p">();</span><span class="w"></span>
+<span class="linenos">10</span><span class="c1">// os/src/boards/qemu.rs</span>
+<span class="linenos">11</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">irq_handler</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">plic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">PLIC</span>::<span class="n">new</span><span class="p">(</span><span class="n">VIRT_PLIC</span><span class="p">)</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">   </span><span class="c1">// 获得外设中断号</span>
+<span class="linenos">14</span><span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="n">intr_src_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">plic</span><span class="p">.</span><span class="n">claim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">IntrTargetPriority</span>::<span class="n">Supervisor</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">   </span><span class="k">match</span><span class="w"> </span><span class="n">intr_src_id</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">      </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos">17</span><span class="w">      </span><span class="c1">//处理virtio_blk设备产生的中断</span>
+<span class="linenos">18</span><span class="w">      </span><span class="mi">8</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">BLOCK_DEVICE</span><span class="p">.</span><span class="n">handle_irq</span><span class="p">(),</span><span class="w"></span>
+<span class="linenos">19</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">20</span><span class="w">   </span><span class="c1">// 完成中断响应</span>
+<span class="linenos">21</span><span class="w">   </span><span class="n">plic</span><span class="p">.</span><span class="n">complete</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">IntrTargetPriority</span>::<span class="n">Supervisor</span><span class="p">,</span><span class="w"> </span><span class="n">intr_src_id</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">22</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE.handle_irq()</span></code> 执行的就是  <code class="docutils literal notranslate"><span class="pre">VirtIOBlock</span></code> 实现的中断处理方法 <code class="docutils literal notranslate"><span class="pre">handle_irq()</span></code> ，从而让等待在块读写的进程/线程得以继续执行。</p>
+<p>有了基于中断方式的块读写操作后，当某个线程/进程由于块读写操作无法继续执行时，操作系统可以切换到其它处于就绪态的线程/进程执行，从而让计算机系统的整体执行效率得到提升。</p>
+</div>
+</div>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="2device-driver-4.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">virtio_gpu设备驱动程序</div>
+              </div>
+              <svg><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="2device-driver-2.html">
+              <svg><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">virtio设备驱动程序</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020-2022, Yu Chen, Yifan Wu
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            目录
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">virtio_blk块设备驱动程序</a><ul>
+<li><a class="reference internal" href="#id1">本节导读</a></li>
+<li><a class="reference internal" href="#id2">virtio-blk驱动程序</a></li>
+<li><a class="reference internal" href="#id3">virtio-blk设备的关键数据结构</a></li>
+<li><a class="reference internal" href="#id4">初始化virtio-blk设备</a></li>
+<li><a class="reference internal" href="#id5">操作系统对接virtio-blk设备初始化过程</a></li>
+<li><a class="reference internal" href="#virtio-blki-o">virtio-blk设备的I/O操作</a></li>
+<li><a class="reference internal" href="#id6">操作系统对接virtio-blk设备I/O处理</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    <script kind="utterances">
+
+    var commentsRunWhenDOMLoaded = cb => {
+    if (document.readyState != 'loading') {
+        cb()
+    } else if (document.addEventListener) {
+        document.addEventListener('DOMContentLoaded', cb)
+    } else {
+        document.attachEvent('onreadystatechange', function() {
+        if (document.readyState == 'complete') cb()
+        })
+    }
+}
+
+var addUtterances = () => {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = "https://utteranc.es/client.js";
+    script.async = "async";
+
+    script.setAttribute("repo", "rcore-os/rCore-Tutorial-Book-v3");
+    script.setAttribute("issue-term", "pathname");
+    script.setAttribute("theme", "github-light");
+    script.setAttribute("label", "comments");
+    script.setAttribute("crossorigin", "anonymous");
+
+    sections = document.querySelectorAll("div.section");
+    if (sections !== null) {
+        section = sections[sections.length-1];
+        section.appendChild(script);
+    }
+}
+commentsRunWhenDOMLoaded(addUtterances);
+</script>
+    <script src="../_static/translations.js"></script>
+    </body>
+</html>
