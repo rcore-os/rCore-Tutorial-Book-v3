@@ -460,7 +460,7 @@
 <h2>信号处理流程<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
 <p>信号的处理流程如下图所示：</p>
 <a class="reference internal image-reference" href="../_images/signal.png"><img alt="../_images/signal.png" class="align-center" src="../_images/signal.png" style="width: 500px;" /></a>
-<p>信号有两种来源：最开始的时候进程在正常执行，此时可能内核或者其他进程给它发送了一个信号，这些就属于异步信号，是信号的第一种来源；信号的第二种来源则是由进程自身的执行触发，在处理 Trap 的时候的时候内核会将相应的信号直接附加到进程控制块中，这种属于同步信号。</p>
+<p>信号有两种来源：最开始的时候进程在正常执行，此时可能内核或者其他进程给它发送了一个信号，这些就属于异步信号，是信号的第一种来源；信号的第二种来源则是由进程自身的执行触发，在处理 Trap 的时候内核会将相应的信号直接附加到进程控制块中，这种属于同步信号。</p>
 <p>内核会在 Trap 处理完成即将返回用户态之前检查要返回到的进程是否还有信号待处理。如果需要处理的话，取决于进程是否提供该种信号的处理函数，有两种处理方法：</p>
 <ul class="simple">
 <li><p>如果进程通过下面介绍的 <code class="docutils literal notranslate"><span class="pre">sigaction</span></code> 系统调用提供了相应信号的处理函数，那么内核会将该进程 Trap 进来时留下的 Trap 上下文保存在另一个地方，并回到用户态执行进程提供的处理函数。内核要求处理函数的编写者在函数的末尾手动进行另一个 <code class="docutils literal notranslate"><span class="pre">sigreturn</span></code> 系统调用，表明处理结束并请求恢复进程原来的执行。内核将处理该系统调用并恢复之前保存的 Trap 上下文，等到再次回到用户态的时候，便会继续进程在处理信号之前的执行。</p></li>
