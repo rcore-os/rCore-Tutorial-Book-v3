@@ -717,11 +717,11 @@
 <p>锁机制有多种不同的实现。对于一种实现而言，我们常常用以下的指标来从多个维度评估这种实现是否能够正确、高效地达成锁这种互斥原语应有的功能：</p>
 <span id="term-fairness"></span><span id="term-bounded-waiting"></span><span id="term-progress"></span><ul class="simple" id="term-starvation">
 <li><p>忙则等待：意思是当一个线程持有了共享资源的锁，此时资源处于繁忙状态，这个时候其他线程必须等待拿着锁的线程将锁释放后才有进入临界区的机会。这其实就是互斥访问的另一种说法。这种互斥性是锁实现中最重要的也是必须做到的目标，不然共享资源访问的正确性会受到影响。</p></li>
-<li><p><strong>空闲则入</strong> (Progress)：当资源处于空闲状态的时候，任何线程可以进入临界区。在某些实现中可能无法做到这一点，导致多线程的总体效率受到影响。</p></li>
+<li><p><strong>空闲则入</strong> (Progress)：若资源处于空闲状态且有若干线程尝试进入临界区，那么只有这些线程能够决定最终其中哪个线程进入临界区，且一定能够在有限时间内选出哪个线程进入临界区。如果不满足空闲则入的话，可能导致即使资源空闲也没有线程能够进入临界区，对于锁来说是不可接受的。</p></li>
 <li><p><strong>有界等待</strong> (Bounded Waiting)：当线程获取锁失败的时候首先需要等待锁被释放，但这并不意味着此后它能够立即抢到被释放的锁，因此此时可能还有其他的线程也处于等待状态。于是它可能需要等待一轮、二轮、多轮才能拿到锁，甚至在极端情况下永远拿不到锁。 <strong>有界等待</strong> 要求每个线程在等待有限长时间后最终总能够拿到锁。相对的，线程可能永远无法拿到锁的情况被称之为 <strong>饥饿</strong> (Starvation) 。这体现了锁实现分配共享资源给线程的 <strong>公平性</strong> (Fairness) 。</p></li>
-<li><p>让权等待：线程如何进行等待实际上也大有学问。这里所说的让权等待是指需要等待的线程暂时主动或被动交出 CPU 使用权来让 CPU 做一些有意义的事情，这通常需要操作系统的支持。这样可以提升系统的总体效率。</p></li>
+<li><p>让权等待（可选）：线程如何进行等待实际上也大有学问。这里所说的让权等待是指需要等待的线程暂时主动或被动交出 CPU 使用权来让 CPU 做一些有意义的事情，这通常需要操作系统的支持。这样可以提升系统的总体效率。</p></li>
 </ul>
-<p>总的来说，忙则等待关系到互斥访问这一锁机制的最根本要求，是必须满足的；而剩下的三个指标关系到锁机制的效率，是可选的。</p>
+<p>总的来说，忙则等待、空闲则入和有界等待是一个合格的锁实现必须满足的要求，而让权等待则关系到锁机制的效率，是可选的。</p>
 <p>这一小节我们介绍了锁的形态：一种附加在共享资源上的标记，需要区分当前是否有线程在该种资源的临界区中。它支持两种基本操作：上锁和解锁。接着我们还介绍了 Rust 标准库提供的互斥锁 <code class="docutils literal notranslate"><span class="pre">Mutex&lt;T&gt;</span></code> 并通过例子演示了它的用法。最后我们介绍了评价锁机制实现的一些指标，从中我们可以了解到怎样才可以称之为一个好的锁实现。接下来，我们将正式开始亲自动手根据上述需求尝试实现锁机制。</p>
 </div>
 </div>
@@ -795,7 +795,7 @@
 </pre></div>
 </div>
 <p>这里共享资源仍然为全局变量 <code class="docutils literal notranslate"><span class="pre">A</span></code> ，具体操作为开 <code class="docutils literal notranslate"><span class="pre">thread_count</span></code> 个线程，每个线程执行 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 操作 <code class="docutils literal notranslate"><span class="pre">PER_THREAD</span></code> 次。线程数和每个线程上的操作次数默认值分别由 <code class="docutils literal notranslate"><span class="pre">THREAD_COUNT_DEFAULT</span></code> 和 <code class="docutils literal notranslate"><span class="pre">PER_THREAD_DEFAULT</span></code> 给出，也可以通过命令行参数设置。例如，命令 <code class="docutils literal notranslate"><span class="pre">adder</span> <span class="pre">4</span> <span class="pre">1000</span></code> 可以调整为 4 个线程，每个线程执行 1000 次操作，详情参考第 37~45 行的命令行参数逻辑。</p>
-<p>每个线程在创建之后都会不带参数执行第 27 行的 <code class="docutils literal notranslate"><span class="pre">f</span></code> 函数，里面是一个循环。循环的每次迭代都会尝试进入临界区（第 18 行的 <code class="docutils literal notranslate"><span class="pre">critical_section</span></code> 函数），共迭代 <code class="docutils literal notranslate"><span class="pre">PER_THREAD</span></code> 次。临界区其实就是进行 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 的操作，但有两点不同：第一点是我们使用 <code class="docutils literal notranslate"><span class="pre">core::ptr::read/write_volatile</span></code> 而不是直接 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> ，这是为了生成的汇编代码严格遵循 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 的三阶段而不会被编译器误优化；第二点是我们插入了一些关于 <code class="docutils literal notranslate"><span class="pre">t</span></code> 的冗余操作，这并不影响到共享资源的访问，目的在于加大阶段之间的间隔，使得一次 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 操作更容易横跨两个时间片从而出现一些有趣的现象。</p>
+<p>每个线程在创建之后都会不带参数执行第 27 行的 <code class="docutils literal notranslate"><span class="pre">f</span></code> 函数，里面是一个循环。循环的每次迭代都会尝试进入临界区（第 18 行的 <code class="docutils literal notranslate"><span class="pre">critical_section</span></code> 函数），共迭代 <code class="docutils literal notranslate"><span class="pre">PER_THREAD</span></code> 次。临界区其实就是进行 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 的操作，但有两点不同：第一点是我们使用 <code class="docutils literal notranslate"><span class="pre">core::ptr::read/write_volatile</span></code> 而不是直接 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> ，这是为了生成的汇编代码严格遵循 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 的三阶段而不会被编译器误优化，其实有些类似于手写汇编；第二点是我们插入了一些关于 <code class="docutils literal notranslate"><span class="pre">t</span></code> 的冗余操作，这并不影响到共享资源的访问，目的在于加大阶段之间的间隔，使得一次 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 操作更容易横跨两个时间片从而出现一些有趣的现象。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>Rust Tips: 易失性读写 read/write_volatile</strong></p>
@@ -833,7 +833,54 @@
 </div>
 <div class="section" id="id10">
 <h3>多标记的组合<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
+<p>既然仅使用一个标记不行，我们尝试使用多标记的组合来表示锁的状态。比如下面的 <a class="reference external" href="https://en.wikipedia.org/wiki/Peterson%27s_algorithm">Peterson 算法</a> 就适用于两个线程间的互斥访问：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/adder_peterson_spin.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="sd">/// FLAG[i]=true 表示线程 i 想要进入或已经进入临界区</span>
+<span class="linenos"> 4</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">FLAG</span>: <span class="p">[</span><span class="kt">bool</span><span class="p">;</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="kc">false</span><span class="p">;</span><span class="w"> </span><span class="mi">2</span><span class="p">];</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="sd">/// TURN=i 表示轮到线程 i 进入临界区</span>
+<span class="linenos"> 6</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">TURN</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="sd">/// id 表示当前的线程 ID ，为 0 或 1</span>
+<span class="linenos"> 9</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">    </span><span class="n">FLAG</span><span class="p">[</span><span class="n">id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">id</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">12</span><span class="w">    </span><span class="n">TURN</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">j</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="c1">// Tell the compiler not to reorder memory operations</span>
+<span class="linenos">14</span><span class="w">    </span><span class="c1">// across this fence.</span>
+<span class="linenos">15</span><span class="w">    </span><span class="n">compiler_fence</span><span class="p">(</span><span class="n">Ordering</span>::<span class="n">SeqCst</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">    </span><span class="c1">// Why do we need to use volatile_read here?</span>
+<span class="linenos">17</span><span class="w">    </span><span class="c1">// Otherwise the compiler will assume that they will never</span>
+<span class="linenos">18</span><span class="w">    </span><span class="c1">// be changed on this thread. Thus, they will be accessed</span>
+<span class="linenos">19</span><span class="w">    </span><span class="c1">// only once!</span>
+<span class="linenos">20</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="n">vload</span><span class="o">!</span><span class="p">(</span><span class="o">&amp;</span><span class="n">FLAG</span><span class="p">[</span><span class="n">j</span><span class="p">])</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">vload</span><span class="o">!</span><span class="p">(</span><span class="o">&amp;</span><span class="n">TURN</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">    </span><span class="c1">// while FLAG[j] &amp;&amp; TURN == j {}</span>
+<span class="linenos">22</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">23</span>
+<span class="linenos">24</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">25</span><span class="w">    </span><span class="n">FLAG</span><span class="p">[</span><span class="n">id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">26</span><span class="p">}</span><span class="w"></span>
+</pre></div>
 </div>
+<p>目前一共有三个标记：两个线程 <span class="math notranslate nohighlight">\(T_0\)</span> 和 <span class="math notranslate nohighlight">\(T_1\)</span> 各自有一个标记 <span class="math notranslate nohighlight">\(\text{flag}_i,i\in\{0,1\}\)</span> ，表示线程 <span class="math notranslate nohighlight">\(T_i\)</span> 想要或已经进入临界区。此外还有一个标记 <span class="math notranslate nohighlight">\(\text{turn}\)</span> ，当 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 为 <span class="math notranslate nohighlight">\(i\)</span> 的时候表示轮到线程 <span class="math notranslate nohighlight">\(T_i\)</span> 进入临界区。</p>
+<p>我们来看看 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 和 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 各自做了哪些事情（假设调用者为线程 <span class="math notranslate nohighlight">\(T_i\)</span> ）。在 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 中，首先我们将 <span class="math notranslate nohighlight">\(\text{flag}_i\)</span> 设置为 true ，表明线程 <span class="math notranslate nohighlight">\(T_i\)</span> 想要进入临界区。接着得到另一个线程的编号 <span class="math notranslate nohighlight">\(j=1-i\)</span> 。第 12 行非常有趣：线程 <span class="math notranslate nohighlight">\(T_i\)</span> 将标记 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 设置为 <span class="math notranslate nohighlight">\(j\)</span> ，由于 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 的含义是有资格进入临界区的线程 ID ，这相当于 <span class="math notranslate nohighlight">\(T_i\)</span> 将进入临界区的资格拱手让给 <span class="math notranslate nohighlight">\(T_j\)</span> 。第 15 行我们可以先忽略。最后是第 20 行的忙等（为了防止编译器优化我们使用了 <code class="docutils literal notranslate"><span class="pre">vload!</span></code> ，逻辑同第 21 行）：如果 <span class="math notranslate nohighlight">\(T_j\)</span> 想要或已经进入临界区而且轮到 <span class="math notranslate nohighlight">\(T_j\)</span> 进入临界区就一直等待下去。 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 则只是将 <span class="math notranslate nohighlight">\(\text{flag}_i\)</span> 设置为 false 。</p>
+<p>运行一下这个测例发现总是可以得到正确的结果，说明在操作系统调度的影响下这种算法仍能够保证临界区的互斥访问，但这是如何做到的呢？这里并无必要给出一个严格证明，我们分成两种情况进行简单说明：</p>
+<ul>
+<li><p>第一种情况考虑两个线程的 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 操作不重叠的情况，这种情况比较简单。假设 <span class="math notranslate nohighlight">\(T_j\)</span> 已经成功 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 并进入了临界区且尚未离开，此时 <span class="math notranslate nohighlight">\(T_i\)</span> 开始尝试进入临界区，它能成功吗？根据 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 的流程， <span class="math notranslate nohighlight">\(T_i\)</span> 会将 <span class="math notranslate nohighlight">\(\text{flag}_i\)</span> 设置为 true ，并将 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 设置为 <span class="math notranslate nohighlight">\(j\)</span> 。接下来来看忙等的两个条件。首先是 <span class="math notranslate nohighlight">\(\text{turn}\)</span> ，它被 <span class="math notranslate nohighlight">\(T_i\)</span> 设置为 <span class="math notranslate nohighlight">\(j\)</span> ，而 <span class="math notranslate nohighlight">\(T_j\)</span> 在退出临界区之前不会对它进行修改，所以此时 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 的值一定为 <span class="math notranslate nohighlight">\(j\)</span> ，条件成立；其次是 <span class="math notranslate nohighlight">\(\text{flag}_j\)</span> ，注意到 <span class="math notranslate nohighlight">\(T_j\)</span> 在进入临界区之前的 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 中将其修改为 true ，且在离开临界区之前不会将其改为 false ，所以此时 <span class="math notranslate nohighlight">\(\text{flag}_j\)</span> 一定为 true ，条件也成立。因此， <span class="math notranslate nohighlight">\(T_i\)</span> 会陷入忙等而不会进入临界区。</p></li>
+<li><p>第二种情况考虑两个线程的 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 操作由于操作系统调度出现交错现象，也即两个线程在同段时间内尝试进入临界区，是否只有一个线程能成功进入呢？为了方便起见我们先排除 <span class="math notranslate nohighlight">\(\text{flag}_{i,j}\)</span> 的影响。因为两个线程在 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 的第一步就是将自己的 <span class="math notranslate nohighlight">\(\text{flag}\)</span> 设置为 true ，且在退出临界区之后才会修改为 false 。从时间上，我们只考察从两个线程开始 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 直到某个线程成功进入临界区且未离开的这段时间，我们可以认为在这段时间内始终有 <span class="math notranslate nohighlight">\(\text{flag}_i=\text{flag}_j=\text{true}\)</span> 。</p>
+<p>于是两个线程的忙等条件可以得到简化：即线程 <span class="math notranslate nohighlight">\(T_i\)</span> 只要 <span class="math notranslate nohighlight">\(\text{turn}=j\)</span> 就一直忙等，而线程 <span class="math notranslate nohighlight">\(T_j\)</span> 只要 <span class="math notranslate nohighlight">\(\text{turn}=i\)</span> 就一直忙等。每个线程都不能单靠自己进入临界区：以 <span class="math notranslate nohighlight">\(T_i\)</span> 为例，它将 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 设置为 <span class="math notranslate nohighlight">\(j\)</span> ，但它忙等的条件也是 <span class="math notranslate nohighlight">\(\text{turn}=j\)</span> ，于是只有它自己的话就会进入忙等而不能进入临界区。必须要两个线程的协作：即当 <span class="math notranslate nohighlight">\(T_j\)</span> 将 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 设置为 <span class="math notranslate nohighlight">\(i\)</span> ， <span class="math notranslate nohighlight">\(T_i\)</span> 才能进入临界区。</p>
+<p>可以看出问题的关键在于 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 。无论操作系统如何进行调度，在单核 CPU 上，线程 <span class="math notranslate nohighlight">\(T_i\)</span> 和线程 <span class="math notranslate nohighlight">\(T_j\)</span> 对于 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 的 <strong>修改总有一个在时间上靠后</strong> 。不妨设 <span class="math notranslate nohighlight">\(T_i\)</span> 在 <span class="math notranslate nohighlight">\(T_j\)</span> 之后将 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 修改为 <span class="math notranslate nohighlight">\(j\)</span> ，那么这段时间中 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 就会一直是 <span class="math notranslate nohighlight">\(j\)</span> 了，因为两个线程都已经完成了仅有一次的对于 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 的修改。于是， <span class="math notranslate nohighlight">\(T_i\)</span> 不可能在这一轮进入临界区了。考虑 <span class="math notranslate nohighlight">\(T_j\)</span> ，它已经完成了 <span class="math notranslate nohighlight">\(\text{turn}\leftarrow i\)</span> 的修改，此时可能已陷入忙等或者还没开始忙等。无论如何，只要接下来操作系统从 <span class="math notranslate nohighlight">\(T_i\)</span> 切换到 <span class="math notranslate nohighlight">\(T_j\)</span> ， <span class="math notranslate nohighlight">\(T_j\)</span> 就能退出忙等并成功进入临界区。结论是，哪个线程最后修改了 <span class="math notranslate nohighlight">\(\text{turn}\)</span> ，则另一个线程最终一定能进入临界区。</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="id11">
+<h2>参考文献<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Race_condition">竞态条件，来自维基百科</a></p></li>
+<li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Peterson%27s_algorithm">Peterson 算法，来自维基百科</a></p></li>
+<li><p>《操作系统概念》第七版，第六章</p></li>
+</ul>
 </div>
 </div>
 
@@ -908,6 +955,7 @@
 <li><a class="reference internal" href="#id10">多标记的组合</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#id11">参考文献</a></li>
 </ul>
 </li>
 </ul>
@@ -959,5 +1007,6 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     </body>
 </html>
