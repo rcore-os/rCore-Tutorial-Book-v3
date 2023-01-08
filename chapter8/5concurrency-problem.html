@@ -457,7 +457,7 @@
 <span class="linenos">22</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>A是共享变量。粗略地看，可以估计执行流程为：线程thr1先被创建，等了10ms后，线程thr2再被创建。一般情况下，这就导致了thr1先于thr2执行，即第5行会先于第10行执行，得到预期的结果。但可能出现一种执行情况：线程thr1在执行第5句前，由于某种原因进入了休眠，导致线程thr2执行第10行在前，线程th1执行第5行在后，导致获得非预期的错误结果。</p>
+<p>A是共享变量。粗略地看，可以估计执行流程为：线程thr1先被创建，等了10ms后，线程thr2再被创建。一般情况下，这就导致了thr1先于thr2执行，即第5行会先于第9行执行，得到预期的结果。但可能出现一种执行情况：线程thr1在执行第5句前，由于某种原因进入了休眠，导致线程thr2执行第9行在前，线程th1执行第5行在后，导致获得非预期的错误结果。</p>
 <p>这里出现问题的根源是线程在对共享变量进行访问时，违反了临界区的预期顺序原则。解决这样的问题需要给线程的相关代码位置加上同步操作（如通过信号量或条件变量等），确保线程间的执行顺序符合预期，修改后的代码如下：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="n">semaphore</span><span class="p">.</span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">//信号量初值为0</span>
