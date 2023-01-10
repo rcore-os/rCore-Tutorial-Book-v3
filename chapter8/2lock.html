@@ -339,6 +339,7 @@
 <li class="toctree-l1 has-children"><a class="reference internal" href="../appendix-e/index.html">附录 E：操作系统进一步介绍</a><input class="toctree-checkbox" id="toctree-checkbox-41" name="toctree-checkbox-41" role="switch" type="checkbox"/><label for="toctree-checkbox-41"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../appendix-f/index.html">附录 F：类 Peterson 算法的局限性和内存顺序</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../terminology.html">术语中英文对照表</a><input class="toctree-checkbox" id="toctree-checkbox-42" name="toctree-checkbox-42" role="switch" type="checkbox"/><label for="toctree-checkbox-42"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
 </ul>
 </li>
@@ -877,14 +878,11 @@
 <li><p>对于空闲则入，之前我们说明了当资源空闲的时候，如果只有单个线程要进入临界区，那么它一定能进去。如果两个线程要同时进入的话，只需要等到两个线程对于 <span class="math notranslate nohighlight">\(\text{turn}\)</span> 的修改均完成就能够确定哪个线程进入临界区，这一定能够在有限时间内做到。</p></li>
 <li><p>对于有界等待，假设线程 <span class="math notranslate nohighlight">\(T_i\)</span> 由于没有竞争过 <span class="math notranslate nohighlight">\(T_j\)</span> 而在 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 中陷入忙等待，相反 <span class="math notranslate nohighlight">\(T_j\)</span> 则成功进入临界区。在 <span class="math notranslate nohighlight">\(T_j\)</span> 离开临界区之后，可以发现它不可能在 <span class="math notranslate nohighlight">\(T_i\)</span> 进入临界区之前再次进入临界区了。可以使用反证法，假设 <span class="math notranslate nohighlight">\(T_j\)</span> 能够在 <span class="math notranslate nohighlight">\(T_i\)</span> 不进入的情况下再次进入，考虑 <span class="math notranslate nohighlight">\(T_j\)</span> 的忙等循环的两个条件，由于 <span class="math notranslate nohighlight">\(T_i\)</span> 一直处在忙等状态，有 <span class="math notranslate nohighlight">\(\text{flag}_i\)</span> 为 true ，而 <span class="math notranslate nohighlight">\(\text{turn}=i\)</span> （由 <span class="math notranslate nohighlight">\(T_j\)</span> 在进入忙等循环之前修改， <span class="math notranslate nohighlight">\(T_i\)</span> 已经在忙等没有机会修改为 <span class="math notranslate nohighlight">\(j\)</span> ），可知 <span class="math notranslate nohighlight">\(T_j\)</span> 会卡在忙等中不能进入临界区，与假设矛盾。相反，从 <span class="math notranslate nohighlight">\(T_i\)</span> 的视角看来，在 <span class="math notranslate nohighlight">\(T_j\)</span> 离开临界区之后，只要操作系统通过调度切换到 <span class="math notranslate nohighlight">\(T_i\)</span> ， <span class="math notranslate nohighlight">\(T_i\)</span> 立即就能进入临界区（除非在 <span class="math notranslate nohighlight">\(T_j\)</span> 完成 <span class="math notranslate nohighlight">\(\text{flag}_j\leftarrow\text{true}\)</span> 之后立即切换，但这种情况也只是让 <span class="math notranslate nohighlight">\(T_i\)</span> 晚一些进入临界区），有兴趣的同学可自行验证。总体看来， <span class="math notranslate nohighlight">\(T_i\)</span> 和 <span class="math notranslate nohighlight">\(T_j\)</span> 是在交替进入临界区，因此不存在某一个线程的无限等待——即饥饿现象。</p></li>
 </ul>
-<p>这说明， Peterson 算法确实能够满足忙则等待、空闲则入和有界等待三个要求，是一种合格的锁实现。类似的算法还有适用于双线程的 <a class="reference external" href="https://en.wikipedia.org/wiki/Dekker%27s_algorithm">Dekkers 算法</a> 以及适用于多线程的 <a class="reference external" href="https://en.wikipedia.org/wiki/Eisenberg_%26_McGuire_algorithm">Eisenberg &amp; McGuire 算法</a> 。 这类算法仅依赖最基本的访存操作以及用户态权限，但思想上用到了多标记的组合以及精巧的构造，虽然代码比较简单，但是不容易理解，要证明其正确性更是十分复杂。更为重要的是，这类算法存在着时代局限性，对 CPU 的内存访问有着比较严格的要求，因此这类算法是不能不加修改的运行在现代多核处理器上的。如果要保证其正确性，则要付出极大的性能开销，甚至得不偿失。因此，目前在实践中我们并不会用到这类算法实现锁机制。</p>
+<p>这说明， Peterson 算法确实能够满足忙则等待、空闲则入和有界等待三个要求，是一种合格的锁实现。类似的算法还有适用于双线程的 <a class="reference external" href="https://en.wikipedia.org/wiki/Dekker%27s_algorithm">Dekkers 算法</a> 以及适用于多线程的 <a class="reference external" href="https://en.wikipedia.org/wiki/Eisenberg_%26_McGuire_algorithm">Eisenberg &amp; McGuire 算法</a> 。 这类算法仅依赖最基本的访存操作以及用户态权限，但思想上用到了多标记的组合以及精巧的构造，虽然代码比较简单，但是不容易理解，要证明其正确性更是十分复杂。更为重要的是，这类算法存在着时代局限性，对 CPU 的内存访问有着比较严格的要求，因此这类算法是不能不加修改的运行在现代多核处理器上的。如果要保证其正确性，则要付出极大的性能开销，甚至得不偿失。因此，目前在实践中我们并不会用到这类算法实现锁机制。关于这种局限性更加深入的讨论超出了本书的范围，因此我们将其放在附录中，有兴趣的同学可以参考 <a class="reference internal" href="../appendix-f/index.html"><span class="doc">附录 F：类 Peterson 算法的局限性和内存顺序</span></a> 。</p>
+</div>
 </div>
 <div class="section" id="id11">
-<h3>类 Peterson 算法的局限性与内存模型（选读）<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h3>
-</div>
-</div>
-<div class="section" id="id12">
-<h2>参考文献<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h2>
+<h2>参考文献<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Race_condition">竞态条件，来自维基百科</a></p></li>
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Peterson%27s_algorithm">Peterson 算法，来自维基百科</a></p></li>
@@ -964,10 +962,9 @@
 <li><a class="reference internal" href="#id8">锁的纯用户态软件实现</a><ul>
 <li><a class="reference internal" href="#id9">单标记的简单尝试</a></li>
 <li><a class="reference internal" href="#id10">多标记的组合</a></li>
-<li><a class="reference internal" href="#id11">类 Peterson 算法的局限性与内存模型（选读）</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id12">参考文献</a></li>
+<li><a class="reference internal" href="#id11">参考文献</a></li>
 </ul>
 </li>
 </ul>
