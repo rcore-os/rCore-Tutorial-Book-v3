@@ -391,8 +391,8 @@
 <h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h2>
 <p>上一节更多的是站在硬件的角度来分析SV39多级页表的硬件机制，本节我们主要讲解基于 SV39 多级页表机制的操作系统内存管理。这还需进一步管理计算机系统中当前已经使用的或空闲的物理页帧，这样操作系统才能给应用程序动态分配或回收物理地址空间。有了有效的物理内存空间的管理，操作系统就能够在物理内存空间中建立多级页表（页表占用物理内存），为应用程序和操作系统自身建立虚实地址映射关系，从而实现虚拟内存空间，即给应用“看到”的地址空间。</p>
 </div>
-<div class="section" id="id2">
-<h2>物理页帧管理<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
+<div class="section" id="term-manage-phys-frame">
+<span id="id2"></span><h2>物理页帧管理<a class="headerlink" href="#term-manage-phys-frame" title="永久链接至标题">#</a></h2>
 <p>从前面的介绍可以看出物理页帧的重要性：它既可以用来实际存放应用/内核的数据/代码，也能够用来存储应用/内核的多级页表。当Bootloader把操作系统内核加载到物理内存中后，物理内存上已经有一部分用于放置内核的代码和数据。我们需要将剩下的空闲内存以单个物理页帧为单位管理起来，当需要存放应用数据或扩展应用的多级页表时分配空闲的物理页帧，并在应用出错或退出的时候回收应用占有的所有物理页帧。</p>
 <div class="section" id="id3">
 <h3>可用物理页的分配与回收<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h3>
@@ -698,8 +698,8 @@
 <p>当编译器不能介入的时候，我们很难完美的解决这些问题。因此重新设计数据结构和接口，特别是考虑数据的所有权关系，将建模进行转换，使得 Rust 有能力检查我们的设计会是一种更明智的选择。这也可以说明为什么要尽量避免使用 unsafe 。事实上，我们目前 <code class="docutils literal notranslate"><span class="pre">PhysPageNum::get_*</span></code> 接口并非一个好的设计，如果同学有兴趣可以试着对设计进行改良，让 Rust 编译器帮助我们解决上述与引用相关的问题。</p>
 </div>
 </div>
-<div class="section" id="id8">
-<h3>建立和拆除虚实地址映射关系<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
+<div class="section" id="term-create-pagetable">
+<span id="id8"></span><h3>建立和拆除虚实地址映射关系<a class="headerlink" href="#term-create-pagetable" title="永久链接至标题">#</a></h3>
 <p>接下来介绍建立和拆除虚实地址映射关系的 <code class="docutils literal notranslate"><span class="pre">map</span></code> 和 <code class="docutils literal notranslate"><span class="pre">unmap</span></code> 方法是如何实现的。它们都依赖于一个很重要的过程，即在多级页表中找到一个虚拟地址对应的页表项。找到之后，只要修改页表项的内容即可完成键值对的插入和删除。在寻找页表项的时候，可能出现页表的中间级节点还未被创建的情况，这个时候我们需要手动分配一个物理页帧来存放这个节点，并将这个节点接入到当前的多级页表的某级中。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/mm/address.rs</span>
 <span class="linenos"> 2</span>
@@ -873,7 +873,7 @@
             <ul>
 <li><a class="reference internal" href="#">管理 SV39 多级页表</a><ul>
 <li><a class="reference internal" href="#id1">本节导读</a></li>
-<li><a class="reference internal" href="#id2">物理页帧管理</a><ul>
+<li><a class="reference internal" href="#term-manage-phys-frame">物理页帧管理</a><ul>
 <li><a class="reference internal" href="#id3">可用物理页的分配与回收</a></li>
 <li><a class="reference internal" href="#id4">分配/回收物理页帧的接口</a></li>
 </ul>
@@ -881,7 +881,7 @@
 <li><a class="reference internal" href="#id5">多级页表管理</a><ul>
 <li><a class="reference internal" href="#id6">页表基本数据结构与访问接口</a></li>
 <li><a class="reference internal" href="#id7">内核中访问物理页帧的方法</a></li>
-<li><a class="reference internal" href="#id8">建立和拆除虚实地址映射关系</a></li>
+<li><a class="reference internal" href="#term-create-pagetable">建立和拆除虚实地址映射关系</a></li>
 </ul>
 </li>
 </ul>

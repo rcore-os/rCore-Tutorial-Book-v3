@@ -394,8 +394,8 @@
 </div>
 <div class="section" id="id3">
 <h2>实现地址空间抽象<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
-<div class="section" id="id4">
-<h3>逻辑段：一段连续地址的虚拟内存<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
+<div class="section" id="term-vm-map-area">
+<span id="id4"></span><h3>逻辑段：一段连续地址的虚拟内存<a class="headerlink" href="#term-vm-map-area" title="永久链接至标题">#</a></h3>
 <p>我们以逻辑段 <code class="docutils literal notranslate"><span class="pre">MapArea</span></code> 为单位描述一段连续地址的虚拟内存。所谓逻辑段，就是指地址区间中的一段实际可用（即 MMU 通过查多级页表可以正确完成地址转换）的地址连续的虚拟地址区间，该区间内包含的所有虚拟页面都以一种相同的方式映射到物理页帧，具有可读/可写/可执行等属性。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/memory_set.rs</span>
 
@@ -439,8 +439,8 @@
 </pre></div>
 </div>
 </div>
-<div class="section" id="id5">
-<h3>地址空间：一系列有关联的逻辑段<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
+<div class="section" id="term-vm-memory-set">
+<span id="id5"></span><h3>地址空间：一系列有关联的逻辑段<a class="headerlink" href="#term-vm-memory-set" title="永久链接至标题">#</a></h3>
 <p><strong>地址空间</strong> 是一系列有关联的不一定连续的逻辑段，这种关联一般是指这些逻辑段组成的虚拟内存空间与一个运行的程序（目前把一个运行的程序称为任务，后续会称为进程）绑定，即这个运行的程序对代码和数据的直接访问范围限制在它关联的虚拟地址空间之内。这样我们就有任务的地址空间，内核的地址空间等说法了。地址空间使用 <code class="docutils literal notranslate"><span class="pre">MemorySet</span></code> 类型来表示：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/memory_set.rs</span>
 
@@ -687,8 +687,8 @@
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">new_kernel</span></code> 将映射跳板和地址空间中最低 <span class="math notranslate nohighlight">\(256\text{GiB}\)</span> 中的内核逻辑段。第 3 行开始，我们从 <code class="docutils literal notranslate"><span class="pre">os/src/linker.ld</span></code> 中引用了很多表示各个段位置的符号，而后在 <code class="docutils literal notranslate"><span class="pre">new_kernel</span></code> 中，我们从低地址到高地址依次创建 5 个逻辑段并通过 <code class="docutils literal notranslate"><span class="pre">push</span></code> 方法将它们插入到内核地址空间中，上面我们已经详细介绍过这 5 个逻辑段。跳板是通过 <code class="docutils literal notranslate"><span class="pre">map_trampoline</span></code> 方法来映射的，我们也将在本章最后一节进行讲解。</p>
 </div>
-<div class="section" id="id7">
-<h2>应用地址空间<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h2>
+<div class="section" id="term-vm-app-addr-space">
+<span id="id7"></span><h2>应用地址空间<a class="headerlink" href="#term-vm-app-addr-space" title="永久链接至标题">#</a></h2>
 <p>现在我们来介绍如何创建应用的地址空间。在前面的章节中，我们直接将丢弃了所有符号信息的应用二进制镜像链接到内核，在初始化的时候内核仅需将他们加载到正确的初始物理地址就能使它们正确执行。但本章中，我们希望效仿内核地址空间的设计，同样借助页表机制使得应用地址空间的各个逻辑段也可以有不同的访问方式限制，这样可以提早检测出应用的错误并及时将其终止以最小化它对系统带来的恶劣影响。</p>
 <p>在第三章中，每个应用链接脚本中的起始地址被要求是不同的，这样它们的代码和数据存放的位置才不会产生冲突。但这是一种对于应用开发者很不方便的设计。现在，借助地址空间的抽象，我们终于可以让所有应用程序都使用同样的起始地址，这也意味着所有应用可以使用同一个链接脚本了：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="o">/*</span> <span class="n">user</span><span class="o">/</span><span class="n">src</span><span class="o">/</span><span class="n">linker</span><span class="o">.</span><span class="n">ld</span> <span class="o">*/</span>
@@ -895,12 +895,12 @@
 <li><a class="reference internal" href="#">内核与应用的地址空间</a><ul>
 <li><a class="reference internal" href="#id2">本节导读</a></li>
 <li><a class="reference internal" href="#id3">实现地址空间抽象</a><ul>
-<li><a class="reference internal" href="#id4">逻辑段：一段连续地址的虚拟内存</a></li>
-<li><a class="reference internal" href="#id5">地址空间：一系列有关联的逻辑段</a></li>
+<li><a class="reference internal" href="#term-vm-map-area">逻辑段：一段连续地址的虚拟内存</a></li>
+<li><a class="reference internal" href="#term-vm-memory-set">地址空间：一系列有关联的逻辑段</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#id6">内核地址空间</a></li>
-<li><a class="reference internal" href="#id7">应用地址空间</a></li>
+<li><a class="reference internal" href="#term-vm-app-addr-space">应用地址空间</a></li>
 </ul>
 </li>
 </ul>

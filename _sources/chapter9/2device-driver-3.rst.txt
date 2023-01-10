@@ -163,7 +163,7 @@ virtio-blk设备驱动程序了解了virtio-blk设备的扇区个数，扇区大
 操作系统对接virtio-blk设备初始化过程
 --------------------------------------------------------------
 
-但virtio_derivers 模块还没有与操作系统内核进行对接。我们还需在操作系统中封装virtio-blk设备，让操作系统内核能够识别并使用virtio-blk设备。首先操作系统需要建立一个表示virtio_blk设备的全局变量 ``BLOCK_DEVICE`` ：
+但virtio_derivers 模块还没有与操作系统内核进行对接。我们还需在操作系统中封装virtio-blk设备，让操作系统内核能够识别并使用virtio-blk设备。首先分析一下操作系统需要建立的表示virtio_blk设备的全局变量 ``BLOCK_DEVICE`` ：
 
 
 .. code-block:: Rust
@@ -188,7 +188,7 @@ virtio-blk设备驱动程序了解了virtio-blk设备的扇区个数，扇区大
    }
 
 
-从上面的代码可以看到，操作系统中表示表示virtio_blk设备的全局变量 ``BLOCK_DEVICE`` 的类型是 ``VirtIOBlock`` ,封装了来自virtio_derivers 模块的 ``VirtIOBlk`` 类型。这样，操作系统内核就可以通过 ``BLOCK_DEVICE`` 全局变量来访问virtio_blk设备了。而  ``VirtIOBlock`` 中的 ``condvars: BTreeMap<u16, Condvar>`` 条件变量结构，是用于进程在等待 I/O读或写操作完全前，通过条件变量让进程处于挂起状态。当virtio_blk设备完成I/O操作后，会通过中断唤醒等待的进程。而操作系统对virtio_blk设备的初始化除了封装 ``VirtIOBlk`` 类型并调用 ``VirtIOBlk::<VirtioHal>::new`` 外，还需要初始化 ``condvars`` 条件变量结构，而每个条件变量对应着一个虚拟队列条目的编号，这意味着每次I/O请求都绑定了一个条件变量，让发出请求的线程/进程可以被挂起。
+从上面的代码可以看到，操作系统中表示表示virtio_blk设备的全局变量 ``BLOCK_DEVICE`` 的类型是 ``VirtIOBlock`` ,封装了来自virtio_derivers 模块的 ``VirtIOBlk`` 类型。这样，操作系统内核就可以通过 ``BLOCK_DEVICE`` 全局变量来访问virtio_blk设备了。而  ``VirtIOBlock`` 中的 ``condvars: BTreeMap<u16, Condvar>`` 条件变量结构，是用于进程在等待 I/O读或写操作完全前，通过条件变量让进程处于挂起状态。当virtio_blk设备完成I/O操作后，会通过中断唤醒等待的进程。而操作系统对virtio_blk设备的初始化除了封装 ``VirtIOBlk`` 类型并调用 ``VirtIOBlk::<VirtioHal>::new()`` 外，还需要初始化 ``condvars`` 条件变量结构，而每个条件变量对应着一个虚拟队列条目的编号，这意味着每次I/O请求都绑定了一个条件变量，让发出请求的线程/进程可以被挂起。
 
 
 .. code-block:: Rust
@@ -214,7 +214,7 @@ virtio-blk设备驱动程序了解了virtio-blk设备的扇区个数，扇区大
       }
    }
 
-在上述初始化代码中，我们先看到看到 ``VIRTIO0`` ，这是 Qemu模拟的virtio_blk设备中控制寄存器的物理内存地址， ``VirtIOBlk`` 需要这个地址来对 ``VirtIOHeader`` 数据结构所表示的virtio_blk设备控制寄存器进行读写操作，从而完成对某个具体的virtio_blk设备的初始化过程。而且我们还看到了 ``VirtioHal`` 结构，它实现virtio_derivers 模块定义 ``Hal`` trait约定的方法 ，提供DMA内存分配和虚实地址映射操作，从而让virtio_derivers 模块中 ``VirtIOBlk`` 类型能够得到操作系统的服务。
+在上述初始化代码中，我们先看到 ``VIRTIO0`` ，这是 Qemu模拟的virtio_blk设备中I/O寄存器的物理内存地址， ``VirtIOBlk`` 需要这个地址来对 ``VirtIOHeader`` 数据结构所表示的virtio-blk I/O控制寄存器进行读写操作，从而完成对某个具体的virtio-blk设备的初始化过程。而且我们还看到了 ``VirtioHal`` 结构，它实现virtio-drivers 模块定义 ``Hal`` trait约定的方法 ，提供DMA内存分配和虚实地址映射操作，从而让virtio-drivers 模块中 ``VirtIOBlk`` 类型能够得到操作系统的服务。
 
 .. code-block:: Rust
    :linenos:
@@ -245,6 +245,12 @@ virtio-blk设备驱动程序了解了virtio-blk设备的扇区个数，扇区大
 
 virtio-blk设备的I/O操作
 --------------------------------------------------------------
+
+操作系统的virtio-blk驱动的主要功能是给操作系统中的文件系统内核模块提供读写磁盘块的服务，并在对进程管理有一定的影响，但不用直接给应用程序提供服务。在操作系统与virtio-drivers crate中virtio-blk裸机驱动对接的过程中，需要注意的关键问题是操作系统的virtio-blk驱动如何封装virtio-blk裸机驱动的基本功能，完成如下服务：
+
+1. 读磁盘块，挂起发起请求的进程/线程;
+2. 写磁盘块，挂起发起请求的进程/线程；
+3. 对virtio-blk设备发出的中断进行处理，唤醒相关等待的进程/线程。
 
 virtio-blk驱动程序发起的I/O请求包含操作类型(读或写)、起始扇区(块设备的最小访问单位的一个扇区的长度512字节)、内存地址、访问长度；请求处理完成后返回的I/O响应仅包含结果状态(成功或失败，读操作请求的读出扇区内容)。系统产生的一个I/O请求在内存中的数据结构分为三个部分：Header（请求头部，包含操作类型和起始扇区）；Data（数据区，包含地址和长度）；Status（结果状态），这些信息分别放在三个buffer，所以需要三个描述符。
 
