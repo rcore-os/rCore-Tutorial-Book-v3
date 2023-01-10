@@ -67,7 +67,10 @@
 实践体验
 -----------------------------------------
 
-获取本章代码：
+裸机设备驱动程序
+~~~~~~~~~~~~~~~~~~
+
+获取代码：
 
 .. code-block:: console
 
@@ -75,15 +78,51 @@
    $ cd virtio-drivers
    $ cd examples/riscv
 
-在 qemu 模拟器上运行本章代码：
+在 qemu 模拟器上运行：
 
 .. code-block:: console
 
-   $ make run
+   $ make qemu
+   ... #可以看到测试用例发现并初始化和操作各个虚拟化设备的情况
+   [ INFO] Detected virtio MMIO device with vendor id 0x554D4551, device type Block, version Modern
+   [ INFO] Detected virtio MMIO device with vendor id 0x554D4551, device type GPU, version Modern
+   [ INFO] Detected virtio MMIO device with vendor id 0x554D4551, device type Input, version Modern
+   [ INFO] Detected virtio MMIO device with vendor id 0x554D4551, device type Network, version Modern
+   ...
 
 .. image:: virtio-test-example2.png
    :align: center
+   :scale: 30 %
    :name: virtio-test-example2
+
+在这个测例中，可以看到对块设备（virtio-blk）、网络设备（virtio-net）、键盘鼠标类设备（virtio-input）、显示设备（virtio-gpu）的识别、初始化和初步的操作。
+
+侏罗猎龙操作系统
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+.. code-block:: console
+
+   $ git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
+   $ cd rCore-Tutorial-v3
+   $ git checkout ch9
+
+在 qemu 模拟器上运行：
+
+.. code-block:: console
+
+   $ cd os
+   $ make run GUI=1
+    >> gui_snake     #在OS启动后的shell界面中只需gui——snake游戏应用
+
+在这个应用中，可以看到 ``gui_snake`` 图形应用通过操作系统提供的UART串口驱动和 ``virtio-gui`` 显示驱动提供的服务来实现的一个交互式小游戏。
+
+.. image:: ../../os-lectures/lec13/figs/gui-snake.png
+   :align: center
+   :scale: 30 %
+   :name: gui-snake
+
+
 
 本章代码树
 -----------------------------------------
@@ -136,9 +175,6 @@
 对于设备驱动程序对外设的具体管理过程，大致会有初始化外设和I/O读写与控制操作。理解这些操作和对应的关键数据结构，就大致理解外设驱动要完成的功能包含哪些内容。每个设备驱动的关键数据结构和处理过程有共性部分和特定的部分。建议从 ``virtio-drivers`` crate 中的  ``examples/riscv/src/main.rs`` 这个virtio设备的功能测试例子入手来分析。
 
 以 ``virtio-blk`` 存储设备为例，可以看到，首先是访问 ``OpenSBI`` (这里没有用RustSBI，用的是QEMU内置的SBI实现)提供的设备树信息，了解QEMU硬件中存在的各种外设，根据外设ID来找到 ``virtio-blk`` 存储设备；找到后，就进行外设的初始化，如果学习了 virtio规范（需要关注的是 virtqueue、virtio-mmio device， virtio-blk device的描述内容），那就可以看出代码实现的初始化过程和virtio规范中的virtio设备初始化步骤基本上是一致的，但也有与具体设备相关的特定初始化内容，比如分配 I/O buffer等。初始化完毕后，设备驱动在收到上层内核发出的读写扇区/磁盘块的请求后，就能通过 ``virtqueue`` 传输通道发出 ``virtio-blk`` 设备能接收的I/O命令和I/O buffer的区域信息； ``virtio-blk`` 设备收到信息后，会通过DMA操作完成磁盘数据的读写，然后通过中断或其他方式让设备驱动知道命令完成或命令执行失败。而 ``virtio-gpu`` 设备驱动程序的设计实现与 ``virtio-blk`` 设备驱动程序类似。
-
-注：目前还没有提供相关的系统调用来方便应用程序访问virtio-gpu外设。
-
 
 
 .. [#juravenator] 侏罗猎龙是一种小型恐龙，生活在1亿5千万年前的侏罗纪，它有独特的鳞片状的皮肤感觉器官，具有类似鳄鱼的触觉、冷热以及pH等综合感知能力，可能对狩猎有很大帮助。
