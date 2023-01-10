@@ -655,7 +655,12 @@ virtio-gpu设备的I/O操作
     }
 
 
-这样，我们结合串口和 ``virtio-gpu`` 两种外设，并充分利用已有的Rust库，设计实现了一个 ``贪吃蛇`` 小游戏。至此，基于侏罗猎龙操作系统的图形应用开发任务就完成了。
+这样，我们结合串口和 ``virtio-gpu`` 两种外设，并充分利用已有的Rust库，设计实现了一个 ``贪吃蛇`` 小游戏（如下图所示）。至此，基于侏罗猎龙操作系统的图形应用开发任务就完成了。
+
+.. image:: ../../os-lectures/lec13/figs/gui-snake.png
+   :align: center
+   :scale: 30 %
+   :name: gui-snake
 
 .. [#EMBEDGRAPH] https://github.com/embedded-graphics/embedded-graphics
 .. [#SNAKEGAME] https://github.com/libesz/embedded-snake-rs
