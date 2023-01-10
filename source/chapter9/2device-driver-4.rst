@@ -4,14 +4,22 @@ virtio_gpu设备驱动程序
 本节导读
 -----------------------------------------
 
-本节主要介绍了QEMU模拟的RISC-V计算机中的virtio设备的架构和重要组成部分，以及面向virtio设备的驱动程序主要功能；并对virtio-blk设备及其驱动程序，virtio-gpu设备及其驱动程序进行了比较深入的分析。这里选择virtio设备来进行介绍，主要考虑基于两点考虑，首先这些设备就是QEMU模拟的高性能物理外设，操作系统可以面向这些设备编写出合理的驱动程序（如Linux等操作系统中都有virtio设备的驱动程序，并被广泛应用于云计算虚拟化场景中。）；其次，各种类型的virtio设备，如块设备（virtio-blk）、网络设备（virtio-net）、键盘鼠标类设备（virtio-input）、显示设备（virtio-gpu）具有对应外设类型的共性特征、专有特征和与具体处理器无关的设备抽象性。通过对这些设备的分析和比较，能够比较快速地掌握各类设备的核心特点，并掌握编写裸机或操作系统驱动程序的关键技术。
+本节主要介绍了与操作系统无关的基本virtio_gpu设备驱动程序的设计与实现，以及如何在操作系统中封装virtio_gpu设备驱动程序，实现对丰富多彩的GUI app的支持。
+
 
 
 
 virtio-gpu驱动程序
 ------------------------------------------
 
-让操作系统能够显示图形是一个有趣的目标。这可以通过在QEMU或带显示屏的开发板上写显示驱动程序来完成。这里我们主要介绍如何驱动基于QEMU的virtio-gpu虚拟显示设备。大家不用担心这个驱动实现很困难，其实它主要完成的事情就是对显示内存进行写操作而已。我们看到的图形显示屏幕其实是由一个一个的像素点来组成的，显示驱动程序的主要目标就是把每个像素点用内存单元来表示，并把代表所有这些像素点的内存区域（也称显示内存，显存， frame buffer）“通知”显示I/O控制器（也称图形适配器，graphics adapter），然后显示I/O控制器会根据内存内容渲染到图形显示屏上。
+让操作系统能够显示图形是一个有趣的目标。这可以通过在QEMU或带显示屏的开发板上写显示驱动程序来完成。这里我们主要介绍如何驱动基于QEMU的virtio-gpu虚拟显示设备。大家不用担心这个驱动实现很困难，其实它主要完成的事情就是对显示内存进行写操作而已。我们看到的图形显示屏幕其实是由一个一个的像素点来组成的，显示驱动程序的主要目标就是把每个像素点用内存单元来表示，并把代表所有这些像素点的内存区域（也称显示内存，显存， frame buffer）“通知”显示I/O控制器（也称图形适配器，graphics adapter），然后显示I/O控制器会根据内存内容渲染到图形显示屏上。这里我们以Rust语言为例，给出virtio-gpu设备驱动程序的设计与实现。主要包括如下内容：
+
+- virtio-gpu设备的关键数据结构
+- 初始化virtio-blk设备
+- 操作系统对接virtio-gpu设备初始化
+- virtio-gpu设备的I/O操作
+- 操作系统对接virtio-gpu设备I/O操作
+
 
 virtio-gpu设备的关键数据结构
 ------------------------------------------
@@ -19,34 +27,124 @@ virtio-gpu设备的关键数据结构
 .. code-block:: Rust
    :linenos:
    
-   pub struct VirtIOGpu<'a> {
-      header: &'static mut VirtIOHeader, 
-      rect: Rect,
-      /// DMA area of frame buffer.
-      frame_buffer_dma: Option<DMA>, 
-      /// Queue for sending control commands.
-      control_queue: VirtQueue<'a>,
-      /// Queue for sending cursor commands.
-      cursor_queue: VirtQueue<'a>,
-      /// Queue buffer DMA
-      queue_buf_dma: DMA,
-      /// Send buffer for queue.
-      queue_buf_send: &'a mut [u8],
-      /// Recv buffer for queue.
-      queue_buf_recv: &'a mut [u8],
-   }
+   // virtio-drivers/src/gpu.rs
+    pub struct VirtIOGpu<'a, H: Hal> {
+        header: &'static mut VirtIOHeader,
+        /// 显示区域的分辨率
+        rect: Rect,
+        /// 显示内存frame buffer
+        frame_buffer_dma: Option<DMA<H>>,
+        /// 光标图像内存cursor image buffer.
+        cursor_buffer_dma: Option<DMA<H>>,
+        /// Queue for sending control commands.
+        control_queue: VirtQueue<'a, H>,
+        /// Queue for sending cursor commands.
+        cursor_queue: VirtQueue<'a, H>,
+        /// Queue buffer
+        queue_buf_dma: DMA<H>,
+        /// Send buffer for queue.
+        queue_buf_send: &'a mut [u8],
+        /// Recv buffer for queue.
+        queue_buf_recv: &'a mut [u8],
+    }
 
-``header`` 结构是virtio设备的共有属性，包括版本号、设备id、设备特征等信息。显存区域 ``frame_buffer_dma`` 是一块要由操作系统或运行时分配的内存，后续的像素点的值就会写在这个区域中。virtio-gpu驱动程序与virtio-gpu设备之间通过两个 virtqueue 来进行交互访问，``control_queue`` 用于驱动程序发送显示相关控制命令， ``cursor_queue`` 用于驱动程序发送显示鼠标更新的相关控制命令（这里暂时不用）。 ``queue_buf_dma`` 是存放控制命令和返回结果的内存， ``queue_buf_send`` 和 ``queue_buf_recv`` 是 ``queue_buf_dma`` 的切片。
+``header`` 成员对应的 ``VirtIOHeader`` 数据结构是virtio设备的共有属性，包括版本号、设备id、设备特征等信息，其内存布局和成员变量的含义与本章前述的 :ref:`virt-mmio设备的寄存器内存布局 <term-virtio-mmio-regs>` 是一致的。而 :ref:`VirtQueue数据结构的内存布局<term-virtqueue-struct>` 和 :ref:`virtqueue的含义 <term-virtqueue>` 与本章前述内容一致。与 :ref:`具体操作系统相关的服务函数接口Hal<term-virtio-hal>` 在上一节已经介绍过，这里不再赘述。
+
+显示内存区域 ``frame_buffer_dma`` 是一块要由操作系统或运行时分配的显示内存，当把表示像素点的值就写入这个区域后，virtio-gpu设备会在Qemu虚拟的显示器上显示出图形。光标图像内存区域 ``cursor_buffer_dma`` 用于存放光标图像的数据，当光标图像数据更新后，virtio-gpu设备会在Qemu虚拟的显示器上显示出光标图像。这两块区域与  ``queue_buf_dma`` 区域都是用于与I/O设备进行数据传输的 :ref:`DMA内存<term-dma-tech>`，都由操作系统进行分配等管理。所以在 ``virtio_drivers`` 中建立了对应的 ``DMA`` 结构，用于操作系统管理这些DMA内存。
+
+
+.. code-block:: Rust
+   :linenos:
+   
+   // virtio-drivers/src/gpu.rs
+    pub struct DMA<H: Hal> {
+        paddr: usize,  // DMA内存起始物理地址
+        pages: usize,  // DMA内存所占物理页数量
+        ...
+    }
+    impl<H: Hal> DMA<H> {
+        pub fn new(pages: usize) -> Result<Self> {
+            //操作系统分配 pages*页大小的DMA内存
+            let paddr = H::dma_alloc(pages);
+            ...
+        }
+        // DMA内存的物理地址
+        pub fn paddr(&self) -> usize {
+            self.paddr
+        }
+        // DMA内存的虚拟地址
+        pub fn vaddr(&self) -> usize {
+            H::phys_to_virt(self.paddr)
+        }
+        // DMA内存的物理页帧号
+        pub fn pfn(&self) -> u32 {
+            (self.paddr >> 12) as u32
+        }
+        // 把DMA内存转为便于Rust处理的可变一维数组切片
+        pub unsafe fn as_buf(&self) -> &'static mut [u8] {
+            core::slice::from_raw_parts_mut(self.vaddr() as _, PAGE_SIZE * self.pages as usize)
+        ...
+    impl<H: Hal> Drop for DMA<H> {
+        // 操作系统释放DMA内存
+        fn drop(&mut self) {
+            let err = H::dma_dealloc(self.paddr as usize, self.pages as usize);
+            ...
+
+
+virtio-gpu驱动程序与virtio-gpu设备之间通过两个 virtqueue 来进行交互访问，``control_queue`` 用于驱动程序发送显示相关控制命令（如设置显示内存的起始地址等）给virtio-gpu设备， ``cursor_queue`` 用于驱动程序给给virtio-gpu设备发送显示鼠标更新的相关控制命令。 ``queue_buf_dma`` 是存放控制命令和返回结果的内存， ``queue_buf_send`` 和 ``queue_buf_recv`` 是 ``queue_buf_dma`` DMA内存的可变一维数组切片形式，分别用于虚拟队列的接收与发送。
 
 初始化virtio-gpu设备
 ------------------------------------------
 
-在 ``virtio-drivers`` crate的 ``examples\riscv\src\main.rs`` 文件中的 ``virtio_probe`` 函数识别出virtio-gpu设备后，会调用 ``virtio_gpu(header)`` 函数来完成对virtio-gpu设备的初始化过程。virtio-gpu设备初始化的工作主要是查询显示设备的信息（如分辨率等），并将该信息用于初始显示扫描（scanout）设置。具体过程如下：
+在 ``virtio-drivers`` crate的 ``examples\riscv\src\main.rs`` 文件中的 ``virtio_probe`` 函数识别出virtio-gpu设备后，会调用 ``virtio_gpu(header)`` 函数来完成对virtio-gpu设备的初始化过程。virtio-gpu设备初始化的工作主要是查询显示设备的信息（如分辨率等），并将该信息用于初始显示扫描（scanout）设置。下面的命令可以看到虚拟GPU的创建和识别过程：
+
+.. code-block:: shell
+   :linenos:
+
+   # 在virtio-drivers仓库的example/riscv目录下执行如下命令
+   make run 
+   ## 通过 qemu-system-riscv64 命令启动 Qemu 模拟器，创建 virtio-gpu 设备   
+   qemu-system-riscv64 \
+        -device virtio-gpu-device ...
+   ## 可以看到设备驱动查找到的virtio-gpu设备色信息
+   ...
+   [ INFO] Detected virtio MMIO device with vendor id 0x554D4551, device type GPU, version Modern
+   [ INFO] Device features EDID | RING_INDIRECT_DESC | RING_EVENT_IDX | VERSION_1
+   [ INFO] events_read: 0x0, num_scanouts: 0x1
+   [ INFO] GPU resolution is 1280x800
+   [ INFO] => RespDisplayInfo { header: CtrlHeader { hdr_type: OkDisplayInfo, flags: 0, fence_id: 0, ctx_id: 0, _padding: 0 }, rect: Rect { x: 0, y: 0, width: 1280, height: 800 }, enabled: 1, flags: 0 }
+
+
+并看到Qemu输出的图形显示：
+
+.. image:: virtio-test-example2.png
+    :align: center
+    :scale: 30 %
+    :name: virtio-test-example2
+
+接下来我们看看virtio-gpu设备初始化的具体过程如：
 
 .. code-block:: Rust
    :linenos:
 
-   impl VirtIOGpu<'_> {
+    // virtio-drivers/examples/riscv/src/main.rs
+    fn virtio_gpu(header: &'static mut VirtIOHeader) {
+        let mut gpu = VirtIOGpu::<HalImpl>::new(header).expect("failed to create gpu driver");
+        let (width, height) = gpu.resolution().expect("failed to get resolution");
+        info!("GPU resolution is {}x{}", width, height);
+        let fb = gpu.setup_framebuffer().expect("failed to get fb");
+        ...
+
+在 ``virtio_gpu`` 函数调用创建了 ``VirtIOGpu::<HalImpl>::new(header)`` 函数，获得关于virtio-gpu设备的重要信息：显示分辨率 ``1280x800`` ；而且会建立virtio虚拟队列，并基于这些信息来创建表示virtio-gpu的 ``gpu`` 结构。然后会进一步调用 ``gpu.setup_framebuffer()`` 函数来建立和配置显示内存缓冲区，打通设备驱动与virtio-gpu设备间的显示数据传输通道。
+
+
+``VirtIOGpu::<HalImpl>::new(header)`` 函数主要完成了virtio-gpu设备的初始化工作：
+
+.. code-block:: Rust
+   :linenos:
+
+   // virtio-drivers/src/gpu.rs
+   impl VirtIOGpu<'_, H> {
    pub fn new(header: &'static mut VirtIOHeader) -> Result<Self> {
         header.begin_init(|features| {
             let features = Features::from_bits_truncate(features);
@@ -78,13 +176,14 @@ virtio-gpu设备的关键数据结构
         })
     }
 
-首先是 ``header.begin_init`` 函数完成了对virtio设备的共性初始化的常规步骤的前六步；第七步在这里被忽略；第八步完成对virtio-gpu设备的配置空间（config space）信息，不过这里面并没有我们关注的显示分辨率等信息；紧接着是创建两个虚拟队列，并分配两个 page （8KB）的内存空间用于放置虚拟队列中的控制命令和返回结果；最后的第九步，调用 ``header.finish_init`` 函数，将virtio-gpu设备设置为活跃可用状态。
+首先是 ``header.begin_init`` 函数完成了对virtio设备的共性初始化的常规步骤的前六步；第七步在这里被忽略；第八步读取virtio-gpu设备的配置空间（config space）信息；紧接着是创建两个虚拟队列：控制命令队列、光标管理队列。并为控制命令队列分配两个 page （8KB）的内存空间用于放置虚拟队列中的控制命令和返回结果；最后的第九步，调用 ``header.finish_init`` 函数，将virtio-gpu设备设置为活跃可用状态。
 
 虽然virtio-gpu初始化完毕，但它目前还不能进行显示。为了能够进行正常的显示，我们还需建立显存区域 frame buffer，并绑定在virtio-gpu设备上。这主要是通过 ``VirtIOGpu.setup_framebuffer`` 函数来完成的。
 
 .. code-block:: Rust
    :linenos:
 
+   // virtio-drivers/src/gpu.rs
    pub fn setup_framebuffer(&mut self) -> Result<&mut [u8]> {
         // get display info
         let display_info: RespDisplayInfo =
@@ -139,25 +238,42 @@ virtio-gpu设备的关键数据结构
 3. 分配 ``width *height * 4`` 字节的连续物理内存空间作为显存， 发出 ``ResourceAttachBacking`` 命令，让设备把显存附加到设备显示资源上；
 4. 发出 ``SetScanout`` 命令，把设备显示资源链接到显示扫描输出上，这样才能让显存的像素信息显示出来；
 
-到这一步，才算是把virtio-gpu设备初始化完成了。
-
+到这一步，才算是把virtio-gpu设备初始化完成了。做完这一步后，virtio-gpu设备和设备驱动之间的虚拟队列接口就打通了，显示缓冲区也建立好了，就可以进行显存数据读写了。
 
 virtio-gpu设备的I/O操作
 ------------------------------------------
 
-接下来的显示操作比较简单，就是在显存中更新像素信息，然后给设备发出刷新指令，就可以显示了，具体的示例代码如下：
+对初始化好的virtio-gpu设备进行图形显示其实很简单，主要就是两个步骤：
+
+1. 把要显示的像素数据写入到显存中；
+2. 发出刷新命令，让virtio-gpu在Qemu模拟的显示区上显示图形。
+
+下面简单代码完成了对虚拟GPU的图形显示：
 
 .. code-block:: Rust
    :linenos:
 
-   for y in 0..768 {
-      for x in 0..1024 {
-         let idx = (y * 1024 + x) * 4;
-         fb[idx] = (0) as u8;       //Blue
-         fb[idx + 1] = (0) as u8;   //Green
-         fb[idx + 2] = (255) as u8; //Red
-         fb[idx + 3] = (0) as u8;   //Alpha
-       }
-   }
-   gpu.flush().expect("failed to flush"); 
+   // virtio-drivers/src/gpu.rs
+   fn virtio_gpu(header: &'static mut VirtIOHeader) {
+        ...
+        //把像素数据写入显存
+        for y in 0..height {    //height=800
+            for x in 0..width { //width=1280
+                let idx = (y * width + x) * 4;
+                fb[idx] = x as u8;
+                fb[idx + 1] = y as u8;
+                fb[idx + 2] = (x + y) as u8;
+            }
+        }
+        // 发出刷新命令
+        gpu.flush().expect("failed to flush");
 
+这里需要注意的是对virtio-gpu进行刷新操作比较耗时，所以我们尽量先把显示的图形像素值都写入显存中，再发出刷新命令，减少刷新命令的执行次数。
+
+
+操作系统对接virtio-gpu设备初始化
+------------------------------------------
+
+
+操作系统对接virtio-gpu设备I/O处理
+------------------------------------------

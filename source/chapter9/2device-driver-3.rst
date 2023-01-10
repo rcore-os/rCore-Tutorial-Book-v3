@@ -27,6 +27,7 @@ virtio-blk设备的关键数据结构
 .. code-block:: Rust
    :linenos:
 
+   // virtio-drivers/src/blk.rs
    pub struct VirtIOBlk<'a, H: Hal> {
       header: &'static mut VirtIOHeader,
       queue: VirtQueue<'a, H>,
@@ -34,7 +35,9 @@ virtio-blk设备的关键数据结构
    }
 
 
-其中的 ``VirtIOHeader`` 数据结构的内存布局与上一节描述 :ref:`virt-mmio设备的寄存器内存布局 <term-virtio-mmio-regs>` 是一致的。而 ``VirtQueue`` 数据结构与上一节描述的 :ref:`virtqueue <term-virtqueue>` 在表达的含义上基本一致的。
+``header`` 成员对应的 ``VirtIOHeader`` 数据结构是virtio设备的共有属性，包括版本号、设备id、设备特征等信息，其内存布局和成员变量的含义与上一节描述 :ref:`virt-mmio设备的寄存器内存布局 <term-virtio-mmio-regs>` 是一致的。而 ``VirtQueue`` 数据结构与上一节描述的 :ref:`virtqueue <term-virtqueue>` 在表达的含义上基本一致的。
+
+.. _term-virtqueue-struct:
 
 .. code-block:: Rust
    :linenos:
@@ -55,7 +58,9 @@ virtio-blk设备的关键数据结构
 
 其中成员变量 ``free_head`` 指空闲描述符链表头，初始时所有描述符通过 ``next`` 指针依次相连形成空闲链表，成员变量 ``last_used_idx`` 是指设备上次已取的已用环元素位置。成员变量 ``avail_idx`` 是指设备上次已取的已用环元素位置。
 
-这里出现的 ``Hal`` trait是 `virtio_drivers` 库中定义的一个trait，用于抽象出与具体操作系统相关的操作，主要与内存分配和虚实地址转换相关。这里我们只给出trait的定义，具体的实现在后续的章节中会给出。
+.. _term-virtio-hal:
+
+这里出现的 ``Hal`` trait是 `virtio_drivers` 库中定义的一个trait，用于抽象出与具体操作系统相关的操作，主要与内存分配和虚实地址转换相关。这里我们只给出trait的定义，对应操作系统的具体实现在后续的章节中会给出。
 
 
 .. code-block:: Rust
@@ -97,14 +102,35 @@ virtio-blk设备的初始化过程与virtio规范中描述的一般virtio设备�
 .. code-block:: Rust
    :linenos:
 
-   capacity: Volatile<u64>     = 32   //32个扇区，即16KB
-   seg_max: Volatile<u32>      = 254  
-   cylinders: Volatile<u16>    = 2
-   heads: Volatile<u8>         = 16
-   sectors: Volatile<u8>       = 63  
-   blk_size: Volatile<u32>     = 512 //扇区大小为512字节
+   capacity: Volatile<u64> = 32  //32个扇区，即16KB
+   blk_size: Volatile<u32> = 512 //扇区大小为512字节
 
-了解了virtio-blk设备的扇区个数，扇区大小和总体容量后，还需调用 `` VirtQueue::new`` 成员函数来创建虚拟队列 ``VirtQueue`` 数据结构的实例，这样才能进行后续的磁盘读写操作。这个函数主要完成的事情是分配虚拟队列的内存空间，并进行初始化：
+为何能看到扇区大小为 ``512`` 字节欸，容量为 ``16KB`` 大小的virtio-blk设备？这当然是我们让Qemu模拟器建立的一个虚拟硬盘。下面的命令可以看到虚拟硬盘创建和识别过程：
+
+.. code-block:: shell
+   :linenos:
+
+   # 在virtio-drivers仓库的example/riscv目录下执行如下命令
+   make run 
+   # 可以看到与虚拟硬盘创建相关的具体命令
+   ## 通过 dd 工具创建了扇区大小为 ``512`` 字节欸，容量为 ``16KB`` 大小的硬盘镜像（disk img）
+   dd if=/dev/zero of=target/riscv64imac-unknown-none-elf/release/img bs=512 count=32
+      记录了32+0 的读入
+      记录了32+0 的写出
+      16384字节（16 kB，16 KiB）已复制，0.000439258 s，37.3 MB/s
+   ## 通过 qemu-system-riscv64 命令启动 Qemu 模拟器，创建 virtio-blk 设备   
+   qemu-system-riscv64 \
+        -drive file=target/riscv64imac-unknown-none-elf/release/img,if=none,format=raw,id=x0 \
+        -device virtio-blk-device,drive=x0 ...
+   ## 可以看到设备驱动查找到的virtio-blk设备色信息
+   ...
+   [ INFO] Detected virtio MMIO device with vendor id 0x554D4551, device type Block, version Modern
+   [ INFO] device features: SEG_MAX | GEOMETRY | BLK_SIZE | FLUSH | TOPOLOGY | CONFIG_WCE | DISCARD | WRITE_ZEROES | RING_INDIRECT_DESC | RING_EVENT_IDX | VERSION_1
+   [ INFO] config: 0x10008100
+   [ INFO] found a block device of size 16KB
+   ...
+
+virtio-blk设备驱动程序了解了virtio-blk设备的扇区个数，扇区大小和总体容量后，还需调用 `` VirtQueue::new`` 成员函数来创建虚拟队列 ``VirtQueue`` 数据结构的实例，这样才能进行后续的磁盘读写操作。这个函数主要完成的事情是分配虚拟队列的内存空间，并进行初始化：
 
 - 设定 ``queue_size`` （即虚拟队列的描述符条目数）为16；
 - 计算满足 ``queue_size`` 的描述符表 ``desc`` ，可用环 ``avail`` 和已用环 ``used`` 所需的物理空间的大小 -- ``size`` ；
@@ -112,7 +138,32 @@ virtio-blk设备的初始化过程与virtio规范中描述的一般virtio设备�
 - ``VirtIOHeader.queue_set`` 函数把虚拟队列的相关信息（内存地址等）写到virtio-blk设备的MMIO寄存器中；
 - 初始化VirtQueue实例中各个成员变量（主要是 ``dma`` ， ``desc`` ，``avail`` ，``used`` ）的值。
 
-做完这一步后，virtio-blk设备和设备驱动之间的虚拟队列接口就打通了，可以进行I/O数据读写了。但virtio_derivers 模块还没有与操作系统内核进行对接。我们还需在操作系统中封装virtio-blk设备，让操作系统内核能够识别并使用virtio-blk设备。首先操作系统需要建立一个表示virtio_blk设备的全局变量 ``BLOCK_DEVICE`` ：
+做完这一步后，virtio-blk设备和设备驱动之间的虚拟队列接口就打通了，可以进行I/O数据读写了。下面简单代码完成了对虚拟硬盘的读写操作和读写正确性检查：
+
+
+.. code-block:: rust
+   :linenos:
+
+   // virtio-drivers/examples/riscv/src/main.rs
+   fn virtio_blk(header: &'static mut VirtIOHeader) { {
+      // 创建blk结构
+      let mut blk = VirtIOBlk::<HalImpl, T>::new(header).expect("failed to create blk driver");
+      // 读写缓冲区
+      let mut input = vec![0xffu8; 512];
+      let mut output = vec![0; 512];
+      ...
+      // 把input数组内容写入virtio-blk设备
+      blk.write_block(i, &input).expect("failed to write");
+      // 从virtio-blk设备读取内容到output数组
+      blk.read_block(i, &mut output).expect("failed to read");
+      // 检查virtio-blk设备读写的正确性
+      assert_eq!(input, output);
+   ...
+
+操作系统对接virtio-blk设备初始化过程
+--------------------------------------------------------------
+
+但virtio_derivers 模块还没有与操作系统内核进行对接。我们还需在操作系统中封装virtio-blk设备，让操作系统内核能够识别并使用virtio-blk设备。首先操作系统需要建立一个表示virtio_blk设备的全局变量 ``BLOCK_DEVICE`` ：
 
 
 .. code-block:: Rust
@@ -136,9 +187,6 @@ virtio-blk设备的初始化过程与virtio规范中描述的一般virtio设备�
       pub static ref BLOCK_DEVICE: Arc<dyn BlockDevice> = Arc::new(BlockDeviceImpl::new());
    }
 
-
-操作系统对接virtio-blk设备初始化过程
---------------------------------------------------------------
 
 从上面的代码可以看到，操作系统中表示表示virtio_blk设备的全局变量 ``BLOCK_DEVICE`` 的类型是 ``VirtIOBlock`` ,封装了来自virtio_derivers 模块的 ``VirtIOBlk`` 类型。这样，操作系统内核就可以通过 ``BLOCK_DEVICE`` 全局变量来访问virtio_blk设备了。而  ``VirtIOBlock`` 中的 ``condvars: BTreeMap<u16, Condvar>`` 条件变量结构，是用于进程在等待 I/O读或写操作完全前，通过条件变量让进程处于挂起状态。当virtio_blk设备完成I/O操作后，会通过中断唤醒等待的进程。而操作系统对virtio_blk设备的初始化除了封装 ``VirtIOBlk`` 类型并调用 ``VirtIOBlk::<VirtioHal>::new`` 外，还需要初始化 ``condvars`` 条件变量结构，而每个条件变量对应着一个虚拟队列条目的编号，这意味着每次I/O请求都绑定了一个条件变量，让发出请求的线程/进程可以被挂起。
 
