@@ -405,15 +405,16 @@
 <div class="section" id="id3">
 <h2>virtio-blk设备的关键数据结构<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
 <p>这里我们首先需要定义virtio-blk设备的结构：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="p">,</span><span class="w"> </span><span class="n">H</span>: <span class="nc">Hal</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">2</span><span class="w">   </span><span class="n">header</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">3</span><span class="w">   </span><span class="n">queue</span>: <span class="nc">VirtQueue</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="p">,</span><span class="w"> </span><span class="n">H</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">4</span><span class="w">   </span><span class="n">capacity</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">5</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// virtio-drivers/src/blk.rs</span>
+<span class="linenos">2</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="p">,</span><span class="w"> </span><span class="n">H</span>: <span class="nc">Hal</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">3</span><span class="w">   </span><span class="n">header</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">4</span><span class="w">   </span><span class="n">queue</span>: <span class="nc">VirtQueue</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="p">,</span><span class="w"> </span><span class="n">H</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">5</span><span class="w">   </span><span class="n">capacity</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
+<span class="linenos">6</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>其中的 <code class="docutils literal notranslate"><span class="pre">VirtIOHeader</span></code> 数据结构的内存布局与上一节描述 <a class="reference internal" href="2device-driver-2.html#term-virtio-mmio-regs"><span class="std std-ref">virt-mmio设备的寄存器内存布局</span></a> 是一致的。而 <code class="docutils literal notranslate"><span class="pre">VirtQueue</span></code> 数据结构与上一节描述的 <a class="reference internal" href="2device-driver-2.html#term-virtqueue"><span class="std std-ref">virtqueue</span></a> 在表达的含义上基本一致的。</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="cp">#[repr(C)]</span><span class="w"></span>
+<p><code class="docutils literal notranslate"><span class="pre">header</span></code> 成员对应的 <code class="docutils literal notranslate"><span class="pre">VirtIOHeader</span></code> 数据结构是virtio设备的共有属性，包括版本号、设备id、设备特征等信息，其内存布局和成员变量的含义与上一节描述 <a class="reference internal" href="2device-driver-2.html#term-virtio-mmio-regs"><span class="std std-ref">virt-mmio设备的寄存器内存布局</span></a> 是一致的。而 <code class="docutils literal notranslate"><span class="pre">VirtQueue</span></code> 数据结构与上一节描述的 <a class="reference internal" href="2device-driver-2.html#term-virtqueue"><span class="std std-ref">virtqueue</span></a> 在表达的含义上基本一致的。</p>
+<div class="highlight-Rust notranslate" id="term-virtqueue-struct"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="cp">#[repr(C)]</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtQueue</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="p">,</span><span class="w"> </span><span class="n">H</span>: <span class="nc">Hal</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 3</span><span class="w">   </span><span class="n">dma</span>: <span class="nc">DMA</span><span class="o">&lt;</span><span class="n">H</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="c1">// DMA guard</span>
 <span class="linenos"> 4</span><span class="w">   </span><span class="n">desc</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span> <span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="n">Descriptor</span><span class="p">],</span><span class="w"> </span><span class="c1">// 描述符表</span>
@@ -429,7 +430,7 @@
 </pre></div>
 </div>
 <p>其中成员变量 <code class="docutils literal notranslate"><span class="pre">free_head</span></code> 指空闲描述符链表头，初始时所有描述符通过 <code class="docutils literal notranslate"><span class="pre">next</span></code> 指针依次相连形成空闲链表，成员变量 <code class="docutils literal notranslate"><span class="pre">last_used_idx</span></code> 是指设备上次已取的已用环元素位置。成员变量 <code class="docutils literal notranslate"><span class="pre">avail_idx</span></code> 是指设备上次已取的已用环元素位置。</p>
-<p>这里出现的 <code class="docutils literal notranslate"><span class="pre">Hal</span></code> trait是 <cite>virtio_drivers</cite> 库中定义的一个trait，用于抽象出与具体操作系统相关的操作，主要与内存分配和虚实地址转换相关。这里我们只给出trait的定义，具体的实现在后续的章节中会给出。</p>
+<p id="term-virtio-hal">这里出现的 <code class="docutils literal notranslate"><span class="pre">Hal</span></code> trait是 <cite>virtio_drivers</cite> 库中定义的一个trait，用于抽象出与具体操作系统相关的操作，主要与内存分配和虚实地址转换相关。这里我们只给出trait的定义，对应操作系统的具体实现在后续的章节中会给出。</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Hal</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">   </span><span class="sd">/// Allocates the given number of contiguous physical pages of DMA memory for virtio use.</span>
 <span class="linenos"> 3</span><span class="w">   </span><span class="k">fn</span> <span class="nf">dma_alloc</span><span class="p">(</span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="p">;</span><span class="w"></span>
@@ -448,15 +449,33 @@
 <div class="section" id="id4">
 <h2>初始化virtio-blk设备<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
 <p>virtio-blk设备的初始化过程与virtio规范中描述的一般virtio设备的初始化过程大致一样，对其实现的初步分析在 <a class="reference internal" href="2device-driver-2.html#term-virtio-blk-init"><span class="std std-ref">virtio-blk初始化代码</span></a> 中。在设备初始化过程中读取了virtio-blk设备的配置空间的设备信息：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="n">capacity</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="w">   </span><span class="c1">//32个扇区，即16KB</span>
-<span class="linenos">2</span><span class="n">seg_max</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">254</span><span class="w"></span>
-<span class="linenos">3</span><span class="n">cylinders</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u16</span><span class="o">&gt;</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="w"></span>
-<span class="linenos">4</span><span class="n">heads</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span><span class="w"></span>
-<span class="linenos">5</span><span class="n">sectors</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="mi">63</span><span class="w"></span>
-<span class="linenos">6</span><span class="n">blk_size</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span><span class="w"> </span><span class="c1">//扇区大小为512字节</span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="n">capacity</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="w">  </span><span class="c1">//32个扇区，即16KB</span>
+<span class="linenos">2</span><span class="n">blk_size</span>: <span class="nc">Volatile</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span><span class="w"> </span><span class="c1">//扇区大小为512字节</span>
 </pre></div>
 </div>
-<p>了解了virtio-blk设备的扇区个数，扇区大小和总体容量后，还需调用 `` VirtQueue::new`` 成员函数来创建虚拟队列 <code class="docutils literal notranslate"><span class="pre">VirtQueue</span></code> 数据结构的实例，这样才能进行后续的磁盘读写操作。这个函数主要完成的事情是分配虚拟队列的内存空间，并进行初始化：</p>
+<p>为何能看到扇区大小为 <code class="docutils literal notranslate"><span class="pre">512</span></code> 字节欸，容量为 <code class="docutils literal notranslate"><span class="pre">16KB</span></code> 大小的virtio-blk设备？这当然是我们让Qemu模拟器建立的一个虚拟硬盘。下面的命令可以看到虚拟硬盘创建和识别过程：</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1"># 在virtio-drivers仓库的example/riscv目录下执行如下命令</span>
+<span class="linenos"> 2</span>make run
+<span class="linenos"> 3</span><span class="c1"># 可以看到与虚拟硬盘创建相关的具体命令</span>
+<span class="linenos"> 4</span><span class="c1">## 通过 dd 工具创建了扇区大小为 ``512`` 字节欸，容量为 ``16KB`` 大小的硬盘镜像（disk img）</span>
+<span class="linenos"> 5</span>dd <span class="k">if</span><span class="o">=</span>/dev/zero <span class="nv">of</span><span class="o">=</span>target/riscv64imac-unknown-none-elf/release/img <span class="nv">bs</span><span class="o">=</span><span class="m">512</span> <span class="nv">count</span><span class="o">=</span><span class="m">32</span>
+<span class="linenos"> 6</span>   记录了32+0 的读入
+<span class="linenos"> 7</span>   记录了32+0 的写出
+<span class="linenos"> 8</span>   16384字节（16 kB，16 KiB）已复制，0.000439258 s，37.3 MB/s
+<span class="linenos"> 9</span><span class="c1">## 通过 qemu-system-riscv64 命令启动 Qemu 模拟器，创建 virtio-blk 设备</span>
+<span class="linenos">10</span>qemu-system-riscv64 <span class="se">\</span>
+<span class="linenos">11</span>     -drive <span class="nv">file</span><span class="o">=</span>target/riscv64imac-unknown-none-elf/release/img,if<span class="o">=</span>none,format<span class="o">=</span>raw,id<span class="o">=</span>x0 <span class="se">\</span>
+<span class="linenos">12</span>     -device virtio-blk-device,drive<span class="o">=</span>x0 ...
+<span class="linenos">13</span><span class="c1">## 可以看到设备驱动查找到的virtio-blk设备色信息</span>
+<span class="linenos">14</span>...
+<span class="linenos">15</span><span class="o">[</span> INFO<span class="o">]</span> Detected virtio MMIO device with vendor id 0x554D4551, device <span class="nb">type</span> Block, version Modern
+<span class="linenos">16</span><span class="o">[</span> INFO<span class="o">]</span> device features: SEG_MAX <span class="p">|</span> GEOMETRY <span class="p">|</span> BLK_SIZE <span class="p">|</span> FLUSH <span class="p">|</span> TOPOLOGY <span class="p">|</span> CONFIG_WCE <span class="p">|</span> DISCARD <span class="p">|</span> WRITE_ZEROES <span class="p">|</span> RING_INDIRECT_DESC <span class="p">|</span> RING_EVENT_IDX <span class="p">|</span> VERSION_1
+<span class="linenos">17</span><span class="o">[</span> INFO<span class="o">]</span> config: 0x10008100
+<span class="linenos">18</span><span class="o">[</span> INFO<span class="o">]</span> found a block device of size 16KB
+<span class="linenos">19</span>...
+</pre></div>
+</div>
+<p>virtio-blk设备驱动程序了解了virtio-blk设备的扇区个数，扇区大小和总体容量后，还需调用 `` VirtQueue::new`` 成员函数来创建虚拟队列 <code class="docutils literal notranslate"><span class="pre">VirtQueue</span></code> 数据结构的实例，这样才能进行后续的磁盘读写操作。这个函数主要完成的事情是分配虚拟队列的内存空间，并进行初始化：</p>
 <ul class="simple">
 <li><p>设定 <code class="docutils literal notranslate"><span class="pre">queue_size</span></code> （即虚拟队列的描述符条目数）为16；</p></li>
 <li><p>计算满足 <code class="docutils literal notranslate"><span class="pre">queue_size</span></code> 的描述符表 <code class="docutils literal notranslate"><span class="pre">desc</span></code> ，可用环 <code class="docutils literal notranslate"><span class="pre">avail</span></code> 和已用环 <code class="docutils literal notranslate"><span class="pre">used</span></code> 所需的物理空间的大小 – <code class="docutils literal notranslate"><span class="pre">size</span></code> ；</p></li>
@@ -464,7 +483,28 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">VirtIOHeader.queue_set</span></code> 函数把虚拟队列的相关信息（内存地址等）写到virtio-blk设备的MMIO寄存器中；</p></li>
 <li><p>初始化VirtQueue实例中各个成员变量（主要是 <code class="docutils literal notranslate"><span class="pre">dma</span></code> ， <code class="docutils literal notranslate"><span class="pre">desc</span></code> ，<code class="docutils literal notranslate"><span class="pre">avail</span></code> ，<code class="docutils literal notranslate"><span class="pre">used</span></code> ）的值。</p></li>
 </ul>
-<p>做完这一步后，virtio-blk设备和设备驱动之间的虚拟队列接口就打通了，可以进行I/O数据读写了。但virtio_derivers 模块还没有与操作系统内核进行对接。我们还需在操作系统中封装virtio-blk设备，让操作系统内核能够识别并使用virtio-blk设备。首先操作系统需要建立一个表示virtio_blk设备的全局变量 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> ：</p>
+<p>做完这一步后，virtio-blk设备和设备驱动之间的虚拟队列接口就打通了，可以进行I/O数据读写了。下面简单代码完成了对虚拟硬盘的读写操作和读写正确性检查：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// virtio-drivers/examples/riscv/src/main.rs</span>
+<span class="linenos"> 2</span><span class="k">fn</span> <span class="nf">virtio_blk</span><span class="p">(</span><span class="n">header</span>: <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">   </span><span class="c1">// 创建blk结构</span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">blk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">VirtIOBlk</span>::<span class="o">&lt;</span><span class="n">HalImpl</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span>::<span class="n">new</span><span class="p">(</span><span class="n">header</span><span class="p">).</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;failed to create blk driver&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">   </span><span class="c1">// 读写缓冲区</span>
+<span class="linenos"> 6</span><span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="mh">0xff</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">512</span><span class="p">];</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mi">512</span><span class="p">];</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">   </span><span class="c1">// 把input数组内容写入virtio-blk设备</span>
+<span class="linenos">10</span><span class="w">   </span><span class="n">blk</span><span class="p">.</span><span class="n">write_block</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">input</span><span class="p">).</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;failed to write&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">   </span><span class="c1">// 从virtio-blk设备读取内容到output数组</span>
+<span class="linenos">12</span><span class="w">   </span><span class="n">blk</span><span class="p">.</span><span class="n">read_block</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">output</span><span class="p">).</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;failed to read&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">13</span><span class="w">   </span><span class="c1">// 检查virtio-blk设备读写的正确性</span>
+<span class="linenos">14</span><span class="w">   </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">15</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id5">
+<h2>操作系统对接virtio-blk设备初始化过程<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
+<p>但virtio_derivers 模块还没有与操作系统内核进行对接。我们还需在操作系统中封装virtio-blk设备，让操作系统内核能够识别并使用virtio-blk设备。首先操作系统需要建立一个表示virtio_blk设备的全局变量 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> ：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/drivers/block/virtio_blk.rs</span>
 <span class="linenos"> 2</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 3</span><span class="w">   </span><span class="n">virtio_blk</span>: <span class="nc">UPIntrFreeCell</span><span class="o">&lt;</span><span class="n">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="nb">static</span><span class="p">,</span><span class="w"> </span><span class="n">VirtioHal</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
@@ -484,9 +524,6 @@
 <span class="linenos">17</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="id5">
-<h2>操作系统对接virtio-blk设备初始化过程<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
 <p>从上面的代码可以看到，操作系统中表示表示virtio_blk设备的全局变量 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> 的类型是 <code class="docutils literal notranslate"><span class="pre">VirtIOBlock</span></code> ,封装了来自virtio_derivers 模块的 <code class="docutils literal notranslate"><span class="pre">VirtIOBlk</span></code> 类型。这样，操作系统内核就可以通过 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> 全局变量来访问virtio_blk设备了。而  <code class="docutils literal notranslate"><span class="pre">VirtIOBlock</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">condvars:</span> <span class="pre">BTreeMap&lt;u16,</span> <span class="pre">Condvar&gt;</span></code> 条件变量结构，是用于进程在等待 I/O读或写操作完全前，通过条件变量让进程处于挂起状态。当virtio_blk设备完成I/O操作后，会通过中断唤醒等待的进程。而操作系统对virtio_blk设备的初始化除了封装 <code class="docutils literal notranslate"><span class="pre">VirtIOBlk</span></code> 类型并调用 <code class="docutils literal notranslate"><span class="pre">VirtIOBlk::&lt;VirtioHal&gt;::new</span></code> 外，还需要初始化 <code class="docutils literal notranslate"><span class="pre">condvars</span></code> 条件变量结构，而每个条件变量对应着一个虚拟队列条目的编号，这意味着每次I/O请求都绑定了一个条件变量，让发出请求的线程/进程可以被挂起。</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">impl</span><span class="w"> </span><span class="n">VirtIOBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="linenos"> 2</span><span class="w">   </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
