@@ -882,7 +882,30 @@
 </div>
 </div>
 <div class="section" id="id11">
-<h2>参考文献<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h2>
+<h2>基于硬件机制及特殊指令的锁实现<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h2>
+<p>上面我们介绍了锁的纯软件实现。可以看到，为了保证互斥访问要求，需要用到类似于 Peterson 的十分精密复杂的算法，它们不易理解，而且与现代处理器（特别是多核架构的处理器）的适配性不好。于是，我们可以考虑将这种通用的锁机制的需求下沉到硬件。如果硬件能提供相应的一些支持，那么我们在软件层面上就能比较简单地实现锁机制，且总体性能较高。下面依次介绍两种实现锁机制相关硬件支持：即关闭中断和原子指令。</p>
+<div class="section" id="id12">
+<h3>关闭中断<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
+<p>从前面的分析可以看出，站在用户态软件也就是应用的角度，并发问题的一个重要来源是操作系统随时有可能通过抢占式调度切换到其他线程，特别是当线程处于临界区被切换出去的时候，将导致不同线程的临界区交错运行使得共享资源访问出错。那么如何保证线程处于临界区的时候不会被操作系统切换出去呢？经过第三章的学习，我们知道操作系统进行的这种抢占式调度是由时钟中断触发的。如果应用程序能够控制中断的打开（使能）与关闭（屏蔽），那就能提供互斥解决方案了。代码如下：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">fn</span> <span class="nf">lock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">2</span><span class="w">    </span><span class="n">disable_interrupt</span><span class="p">();</span><span class="w"> </span><span class="c1">//屏蔽中断的机器指令</span>
+<span class="linenos">3</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">4</span>
+<span class="linenos">5</span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">6</span><span class="w">    </span><span class="n">enable_interrupt</span><span class="p">();</span><span class="w"> </span><span class="c1">//使能中断的机器指令</span>
+<span class="linenos">7</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>在进入临界区之前，线程调用 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 函数屏蔽整个 CPU 包括时钟中断在内的所有中断。这样在临界区中，线程就不用担心会被操作系统切换出去了，可以放心操作共享资源了。实际上此时它独占了整个 CPU 。在离开临界区之后，线程再调用 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 函数使能所有中断，因为此时它再被切换出去也没有问题了。</p>
+<p>这种方法的优点是简单，但是缺点则很多。首先，这种做法给了用户态程序使能/屏蔽中断这种特权，相当于相信应用并放权给它。这会面临和我们引入抢占式调度之前一样的问题：线程可以选择恶意永久关闭中断而独占所有 CPU 资源，这将会影响到整个系统的正常运行。因此，事实上至少在 RISC-V 这样含多个特权级的架构中，这甚至是完全做不到的。回顾第三章，可以看到中断使能和屏蔽的相关标志位分布在 S 特权级的 CSR <code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sie</span></code> ，甚至更高的 M 特权级的 CSR 中。用户态试图修改它们将会触发非法指令异常，操作系统会直接杀死该线程。其次，即使我们能够做到，它对于多处理器架构也是无效的。假设同一进程的多个线程运行在不同的 CPU 上，它们都尝试访问同种共享资源。一般来说，每个 CPU 都有自己的独立的中断相关的寄存器，它只能对自己的中断处理进行设置。对于一个线程来说，它可以关闭它所在 CPU 的中断，但是这无法影响到其他线程所在的 CPU ，其他线程仍然可以在此时进入临界区，便不能满足互斥访问的要求了。所以，采用控制中断的方式仅对一些非常简单，且信任应用的单处理器场景有效，而对于更广泛的其他场景是不够的。</p>
+<p>然而，需要注意的是，这种关闭中断的方法作为用户态锁机制的实现很不靠谱，在实现内核态锁机制的时候有些情况下却是必不可少的。我们将在第九章介绍位于内核态的一种基于关中断的锁实现。</p>
+</div>
+<div class="section" id="id13">
+<h3>原子指令<a class="headerlink" href="#id13" title="永久链接至标题">#</a></h3>
+</div>
+</div>
+<div class="section" id="id14">
+<h2>参考文献<a class="headerlink" href="#id14" title="永久链接至标题">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Race_condition">竞态条件，来自维基百科</a></p></li>
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Peterson%27s_algorithm">Peterson 算法，来自维基百科</a></p></li>
@@ -964,7 +987,12 @@
 <li><a class="reference internal" href="#id10">多标记的组合</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id11">参考文献</a></li>
+<li><a class="reference internal" href="#id11">基于硬件机制及特殊指令的锁实现</a><ul>
+<li><a class="reference internal" href="#id12">关闭中断</a></li>
+<li><a class="reference internal" href="#id13">原子指令</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id14">参考文献</a></li>
 </ul>
 </li>
 </ul>
