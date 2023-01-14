@@ -1,8 +1,9 @@
 RISCV 硬件相关
 =========================
 
-Quick Reference
+硬件信息
 -------------------
+
 - `Registers & ABI <https://five-embeddev.com/quickref/regs_abi.html>`_ 
 - `Interrupt <https://five-embeddev.com/quickref/interrupts.html>`_ 
 - `ISA & Extensions <https://five-embeddev.com/quickref/isa_ext.html>`_ 
@@ -11,7 +12,8 @@ Quick Reference
 - `Accessing CSRs <https://five-embeddev.com/quickref/csrs-access.html>`_ 
 - `Assembler & Instructions <https://five-embeddev.com/quickref/instructions.html>`_ 
 
-ISA
+
+指令集规范
 ------------------------
 
 - `User-Level ISA, Version 1.12 <https://five-embeddev.com/riscv-isa-manual/latest/riscv-spec.html>`_ 
