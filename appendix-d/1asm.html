@@ -134,7 +134,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <div class="visually-hidden">Toggle table of contents sidebar</div>
         <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
       </label>
@@ -380,7 +380,7 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <div class="visually-hidden">Toggle table of contents sidebar</div>
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
@@ -388,12 +388,84 @@
         <article role="main">
           <div class="section" id="riscv">
 <h1>RISCV 汇编相关<a class="headerlink" href="#riscv" title="永久链接至标题">#</a></h1>
+<div class="section" id="id1">
+<h2>如何生成汇编代码<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h2>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>通常办法，生成的汇编代码有比较冗余的信息
+<span class="gp"># </span>生成缺省debug模式的汇编
+<span class="gp">$</span>cargo rustc -- --emit asm
+<span class="gp">$</span>ls target/debug/deps/&lt;crate_name&gt;-&lt;hash&gt;.s
+<span class="gp"># </span>生成release模式的汇编
+<span class="gp">$</span>cargo rustc --release -- --emit asm
+<span class="gp">$</span>ls target/release/deps/&lt;crate_name&gt;-&lt;hash&gt;.s
+<span class="gp"># </span>在rcore-tutorial-v3中的应用的汇编代码生成举例
+<span class="gp">$</span><span class="nb">cd</span> user
+<span class="gp">$</span>cargo  rustc --release --bin hello_world -- --emit asm
+<span class="gp">$</span>find ./target -name <span class="s2">&quot;hello_world*.s&quot;</span>
+
+<span class="gp">#</span>生成更加干净的汇编代码
+<span class="gp">#</span>基于 cargo-show-asm<span class="o">(</span>https://github.com/pacak/cargo-show-asm<span class="o">)</span>的办法
+<span class="go">如果没用安装这个cargo asm子命令，就安装它</span>
+<span class="gp">$</span>cargo install cargo-show-asm
+<span class="gp">#</span>在rcore-tutorial-v3中的应用的汇编代码生成举例
+<span class="gp">$</span><span class="nb">cd</span> user
+<span class="gp">$</span>cargo  asm  --release --bin hello_world
+
+<span class="go">Compiling user_lib v0.1.0 (/home/chyyuu/thecodes/rCore-Tutorial-v3/user)</span>
+<span class="go"> Finished release [optimized + debuginfo] target(s) in 0.10s</span>
+
+<span class="go">     .section .text.main,&quot;ax&quot;,@progbits</span>
+<span class="go">             .globl  main</span>
+<span class="go">             .p2align        1</span>
+<span class="go">             .type   main,@function</span>
+<span class="go">     main:</span>
+
+<span class="go">             .cfi_sections .debug_frame</span>
+<span class="go">             .cfi_startproc</span>
+<span class="go">             addi sp, sp, -64</span>
+<span class="go">             .cfi_def_cfa_offset 64</span>
+
+<span class="go">             sd ra, 56(sp)</span>
+<span class="go">             sd s0, 48(sp)</span>
+<span class="go">             .cfi_offset ra, -8</span>
+<span class="go">             .cfi_offset s0, -16</span>
+<span class="go">             addi s0, sp, 64</span>
+<span class="go">             .cfi_def_cfa s0, 0</span>
+
+<span class="go">             auipc a0, %pcrel_hi(.L__unnamed_1)</span>
+<span class="go">             addi a0, a0, %pcrel_lo(.LBB0_1)</span>
+
+<span class="go">             sd a0, -64(s0)</span>
+<span class="go">             li a0, 1</span>
+
+<span class="go">             sd a0, -56(s0)</span>
+<span class="go">             sd zero, -48(s0)</span>
+
+<span class="go">             auipc a0, %pcrel_hi(.L__unnamed_2)</span>
+<span class="go">             addi a0, a0, %pcrel_lo(.LBB0_2)</span>
+
+<span class="go">             sd a0, -32(s0)</span>
+<span class="go">             sd zero, -24(s0)</span>
+
+<span class="go">             addi a0, s0, -64</span>
+
+<span class="go">             call user_lib::console::print</span>
+<span class="go">             li a0, 0</span>
+<span class="go">             ld ra, 56(sp)</span>
+<span class="go">             ld s0, 48(sp)</span>
+<span class="go">             addi sp, sp, 64</span>
+<span class="go">             ret</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id2">
+<h2>参考信息<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference external" href="https://github.com/riscv/riscv-asm-manual/blob/master/riscv-asm.md">RISC-V Assembly Programmer’s Manual</a></p></li>
 <li><p><a class="reference external" href="https://github.com/riscv/riscv-tests">RISC-V Low-level Test Suits</a></p></li>
 <li><p><a class="reference external" href="https://github.com/RISCVERS/coremark-pro">CoreMark®-PRO comprehensive, advanced processor benchmark</a></p></li>
 <li><p><a class="reference external" href="https://stackoverflow.com/questions/39321554/how-do-i-use-the-riscv-tests-suite">riscv-tests的使用</a></p></li>
 </ul>
+</div>
 </div>
 
         </article>
@@ -441,8 +513,28 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            目录
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">RISCV 汇编相关</a><ul>
+<li><a class="reference internal" href="#id1">如何生成汇编代码</a></li>
+<li><a class="reference internal" href="#id2">参考信息</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
