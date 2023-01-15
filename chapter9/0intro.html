@@ -462,41 +462,81 @@
 </div>
 <div class="section" id="id8">
 <h2>本章代码树<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h2>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>virtio-drivers crate
-<span class="linenos"> 2</span>########################
-<span class="linenos"> 3</span>./os/src
-<span class="linenos"> 4</span>Rust         8 Files    1150 Lines
-<span class="linenos"> 5</span>./examples/riscv/src
-<span class="linenos"> 6</span>Rust         2 Files     138 Lines
-<span class="linenos"> 7</span>
-<span class="linenos"> 8</span>.
-<span class="linenos"> 9</span>├── Cargo.lock
-<span class="linenos">10</span>├── Cargo.toml
-<span class="linenos">11</span>├── examples
-<span class="linenos">12</span>│   └── riscv
-<span class="linenos">13</span>│       ├── Cargo.toml
-<span class="linenos">14</span>│       ├── linker32.ld
-<span class="linenos">15</span>│       ├── linker64.ld
-<span class="linenos">16</span>│       ├── Makefile
-<span class="linenos">17</span>│       ├── rust-toolchain
-<span class="linenos">18</span>│       └── src
-<span class="linenos">19</span>│           ├── main.rs （各种virtio设备的测试用例）
-<span class="linenos">20</span>│           └── virtio_impl.rs (用于I/O数据的物理内存空间管理的简单实现)
-<span class="linenos">21</span>├── LICENSE
-<span class="linenos">22</span>├── README.md
-<span class="linenos">23</span>└── src
-<span class="linenos">24</span>   ├── blk.rs (virtio-blk 驱动)
-<span class="linenos">25</span>   ├── gpu.rs (virtio-gpu 驱动)
-<span class="linenos">26</span>   ├── hal.rs (用于I/O数据的物理内存空间管理接口)
-<span class="linenos">27</span>   ├── header.rs (VirtIOHeader: MMIO Device Register Interface)
-<span class="linenos">28</span>   ├── input.rs (virtio-input 驱动)
-<span class="linenos">29</span>   ├── lib.rs
-<span class="linenos">30</span>   ├── net.rs (virtio-net 驱动)
-<span class="linenos">31</span>   └── queue.rs (virtqueues: 批量I/O数据传输的机制)
-<span class="linenos">32</span>
-<span class="linenos">33</span>4 directories, 20 files
+<p>本章的代码主要包括两部分内容。一部分是virtio-drivers仓库中的驱动代码和裸机示例代码：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>├── examples
+<span class="linenos"> 2</span>│   └── riscv
+<span class="linenos"> 3</span>│       └── src
+<span class="linenos"> 4</span>│           ├── main.rs （各种virtio设备的测试用例）
+<span class="linenos"> 5</span>│           └── virtio_impl.rs (用于I/O数据的物理内存空间管理的简单实现)
+<span class="linenos"> 6</span>└── src
+<span class="linenos"> 7</span>   ├── blk.rs (virtio-blk 驱动)
+<span class="linenos"> 8</span>   ├── gpu.rs (virtio-gpu 驱动)
+<span class="linenos"> 9</span>   ├── hal.rs (用于I/O数据的物理内存空间管理接口)
+<span class="linenos">10</span>   ├── header.rs (VirtIOHeader: MMIO设备寄存器接口)
+<span class="linenos">11</span>   ├── input.rs (virtio-input 驱动)
+<span class="linenos">12</span>   ├── net.rs (virtio-net 驱动)
+<span class="linenos">13</span>   └── queue.rs (virtqueues: 批量I/O数据传输的机制)
+<span class="linenos">14</span>
+<span class="linenos">15</span>4 directories, 20 files
 </pre></div>
 </div>
+<p>另外一部分是侏罗猎龙操作系统 – Device OS 代码：</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="go">├── ...</span>
+<span class="linenos"> 2</span><span class="go">├── easy-fs</span>
+<span class="linenos"> 3</span><span class="go">│   └── src</span>
+<span class="linenos"> 4</span><span class="go">│       ├── ...</span>
+<span class="linenos"> 5</span><span class="go">│       └── block_dev.rs (BlockDevice trait中增加handle_irq接口)</span>
+<span class="linenos"> 6</span><span class="go">├── os</span>
+<span class="linenos"> 7</span><span class="go">│   └── src</span>
+<span class="linenos"> 8</span><span class="go">│       ├── ...</span>
+<span class="linenos"> 9</span><span class="go">│       ├── main.rs（扩展blk/gpu/input等外设初始化调用）   W</span>
+<span class="linenos">10</span><span class="go">│       ├── config.rs （修改KERNEL_HEAP_SIZE和MEMORY_END，扩展可用内存空间）</span>
+<span class="linenos">11</span><span class="go">│       ├── boards</span>
+<span class="linenos">12</span><span class="go">│       │   └── qemu.rs (扩展blk/gpu/input等外设地址设定/初始化/中断处理等操作)</span>
+<span class="linenos">13</span><span class="go">│       ├── drivers</span>
+<span class="linenos">14</span><span class="go">│       │   ├── block</span>
+<span class="linenos">15</span><span class="go">│       │   │   └── virtio_blk.rs（增加非阻塞读写块/中断响应等I/O操作）</span>
+<span class="linenos">16</span><span class="go">│       │   ├── bus</span>
+<span class="linenos">17</span><span class="go">│       │   │   └── virtio.rs（增加virtio-drivers需要的Hal trait接口）</span>
+<span class="linenos">18</span><span class="go">│       │   ├── chardev</span>
+<span class="linenos">19</span><span class="go">│       │   │   └── ns16550a.rs（增加s-mode下的串口驱动）</span>
+<span class="linenos">20</span><span class="go">│       │   ├── gpu</span>
+<span class="linenos">21</span><span class="go">│       │   │   └── mod.rs（增加基于virtio-gpu基本驱动的OS驱动）</span>
+<span class="linenos">22</span><span class="go">│       │   ├── input</span>
+<span class="linenos">23</span><span class="go">│       │   │   └── mod.rs（增加基于virtio-input基本驱动的OS驱动）</span>
+<span class="linenos">24</span><span class="go">│       │   └── plic.rs（增加RISC-V的PLIC中断控制器驱动）</span>
+<span class="linenos">25</span><span class="go">│       ├── fs</span>
+<span class="linenos">26</span><span class="go">│       │   └── stdio.rs（改用s-mode下的串口驱动进行输入输出字符）</span>
+<span class="linenos">27</span><span class="go">│       ├── mm</span>
+<span class="linenos">28</span><span class="go">│       │   └── memory_set.rs（扩展Linear内存映射方式，用于显示内存存映射）</span>
+<span class="linenos">29</span><span class="go">│       ├── sync</span>
+<span class="linenos">30</span><span class="go">│       │   ├── condvar.rs（扩展条件变量的wait方式，用于外设驱动）</span>
+<span class="linenos">31</span><span class="go">│       │   └── up.rs（扩展 UPIntrFreeCell&lt;T&gt; 支持内核态屏蔽中断的独占访问）</span>
+<span class="linenos">32</span><span class="go">│       ├── syscall</span>
+<span class="linenos">33</span><span class="go">│       │   ├── gui.rs（增加图形显示相关的系统调用）</span>
+<span class="linenos">34</span><span class="go">│       │   └── input.rs（增加键盘/鼠标/串口相关事件的系统调用）</span>
+<span class="linenos">35</span><span class="go">│       └── trap</span>
+<span class="linenos">36</span><span class="go">│           ├── mod.rs（扩展在用户态和内核态响应外设中断）</span>
+<span class="linenos">37</span><span class="go">│           └── trap.S（扩展内核态响应中断的保存与恢复寄存器操作）</span>
+<span class="linenos">38</span><span class="go">└── user</span>
+<span class="linenos">39</span><span class="go">   └── src</span>
+<span class="linenos">40</span><span class="go">      ├── bin</span>
+<span class="linenos">41</span><span class="go">      │   ├── gui_rect.rs (显示不同大小正方形)</span>
+<span class="linenos">42</span><span class="go">      │   ├── gui_simple.rs（彩色显示屏幕）</span>
+<span class="linenos">43</span><span class="go">      │   ├── gui_snake.rs（用&#39;a&#39;/&#39;s&#39;/&#39;d&#39;/&#39;w&#39;控制的贪吃蛇图形游戏）</span>
+<span class="linenos">44</span><span class="go">      │   ├── gui_uart.rs (用串口输入字符来控制显示正方形)</span>
+<span class="linenos">45</span><span class="go">      │   ├── huge_write_mt.rs（写磁盘文件性能测试例子）</span>
+<span class="linenos">46</span><span class="go">      │   ├── inputdev_event.rs（接收键盘鼠标输入事件）</span>
+<span class="linenos">47</span><span class="go">      │   ├── random_num.rs（产生随机数）</span>
+<span class="linenos">48</span><span class="go">      │   └── ...</span>
+<span class="linenos">49</span><span class="go">      ├── file.rs（文件系统相关的调用）</span>
+<span class="linenos">50</span><span class="go">      ├── io.rs（图形显示与交互相关的系统调用）</span>
+<span class="linenos">51</span><span class="go">      ├── sync.rs（同步互斥相关的系统调用）</span>
+<span class="linenos">52</span><span class="go">      ├── syscall.rs（扩展图形显示与交互的系统调用号和系统调用接口）</span>
+<span class="linenos">53</span><span class="go">      └── task.rs（进程线程相关的系统调用）</span>
+</pre></div>
+</div>
+<p>Device OS 中还有不少内核代码把 <code class="docutils literal notranslate"><span class="pre">UPSafeCell</span></code> 改为 <code class="docutils literal notranslate"><span class="pre">UPIntrFreeCell</span></code> 。这是因为在第九章前，系统设置在S-Mode中屏蔽中断，所以在 S-Mode中运行的内核代码不会被各种外设中断打断，采用 <code class="docutils literal notranslate"><span class="pre">UPSafeCell</span></code> 来实现对可写数据的独占访问支持是够用的。但在第九章中，系统配置改为在S-Mode中使能中断，所以内核代码在内核执行过程中会被中断打断，无法实现可靠的独占访问。本章引入了新的 <code class="docutils literal notranslate"><span class="pre">UPIntrFreeCell</span></code> 机制，使得在通过 <code class="docutils literal notranslate"><span class="pre">UPIntrFreeCell</span></code> 对可写数据进行独占访问前，先屏蔽中断；而对可写数据独占访问结束后，再使能中断。从而确保线程对可写数据的独占访问时，不会被中断打断或引入可能的线程切换，而避免了竞态条件的产生。</p>
 </div>
 <div class="section" id="id9">
 <h2>本章代码导读<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h2>
