@@ -127,43 +127,90 @@
 本章代码树
 -----------------------------------------
 
+本章的代码主要包括两部分内容。一部分是virtio-drivers仓库中的驱动代码和裸机示例代码：
+
 .. code-block::
    :linenos:
 
-   virtio-drivers crate
-   ########################
-   ./os/src
-   Rust         8 Files    1150 Lines
-   ./examples/riscv/src
-   Rust         2 Files     138 Lines
-   
-   .
-   ├── Cargo.lock
-   ├── Cargo.toml
    ├── examples
    │   └── riscv
-   │       ├── Cargo.toml
-   │       ├── linker32.ld
-   │       ├── linker64.ld
-   │       ├── Makefile
-   │       ├── rust-toolchain
    │       └── src
    │           ├── main.rs （各种virtio设备的测试用例）
    │           └── virtio_impl.rs (用于I/O数据的物理内存空间管理的简单实现)
-   ├── LICENSE
-   ├── README.md
    └── src
       ├── blk.rs (virtio-blk 驱动)
       ├── gpu.rs (virtio-gpu 驱动)
       ├── hal.rs (用于I/O数据的物理内存空间管理接口)
-      ├── header.rs (VirtIOHeader: MMIO Device Register Interface)
+      ├── header.rs (VirtIOHeader: MMIO设备寄存器接口)
       ├── input.rs (virtio-input 驱动)
-      ├── lib.rs
       ├── net.rs (virtio-net 驱动)
       └── queue.rs (virtqueues: 批量I/O数据传输的机制) 
 
    4 directories, 20 files
 
+
+另外一部分是侏罗猎龙操作系统 -- Device OS 代码： 
+
+
+.. code-block:: console
+   :linenos:
+      
+   ├── ...
+   ├── easy-fs
+   │   └── src
+   │       ├── ...
+   │       └── block_dev.rs (BlockDevice trait中增加handle_irq接口)
+   ├── os
+   │   └── src
+   │       ├── ...
+   │       ├── main.rs（扩展blk/gpu/input等外设初始化调用）   W
+   │       ├── config.rs （修改KERNEL_HEAP_SIZE和MEMORY_END，扩展可用内存空间）   
+   │       ├── boards
+   │       │   └── qemu.rs (扩展blk/gpu/input等外设地址设定/初始化/中断处理等操作)
+   │       ├── drivers
+   │       │   ├── block
+   │       │   │   └── virtio_blk.rs（增加非阻塞读写块/中断响应等I/O操作）
+   │       │   ├── bus
+   │       │   │   └── virtio.rs（增加virtio-drivers需要的Hal trait接口）
+   │       │   ├── chardev
+   │       │   │   └── ns16550a.rs（增加s-mode下的串口驱动）
+   │       │   ├── gpu
+   │       │   │   └── mod.rs（增加基于virtio-gpu基本驱动的OS驱动）
+   │       │   ├── input
+   │       │   │   └── mod.rs（增加基于virtio-input基本驱动的OS驱动）
+   │       │   └── plic.rs（增加RISC-V的PLIC中断控制器驱动）
+   │       ├── fs
+   │       │   └── stdio.rs（改用s-mode下的串口驱动进行输入输出字符）
+   │       ├── mm
+   │       │   └── memory_set.rs（扩展Linear内存映射方式，用于显示内存存映射）
+   │       ├── sync
+   │       │   ├── condvar.rs（扩展条件变量的wait方式，用于外设驱动）
+   │       │   └── up.rs（扩展 UPIntrFreeCell<T> 支持内核态屏蔽中断的独占访问）
+   │       ├── syscall
+   │       │   ├── gui.rs（增加图形显示相关的系统调用）
+   │       │   └── input.rs（增加键盘/鼠标/串口相关事件的系统调用）
+   │       └── trap
+   │           ├── mod.rs（扩展在用户态和内核态响应外设中断）
+   │           └── trap.S（扩展内核态响应中断的保存与恢复寄存器操作）
+   └── user
+      └── src
+         ├── bin
+         │   ├── gui_rect.rs (显示不同大小正方形)
+         │   ├── gui_simple.rs（彩色显示屏幕）
+         │   ├── gui_snake.rs（用'a'/'s'/'d'/'w'控制的贪吃蛇图形游戏）
+         │   ├── gui_uart.rs (用串口输入字符来控制显示正方形)
+         │   ├── huge_write_mt.rs（写磁盘文件性能测试例子）
+         │   ├── inputdev_event.rs（接收键盘鼠标输入事件）
+         │   ├── random_num.rs（产生随机数）
+         │   └── ...
+         ├── file.rs（文件系统相关的调用）
+         ├── io.rs（图形显示与交互相关的系统调用）
+         ├── sync.rs（同步互斥相关的系统调用）
+         ├── syscall.rs（扩展图形显示与交互的系统调用号和系统调用接口）
+         └── task.rs（进程线程相关的系统调用）
+
+
+Device OS 中还有不少内核代码把 ``UPSafeCell`` 改为 ``UPIntrFreeCell`` 。这是因为在第九章前，系统设置在S-Mode中屏蔽中断，所以在 S-Mode中运行的内核代码不会被各种外设中断打断，采用 ``UPSafeCell`` 来实现对可写数据的独占访问支持是够用的。但在第九章中，系统配置改为在S-Mode中使能中断，所以内核代码在内核执行过程中会被中断打断，无法实现可靠的独占访问。本章引入了新的 ``UPIntrFreeCell`` 机制，使得在通过 ``UPIntrFreeCell`` 对可写数据进行独占访问前，先屏蔽中断；而对可写数据独占访问结束后，再使能中断。从而确保线程对可写数据的独占访问时，不会被中断打断或引入可能的线程切换，而避免了竞态条件的产生。
 
 本章代码导读
 -----------------------------------------------------          
