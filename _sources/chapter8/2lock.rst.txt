@@ -483,6 +483,8 @@ Rust 在标准库中提供了互斥锁 ``std::sync::Mutex<T>`` ，它可以包�
 
 我们知道锁的本质上是一个标记，表明目前是否已经有线程进入共享资源的临界区了。于是，最简单的实现思路就是加入一个新的全局变量用作这个标记：
 
+.. _link-adder-simple-spin:
+
 .. code-block:: rust
     :linenos:
 
@@ -601,6 +603,61 @@ Rust 在标准库中提供了互斥锁 ``std::sync::Mutex<T>`` ，它可以包�
 原子指令
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+在之前的 :ref:`adder_simple_spin.rs <link-adder-simple-spin>` 中，我们尝试用一个全局变量作为锁标记，但是最后却失败了。主要原因在于这个锁标记作为全局变量也是一种共享资源，对它进行的操作也是多阶段多条指令的，也会受到操作系统调度的影响，从而不能满足互斥访问要求，也就无法正确实现锁机制了。应该如何解决这个问题呢？回忆在 :ref:`adder_fixed.rs <ref-adder-fixed>` 中我们使用 Rust 提供的原子操作将全局变量 ``A`` 的临界区缩小为一条原子指令使其免受操作系统调度的影响，这里我们也可以换用原子操作处理锁标记达到同样的效果，不过需要使用不同类型的原子操作：
+
+.. code-block:: rust
+    :linenos:
+
+    // user/src/bin/adder_atomic.rs
+
+    static OCCUPIED: AtomicBool = AtomicBool::new(false);
+
+    fn lock() {
+        while OCCUPIED
+        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+        .is_err()
+        {
+            yield_();
+        }
+    }
+
+    fn unlock() {
+        OCCUPIED.store(false, Ordering::Relaxed);
+    }
+
+这里我们将全局锁标记替换为原子 bool 类型 ``AtomicBool`` 。它支持 ``AtomicBool::compare_exchange`` 操作，接口定义如下：
+
+.. code-block:: rust
+
+    pub fn compare_exchange(
+        &self,
+        current: bool,
+        new: bool,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<bool, bool>;
+
+其功能为：如果原子变量当前的值与 ``current`` 相同，则将原子变量的值修改为 ``new`` ，否则不进行修改。无论是否进行修改，都会返回原子变量在操作之前的值。可以看到返回值是一个 ``Result`` ，如果修改成功的话这个值会用 ``Ok`` 包裹，否则则会用 ``Err`` 包裹。关于另外两个内存顺序参数 ``success`` 和 ``failure`` 不必深入了解，在单核环境下使用 ``Ordering::Relaxed`` 即可。注意 ``compare_exchange`` 作为一个基于硬件的原子操作， **它不会被操作系统的调度打断** 。
+
+那么 ``lock`` 和 ``unlock`` 是如何实现的呢？在 ``lock`` 中，主体仍然是一个 while 循环。每次迭代我们使用 ``compare_exchange`` 进行如下操作：如果 ``OCCUPIED`` 当前是 false ，表明目前没有线程在临界区内，那么就将 ``OCCUPIED`` 改成 true ，返回 ``Ok`` 退出 while 循环，随后线程进入临界区；否则， ``OCCUPIED`` 当前是 true ，表明已经有线程在临界区之内了，那么 ``compare_exchange`` 修改失败并返回 ``Err`` ，循环还需要继续下去。这种情况由于是在单核 CPU 上，进行下一轮迭代一定会继续失败，故而及时通过 ``yield`` 系统调用交出 CPU 资源。 ``unlock`` 的实现则比较简单，离开临界区的线程同样通过原子存储操作 ``store`` 将 ``OCCUPIED`` 修改为 false 表示已经没有线程在临界区中了，此后线程可以进入临界区了。尝试运行一下 ``adder_atomic.rs`` ，可以看到它能够满足互斥访问需求。
+
+.. _term-cas:
+
+Rust 核心库为我们提供了原子类型以及 ``compare_exchange`` 这种方便的操作，那么它们是用硬件提供的哪些原子指令来实现的呢？硬件提供的原子指令一般是对于一个内存位置进行一系列操作，并保证整个过程的原子性。比如说最经典的 **比较并交换** （Compare-And-Swap, CAS）指令。它在不同平台上的具体表现存在细微差异，我们这里按照 RISC-V 的写法描述它的核心功能：它有三个源寄存器和一个目标寄存器，于是应该写成 ``CAS rd, rs1, rs2, rs3`` 。它的功能是将一个内存位置存放的值（其地址保存在一个源寄存器中，假设是 ``rs1`` ）与一个期待值 ``expected`` （保存在源寄存器 ``rs2`` 中）进行比较，如果相同的话就将内存位置存放的值改为 ``new`` （保存在源寄存器 ``rs3`` 中）。无论是否相同，都将执行 CAS 指令之前这个内存位置存放的值写入到目标寄存器 ``rd`` 中。如果用 Rust 语言伪代码的形式描述 CAS 指令的功能应该是这样：
+
+.. code-block:: rust
+    :linenos:
+
+    fn compare_and_swap(ptr: *mut i32, expected: i32, new: i32) -> i32 {
+        let original = unsafe { *ptr };
+        if original == expected {
+            unsafe { *ptr = new; }
+        }
+        original
+    }
+
+所以“比较并交换”展开来说是如果比较结果相同，则将 ``new`` 换到内存中，然后将内存中原来的值换出来并返回。这段伪代码仅能用来描述 CAS 指令的功能，但 CAS 指令并不等价于这段伪代码，因为硬件能够保证 CAS 指令中的一系列操作是原子的，而不是若干访存和算术指令按顺序的拼接。同时，这里我们假定内存位置存放的值以及寄存器中有效的值是 32 位的。对于 CAS 指令，硬件通常会支持 16 位、32位、64位等通用寄存器常用的位宽，并在大多数情况下要求内存地址是对齐到对应位宽的。忽略这些细节，我们可以发现 CAS 指令和 Rust 中的 ``compare_exchange`` 本质上是一回事，后者可以直接用前者来实现。CAS 是实现包括锁在内的同步机制最主要的方式，因此主流平台上基本都提供了 CAS 指令的支持。比如，在 x86 平台上我们有 CMPXCHG 指令，在 SPARC-V9 平台上我们则有 CASA/SWAP 等指令。
+
 
 
 参考文献
@@ -611,3 +668,5 @@ Rust 在标准库中提供了互斥锁 ``std::sync::Mutex<T>`` ，它可以包�
 - `Dekkers 算法，来自维基百科 <https://en.wikipedia.org/wiki/Dekker%27s_algorithm>`_
 - `Eisenberg & McGuire 算法，来自维基百科 <https://en.wikipedia.org/wiki/Eisenberg_%26_McGuire_algorithm>`_
 - 《操作系统概念》第七版，第六章
+- 《Operating Systems: Three Easy Pieces》 `Chapter 28 Locks <https://pages.cs.wisc.edu/~remzi/OSTEP/threads-locks.pdf>`_
+- `《The SPARC Architecture Manual》 Version 9 <https://cr.yp.to/2005-590/sparcv9.pdf>`_ Page 153
