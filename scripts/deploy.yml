@@ -1,0 +1,49 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, dev]
+
+jobs:
+  deploy-doc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: "true"
+      - uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: install chrome
+        run: apt-get update \
+              && apt-get install -y wget gnupg \
+              && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+              && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
+              && apt-get update \
+              && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
+                --no-install-recommends \
+              && rm -rf /var/lib/apt/lists/*
+      
+      - name: Use Node.js
+        uses: actions/setup-node@v2
+          with: 
+              node-version: "16.x"
+      
+      - name: Install dependencies
+        run: npm install -g @mermaid-js/mermaid-cli
+
+      - name: build doc
+        run: make html
+
+      - name: create .nojekyll
+        run: touch build/html/.nojekyll
+
+      - name: Push to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/html

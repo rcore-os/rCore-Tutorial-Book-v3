@@ -37,12 +37,13 @@ extensions = [
     "sphinxcontrib.mermaid"
 ]
 
-mermaid_output_format = 'png'
-mermaid_version = ''
+# mermaid_output_format = 'png'
+mermaid_output_format = 'raw'
+mermaid_version = '9.3.0'
 html_js_files = [
-    'js/mermaid.js'
+    'mermaid.js'
 ]
-mermaid_params = ['--puppeteerConfigFile', '/home/chyyuu/thecodes/rCore-Tutorial-Book-v3/puppeteerConfigFile.json']
+# mermaid_params = ['--puppeteerConfigFile', '/home/chyyuu/thecodes/rCore-Tutorial-Book-v3/puppeteerConfigFile.json']
 
 comments_config = {
    "utterances": {
