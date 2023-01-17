@@ -902,6 +902,8 @@
 </div>
 <div class="section" id="id13">
 <h3>原子指令<a class="headerlink" href="#id13" title="永久链接至标题">#</a></h3>
+<div class="section" id="cas-tas">
+<h4>常用的 CAS 和 TAS 指令<a class="headerlink" href="#cas-tas" title="永久链接至标题">#</a></h4>
 <p>在之前的 <a class="reference internal" href="#link-adder-simple-spin"><span class="std std-ref">adder_simple_spin.rs</span></a> 中，我们尝试用一个全局变量作为锁标记，但是最后却失败了。主要原因在于这个锁标记作为全局变量也是一种共享资源，对它进行的操作也是多阶段多条指令的，也会受到操作系统调度的影响，从而不能满足互斥访问要求，也就无法正确实现锁机制了。应该如何解决这个问题呢？回忆在 <a class="reference internal" href="#ref-adder-fixed"><span class="std std-ref">adder_fixed.rs</span></a> 中我们使用 Rust 提供的原子操作将全局变量 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的临界区缩小为一条原子指令使其免受操作系统调度的影响，这里我们也可以换用原子操作处理锁标记达到同样的效果，不过需要使用不同类型的原子操作：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/adder_atomic.rs</span>
 <span class="linenos"> 2</span>
@@ -943,7 +945,35 @@
 <span class="linenos">7</span><span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>所以“比较并交换”展开来说是如果比较结果相同，则将 <code class="docutils literal notranslate"><span class="pre">new</span></code> 换到内存中，然后将内存中原来的值换出来并返回。这段伪代码仅能用来描述 CAS 指令的功能，但 CAS 指令并不等价于这段伪代码，因为硬件能够保证 CAS 指令中的一系列操作是原子的，而不是若干访存和算术指令按顺序的拼接。同时，这里我们假定内存位置存放的值以及寄存器中有效的值是 32 位的。对于 CAS 指令，硬件通常会支持 16 位、32位、64位等通用寄存器常用的位宽，并在大多数情况下要求内存地址是对齐到对应位宽的。忽略这些细节，我们可以发现 CAS 指令和 Rust 中的 <code class="docutils literal notranslate"><span class="pre">compare_exchange</span></code> 本质上是一回事，后者可以直接用前者来实现。CAS 是实现包括锁在内的同步机制最主要的方式，因此主流平台上基本都提供了 CAS 指令的支持。比如，在 x86 平台上我们有 CMPXCHG 指令，在 SPARC-V9 平台上我们则有 CASA/SWAP 等指令。</p>
+<p>所以“比较并交换”展开来说是如果比较结果相同，则将 <code class="docutils literal notranslate"><span class="pre">new</span></code> 换到内存中，然后将内存中原来的值换出来并返回。这段伪代码仅能用来描述 CAS 指令的功能，但 CAS 指令并不等价于这段伪代码，因为硬件能够保证 CAS 指令中的一系列操作是原子的，而不是按顺序执行若干访存和算术指令。同时，这里我们假定内存位置存放的值以及寄存器中有效的值是 32 位的。对于 CAS 指令，硬件通常会支持 16 位、32位、64位等通用寄存器常用的位宽，并在大多数情况下要求内存地址是对齐到对应位宽的。忽略这些细节，我们可以发现 CAS 指令和 Rust 中的 <code class="docutils literal notranslate"><span class="pre">compare_exchange</span></code> 本质上是一回事，后者可以直接用前者来实现。CAS 是实现包括锁在内的同步机制最主要的方式，因此主流平台上基本都提供了 CAS 指令的支持。比如，在 x86 平台上我们有 CMPXCHG 指令，在 SPARC-V9 平台上我们则有 CASA/SWAP 等指令。</p>
+<p>除了 CAS 之外，曾经还有另一类常用来实现同步机制的原子指令，它被称为 <strong>测试并设置</strong> (Test-And-Set, TAS) 。相比 CAS ， TAS 没有比较的步骤，它直接将 <code class="docutils literal notranslate"><span class="pre">new</span></code> 写入到内存并返回内存位置原先的值。用 Rust 语言伪代码描述 TAS 的功能如下：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">fn</span> <span class="nf">test_and_set</span><span class="p">(</span><span class="n">ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">,</span><span class="w"> </span><span class="n">new</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="linenos">2</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">original</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">*</span><span class="n">ptr</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
+<span class="linenos">3</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">*</span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
+<span class="linenos">4</span><span class="w">    </span><span class="n">original</span><span class="w"></span>
+<span class="linenos">5</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>在 TAS 中，内存中的值一定会被改成 <code class="docutils literal notranslate"><span class="pre">new</span></code> ，于是更关键的在于返回值，也就是 TAS 之前内存中的值。比如，可以这样来用 TAS 指令实现锁机制：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">OCCUPIED</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">2</span>
+<span class="linenos">3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">4</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">test_and_set</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">OCCUPIED</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="linenos">5</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">6</span>
+<span class="linenos">7</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">8</span><span class="w">    </span><span class="n">OCCUPIED</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">9</span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>这里我们仍然使用 <code class="docutils literal notranslate"><span class="pre">OCCUPIED</span></code> 作为全局锁标记表示是否已经有线程在临界区中。当一个线程想要进入临界区的时候，它会调用 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 函数，其中使用 TAS 指令原子地将锁标记设置为 1 并返回原先的值。假设有多个线程同时想要进入临界区，由于硬件保证 TAS 指令的原子性不受中断或多核同时访问的影响，只有 TAS 指令被最早执行的线程能够看到 TAS 的返回值为 0 ，意味着此时还没有线程在临界区中，那么这个线程可以结束忙等进入临界区。而后会执行其他线程上的 TAS 指令，它们的返回值就是 1 了，需要忙等待进入临界区的线程退出临界区。这样就保证了互斥访问。 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 则是将全局锁标记改成 0 即可。</p>
+</div>
+<div class="section" id="risc-v">
+<h4>RISC-V 架构上的原子指令<a class="headerlink" href="#risc-v" title="永久链接至标题">#</a></h4>
+<p>如果同学还有印象的话，我们曾经在 <a class="reference internal" href="../chapter2/4trap-handling.html#trap-context-save-restore"><span class="std std-ref">第二章介绍 Trap 上下文保存与恢复</span></a> 的时候用到过一系列读写 RISC-V 控制状态寄存器（CSR）的特殊指令，比如 <code class="docutils literal notranslate"><span class="pre">csrr</span></code> ， <code class="docutils literal notranslate"><span class="pre">csrw</span></code> ，特别是 <code class="docutils literal notranslate"><span class="pre">csrrw</span></code> 等。当时我们提到这些指令也都是原子指令。现在我们更加深入的理解了原子指令的含义，同学如有兴趣可以想想这些指令为什么必须保证其原子性。</p>
+<p>除此之外， RISC-V 架构的原子拓展（Atomic，简称 A 拓展）提供了一些对于一个内存位置上的值进行原子操作的原子指令，分为两大类。其中第一类被称为原子内存操作（Atomic Memory Operation, AMO）。这类原子指令首先根据寄存器 <code class="docutils literal notranslate"><span class="pre">rs1</span></code> 保存的内存地址将值从内存载入到寄存器 <code class="docutils literal notranslate"><span class="pre">rd</span></code> 中，然后将这个载入的值与寄存器 <code class="docutils literal notranslate"><span class="pre">rs2</span></code> 中保存的值进行某种运算，并将结果写回到 <code class="docutils literal notranslate"><span class="pre">rs1</span></code> 中的地址对应的内存区域中。整个过程可以被概括为一种 <strong>read-modify-write</strong> 的三阶段操作，硬件能够保证其原子性。AMO 支持多种不同的运算，包括交换、整数加法、按位与、按位或、按位异或以及有/无符号整数最大或最小值。容易看出，这类指令能够方便地实现 <a class="reference internal" href="#ref-adder-fixed"><span class="std std-ref">adder_fixed.rs</span></a> 中 Rust 提供的 <code class="docutils literal notranslate"><span class="pre">fetch_add</span></code> 这类原子操作。</p>
+<p>RISC-V 提供的另一类原子指令被称为加载保留/条件存储（Load Reserved / Store Conditional，简称LR/SC）。</p>
+</div>
 </div>
 </div>
 <div class="section" id="id14">
@@ -956,6 +986,7 @@
 <li><p>《操作系统概念》第七版，第六章</p></li>
 <li><p>《Operating Systems: Three Easy Pieces》 <a class="reference external" href="https://pages.cs.wisc.edu/~remzi/OSTEP/threads-locks.pdf">Chapter 28 Locks</a></p></li>
 <li><p><a class="reference external" href="https://cr.yp.to/2005-590/sparcv9.pdf">《The SPARC Architecture Manual》 Version 9</a> Page 153</p></li>
+<li><p>RISC-V A Standard Extension for Atomic Instructions, Version 2.1</p></li>
 </ul>
 </div>
 </div>
@@ -1033,7 +1064,11 @@
 </li>
 <li><a class="reference internal" href="#id11">基于硬件机制及特殊指令的锁实现</a><ul>
 <li><a class="reference internal" href="#id12">关闭中断</a></li>
-<li><a class="reference internal" href="#id13">原子指令</a></li>
+<li><a class="reference internal" href="#id13">原子指令</a><ul>
+<li><a class="reference internal" href="#cas-tas">常用的 CAS 和 TAS 指令</a></li>
+<li><a class="reference internal" href="#risc-v">RISC-V 架构上的原子指令</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li><a class="reference internal" href="#id14">参考文献</a></li>
