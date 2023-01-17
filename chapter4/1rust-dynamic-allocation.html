@@ -422,8 +422,8 @@
 </div>
 <p>鉴于动态分配是一项非常基础的功能，很多高级语言的系统标准库中都实现了它。以 C 语言为例，C 标准库中提供了如下两个动态分配
 的接口函数：</p>
-<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="nf">malloc</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span><span class="w"></span>
-<span class="kt">void</span><span class="w"> </span><span class="nf">free</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">ptr</span><span class="p">);</span><span class="w"></span>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="nf">malloc</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">free</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">ptr</span><span class="p">);</span>
 </pre></div>
 </div>
 <p>其中，<code class="docutils literal notranslate"><span class="pre">malloc</span></code> 的作用是从堆中分配一块大小为 <code class="docutils literal notranslate"><span class="pre">size</span></code> 字节的空间，并返回一个指向它的指针。而后续不用的时候，将这个指针传给 <code class="docutils literal notranslate"><span class="pre">free</span></code> 即可在堆中回收这块空间。我们通过返回的指针变量来 <strong>间接</strong> 访问堆空间上的数据。事实上，我们在程序中能够 <strong>直接</strong> 看到的变量都是被静态分配在栈或者全局数据段上的，它们大小在编译期已知。比如我们可以把固定大小的指针放到栈（局部变量）或数据段（全局变量）上，然后通过指针来指向运行时才确定的堆空间上的数据，并进行访问。这样就可以通过确定大小的指针来实现对编译时大小不确定的堆数据的访问。</p>
@@ -477,8 +477,8 @@
 <p><code class="docutils literal notranslate"><span class="pre">alloc</span></code> 库需要我们提供给它一个 <code class="docutils literal notranslate"><span class="pre">全局的动态内存分配器</span></code> ，它会利用该分配器来管理堆空间，从而使得与堆相关的智能指针或容器数据结构可以正常工作。具体而言，我们的动态内存分配器需要实现它提供的 <code class="docutils literal notranslate"><span class="pre">GlobalAlloc</span></code> Trait，这个 Trait 有两个必须实现的抽象接口：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// alloc::alloc::GlobalAlloc</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">alloc</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">layout</span>: <span class="nc">Layout</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">dealloc</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">layout</span>: <span class="nc">Layout</span><span class="p">);</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">alloc</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">layout</span>: <span class="nc">Layout</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">dealloc</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">layout</span>: <span class="nc">Layout</span><span class="p">);</span>
 </pre></div>
 </div>
 <p>可以看到，它们类似 C 语言中的 <code class="docutils literal notranslate"><span class="pre">malloc/free</span></code> ，分别代表堆空间的分配和回收，也同样使用一个裸指针（也就是地址）作为分配的返回值和回收的参数。两个接口中都有一个 <code class="docutils literal notranslate"><span class="pre">alloc::alloc::Layout</span></code> 类型的参数， 它指出了分配的需求，分为两部分，分别是所需空间的大小 <code class="docutils literal notranslate"><span class="pre">size</span></code> ，以及返回地址的对齐要求 <code class="docutils literal notranslate"><span class="pre">align</span></code> 。这个对齐要求必须是一个 2 的幂次，单位为字节数，限制返回的地址必须是 <code class="docutils literal notranslate"><span class="pre">align</span></code> 的倍数。</p>
@@ -490,33 +490,33 @@
 <p>然后只需将我们的动态内存分配器类型实例化为一个全局变量，并使用 <code class="docutils literal notranslate"><span class="pre">#[global_allocator]</span></code> 语义项标记即可。由于该分配器的实现比较复杂，我们这里直接使用一个已有的伙伴分配器实现。首先添加 crate 依赖：</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/Cargo.toml</span>
 
-<span class="n">buddy_system_allocator</span> <span class="o">=</span> <span class="s">&quot;0.6&quot;</span>
+<span class="n">buddy_system_allocator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;0.6&quot;</span>
 </pre></div>
 </div>
 <p>接着，需要引入 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 库的依赖，由于它算是 Rust 内置的 crate ，我们并不是在 <code class="docutils literal notranslate"><span class="pre">Cargo.toml</span></code> 中进行引入，而是在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 中声明即可：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
 
-<span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">alloc</span><span class="p">;</span><span class="w"></span>
+<span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">alloc</span><span class="p">;</span>
 </pre></div>
 </div>
 <p>然后，根据 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 留好的接口提供全局动态内存分配器：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/mm/heap_allocator.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">use</span><span class="w"> </span><span class="n">buddy_system_allocator</span>::<span class="n">LockedHeap</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">config</span>::<span class="n">KERNEL_HEAP_SIZE</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">use</span><span class="w"> </span><span class="n">buddy_system_allocator</span>::<span class="n">LockedHeap</span><span class="p">;</span>
+<span class="linenos"> 4</span><span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">config</span>::<span class="n">KERNEL_HEAP_SIZE</span><span class="p">;</span>
 <span class="linenos"> 5</span>
-<span class="linenos"> 6</span><span class="cp">#[global_allocator]</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="k">static</span><span class="w"> </span><span class="n">HEAP_ALLOCATOR</span>: <span class="nc">LockedHeap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LockedHeap</span>::<span class="n">empty</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="cp">#[global_allocator]</span>
+<span class="linenos"> 7</span><span class="k">static</span><span class="w"> </span><span class="n">HEAP_ALLOCATOR</span>: <span class="nc">LockedHeap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LockedHeap</span>::<span class="n">empty</span><span class="p">();</span>
 <span class="linenos"> 8</span>
-<span class="linenos"> 9</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">HEAP_SPACE</span>: <span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="n">KERNEL_HEAP_SIZE</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">KERNEL_HEAP_SIZE</span><span class="p">];</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">HEAP_SPACE</span>: <span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="n">KERNEL_HEAP_SIZE</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">KERNEL_HEAP_SIZE</span><span class="p">];</span>
 <span class="linenos">10</span>
-<span class="linenos">11</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">init_heap</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">        </span><span class="n">HEAP_ALLOCATOR</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">            </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">            </span><span class="p">.</span><span class="n">init</span><span class="p">(</span><span class="n">HEAP_SPACE</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">KERNEL_HEAP_SIZE</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">17</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">11</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">init_heap</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">13</span><span class="w">        </span><span class="n">HEAP_ALLOCATOR</span>
+<span class="linenos">14</span><span class="w">            </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span>
+<span class="linenos">15</span><span class="w">            </span><span class="p">.</span><span class="n">init</span><span class="p">(</span><span class="n">HEAP_SPACE</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">KERNEL_HEAP_SIZE</span><span class="p">);</span>
+<span class="linenos">16</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">17</span><span class="p">}</span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -526,43 +526,43 @@
 <p>我们还需要处理动态内存分配失败的情形，在这种情况下我们直接 panic ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
 
-<span class="cp">#![feature(alloc_error_handler)]</span><span class="w"></span>
+<span class="cp">#![feature(alloc_error_handler)]</span>
 
 <span class="c1">// os/src/mm/heap_allocator.rs</span>
 
-<span class="cp">#[alloc_error_handler]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">handle_alloc_error</span><span class="p">(</span><span class="n">layout</span>: <span class="nc">core</span>::<span class="n">alloc</span>::<span class="n">Layout</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Heap allocation error, layout = {:?}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">layout</span><span class="p">);</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="cp">#[alloc_error_handler]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">handle_alloc_error</span><span class="p">(</span><span class="n">layout</span>: <span class="nc">core</span>::<span class="n">alloc</span>::<span class="n">Layout</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Heap allocation error, layout = {:?}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">layout</span><span class="p">);</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>最后，让我们尝试一下动态内存分配吧！感兴趣的同学可以在 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 中尝试调用下面的 <code class="docutils literal notranslate"><span class="pre">heap_test</span></code> 函数（调用 <code class="docutils literal notranslate"><span class="pre">heap_test()</span></code> 前要记得先调用 <code class="docutils literal notranslate"><span class="pre">init_heap()</span></code> ）。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/mm/heap_allocator.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="cp">#[allow(unused)]</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">heap_test</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">boxed</span>::<span class="nb">Box</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">vec</span>::<span class="nb">Vec</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">        </span><span class="k">fn</span> <span class="nf">sbss</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">        </span><span class="k">fn</span> <span class="nf">ebss</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">bss_range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sbss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="o">..</span><span class="n">ebss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Box</span>::<span class="n">new</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">bss_range</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="o">&amp;</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">as_ref</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)));</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">a</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">usize</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">500</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">i</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">500</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">bss_range</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="o">&amp;</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)));</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">v</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;heap_test passed!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">26</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="cp">#[allow(unused)]</span>
+<span class="linenos"> 4</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">heap_test</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">boxed</span>::<span class="nb">Box</span><span class="p">;</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">vec</span>::<span class="nb">Vec</span><span class="p">;</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="k">fn</span> <span class="nf">sbss</span><span class="p">();</span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="k">fn</span> <span class="nf">ebss</span><span class="p">();</span>
+<span class="linenos">10</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">11</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">bss_range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sbss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="o">..</span><span class="n">ebss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
+<span class="linenos">12</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Box</span>::<span class="n">new</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span>
+<span class="linenos">13</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<span class="linenos">14</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">bss_range</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="o">&amp;</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">as_ref</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)));</span>
+<span class="linenos">15</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">a</span><span class="p">);</span>
+<span class="linenos">16</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">usize</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span>
+<span class="linenos">17</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">500</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">18</span><span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+<span class="linenos">19</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">20</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">500</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">21</span><span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
+<span class="linenos">22</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">23</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">bss_range</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="o">&amp;</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)));</span>
+<span class="linenos">24</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">v</span><span class="p">);</span>
+<span class="linenos">25</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;heap_test passed!&quot;</span><span class="p">);</span>
+<span class="linenos">26</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>其中分别使用智能指针 <code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 和向量 <code class="docutils literal notranslate"><span class="pre">Vec&lt;T&gt;</span></code> 在堆上分配数据并管理它们，通过 <code class="docutils literal notranslate"><span class="pre">as_ref</span></code> 和 <code class="docutils literal notranslate"><span class="pre">as_ptr</span></code> 方法可以分别看到它们指向的数据的位置，能够确认它们的确在位于 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的堆上。</p>
@@ -690,5 +690,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

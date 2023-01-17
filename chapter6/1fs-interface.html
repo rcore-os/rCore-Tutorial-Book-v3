@@ -398,8 +398,8 @@
 <h3>常规文件<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
 <p>在操作系统的用户看来，常规文件是保存在持久存储设备上的一个字节序列，每个常规文件都有一个 <strong>文件名</strong> (Filename) ，用户需要通过它来区分不同的常规文件。方便起见，在下面的描述中，“文件”有可能指的是常规文件、目录，也可能是之前提到的若干种进程可以读写的 标准输出、标准输入、管道等I/O 资源，请同学自行根据上下文判断取哪种含义。</p>
 <p>在 Linux 系统上， <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具可以获取文件的一些信息。下面以我们项目中的一个源代码文件 <code class="docutils literal notranslate"><span class="pre">os/src/main.rs</span></code> 为例：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> os/src/
-<span class="gp">$ </span>stat main.rs
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>os/src/
+<span class="gp">$ </span>stat<span class="w"> </span>main.rs
 <span class="go">File: main.rs</span>
 <span class="go">Size: 940           Blocks: 8          IO Block: 4096   regular file</span>
 <span class="go">Device: 801h/2049d  Inode: 4975        Links: 1</span>
@@ -423,8 +423,8 @@
 <li><p>Access/Modify 分别给出该文件的最近一次访问/最近一次修改时间。</p></li>
 </ul>
 <p>如果我们使用 <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具查看一个能在我们内核上执行的 ELF 可执行文件：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> user/target/riscv64gc-unknown-none-elf/release/
-<span class="gp">$ </span>stat user_shell
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>user/target/riscv64gc-unknown-none-elf/release/
+<span class="gp">$ </span>stat<span class="w"> </span>user_shell
 <span class="go">File: user_shell</span>
 <span class="go">Size: 85712         Blocks: 168        IO Block: 4096   regular file</span>
 <span class="go">Device: 801h/2049d  Inode: 1460936     Links: 2</span>
@@ -442,7 +442,7 @@
 <h3>目录<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
 <p>最早的文件系统仅仅通过文件名来区分文件，但是这会造成一些归档和管理上的困难。如今我们的使用习惯是将文件根据功能、属性的不同分类归档到不同层级的目录之下。这样我们就很容易逐级找到想要的文件。结合用户和用户组的概念，目录的存在也使得文件访问权限控制更加容易，只需要对于目录进行设置就可以间接设置用户/用户组对该目录下所有文件的访问权限，这使得操作系统能够更加安全的支持多用户情况下对不同文件的访问。</p>
 <p>同样可以通过 <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具获取目录的一些信息：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>stat os
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>stat<span class="w"> </span>os
 <span class="go">File: os</span>
 <span class="go">Size: 4096          Blocks: 8          IO Block: 4096   directory</span>
 <span class="go">Device: 801h/2049d  Inode: 4982        Links: 5</span>
@@ -517,29 +517,29 @@
 <p>在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中，我们将该系统调用封装为 <code class="docutils literal notranslate"><span class="pre">open</span></code> 接口：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
 
-<span class="n">bitflags</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">OpenFlags</span>: <span class="kt">u32</span> <span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">RDONLY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">WRONLY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">RDWR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">CREATE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">9</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">TRUNC</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="n">bitflags</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">OpenFlags</span>: <span class="kt">u32</span> <span class="p">{</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">RDONLY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">WRONLY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">RDWR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">CREATE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">9</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">TRUNC</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">open</span><span class="p">(</span><span class="n">path</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="nc">OpenFlags</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">sys_open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span><span class="p">.</span><span class="n">bits</span><span class="p">)</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">open</span><span class="p">(</span><span class="n">path</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="nc">OpenFlags</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="n">sys_open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span><span class="p">.</span><span class="n">bits</span><span class="p">)</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>借助 <code class="docutils literal notranslate"><span class="pre">bitflags!</span></code> 宏我们将一个 <code class="docutils literal notranslate"><span class="pre">u32</span></code> 的 flags 包装为一个 <code class="docutils literal notranslate"><span class="pre">OpenFlags</span></code> 结构体更易使用，它的 <code class="docutils literal notranslate"><span class="pre">bits</span></code> 字段可以将自身转回 <code class="docutils literal notranslate"><span class="pre">u32</span></code> ，它也会被传给 <code class="docutils literal notranslate"><span class="pre">sys_open</span></code>。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/syscall.rs</span>
 
-<span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_OPEN</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">56</span><span class="p">;</span><span class="w"></span>
+<span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_OPEN</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">56</span><span class="p">;</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_open</span><span class="p">(</span><span class="n">path</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_OPEN</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">path</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_open</span><span class="p">(</span><span class="n">path</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_OPEN</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">path</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 传给内核的参数只有待打开文件的文件名字符串的起始地址（和之前一样，我们需要保证该字符串以 <code class="docutils literal notranslate"><span class="pre">\0</span></code> 结尾）还有标志位。由于每个通用寄存器为 64 位，我们需要先将 <code class="docutils literal notranslate"><span class="pre">u32</span></code> 的 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 转换为 <code class="docutils literal notranslate"><span class="pre">usize</span></code> 。</p>
@@ -552,14 +552,14 @@
 <span class="sd">/// 返回值：如果成功关闭则返回 0 ，否则返回 -1 。可能的出错原因：传入的文件描述符并不对应一个打开的文件。</span>
 
 <span class="c1">// usr/src/lib.rs</span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">close</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_close</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">close</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"> </span><span class="n">sys_close</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
 
 <span class="c1">// user/src/syscall.rs</span>
-<span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_CLOSE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">57</span><span class="p">;</span><span class="w"></span>
+<span class="k">const</span><span class="w"> </span><span class="n">SYSCALL_CLOSE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">57</span><span class="p">;</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_close</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_CLOSE</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_close</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_CLOSE</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 </div>
@@ -570,44 +570,44 @@
 <p id="filetest-simple">下面我们从本章的测试用例 <code class="docutils literal notranslate"><span class="pre">filetest_simple</span></code> 来介绍文件系统接口的使用方法：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/filetest_simple.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="cp">#![no_std]</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="cp">#![no_main]</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="cp">#![no_std]</span>
+<span class="linenos"> 4</span><span class="cp">#![no_main]</span>
 <span class="linenos"> 5</span>
-<span class="linenos"> 6</span><span class="cp">#[macro_use]</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="cp">#[macro_use]</span>
+<span class="linenos"> 7</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span>
 <span class="linenos"> 8</span>
-<span class="linenos"> 9</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="n">open</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="n">close</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="n">read</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="n">write</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="n">OpenFlags</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">15</span><span class="p">};</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span>
+<span class="linenos">10</span><span class="w">    </span><span class="n">open</span><span class="p">,</span>
+<span class="linenos">11</span><span class="w">    </span><span class="n">close</span><span class="p">,</span>
+<span class="linenos">12</span><span class="w">    </span><span class="n">read</span><span class="p">,</span>
+<span class="linenos">13</span><span class="w">    </span><span class="n">write</span><span class="p">,</span>
+<span class="linenos">14</span><span class="w">    </span><span class="n">OpenFlags</span><span class="p">,</span>
+<span class="linenos">15</span><span class="p">};</span>
 <span class="linenos">16</span>
-<span class="linenos">17</span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="linenos">18</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">test_str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Hello, world!&quot;</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">filea</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;filea</span><span class="se">\0</span><span class="s">&quot;</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="n">filea</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">CREATE</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">WRONLY</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">    </span><span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">test_str</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">());</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">17</span><span class="cp">#[no_mangle]</span>
+<span class="linenos">18</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
+<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">test_str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Hello, world!&quot;</span><span class="p">;</span>
+<span class="linenos">20</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">filea</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;filea</span><span class="se">\0</span><span class="s">&quot;</span><span class="p">;</span>
+<span class="linenos">21</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="n">filea</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">CREATE</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">WRONLY</span><span class="p">);</span>
+<span class="linenos">22</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="linenos">23</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
+<span class="linenos">24</span><span class="w">    </span><span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">test_str</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">());</span>
+<span class="linenos">25</span><span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
 <span class="linenos">26</span>
-<span class="linenos">27</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="n">filea</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">29</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">30</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">100</span><span class="p">];</span><span class="w"></span>
-<span class="linenos">31</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">read_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">32</span><span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">27</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="n">filea</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">);</span>
+<span class="linenos">28</span><span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="linenos">29</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
+<span class="linenos">30</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">100</span><span class="p">];</span>
+<span class="linenos">31</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">read_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
+<span class="linenos">32</span><span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
 <span class="linenos">33</span>
-<span class="linenos">34</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">35</span><span class="w">        </span><span class="n">test_str</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">36</span><span class="w">        </span><span class="n">core</span>::<span class="kt">str</span>::<span class="n">from_utf8</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buffer</span><span class="p">[</span><span class="o">..</span><span class="n">read_len</span><span class="p">]).</span><span class="n">unwrap</span><span class="p">(),</span><span class="w"></span>
-<span class="linenos">37</span><span class="w">    </span><span class="p">);</span><span class="w"></span>
-<span class="linenos">38</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;file_test passed!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">39</span><span class="w">    </span><span class="mi">0</span><span class="w"></span>
-<span class="linenos">40</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">34</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span>
+<span class="linenos">35</span><span class="w">        </span><span class="n">test_str</span><span class="p">,</span>
+<span class="linenos">36</span><span class="w">        </span><span class="n">core</span>::<span class="kt">str</span>::<span class="n">from_utf8</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buffer</span><span class="p">[</span><span class="o">..</span><span class="n">read_len</span><span class="p">]).</span><span class="n">unwrap</span><span class="p">(),</span>
+<span class="linenos">37</span><span class="w">    </span><span class="p">);</span>
+<span class="linenos">38</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;file_test passed!&quot;</span><span class="p">);</span>
+<span class="linenos">39</span><span class="w">    </span><span class="mi">0</span>
+<span class="linenos">40</span><span class="p">}</span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -742,5 +742,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

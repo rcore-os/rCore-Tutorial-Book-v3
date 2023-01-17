@@ -408,11 +408,11 @@
 <p>我们创建内核地址空间的全局实例：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/memory_set.rs</span>
 
-<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">KERNEL_SPACE</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">UPSafeCell</span><span class="o">&lt;</span><span class="n">MemorySet</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">MemorySet</span>::<span class="n">new_kernel</span><span class="p">()</span><span class="w"></span>
-<span class="w">    </span><span class="p">)});</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">KERNEL_SPACE</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">UPSafeCell</span><span class="o">&lt;</span><span class="n">MemorySet</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">MemorySet</span>::<span class="n">new_kernel</span><span class="p">()</span>
+<span class="w">    </span><span class="p">)});</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>从之前对于 <code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code> 宏的介绍可知， <code class="docutils literal notranslate"><span class="pre">KERNEL_SPACE</span></code> 在运行期间它第一次被用到时才会实际进行初始化，而它所
@@ -421,13 +421,13 @@
 <p>在 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 函数中，我们首先调用 <code class="docutils literal notranslate"><span class="pre">mm::init</span></code> 进行内存管理子系统的初始化：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/mod.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">use</span><span class="w"> </span><span class="n">memory_set</span>::<span class="n">KERNEL_SPACE</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">use</span><span class="w"> </span><span class="n">memory_set</span>::<span class="n">KERNEL_SPACE</span><span class="p">;</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">heap_allocator</span>::<span class="n">init_heap</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="n">frame_allocator</span>::<span class="n">init_frame_allocator</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">activate</span><span class="p">();</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">heap_allocator</span>::<span class="n">init_heap</span><span class="p">();</span>
+<span class="w">    </span><span class="n">frame_allocator</span>::<span class="n">init_frame_allocator</span><span class="p">();</span>
+<span class="w">    </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">activate</span><span class="p">();</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>可以看到，我们最先进行了全局动态内存分配器的初始化，因为接下来马上就要用到 Rust 的堆数据结构。接下来我们初始化物理页帧管理器（内含堆数据结构 <code class="docutils literal notranslate"><span class="pre">Vec&lt;T&gt;</span></code> ）使能可用物理页帧的分配和回收能力。最后我们创建内核地址空间并让 CPU 开启分页模式， MMU 在地址转换的时候使用内核的多级页表，这一切均在一行之内做到：</p>
@@ -443,21 +443,21 @@
 <blockquote>
 <div><div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/mm/page_table.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">token</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="mi">8</span><span class="k">usize</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">60</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">root_ppn</span><span class="p">.</span><span class="mi">0</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">token</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="mi">8</span><span class="k">usize</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">60</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">root_ppn</span><span class="p">.</span><span class="mi">0</span>
+<span class="linenos"> 5</span><span class="p">}</span>
 <span class="linenos"> 6</span>
 <span class="linenos"> 7</span><span class="c1">// os/src/mm/memory_set.rs</span>
 <span class="linenos"> 8</span>
-<span class="linenos"> 9</span><span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">activate</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">satp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">page_table</span><span class="p">.</span><span class="n">token</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">            </span><span class="n">satp</span>::<span class="n">write</span><span class="p">(</span><span class="n">satp</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">            </span><span class="fm">asm!</span><span class="p">(</span><span class="s">&quot;sfence.vma&quot;</span><span class="w"> </span>:::: <span class="s">&quot;volatile&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">17</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">10</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">activate</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">11</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">satp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">page_table</span><span class="p">.</span><span class="n">token</span><span class="p">();</span>
+<span class="linenos">12</span><span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">13</span><span class="w">            </span><span class="n">satp</span>::<span class="n">write</span><span class="p">(</span><span class="n">satp</span><span class="p">);</span>
+<span class="linenos">14</span><span class="w">            </span><span class="fm">asm!</span><span class="p">(</span><span class="s">&quot;sfence.vma&quot;</span><span class="w"> </span>:::: <span class="s">&quot;volatile&quot;</span><span class="p">);</span>
+<span class="linenos">15</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">16</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">17</span><span class="p">}</span>
 </pre></div>
 </div>
 </div></blockquote>
@@ -480,25 +480,25 @@
 <p>调用 <code class="docutils literal notranslate"><span class="pre">mm::init</span></code> 之后我们就使能了内核动态内存分配、物理页帧管理，还启用了分页模式进入了内核地址空间。之后我们可以通过 <code class="docutils literal notranslate"><span class="pre">mm::remap_test</span></code> 来检查内核地址空间的多级页表是否被正确设置：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/memory_set.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">remap_test</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">kernel_space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">mid_text</span>: <span class="nc">VirtAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">stext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">etext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">).</span><span class="n">into</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">mid_rodata</span>: <span class="nc">VirtAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">srodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">erodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">).</span><span class="n">into</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">mid_data</span>: <span class="nc">VirtAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">sdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">edata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">).</span><span class="n">into</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="w"></span>
-<span class="w">        </span><span class="n">kernel_space</span><span class="p">.</span><span class="n">page_table</span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">mid_text</span><span class="p">.</span><span class="n">floor</span><span class="p">()).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">writable</span><span class="p">(),</span><span class="w"></span>
-<span class="w">        </span><span class="kc">false</span><span class="w"></span>
-<span class="w">    </span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="w"></span>
-<span class="w">        </span><span class="n">kernel_space</span><span class="p">.</span><span class="n">page_table</span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">mid_rodata</span><span class="p">.</span><span class="n">floor</span><span class="p">()).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">writable</span><span class="p">(),</span><span class="w"></span>
-<span class="w">        </span><span class="kc">false</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="w"></span>
-<span class="w">        </span><span class="n">kernel_space</span><span class="p">.</span><span class="n">page_table</span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">mid_data</span><span class="p">.</span><span class="n">floor</span><span class="p">()).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">executable</span><span class="p">(),</span><span class="w"></span>
-<span class="w">        </span><span class="kc">false</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;remap_test passed!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">remap_test</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">kernel_space</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">mid_text</span>: <span class="nc">VirtAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">stext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">etext</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">).</span><span class="n">into</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">mid_rodata</span>: <span class="nc">VirtAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">srodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">erodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">).</span><span class="n">into</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">mid_data</span>: <span class="nc">VirtAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">sdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">edata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">).</span><span class="n">into</span><span class="p">();</span>
+<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span>
+<span class="w">        </span><span class="n">kernel_space</span><span class="p">.</span><span class="n">page_table</span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">mid_text</span><span class="p">.</span><span class="n">floor</span><span class="p">()).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">writable</span><span class="p">(),</span>
+<span class="w">        </span><span class="kc">false</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span>
+<span class="w">        </span><span class="n">kernel_space</span><span class="p">.</span><span class="n">page_table</span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">mid_rodata</span><span class="p">.</span><span class="n">floor</span><span class="p">()).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">writable</span><span class="p">(),</span>
+<span class="w">        </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span>
+<span class="w">        </span><span class="n">kernel_space</span><span class="p">.</span><span class="n">page_table</span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">mid_data</span><span class="p">.</span><span class="n">floor</span><span class="p">()).</span><span class="n">unwrap</span><span class="p">().</span><span class="n">executable</span><span class="p">(),</span>
+<span class="w">        </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;remap_test passed!&quot;</span><span class="p">);</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>在上述函数的实现中，分别通过手动查内核多级页表的方式验证代码段和只读数据段不允许被写入，同时不允许从数据段上取指执行。</p>
@@ -523,15 +523,15 @@
 <p>为了方便实现，我们在 Trap 上下文中包含更多内容（和我们关于上下文的定义有些不同，它们在初始化之后便只会被读取而不会被写入，并不是每次都需要保存/恢复）：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/trap/context.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="cp">#[repr(C)]</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TrapContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">x</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">32</span><span class="p">],</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">sstatus</span>: <span class="nc">Sstatus</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">sepc</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="hll"><span class="linenos"> 8</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">kernel_satp</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-</span><span class="hll"><span class="linenos"> 9</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">kernel_sp</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">10</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_handler</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-</span><span class="linenos">11</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="cp">#[repr(C)]</span>
+<span class="linenos"> 4</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TrapContext</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">x</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="mi">32</span><span class="p">],</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">sstatus</span>: <span class="nc">Sstatus</span><span class="p">,</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">sepc</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="hll"><span class="linenos"> 8</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">kernel_satp</span>: <span class="kt">usize</span><span class="p">,</span>
+</span><span class="hll"><span class="linenos"> 9</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">kernel_sp</span>: <span class="kt">usize</span><span class="p">,</span>
+</span><span class="hll"><span class="linenos">10</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_handler</span>: <span class="kt">usize</span><span class="p">,</span>
+</span><span class="linenos">11</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>在多出的三个字段中：</p>
@@ -547,68 +547,68 @@
 <p>让我们来看一下现在的 <code class="docutils literal notranslate"><span class="pre">__alltraps</span></code> 和 <code class="docutils literal notranslate"><span class="pre">__restore</span></code> 各是如何在保存和恢复 Trap 上下文的同时也切换地址空间的：</p>
 <div class="highlight-riscv notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c"># os/src/trap/trap.S</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="w">    </span><span class="nf">.section</span><span class="w"> </span><span class="nf">.text.trampoline</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="nf">.globl</span><span class="w"> </span><span class="nb">__alltraps</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="nf">.globl</span><span class="w"> </span><span class="nb">__restore</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="nf">.align</span><span class="w"> </span><span class="m">2</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="nb">__alltraps:</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="nd">csrrw</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="no">sscratch</span>,<span class="w"> </span><span class="na">sp</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="nf">.section</span><span class="w"> </span><span class="nf">.text.trampoline</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="nf">.globl</span><span class="w"> </span><span class="nb">__alltraps</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="nf">.globl</span><span class="w"> </span><span class="nb">__restore</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="nf">.align</span><span class="w"> </span><span class="m">2</span>
+<span class="linenos"> 7</span><span class="nb">__alltraps:</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="nd">csrrw</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="no">sscratch</span>,<span class="w"> </span><span class="na">sp</span>
 <span class="linenos"> 9</span><span class="w">    </span><span class="c"># now sp-&gt;*TrapContext in user space, sscratch-&gt;user stack</span>
 <span class="linenos">10</span><span class="w">    </span><span class="c"># save other general purpose registers</span>
-<span class="linenos">11</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">x1</span>,<span class="w"> </span><span class="m">1</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="linenos">11</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">x1</span>,<span class="w"> </span><span class="m">1</span>*<span class="m">8</span>(<span class="na">sp</span>)
 <span class="linenos">12</span><span class="w">    </span><span class="c"># skip sp(x2), we will save it later</span>
-<span class="linenos">13</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">x3</span>,<span class="w"> </span><span class="m">3</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="linenos">13</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">x3</span>,<span class="w"> </span><span class="m">3</span>*<span class="m">8</span>(<span class="na">sp</span>)
 <span class="linenos">14</span><span class="w">    </span><span class="c"># skip tp(x4), application does not use it</span>
 <span class="linenos">15</span><span class="w">    </span><span class="c"># save x5~x31</span>
-<span class="linenos">16</span><span class="w">    </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="m">5</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">    </span><span class="nf">.rept</span><span class="w"> </span><span class="m">27</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">        </span><span class="nb">SAVE_GP</span><span class="w"> </span>%<span class="ni">n</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">        </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="ni">n</span>+<span class="m">1</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">    </span><span class="nf">.endr</span><span class="w"></span>
+<span class="linenos">16</span><span class="w">    </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="m">5</span>
+<span class="linenos">17</span><span class="w">    </span><span class="nf">.rept</span><span class="w"> </span><span class="m">27</span>
+<span class="linenos">18</span><span class="w">        </span><span class="nb">SAVE_GP</span><span class="w"> </span>%<span class="ni">n</span>
+<span class="linenos">19</span><span class="w">        </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="ni">n</span>+<span class="m">1</span>
+<span class="linenos">20</span><span class="w">    </span><span class="nf">.endr</span>
 <span class="linenos">21</span><span class="w">    </span><span class="c"># we can use t0/t1/t2 freely, because they have been saved in TrapContext</span>
-<span class="linenos">22</span><span class="w">    </span><span class="nd">csrr</span><span class="w"> </span><span class="na">t0</span>,<span class="w"> </span><span class="no">sstatus</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">    </span><span class="nd">csrr</span><span class="w"> </span><span class="na">t1</span>,<span class="w"> </span><span class="no">sepc</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">t0</span>,<span class="w"> </span><span class="m">32</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
-<span class="linenos">25</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">t1</span>,<span class="w"> </span><span class="m">33</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="linenos">22</span><span class="w">    </span><span class="nd">csrr</span><span class="w"> </span><span class="na">t0</span>,<span class="w"> </span><span class="no">sstatus</span>
+<span class="linenos">23</span><span class="w">    </span><span class="nd">csrr</span><span class="w"> </span><span class="na">t1</span>,<span class="w"> </span><span class="no">sepc</span>
+<span class="linenos">24</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">t0</span>,<span class="w"> </span><span class="m">32</span>*<span class="m">8</span>(<span class="na">sp</span>)
+<span class="linenos">25</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">t1</span>,<span class="w"> </span><span class="m">33</span>*<span class="m">8</span>(<span class="na">sp</span>)
 <span class="linenos">26</span><span class="w">    </span><span class="c"># read user stack from sscratch and save it in TrapContext</span>
-<span class="linenos">27</span><span class="w">    </span><span class="nd">csrr</span><span class="w"> </span><span class="na">t2</span>,<span class="w"> </span><span class="no">sscratch</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">t2</span>,<span class="w"> </span><span class="m">2</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="linenos">27</span><span class="w">    </span><span class="nd">csrr</span><span class="w"> </span><span class="na">t2</span>,<span class="w"> </span><span class="no">sscratch</span>
+<span class="linenos">28</span><span class="w">    </span><span class="nd">sd</span><span class="w"> </span><span class="na">t2</span>,<span class="w"> </span><span class="m">2</span>*<span class="m">8</span>(<span class="na">sp</span>)
 <span class="linenos">29</span><span class="w">    </span><span class="c"># load kernel_satp into t0</span>
-<span class="linenos">30</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">t0</span>,<span class="w"> </span><span class="m">34</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="linenos">30</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">t0</span>,<span class="w"> </span><span class="m">34</span>*<span class="m">8</span>(<span class="na">sp</span>)
 <span class="linenos">31</span><span class="w">    </span><span class="c"># load trap_handler into t1</span>
-<span class="linenos">32</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">t1</span>,<span class="w"> </span><span class="m">36</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="linenos">32</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">t1</span>,<span class="w"> </span><span class="m">36</span>*<span class="m">8</span>(<span class="na">sp</span>)
 <span class="linenos">33</span><span class="w">    </span><span class="c"># move to kernel_sp</span>
-<span class="linenos">34</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">35</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="linenos">34</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">35</span>*<span class="m">8</span>(<span class="na">sp</span>)
 <span class="linenos">35</span><span class="w">    </span><span class="c"># switch to kernel space</span>
-<span class="linenos">36</span><span class="w">    </span><span class="nd">csrw</span><span class="w"> </span><span class="no">satp</span>,<span class="w"> </span><span class="na">t0</span><span class="w"></span>
-<span class="linenos">37</span><span class="w">    </span><span class="nd">sfence.vma</span><span class="w"></span>
+<span class="linenos">36</span><span class="w">    </span><span class="nd">csrw</span><span class="w"> </span><span class="no">satp</span>,<span class="w"> </span><span class="na">t0</span>
+<span class="linenos">37</span><span class="w">    </span><span class="nd">sfence.vma</span>
 <span class="linenos">38</span><span class="w">    </span><span class="c"># jump to trap_handler</span>
-<span class="linenos">39</span><span class="w">    </span><span class="nd">jr</span><span class="w"> </span><span class="na">t1</span><span class="w"></span>
+<span class="linenos">39</span><span class="w">    </span><span class="nd">jr</span><span class="w"> </span><span class="na">t1</span>
 <span class="linenos">40</span>
-<span class="linenos">41</span><span class="nb">__restore:</span><span class="w"></span>
+<span class="linenos">41</span><span class="nb">__restore:</span>
 <span class="linenos">42</span><span class="w">    </span><span class="c"># a0: *TrapContext in user space(Constant); a1: user space token</span>
 <span class="linenos">43</span><span class="w">    </span><span class="c"># switch to user space</span>
-<span class="linenos">44</span><span class="w">    </span><span class="nd">csrw</span><span class="w"> </span><span class="no">satp</span>,<span class="w"> </span><span class="na">a1</span><span class="w"></span>
-<span class="linenos">45</span><span class="w">    </span><span class="nd">sfence.vma</span><span class="w"></span>
-<span class="linenos">46</span><span class="w">    </span><span class="nd">csrw</span><span class="w"> </span><span class="no">sscratch</span>,<span class="w"> </span><span class="na">a0</span><span class="w"></span>
-<span class="linenos">47</span><span class="w">    </span><span class="nd">mv</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="na">a0</span><span class="w"></span>
+<span class="linenos">44</span><span class="w">    </span><span class="nd">csrw</span><span class="w"> </span><span class="no">satp</span>,<span class="w"> </span><span class="na">a1</span>
+<span class="linenos">45</span><span class="w">    </span><span class="nd">sfence.vma</span>
+<span class="linenos">46</span><span class="w">    </span><span class="nd">csrw</span><span class="w"> </span><span class="no">sscratch</span>,<span class="w"> </span><span class="na">a0</span>
+<span class="linenos">47</span><span class="w">    </span><span class="nd">mv</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="na">a0</span>
 <span class="linenos">48</span><span class="w">    </span><span class="c"># now sp points to TrapContext in user space, start restoring based on it</span>
 <span class="linenos">49</span><span class="w">    </span><span class="c"># restore sstatus/sepc</span>
-<span class="linenos">50</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">t0</span>,<span class="w"> </span><span class="m">32</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
-<span class="linenos">51</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">t1</span>,<span class="w"> </span><span class="m">33</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
-<span class="linenos">52</span><span class="w">    </span><span class="nd">csrw</span><span class="w"> </span><span class="no">sstatus</span>,<span class="w"> </span><span class="na">t0</span><span class="w"></span>
-<span class="linenos">53</span><span class="w">    </span><span class="nd">csrw</span><span class="w"> </span><span class="no">sepc</span>,<span class="w"> </span><span class="na">t1</span><span class="w"></span>
+<span class="linenos">50</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">t0</span>,<span class="w"> </span><span class="m">32</span>*<span class="m">8</span>(<span class="na">sp</span>)
+<span class="linenos">51</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">t1</span>,<span class="w"> </span><span class="m">33</span>*<span class="m">8</span>(<span class="na">sp</span>)
+<span class="linenos">52</span><span class="w">    </span><span class="nd">csrw</span><span class="w"> </span><span class="no">sstatus</span>,<span class="w"> </span><span class="na">t0</span>
+<span class="linenos">53</span><span class="w">    </span><span class="nd">csrw</span><span class="w"> </span><span class="no">sepc</span>,<span class="w"> </span><span class="na">t1</span>
 <span class="linenos">54</span><span class="w">    </span><span class="c"># restore general purpose registers except x0/sp/tp</span>
-<span class="linenos">55</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">x1</span>,<span class="w"> </span><span class="m">1</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
-<span class="linenos">56</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">x3</span>,<span class="w"> </span><span class="m">3</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
-<span class="linenos">57</span><span class="w">    </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="m">5</span><span class="w"></span>
-<span class="linenos">58</span><span class="w">    </span><span class="nf">.rept</span><span class="w"> </span><span class="m">27</span><span class="w"></span>
-<span class="linenos">59</span><span class="w">        </span><span class="nb">LOAD_GP</span><span class="w"> </span>%<span class="ni">n</span><span class="w"></span>
-<span class="linenos">60</span><span class="w">        </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="ni">n</span>+<span class="m">1</span><span class="w"></span>
-<span class="linenos">61</span><span class="w">    </span><span class="nf">.endr</span><span class="w"></span>
+<span class="linenos">55</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">x1</span>,<span class="w"> </span><span class="m">1</span>*<span class="m">8</span>(<span class="na">sp</span>)
+<span class="linenos">56</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">x3</span>,<span class="w"> </span><span class="m">3</span>*<span class="m">8</span>(<span class="na">sp</span>)
+<span class="linenos">57</span><span class="w">    </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="m">5</span>
+<span class="linenos">58</span><span class="w">    </span><span class="nf">.rept</span><span class="w"> </span><span class="m">27</span>
+<span class="linenos">59</span><span class="w">        </span><span class="nb">LOAD_GP</span><span class="w"> </span>%<span class="ni">n</span>
+<span class="linenos">60</span><span class="w">        </span><span class="nf">.set</span><span class="w"> </span><span class="ni">n</span>,<span class="w"> </span><span class="ni">n</span>+<span class="m">1</span>
+<span class="linenos">61</span><span class="w">    </span><span class="nf">.endr</span>
 <span class="linenos">62</span><span class="w">    </span><span class="c"># back to user stack</span>
-<span class="linenos">63</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">2</span>*<span class="m">8</span>(<span class="na">sp</span>)<span class="w"></span>
-<span class="linenos">64</span><span class="w">    </span><span class="nd">sret</span><span class="w"></span>
+<span class="linenos">63</span><span class="w">    </span><span class="nd">ld</span><span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">2</span>*<span class="m">8</span>(<span class="na">sp</span>)
+<span class="linenos">64</span><span class="w">    </span><span class="nd">sret</span>
 </pre></div>
 </div>
 <ul>
@@ -639,17 +639,17 @@
 <div class="section" id="id9">
 <h3>建立跳板页面<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
 <p>接下来还需要考虑切换地址空间前后指令能否仍能连续执行。可以看到我们将 <code class="docutils literal notranslate"><span class="pre">trap.S</span></code> 中的整段汇编代码放置在 <code class="docutils literal notranslate"><span class="pre">.text.trampoline</span></code> 段，并在调整内存布局的时候将它对齐到代码段的一个页面中：</p>
-<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span># os/src/linker.ld
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="w"># os/src/linker.ld</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span>    stext = .;
-<span class="linenos"> 4</span>    .text : {
-<span class="linenos"> 5</span>        *(.text.entry)
+<span class="linenos"> 3</span><span class="w"> </span>   stext = .;
+<span class="linenos"> 4</span><span class="w"> </span>   .text : {
+<span class="linenos"> 5</span><span class="w"> </span>       *(.text.entry)
 <span class="linenos"> 6</span><span class="gi">+        . = ALIGN(4K);</span>
 <span class="linenos"> 7</span><span class="gi">+        strampoline = .;</span>
 <span class="linenos"> 8</span><span class="gi">+        *(.text.trampoline);</span>
 <span class="linenos"> 9</span><span class="gi">+        . = ALIGN(4K);</span>
-<span class="linenos">10</span>        *(.text .text.*)
-<span class="linenos">11</span>    }
+<span class="linenos">10</span><span class="w"> </span>       *(.text .text.*)
+<span class="linenos">11</span><span class="w"> </span>   }
 </pre></div>
 </div>
 <p>这样，这段汇编代码放在一个物理页帧中，且 <code class="docutils literal notranslate"><span class="pre">__alltraps</span></code> 恰好位于这个物理页帧的开头，其物理地址被外部符号 <code class="docutils literal notranslate"><span class="pre">strampoline</span></code> 标记。在开启分页模式之后，内核和应用代码都只能看到各自的虚拟地址空间，而在它们的视角中，这段汇编代码都被放在它们各自地址空间的最高虚拟页面上，由于这段汇编代码在执行的时候涉及到地址空间切换，故而被称为跳板页面。</p>
@@ -657,20 +657,20 @@
 <p>现在可以说明我们在创建用户/内核地址空间中用到的 <code class="docutils literal notranslate"><span class="pre">map_trampoline</span></code> 是如何实现的了：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/config.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">TRAMPOLINE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="kt">usize</span>::<span class="n">MAX</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">TRAMPOLINE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="kt">usize</span>::<span class="n">MAX</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
 <span class="linenos"> 4</span>
 <span class="linenos"> 5</span><span class="c1">// os/src/mm/memory_set.rs</span>
 <span class="linenos"> 6</span>
-<span class="linenos"> 7</span><span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos"> 8</span><span class="w">    </span><span class="sd">/// Mention that trampoline is not collected by areas.</span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="k">fn</span> <span class="nf">map_trampoline</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">page_table</span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">            </span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">TRAMPOLINE</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">            </span><span class="n">PhysAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">strampoline</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">            </span><span class="n">PTEFlags</span>::<span class="n">R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTEFlags</span>::<span class="n">X</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">        </span><span class="p">);</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">16</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="k">fn</span> <span class="nf">map_trampoline</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">10</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">page_table</span><span class="p">.</span><span class="n">map</span><span class="p">(</span>
+<span class="linenos">11</span><span class="w">            </span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">TRAMPOLINE</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span>
+<span class="linenos">12</span><span class="w">            </span><span class="n">PhysAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">strampoline</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span>
+<span class="linenos">13</span><span class="w">            </span><span class="n">PTEFlags</span>::<span class="n">R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTEFlags</span>::<span class="n">X</span><span class="p">,</span>
+<span class="linenos">14</span><span class="w">        </span><span class="p">);</span>
+<span class="linenos">15</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">16</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>这里我们为了实现方便并没有新增逻辑段 <code class="docutils literal notranslate"><span class="pre">MemoryArea</span></code> 而是直接在多级页表中插入一个从地址空间的最高虚拟页面映射到跳板汇编代码所在的物理页帧的键值对，访问权限与代码段相同，即 <code class="docutils literal notranslate"><span class="pre">RX</span></code> （可读可执行）。</p>
@@ -685,13 +685,13 @@
 <p>为了让应用在运行时有一个安全隔离且符合编译器给应用设定的地址空间布局的虚拟地址空间，操作系统需要对任务进行更多的管理，所以任务控制块相比第三章也包含了更多内容：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/task/task.rs</span>
 <span class="linenos">2</span>
-<span class="linenos">3</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span><span class="p">,</span><span class="w"></span>
-<span class="hll"><span class="linenos">6</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">memory_set</span>: <span class="nc">MemorySet</span><span class="p">,</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">7</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_cx_ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">8</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">base_size</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-</span><span class="linenos">9</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">3</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlock</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span><span class="p">,</span>
+<span class="linenos">5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span><span class="p">,</span>
+<span class="hll"><span class="linenos">6</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">memory_set</span>: <span class="nc">MemorySet</span><span class="p">,</span>
+</span><span class="hll"><span class="linenos">7</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_cx_ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span>
+</span><span class="hll"><span class="linenos">8</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">base_size</span>: <span class="kt">usize</span><span class="p">,</span>
+</span><span class="linenos">9</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>除了应用的地址空间 <code class="docutils literal notranslate"><span class="pre">memory_set</span></code> 之外，还有位于应用地址空间次高页的 Trap 上下文被实际存放在物理页帧的物理页号 <code class="docutils literal notranslate"><span class="pre">trap_cx_ppn</span></code> ，它能够方便我们对于 Trap 上下文进行访问。此外， <code class="docutils literal notranslate"><span class="pre">base_size</span></code> 统计了应用数据的大小，也就是在应用地址空间中从 <span class="math notranslate nohighlight">\(\text{0x0}\)</span> 开始到用户栈结束一共包含多少字节。它后续还应该包含用于应用动态内存分配的堆空间的大小，但目前暂不支持。</p>
@@ -702,51 +702,51 @@
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/config.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="sd">/// Return (bottom, top) of a kernel stack in kernel space.</span>
-<span class="linenos"> 4</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">kernel_stack_position</span><span class="p">(</span><span class="n">app_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="p">(</span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRAMPOLINE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">app_id</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">KERNEL_STACK_SIZE</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">bottom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">top</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">KERNEL_STACK_SIZE</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="p">(</span><span class="n">bottom</span><span class="p">,</span><span class="w"> </span><span class="n">top</span><span class="p">)</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">kernel_stack_position</span><span class="p">(</span><span class="n">app_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="p">(</span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">top</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRAMPOLINE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">app_id</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">KERNEL_STACK_SIZE</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">);</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">bottom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">top</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">KERNEL_STACK_SIZE</span><span class="p">;</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="p">(</span><span class="n">bottom</span><span class="p">,</span><span class="w"> </span><span class="n">top</span><span class="p">)</span>
+<span class="linenos"> 8</span><span class="p">}</span>
 <span class="linenos"> 9</span>
 <span class="linenos">10</span><span class="c1">// os/src/task/task.rs</span>
 <span class="linenos">11</span>
-<span class="linenos">12</span><span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">elf_data</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">],</span><span class="w"> </span><span class="n">app_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">12</span><span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">13</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">elf_data</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">],</span><span class="w"> </span><span class="n">app_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos">14</span><span class="w">        </span><span class="c1">// memory_set with elf program headers/trampoline/trap context/user stack</span>
-<span class="linenos">15</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">memory_set</span><span class="p">,</span><span class="w"> </span><span class="n">user_sp</span><span class="p">,</span><span class="w"> </span><span class="n">entry_point</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemorySet</span>::<span class="n">from_elf</span><span class="p">(</span><span class="n">elf_data</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">            </span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">TRAP_CONTEXT</span><span class="p">).</span><span class="n">into</span><span class="p">())</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">            </span><span class="p">.</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">            </span><span class="p">.</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Ready</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">15</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">memory_set</span><span class="p">,</span><span class="w"> </span><span class="n">user_sp</span><span class="p">,</span><span class="w"> </span><span class="n">entry_point</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemorySet</span>::<span class="n">from_elf</span><span class="p">(</span><span class="n">elf_data</span><span class="p">);</span>
+<span class="linenos">16</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx_ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory_set</span>
+<span class="linenos">17</span><span class="w">            </span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">TRAP_CONTEXT</span><span class="p">).</span><span class="n">into</span><span class="p">())</span>
+<span class="linenos">18</span><span class="w">            </span><span class="p">.</span><span class="n">unwrap</span><span class="p">()</span>
+<span class="linenos">19</span><span class="w">            </span><span class="p">.</span><span class="n">ppn</span><span class="p">();</span>
+<span class="linenos">20</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Ready</span><span class="p">;</span>
 <span class="linenos">21</span><span class="w">        </span><span class="c1">// map a kernel-stack in kernel space</span>
-<span class="linenos">22</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">kernel_stack_bottom</span><span class="p">,</span><span class="w"> </span><span class="n">kernel_stack_top</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack_position</span><span class="p">(</span><span class="n">app_id</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">        </span><span class="n">KERNEL_SPACE</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">            </span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">()</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">            </span><span class="p">.</span><span class="n">insert_framed_area</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">                </span><span class="n">kernel_stack_bottom</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">                </span><span class="n">kernel_stack_top</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">                </span><span class="n">MapPermission</span>::<span class="n">R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">MapPermission</span>::<span class="n">W</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">29</span><span class="w">            </span><span class="p">);</span><span class="w"></span>
-<span class="linenos">30</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task_control_block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">31</span><span class="w">            </span><span class="n">task_status</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">32</span><span class="w">            </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span>::<span class="n">goto_trap_return</span><span class="p">(</span><span class="n">kernel_stack_top</span><span class="p">),</span><span class="w"></span>
-<span class="linenos">33</span><span class="w">            </span><span class="n">memory_set</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">34</span><span class="w">            </span><span class="n">trap_cx_ppn</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">35</span><span class="w">            </span><span class="n">base_size</span>: <span class="nc">user_sp</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">36</span><span class="w">        </span><span class="p">};</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">kernel_stack_bottom</span><span class="p">,</span><span class="w"> </span><span class="n">kernel_stack_top</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernel_stack_position</span><span class="p">(</span><span class="n">app_id</span><span class="p">);</span>
+<span class="linenos">23</span><span class="w">        </span><span class="n">KERNEL_SPACE</span>
+<span class="linenos">24</span><span class="w">            </span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">()</span>
+<span class="linenos">25</span><span class="w">            </span><span class="p">.</span><span class="n">insert_framed_area</span><span class="p">(</span>
+<span class="linenos">26</span><span class="w">                </span><span class="n">kernel_stack_bottom</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+<span class="linenos">27</span><span class="w">                </span><span class="n">kernel_stack_top</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+<span class="linenos">28</span><span class="w">                </span><span class="n">MapPermission</span>::<span class="n">R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">MapPermission</span>::<span class="n">W</span><span class="p">,</span>
+<span class="linenos">29</span><span class="w">            </span><span class="p">);</span>
+<span class="linenos">30</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task_control_block</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">31</span><span class="w">            </span><span class="n">task_status</span><span class="p">,</span>
+<span class="linenos">32</span><span class="w">            </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span>::<span class="n">goto_trap_return</span><span class="p">(</span><span class="n">kernel_stack_top</span><span class="p">),</span>
+<span class="linenos">33</span><span class="w">            </span><span class="n">memory_set</span><span class="p">,</span>
+<span class="linenos">34</span><span class="w">            </span><span class="n">trap_cx_ppn</span><span class="p">,</span>
+<span class="linenos">35</span><span class="w">            </span><span class="n">base_size</span>: <span class="nc">user_sp</span><span class="p">,</span>
+<span class="linenos">36</span><span class="w">        </span><span class="p">};</span>
 <span class="linenos">37</span><span class="w">        </span><span class="c1">// prepare TrapContext in user space</span>
-<span class="linenos">38</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_control_block</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">39</span><span class="w">        </span><span class="o">*</span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TrapContext</span>::<span class="n">app_init_context</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">40</span><span class="w">            </span><span class="n">entry_point</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">41</span><span class="w">            </span><span class="n">user_sp</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">42</span><span class="w">            </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">token</span><span class="p">(),</span><span class="w"></span>
-<span class="linenos">43</span><span class="w">            </span><span class="n">kernel_stack_top</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">44</span><span class="w">            </span><span class="n">trap_handler</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">45</span><span class="w">        </span><span class="p">);</span><span class="w"></span>
-<span class="linenos">46</span><span class="w">        </span><span class="n">task_control_block</span><span class="w"></span>
-<span class="linenos">47</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">48</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">38</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_control_block</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span>
+<span class="linenos">39</span><span class="w">        </span><span class="o">*</span><span class="n">trap_cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TrapContext</span>::<span class="n">app_init_context</span><span class="p">(</span>
+<span class="linenos">40</span><span class="w">            </span><span class="n">entry_point</span><span class="p">,</span>
+<span class="linenos">41</span><span class="w">            </span><span class="n">user_sp</span><span class="p">,</span>
+<span class="linenos">42</span><span class="w">            </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">token</span><span class="p">(),</span>
+<span class="linenos">43</span><span class="w">            </span><span class="n">kernel_stack_top</span><span class="p">,</span>
+<span class="linenos">44</span><span class="w">            </span><span class="n">trap_handler</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span>
+<span class="linenos">45</span><span class="w">        </span><span class="p">);</span>
+<span class="linenos">46</span><span class="w">        </span><span class="n">task_control_block</span>
+<span class="linenos">47</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">48</span><span class="p">}</span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -764,11 +764,11 @@
 <li><p>第 38 行，查找该应用的 Trap 上下文的内核虚地址。由于应用的 Trap 上下文是在应用地址空间而不是在内核地址空间中，我们只能手动查页表找到 Trap 上下文实际被放在的物理页帧，然后通过之前介绍的 <a class="reference internal" href="4sv39-implementation-2.html#access-frame-in-kernel-as"><span class="std std-ref">在内核地址空间读写特定物理页帧的能力</span></a> 获得在用户空间的 Trap 上下文的可变引用用于初始化：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
 
-<span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_trap_cx</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">TrapContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">trap_cx_ppn</span><span class="p">.</span><span class="n">get_mut</span><span class="p">()</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">impl</span><span class="w"> </span><span class="n">TaskControlBlock</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_trap_cx</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">TrapContext</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">trap_cx_ppn</span><span class="p">.</span><span class="n">get_mut</span><span class="p">()</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>此处需要说明的是，返回 <code class="docutils literal notranslate"><span class="pre">'static</span></code> 的可变引用和之前一样可以看成一个绕过 unsafe 的裸指针；而 <code class="docutils literal notranslate"><span class="pre">PhysPageNum::get_mut</span></code> 是一个泛型函数，由于我们已经声明了总体返回 <code class="docutils literal notranslate"><span class="pre">TrapContext</span></code> 的可变引用，则Rust编译器会给 <code class="docutils literal notranslate"><span class="pre">get_mut</span></code> 泛型函数针对具体类型 <code class="docutils literal notranslate"><span class="pre">TrapContext</span></code> 的情况生成一个特定版本的 <code class="docutils literal notranslate"><span class="pre">get_mut</span></code> 函数实现。在 <code class="docutils literal notranslate"><span class="pre">get_trap_cx</span></code> 函数中则会静态调用 <code class="docutils literal notranslate"><span class="pre">get_mut</span></code> 泛型函数的特定版本实现。</p>
@@ -776,29 +776,29 @@
 <li><p>第 39~45 行，调用 <code class="docutils literal notranslate"><span class="pre">TrapContext::app_init_context</span></code> 函数，通过应用的 Trap 上下文的可变引用来对其进行初始化。具体初始化过程如下所示：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/trap/context.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">TrapContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">set_sp</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">sp</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sp</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">app_init_context</span><span class="p">(</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">        </span><span class="n">entry</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">        </span><span class="n">sp</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="hll"><span class="linenos"> 8</span><span class="w">        </span><span class="n">kernel_satp</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-</span><span class="hll"><span class="linenos"> 9</span><span class="w">        </span><span class="n">kernel_sp</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">10</span><span class="w">        </span><span class="n">trap_handler</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-</span><span class="linenos">11</span><span class="w">    </span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">sstatus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sstatus</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">        </span><span class="n">sstatus</span><span class="p">.</span><span class="n">set_spp</span><span class="p">(</span><span class="n">SPP</span>::<span class="n">User</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">            </span><span class="n">x</span>: <span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mi">32</span><span class="p">],</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">            </span><span class="n">sstatus</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">            </span><span class="n">sepc</span>: <span class="nc">entry</span><span class="p">,</span><span class="w"></span>
-<span class="hll"><span class="linenos">18</span><span class="w">            </span><span class="n">kernel_satp</span><span class="p">,</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">19</span><span class="w">            </span><span class="n">kernel_sp</span><span class="p">,</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">20</span><span class="w">            </span><span class="n">trap_handler</span><span class="p">,</span><span class="w"></span>
-</span><span class="linenos">21</span><span class="w">        </span><span class="p">};</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">        </span><span class="n">cx</span><span class="p">.</span><span class="n">set_sp</span><span class="p">(</span><span class="n">sp</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">        </span><span class="n">cx</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">25</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">TrapContext</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">set_sp</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">sp</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sp</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">app_init_context</span><span class="p">(</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="n">entry</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="n">sp</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="hll"><span class="linenos"> 8</span><span class="w">        </span><span class="n">kernel_satp</span>: <span class="kt">usize</span><span class="p">,</span>
+</span><span class="hll"><span class="linenos"> 9</span><span class="w">        </span><span class="n">kernel_sp</span>: <span class="kt">usize</span><span class="p">,</span>
+</span><span class="hll"><span class="linenos">10</span><span class="w">        </span><span class="n">trap_handler</span>: <span class="kt">usize</span><span class="p">,</span>
+</span><span class="linenos">11</span><span class="w">    </span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">sstatus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sstatus</span>::<span class="n">read</span><span class="p">();</span>
+<span class="linenos">13</span><span class="w">        </span><span class="n">sstatus</span><span class="p">.</span><span class="n">set_spp</span><span class="p">(</span><span class="n">SPP</span>::<span class="n">User</span><span class="p">);</span>
+<span class="linenos">14</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">15</span><span class="w">            </span><span class="n">x</span>: <span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mi">32</span><span class="p">],</span>
+<span class="linenos">16</span><span class="w">            </span><span class="n">sstatus</span><span class="p">,</span>
+<span class="linenos">17</span><span class="w">            </span><span class="n">sepc</span>: <span class="nc">entry</span><span class="p">,</span>
+<span class="hll"><span class="linenos">18</span><span class="w">            </span><span class="n">kernel_satp</span><span class="p">,</span>
+</span><span class="hll"><span class="linenos">19</span><span class="w">            </span><span class="n">kernel_sp</span><span class="p">,</span>
+</span><span class="hll"><span class="linenos">20</span><span class="w">            </span><span class="n">trap_handler</span><span class="p">,</span>
+</span><span class="linenos">21</span><span class="w">        </span><span class="p">};</span>
+<span class="linenos">22</span><span class="w">        </span><span class="n">cx</span><span class="p">.</span><span class="n">set_sp</span><span class="p">(</span><span class="n">sp</span><span class="p">);</span>
+<span class="linenos">23</span><span class="w">        </span><span class="n">cx</span>
+<span class="linenos">24</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">25</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>和之前实现相比， <code class="docutils literal notranslate"><span class="pre">TrapContext::app_init_context</span></code> 需要补充上让应用在 <code class="docutils literal notranslate"><span class="pre">__alltraps</span></code> 能够顺利进入到内核地址空间并跳转到 trap handler 入口点的相关信息。</p>
@@ -807,32 +807,32 @@
 <p>在内核初始化的时候，需要将所有的应用加载到全局应用管理器中：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/mod.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">struct</span> <span class="nc">TaskManagerInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="n">tasks</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="n">current_task</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">struct</span> <span class="nc">TaskManagerInner</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">tasks</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="n">current_task</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="linenos"> 6</span><span class="p">}</span>
 <span class="linenos"> 7</span>
-<span class="linenos"> 8</span><span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">TASK_MANAGER</span>: <span class="nc">TaskManager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;init TASK_MANAGER&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">num_app</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_num_app</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;num_app = {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">num_app</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">tasks</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">num_app</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">            </span><span class="n">tasks</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">TaskControlBlock</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">                </span><span class="n">get_app_data</span><span class="p">(</span><span class="n">i</span><span class="p">),</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">                </span><span class="n">i</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">            </span><span class="p">));</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">        </span><span class="n">TaskManager</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">            </span><span class="n">num_app</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">            </span><span class="n">inner</span>: <span class="nc">RefCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskManagerInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">                </span><span class="n">tasks</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">                </span><span class="n">current_task</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">            </span><span class="p">}),</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">    </span><span class="p">};</span><span class="w"></span>
-<span class="linenos">28</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">TASK_MANAGER</span>: <span class="nc">TaskManager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">10</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;init TASK_MANAGER&quot;</span><span class="p">);</span>
+<span class="linenos">11</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">num_app</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_num_app</span><span class="p">();</span>
+<span class="linenos">12</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;num_app = {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">num_app</span><span class="p">);</span>
+<span class="linenos">13</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">tasks</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span>
+<span class="linenos">14</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">num_app</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">15</span><span class="w">            </span><span class="n">tasks</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">TaskControlBlock</span>::<span class="n">new</span><span class="p">(</span>
+<span class="linenos">16</span><span class="w">                </span><span class="n">get_app_data</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+<span class="linenos">17</span><span class="w">                </span><span class="n">i</span><span class="p">,</span>
+<span class="linenos">18</span><span class="w">            </span><span class="p">));</span>
+<span class="linenos">19</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">20</span><span class="w">        </span><span class="n">TaskManager</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">21</span><span class="w">            </span><span class="n">num_app</span><span class="p">,</span>
+<span class="linenos">22</span><span class="w">            </span><span class="n">inner</span>: <span class="nc">RefCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">TaskManagerInner</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">23</span><span class="w">                </span><span class="n">tasks</span><span class="p">,</span>
+<span class="linenos">24</span><span class="w">                </span><span class="n">current_task</span>: <span class="mi">0</span><span class="p">,</span>
+<span class="linenos">25</span><span class="w">            </span><span class="p">}),</span>
+<span class="linenos">26</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">27</span><span class="w">    </span><span class="p">};</span>
+<span class="linenos">28</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>可以看到，在 <code class="docutils literal notranslate"><span class="pre">TaskManagerInner</span></code> 中我们使用向量 <code class="docutils literal notranslate"><span class="pre">Vec</span></code> 来保存任务控制块。在全局任务管理器 <code class="docutils literal notranslate"><span class="pre">TASK_MANAGER</span></code> 初始化的时候，只需使用 <code class="docutils literal notranslate"><span class="pre">loader</span></code> 子模块提供的 <code class="docutils literal notranslate"><span class="pre">get_num_app</span></code> 和 <code class="docutils literal notranslate"><span class="pre">get_app_data</span></code> 分别获取链接到内核的应用数量和每个应用的 ELF 文件格式的数据，然后依次给每个应用创建任务控制块并加入到向量中即可。将 <code class="docutils literal notranslate"><span class="pre">current_task</span></code> 设置为 0 ，表示内核将从第 0 个应用开始执行。</p>
@@ -844,27 +844,27 @@
 <p>为了方便后续的实现，全局任务管理器还需要提供关于当前应用与地址空间有关的一些信息：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/mod.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">TaskManager</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">fn</span> <span class="nf">get_current_token</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">current_task</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">current</span><span class="p">].</span><span class="n">get_user_token</span><span class="p">()</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">TaskManager</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">fn</span> <span class="nf">get_current_token</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow</span><span class="p">();</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">current_task</span><span class="p">;</span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">current</span><span class="p">].</span><span class="n">get_user_token</span><span class="p">()</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="p">}</span>
 <span class="linenos"> 9</span>
-<span class="linenos">10</span><span class="w">    </span><span class="k">fn</span> <span class="nf">get_current_trap_cx</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">TrapContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">current_task</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">current</span><span class="p">].</span><span class="n">get_trap_cx</span><span class="p">()</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">15</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">10</span><span class="w">    </span><span class="k">fn</span> <span class="nf">get_current_trap_cx</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">TrapContext</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">11</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow</span><span class="p">();</span>
+<span class="linenos">12</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">current_task</span><span class="p">;</span>
+<span class="linenos">13</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">tasks</span><span class="p">[</span><span class="n">current</span><span class="p">].</span><span class="n">get_trap_cx</span><span class="p">()</span>
+<span class="linenos">14</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">15</span><span class="p">}</span>
 <span class="linenos">16</span>
-<span class="linenos">17</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_user_token</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">    </span><span class="n">TASK_MANAGER</span><span class="p">.</span><span class="n">get_current_token</span><span class="p">()</span><span class="w"></span>
-<span class="linenos">19</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">17</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_user_token</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
+<span class="linenos">18</span><span class="w">    </span><span class="n">TASK_MANAGER</span><span class="p">.</span><span class="n">get_current_token</span><span class="p">()</span>
+<span class="linenos">19</span><span class="p">}</span>
 <span class="linenos">20</span>
-<span class="linenos">21</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_trap_cx</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">TrapContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">    </span><span class="n">TASK_MANAGER</span><span class="p">.</span><span class="n">get_current_trap_cx</span><span class="p">()</span><span class="w"></span>
-<span class="linenos">23</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">21</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_trap_cx</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span> <span class="nc">mut</span><span class="w"> </span><span class="n">TrapContext</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">22</span><span class="w">    </span><span class="n">TASK_MANAGER</span><span class="p">.</span><span class="n">get_current_trap_cx</span><span class="p">()</span>
+<span class="linenos">23</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>通过 <code class="docutils literal notranslate"><span class="pre">current_user_token</span></code> 和 <code class="docutils literal notranslate"><span class="pre">current_trap_cx</span></code> 分别可以获得当前正在执行的应用的地址空间的 token 和可以在内核地址空间中修改位于该应用地址空间中的 Trap 上下文的可变引用。</p>
@@ -875,28 +875,28 @@
 <p>让我们来看现在 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 的改进实现：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/trap/mod.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">set_kernel_trap_entry</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="n">stvec</span>::<span class="n">write</span><span class="p">(</span><span class="n">trap_from_kernel</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">TrapMode</span>::<span class="n">Direct</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">set_kernel_trap_entry</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="n">stvec</span>::<span class="n">write</span><span class="p">(</span><span class="n">trap_from_kernel</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">TrapMode</span>::<span class="n">Direct</span><span class="p">);</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos"> 7</span><span class="p">}</span>
 <span class="linenos"> 8</span>
-<span class="linenos"> 9</span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="linenos">10</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_from_kernel</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;a trap from kernel!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">12</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="cp">#[no_mangle]</span>
+<span class="linenos">10</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_from_kernel</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">11</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;a trap from kernel!&quot;</span><span class="p">);</span>
+<span class="linenos">12</span><span class="p">}</span>
 <span class="linenos">13</span>
-<span class="linenos">14</span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="linenos">15</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">24</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">14</span><span class="cp">#[no_mangle]</span>
+<span class="linenos">15</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">16</span><span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span>
+<span class="linenos">17</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">cx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_trap_cx</span><span class="p">();</span>
+<span class="linenos">18</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span>
+<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span>
+<span class="linenos">20</span><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">21</span><span class="w">        </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">22</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">23</span><span class="w">    </span><span class="n">trap_return</span><span class="p">();</span>
+<span class="linenos">24</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>由于应用的 Trap 上下文不在内核地址空间，因此我们调用 <code class="docutils literal notranslate"><span class="pre">current_trap_cx</span></code> 来获取当前应用的 Trap 上下文的可变引用而不是像之前那样作为参数传入 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 。至于 Trap 处理的过程则没有发生什么变化。</p>
@@ -904,34 +904,34 @@
 <p>在 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 完成 Trap 处理之后，我们需要调用 <code class="docutils literal notranslate"><span class="pre">trap_return</span></code> 返回用户态：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/trap/mod.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">set_user_trap_entry</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="n">stvec</span>::<span class="n">write</span><span class="p">(</span><span class="n">TRAMPOLINE</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">TrapMode</span>::<span class="n">Direct</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">set_user_trap_entry</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="n">stvec</span>::<span class="n">write</span><span class="p">(</span><span class="n">TRAMPOLINE</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">TrapMode</span>::<span class="n">Direct</span><span class="p">);</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos"> 7</span><span class="p">}</span>
 <span class="linenos"> 8</span>
-<span class="linenos"> 9</span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="linenos">10</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_return</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="n">set_user_trap_entry</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRAP_CONTEXT</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">user_satp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">        </span><span class="k">fn</span> <span class="nf">__alltraps</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">        </span><span class="k">fn</span> <span class="nf">__restore</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">restore_va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">__restore</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">__alltraps</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">TRAMPOLINE</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">        </span><span class="fm">asm!</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">            </span><span class="s">&quot;fence.i&quot;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">            </span><span class="s">&quot;jr {restore_va}&quot;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">            </span><span class="n">restore_va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">in</span><span class="p">(</span><span class="n">reg</span><span class="p">)</span><span class="w"> </span><span class="n">restore_va</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;a0&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">trap_cx_ptr</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;a1&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">user_satp</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">            </span><span class="n">options</span><span class="p">(</span><span class="n">noreturn</span><span class="p">)</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">        </span><span class="p">);</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">29</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unreachable in back_to_user!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">30</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="cp">#[no_mangle]</span>
+<span class="linenos">10</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_return</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">11</span><span class="w">    </span><span class="n">set_user_trap_entry</span><span class="p">();</span>
+<span class="linenos">12</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRAP_CONTEXT</span><span class="p">;</span>
+<span class="linenos">13</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">user_satp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span>
+<span class="linenos">14</span><span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">15</span><span class="w">        </span><span class="k">fn</span> <span class="nf">__alltraps</span><span class="p">();</span>
+<span class="linenos">16</span><span class="w">        </span><span class="k">fn</span> <span class="nf">__restore</span><span class="p">();</span>
+<span class="linenos">17</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">18</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">restore_va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">__restore</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">__alltraps</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">TRAMPOLINE</span><span class="p">;</span>
+<span class="linenos">19</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">20</span><span class="w">        </span><span class="fm">asm!</span><span class="p">(</span>
+<span class="linenos">21</span><span class="w">            </span><span class="s">&quot;fence.i&quot;</span><span class="p">,</span>
+<span class="linenos">22</span><span class="w">            </span><span class="s">&quot;jr {restore_va}&quot;</span><span class="p">,</span>
+<span class="linenos">23</span><span class="w">            </span><span class="n">restore_va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">in</span><span class="p">(</span><span class="n">reg</span><span class="p">)</span><span class="w"> </span><span class="n">restore_va</span><span class="p">,</span>
+<span class="linenos">24</span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;a0&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">trap_cx_ptr</span><span class="p">,</span>
+<span class="linenos">25</span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;a1&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">user_satp</span><span class="p">,</span>
+<span class="linenos">26</span><span class="w">            </span><span class="n">options</span><span class="p">(</span><span class="n">noreturn</span><span class="p">)</span>
+<span class="linenos">27</span><span class="w">        </span><span class="p">);</span>
+<span class="linenos">28</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">29</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unreachable in back_to_user!&quot;</span><span class="p">);</span>
+<span class="linenos">30</span><span class="p">}</span>
 </pre></div>
 </div>
 <ul>
@@ -945,14 +945,14 @@
 <p>当每个应用第一次获得 CPU 使用权即将进入用户态执行的时候，它的内核栈顶放置着我们在 <a class="reference internal" href="#trap-return-intro"><span class="std std-ref">内核加载应用的时候</span></a> 构造的一个任务上下文：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/context.rs</span>
 
-<span class="k">impl</span><span class="w"> </span><span class="n">TaskContext</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">goto_trap_return</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">ra</span>: <span class="nc">trap_return</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="w">            </span><span class="n">s</span>: <span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mi">12</span><span class="p">],</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">impl</span><span class="w"> </span><span class="n">TaskContext</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">goto_trap_return</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">ra</span>: <span class="nc">trap_return</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span>
+<span class="w">            </span><span class="n">s</span>: <span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="mi">12</span><span class="p">],</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>在 <code class="docutils literal notranslate"><span class="pre">__switch</span></code> 切换到该应用的任务上下文的时候，内核将会跳转到 <code class="docutils literal notranslate"><span class="pre">trap_return</span></code> 并返回用户态开始该应用的启动执行。</p>
@@ -963,50 +963,50 @@
 <p>为此，页表模块 <code class="docutils literal notranslate"><span class="pre">page_table</span></code> 提供了将应用地址空间中一个缓冲区转化为在内核空间中能够直接访问的形式的辅助函数：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/mm/page_table.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">translated_byte_buffer</span><span class="p">(</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="n">token</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">translated_byte_buffer</span><span class="p">(</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">token</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
 <span class="linenos"> 6</span><span class="w">    </span><span class="n">len</span>: <span class="kt">usize</span>
-<span class="linenos"> 7</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Vec</span><span class="o">&lt;&amp;&#39;</span><span class="nb">static</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">page_table</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PageTable</span>::<span class="n">from_token</span><span class="p">(</span><span class="n">token</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">len</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">start_va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">start</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">vpn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">start_va</span><span class="p">.</span><span class="n">floor</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">page_table</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">            </span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">vpn</span><span class="p">)</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">            </span><span class="p">.</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">            </span><span class="p">.</span><span class="n">ppn</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">        </span><span class="n">vpn</span><span class="p">.</span><span class="n">step</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">end_va</span>: <span class="nc">VirtAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vpn</span><span class="p">.</span><span class="n">into</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">        </span><span class="n">end_va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">end_va</span><span class="p">.</span><span class="n">min</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">end</span><span class="p">));</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ppn</span><span class="p">.</span><span class="n">get_bytes_array</span><span class="p">()[</span><span class="n">start_va</span><span class="p">.</span><span class="n">page_offset</span><span class="p">()</span><span class="o">..</span><span class="n">end_va</span><span class="p">.</span><span class="n">page_offset</span><span class="p">()]);</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">        </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">end_va</span><span class="p">.</span><span class="n">into</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">    </span><span class="n">v</span><span class="w"></span>
-<span class="linenos">26</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Vec</span><span class="o">&lt;&amp;&#39;</span><span class="nb">static</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">page_table</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PageTable</span>::<span class="n">from_token</span><span class="p">(</span><span class="n">token</span><span class="p">);</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
+<span class="linenos">10</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">len</span><span class="p">;</span>
+<span class="linenos">11</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span>
+<span class="linenos">12</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">13</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">start_va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">start</span><span class="p">);</span>
+<span class="linenos">14</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">vpn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">start_va</span><span class="p">.</span><span class="n">floor</span><span class="p">();</span>
+<span class="linenos">15</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">page_table</span>
+<span class="linenos">16</span><span class="w">            </span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">vpn</span><span class="p">)</span>
+<span class="linenos">17</span><span class="w">            </span><span class="p">.</span><span class="n">unwrap</span><span class="p">()</span>
+<span class="linenos">18</span><span class="w">            </span><span class="p">.</span><span class="n">ppn</span><span class="p">();</span>
+<span class="linenos">19</span><span class="w">        </span><span class="n">vpn</span><span class="p">.</span><span class="n">step</span><span class="p">();</span>
+<span class="linenos">20</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">end_va</span>: <span class="nc">VirtAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vpn</span><span class="p">.</span><span class="n">into</span><span class="p">();</span>
+<span class="linenos">21</span><span class="w">        </span><span class="n">end_va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">end_va</span><span class="p">.</span><span class="n">min</span><span class="p">(</span><span class="n">VirtAddr</span>::<span class="n">from</span><span class="p">(</span><span class="n">end</span><span class="p">));</span>
+<span class="linenos">22</span><span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ppn</span><span class="p">.</span><span class="n">get_bytes_array</span><span class="p">()[</span><span class="n">start_va</span><span class="p">.</span><span class="n">page_offset</span><span class="p">()</span><span class="o">..</span><span class="n">end_va</span><span class="p">.</span><span class="n">page_offset</span><span class="p">()]);</span>
+<span class="linenos">23</span><span class="w">        </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">end_va</span><span class="p">.</span><span class="n">into</span><span class="p">();</span>
+<span class="linenos">24</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">25</span><span class="w">    </span><span class="n">v</span>
+<span class="linenos">26</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>参数中的 <code class="docutils literal notranslate"><span class="pre">token</span></code> 是某个应用地址空间的 token ， <code class="docutils literal notranslate"><span class="pre">ptr</span></code> 和 <code class="docutils literal notranslate"><span class="pre">len</span></code> 则分别表示该地址空间中的一段缓冲区的起始地址和长度(注：这个缓冲区的应用虚拟地址范围是连续的)。 <code class="docutils literal notranslate"><span class="pre">translated_byte_buffer</span></code> 会以向量的形式返回一组可以在内核空间中直接访问的字节数组切片（注：这个缓冲区的内核虚拟地址范围有可能是不连续的），具体实现在这里不再赘述。</p>
 <p>进而我们可以完成对 <code class="docutils literal notranslate"><span class="pre">sys_write</span></code> 系统调用的改造：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">FD_STDOUT</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">buffers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_byte_buffer</span><span class="p">(</span><span class="n">current_user_token</span><span class="p">(),</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span><span class="w"></span>
-<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">buffers</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                </span><span class="fm">print!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">core</span>::<span class="kt">str</span>::<span class="n">from_utf8</span><span class="p">(</span><span class="n">buffer</span><span class="p">).</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
-<span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="w">            </span><span class="n">len</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
-<span class="w">        </span><span class="p">},</span><span class="w"></span>
-<span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unsupported fd in sys_write!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">FD_STDOUT</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">buffers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_byte_buffer</span><span class="p">(</span><span class="n">current_user_token</span><span class="p">(),</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">buffers</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="fm">print!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">core</span>::<span class="kt">str</span>::<span class="n">from_utf8</span><span class="p">(</span><span class="n">buffer</span><span class="p">).</span><span class="n">unwrap</span><span class="p">());</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">len</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Unsupported fd in sys_write!&quot;</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>上述函数尝试将按应用的虚地址指向的缓冲区转换为一组按内核虚地址指向的字节数组切片构成的向量，然后把每个字节数组切片转化为字符串``&amp;str`` 然后输出即可。</p>
@@ -1153,5 +1153,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
     <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

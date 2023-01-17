@@ -481,23 +481,23 @@
 <span class="sd">/// 参数：pid 表示接受信号的进程的进程 ID, signum 表示要发送的信号的编号。</span>
 <span class="sd">/// 返回值：如果传入参数不正确（比如指定进程或信号类型不存在）则返回 -1 ,否则返回 0 。</span>
 <span class="sd">/// syscall ID: 129</span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">kill</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">kill</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span>
 </pre></div>
 </div>
 <p>我们的内核中各信号的编号定义如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGDEF</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// Default signal handling</span>
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGHUP</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGINT</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGQUIT</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGILL</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGTRAP</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGABRT</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">6</span><span class="p">;</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGBUS</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGFPE</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">;</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGKILL</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">9</span><span class="p">;</span><span class="w"></span>
-<span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGHUP</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGINT</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGQUIT</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGILL</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGTRAP</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGABRT</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">6</span><span class="p">;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGBUS</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGFPE</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SIGKILL</span>: <span class="kt">i32</span> <span class="o">=</span><span class="w"> </span><span class="mi">9</span><span class="p">;</span>
+<span class="o">..</span><span class="p">.</span>
 </pre></div>
 </div>
 <p>从中可以看出，每次调用 <code class="docutils literal notranslate"><span class="pre">kill</span></code> 只能发送一个类型的信号。</p>
@@ -520,67 +520,67 @@
 <span class="sd">/// 返回值：如果传入参数错误（比如传入的 action 或 old_action 为空指针或者）</span>
 <span class="sd">/// 信号类型不存在返回 -1 ，否则返回 0 。</span>
 <span class="sd">/// syscall ID: 134</span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigaction</span><span class="p">(</span><span class="w"></span>
-<span class="w">    </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">action</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">SignalAction</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">old_action</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">SignalAction</span><span class="p">,</span><span class="w"></span>
-<span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigaction</span><span class="p">(</span>
+<span class="w">    </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">,</span>
+<span class="w">    </span><span class="n">action</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">SignalAction</span><span class="p">,</span>
+<span class="w">    </span><span class="n">old_action</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">SignalAction</span><span class="p">,</span>
+<span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span>
 </pre></div>
 </div>
 <p>为了让编写应用更加方便，用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中的接口略有不同：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigaction</span><span class="p">(</span><span class="w"></span>
-<span class="w">    </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">old_action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigaction</span><span class="p">(</span>
+<span class="w">    </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">,</span>
+<span class="w">    </span><span class="n">action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">old_action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span>
 </pre></div>
 </div>
 <p>注意这里参数 <code class="docutils literal notranslate"><span class="pre">action</span></code> 和 <code class="docutils literal notranslate"><span class="pre">old_action</span></code> 使用引用而非裸指针，且有一层 <code class="docutils literal notranslate"><span class="pre">Option</span></code> 包裹，这样能减少对于不安全的裸指针的使用。在传参的时候，如果传递实际存在的引用则使用 <code class="docutils literal notranslate"><span class="pre">Some</span></code> 包裹，而用 <code class="docutils literal notranslate"><span class="pre">None</span></code> 来代替空指针，这样可以提前对引用和空指针做出区分。在具体实现的时候，再将 <code class="docutils literal notranslate"><span class="pre">None</span></code> 转换为空指针：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigaction</span><span class="p">(</span><span class="w"></span>
-<span class="w">    </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">old_action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">sys_sigaction</span><span class="p">(</span><span class="w"></span>
-<span class="w">        </span><span class="n">signum</span><span class="p">,</span><span class="w"></span>
-<span class="w">        </span><span class="n">action</span><span class="p">.</span><span class="n">map_or</span><span class="p">(</span><span class="n">core</span>::<span class="n">ptr</span>::<span class="n">null</span><span class="p">(),</span><span class="w"> </span><span class="o">|</span><span class="n">a</span><span class="o">|</span><span class="w"> </span><span class="n">a</span><span class="p">),</span><span class="w"></span>
-<span class="w">        </span><span class="n">old_action</span><span class="p">.</span><span class="n">map_or</span><span class="p">(</span><span class="n">core</span>::<span class="n">ptr</span>::<span class="n">null_mut</span><span class="p">(),</span><span class="w"> </span><span class="o">|</span><span class="n">a</span><span class="o">|</span><span class="w"> </span><span class="n">a</span><span class="p">)</span><span class="w"></span>
-<span class="w">    </span><span class="p">)</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigaction</span><span class="p">(</span>
+<span class="w">    </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">,</span>
+<span class="w">    </span><span class="n">action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">old_action</span>: <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">SignalAction</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="n">sys_sigaction</span><span class="p">(</span>
+<span class="w">        </span><span class="n">signum</span><span class="p">,</span>
+<span class="w">        </span><span class="n">action</span><span class="p">.</span><span class="n">map_or</span><span class="p">(</span><span class="n">core</span>::<span class="n">ptr</span>::<span class="n">null</span><span class="p">(),</span><span class="w"> </span><span class="o">|</span><span class="n">a</span><span class="o">|</span><span class="w"> </span><span class="n">a</span><span class="p">),</span>
+<span class="w">        </span><span class="n">old_action</span><span class="p">.</span><span class="n">map_or</span><span class="p">(</span><span class="n">core</span>::<span class="n">ptr</span>::<span class="n">null_mut</span><span class="p">(),</span><span class="w"> </span><span class="o">|</span><span class="n">a</span><span class="o">|</span><span class="w"> </span><span class="n">a</span><span class="p">)</span>
+<span class="w">    </span><span class="p">)</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>接下来介绍 <code class="docutils literal notranslate"><span class="pre">SignalAction</span></code> 数据结构。方便起见，我们将其对齐到 16 字节使得它不会跨虚拟页面：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
 
 <span class="sd">/// Action for a signal</span>
-<span class="cp">#[repr(C, align(16))]</span><span class="w"></span>
-<span class="cp">#[derive(Debug, Clone, Copy)]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SignalAction</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">handler</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">mask</span>: <span class="nc">SignalFlags</span><span class="p">,</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="cp">#[repr(C, align(16))]</span>
+<span class="cp">#[derive(Debug, Clone, Copy)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SignalAction</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">handler</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">mask</span>: <span class="nc">SignalFlags</span><span class="p">,</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>可以看到它有两个字段： <code class="docutils literal notranslate"><span class="pre">handler</span></code> 表示信号处理例程的入口地址； <code class="docutils literal notranslate"><span class="pre">mask</span></code> 则表示执行该信号处理例程期间的信号掩码。这个信号掩码是用于在执行信号处理例程的期间屏蔽掉一些信号，每个 <code class="docutils literal notranslate"><span class="pre">handler</span></code> 都可以设置它在执行期间屏蔽掉哪些信号。“屏蔽”的意思是指在执行该信号处理例程期间，即使 Trap 到内核态发现当前进程又接收到了一些信号，只要这些信号被屏蔽，内核就不会对这些信号进行处理而是直接回到用户态继续执行信号处理例程。但这不意味着这些被屏蔽的信号就此被忽略，它们仍被记录在进程控制块中，当信号处理例程执行结束之后它们便不再被屏蔽，从而后续可能被处理。</p>
 <p><code class="docutils literal notranslate"><span class="pre">mask</span></code> 作为一个掩码可以代表屏蔽掉一组信号，因此它的类型 <code class="docutils literal notranslate"><span class="pre">SignalFlags</span></code> 是一个信号集合：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/lib.rs</span>
 
-<span class="n">bitflags</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SignalFlags</span>: <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+<span class="n">bitflags</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SignalFlags</span>: <span class="kt">i32</span> <span class="p">{</span>
 <span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGDEF</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="c1">// Default signal handling</span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGHUP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGINT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGQUIT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGILL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGTRAP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGSYS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">31</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGHUP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGINT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGQUIT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGILL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGTRAP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="w">        </span><span class="o">..</span><span class="p">.</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SIGSYS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">31</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>需要注意的是，我们目前的实现比较简单，暂时不支持信号嵌套，也就是在执行一个信号处理例程期间再去执行另一个信号处理例程。</p>
@@ -592,7 +592,7 @@
 <span class="sd">/// 在集合中的信号始终被该进程屏蔽。</span>
 <span class="sd">/// 返回值：如果传入参数错误返回 -1 ，否则返回之前的信号掩码 。</span>
 <span class="sd">/// syscall ID: 135</span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigprocmask</span><span class="p">(</span><span class="n">mask</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigprocmask</span><span class="p">(</span><span class="n">mask</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span>
 </pre></div>
 </div>
 <p>最后一个系统调用是 <code class="docutils literal notranslate"><span class="pre">sigreturn</span></code> 。介绍信号处理流程的时候提到过，在进程向内核提供的信号处理例程末尾，函数的编写者需要手动插入一个 <code class="docutils literal notranslate"><span class="pre">sigreturn</span></code> 系统调用来通知内核信号处理过程结束，可以恢复进程先前的执行。它的接口如下：</p>
@@ -601,7 +601,7 @@
 <span class="sd">/// 功能：进程通知内核信号处理例程退出，可以恢复原先的进程执行。</span>
 <span class="sd">/// 返回值：如果出错返回 -1，否则返回 0 。</span>
 <span class="sd">/// syscall ID: 139</span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigreturn</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sigreturn</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span>
 </pre></div>
 </div>
 </div>
@@ -610,37 +610,37 @@
 <p>我们来从简单的信号例子 <code class="docutils literal notranslate"><span class="pre">sig_simple</span></code> 中介绍如何使用信号机制：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/sig_simple.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="cp">#![no_std]</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="cp">#![no_main]</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="cp">#![no_std]</span>
+<span class="linenos"> 4</span><span class="cp">#![no_main]</span>
 <span class="linenos"> 5</span>
-<span class="linenos"> 6</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 6</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span>
 <span class="linenos"> 7</span>
 <span class="linenos"> 8</span><span class="c1">// use user_lib::{sigaction, sigprocmask, SignalAction, SignalFlags, fork, exit, wait, kill, getpid, sleep, sigreturn};</span>
-<span class="linenos"> 9</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="o">*</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="o">*</span><span class="p">;</span>
 <span class="linenos">10</span>
-<span class="linenos">11</span><span class="k">fn</span> <span class="nf">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;user_sig_test passed&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="n">sigreturn</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">14</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">11</span><span class="k">fn</span> <span class="nf">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;user_sig_test passed&quot;</span><span class="p">);</span>
+<span class="linenos">13</span><span class="w">    </span><span class="n">sigreturn</span><span class="p">();</span>
+<span class="linenos">14</span><span class="p">}</span>
 <span class="linenos">15</span>
-<span class="linenos">16</span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="linenos">17</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalAction</span>::<span class="n">default</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">old</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalAction</span>::<span class="n">default</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">    </span><span class="n">new</span><span class="p">.</span><span class="n">handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">func</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">16</span><span class="cp">#[no_mangle]</span>
+<span class="linenos">17</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
+<span class="linenos">18</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalAction</span>::<span class="n">default</span><span class="p">();</span>
+<span class="linenos">19</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">old</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalAction</span>::<span class="n">default</span><span class="p">();</span>
+<span class="linenos">20</span><span class="w">    </span><span class="n">new</span><span class="p">.</span><span class="n">handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">func</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
 <span class="linenos">21</span>
-<span class="linenos">22</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: sigaction&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">sigaction</span><span class="p">(</span><span class="n">SIGUSR1</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="n">new</span><span class="p">),</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">old</span><span class="p">))</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">        </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Sigaction failed!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: kill&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">kill</span><span class="p">(</span><span class="n">getpid</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">SIGUSR1</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Kill failed!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">29</span><span class="w">        </span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">30</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">31</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: Done&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">32</span><span class="w">    </span><span class="mi">0</span><span class="w"></span>
-<span class="linenos">33</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">22</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: sigaction&quot;</span><span class="p">);</span>
+<span class="linenos">23</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">sigaction</span><span class="p">(</span><span class="n">SIGUSR1</span><span class="p">,</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="n">new</span><span class="p">),</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">old</span><span class="p">))</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">24</span><span class="w">        </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Sigaction failed!&quot;</span><span class="p">);</span>
+<span class="linenos">25</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">26</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: kill&quot;</span><span class="p">);</span>
+<span class="linenos">27</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">kill</span><span class="p">(</span><span class="n">getpid</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">SIGUSR1</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">28</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Kill failed!&quot;</span><span class="p">);</span>
+<span class="linenos">29</span><span class="w">        </span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="linenos">30</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">31</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;signal_simple: Done&quot;</span><span class="p">);</span>
+<span class="linenos">32</span><span class="w">    </span><span class="mi">0</span>
+<span class="linenos">33</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>在此进程中：</p>
@@ -672,85 +672,85 @@
 <p>为了实现进程设置信号处理例程和信号掩码的功能，我们需要在进程控制块 <code class="docutils literal notranslate"><span class="pre">TaskControlBlock</span></code> 中新增以下数据结构（这些数据结构在进程创建之后可能被修改，因此将它们放置在内部可变的 inner 中）：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">signal_mask</span>: <span class="nc">SignalFlags</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">signal_actions</span>: <span class="nc">SignalActions</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">signal_mask</span>: <span class="nc">SignalFlags</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">signal_actions</span>: <span class="nc">SignalActions</span><span class="p">,</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>其中， <code class="docutils literal notranslate"><span class="pre">signal_mask</span></code> 表示进程的全局信号掩码，其类型 <code class="docutils literal notranslate"><span class="pre">SignalFlags</span></code> 与用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中的相同，表示一个信号集合。在 <code class="docutils literal notranslate"><span class="pre">signal_mask</span></code> 这个信号集合内的信号将被该进程全局屏蔽。</p>
 <p>进程可以通过 <code class="docutils literal notranslate"><span class="pre">sigprocmask</span></code> 系统调用直接设置自身的全局信号掩码：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/process.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigprocmask</span><span class="p">(</span><span class="n">mask</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">old_mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">signal_mask</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">from_bits</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">signal_mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">flag</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="n">old_mask</span><span class="p">.</span><span class="n">bits</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigprocmask</span><span class="p">(</span><span class="n">mask</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">old_mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">signal_mask</span><span class="p">;</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">from_bits</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">signal_mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">flag</span><span class="p">;</span>
+<span class="w">            </span><span class="n">old_mask</span><span class="p">.</span><span class="n">bits</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="o">-</span><span class="mi">1</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">-</span><span class="mi">1</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>进程控制块中的 <code class="docutils literal notranslate"><span class="pre">signal_actions</span></code> 的类型是 <code class="docutils literal notranslate"><span class="pre">SignalActions</span></code> ，是一个 <code class="docutils literal notranslate"><span class="pre">SignalAction</span></code> （同样与 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中的定义相同）的定长数组，其中每一项都记录进程如何响应对应的信号：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/signal.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">MAX_SIG</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">31</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">MAX_SIG</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">31</span><span class="p">;</span>
 
 <span class="c1">// os/src/task/action.rs</span>
 
-<span class="cp">#[derive(Clone)]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SignalActions</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">table</span>: <span class="p">[</span><span class="n">SignalAction</span><span class="p">;</span><span class="w"> </span><span class="n">MAX_SIG</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">],</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="cp">#[derive(Clone)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SignalActions</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">table</span>: <span class="p">[</span><span class="n">SignalAction</span><span class="p">;</span><span class="w"> </span><span class="n">MAX_SIG</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">],</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>于是，在 <code class="docutils literal notranslate"><span class="pre">sigaction</span></code> 系统调用的时候我们只需要更新当前进程控制块的 <code class="docutils literal notranslate"><span class="pre">signal_actions</span></code> 即可：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">check_sigaction_error</span><span class="p">(</span><span class="n">signal</span>: <span class="nc">SignalFlags</span><span class="p">,</span><span class="w"> </span><span class="n">action</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">old_action</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">action</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="o">||</span><span class="w"> </span><span class="n">old_action</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">        </span><span class="o">||</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGKILL</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">        </span><span class="o">||</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGSTOP</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">        </span><span class="kc">true</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">        </span><span class="kc">false</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">13</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">check_sigaction_error</span><span class="p">(</span><span class="n">signal</span>: <span class="nc">SignalFlags</span><span class="p">,</span><span class="w"> </span><span class="n">action</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">old_action</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">action</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="o">||</span><span class="w"> </span><span class="n">old_action</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="o">||</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGKILL</span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="o">||</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGSTOP</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="kc">true</span>
+<span class="linenos">10</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">11</span><span class="w">        </span><span class="kc">false</span>
+<span class="linenos">12</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">13</span><span class="p">}</span>
 <span class="linenos">14</span>
-<span class="linenos">15</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigaction</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">    </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">    </span><span class="n">action</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">SignalAction</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">    </span><span class="n">old_action</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">SignalAction</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">19</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">signum</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">MAX_SIG</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">from_bits</span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">signum</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">check_sigaction_error</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span><span class="w"> </span><span class="n">action</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">old_action</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">29</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">30</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">prev_action</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">signal_actions</span><span class="p">.</span><span class="n">table</span><span class="p">[</span><span class="n">signum</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">];</span><span class="w"></span>
-<span class="linenos">31</span><span class="w">        </span><span class="o">*</span><span class="n">translated_refmut</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">old_action</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">prev_action</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">32</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">signal_actions</span><span class="p">.</span><span class="n">table</span><span class="p">[</span><span class="n">signum</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">translated_ref</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">action</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">33</span><span class="w">        </span><span class="mi">0</span><span class="w"></span>
-<span class="linenos">34</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">35</span><span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-<span class="linenos">36</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">37</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">15</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigaction</span><span class="p">(</span>
+<span class="linenos">16</span><span class="w">    </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">,</span>
+<span class="linenos">17</span><span class="w">    </span><span class="n">action</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">SignalAction</span><span class="p">,</span>
+<span class="linenos">18</span><span class="w">    </span><span class="n">old_action</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">SignalAction</span><span class="p">,</span>
+<span class="linenos">19</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="linenos">20</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span>
+<span class="linenos">21</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="linenos">22</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="linenos">23</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">signum</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">MAX_SIG</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">24</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos">25</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">26</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">from_bits</span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">signum</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">27</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">check_sigaction_error</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span><span class="w"> </span><span class="n">action</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">old_action</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">28</span><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos">29</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">30</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">prev_action</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">signal_actions</span><span class="p">.</span><span class="n">table</span><span class="p">[</span><span class="n">signum</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">];</span>
+<span class="linenos">31</span><span class="w">        </span><span class="o">*</span><span class="n">translated_refmut</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">old_action</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">prev_action</span><span class="p">;</span>
+<span class="linenos">32</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">signal_actions</span><span class="p">.</span><span class="n">table</span><span class="p">[</span><span class="n">signum</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">translated_ref</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">action</span><span class="p">);</span>
+<span class="linenos">33</span><span class="w">        </span><span class="mi">0</span>
+<span class="linenos">34</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">35</span><span class="w">        </span><span class="o">-</span><span class="mi">1</span>
+<span class="linenos">36</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">37</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>其中：</p>
@@ -770,48 +770,48 @@
 <p>首先来看 <code class="docutils literal notranslate"><span class="pre">kill</span></code> 系统调用的实现：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">signals</span>: <span class="nc">SignalFlags</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">signals</span>: <span class="nc">SignalFlags</span><span class="p">,</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
 
 <span class="c1">// os/src/syscall/process.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_kill</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pid2task</span><span class="p">(</span><span class="n">pid</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">from_bits</span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">signum</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_kill</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">signum</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pid2task</span><span class="p">(</span><span class="n">pid</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">from_bits</span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">signum</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">            </span><span class="c1">// insert the signal if legal</span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">task_ref</span><span class="p">.</span><span class="n">signals</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="w">            </span><span class="n">task_ref</span><span class="p">.</span><span class="n">signals</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">flag</span><span class="p">);</span><span class="w"></span>
-<span class="w">            </span><span class="mi">0</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">task_ref</span><span class="p">.</span><span class="n">signals</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">task_ref</span><span class="p">.</span><span class="n">signals</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">flag</span><span class="p">);</span>
+<span class="w">            </span><span class="mi">0</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="o">-</span><span class="mi">1</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">-</span><span class="mi">1</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>这需要在进程控制块的可变部分中新增一个 <code class="docutils literal notranslate"><span class="pre">signals</span></code> 字段记录对应进程目前已经收到了哪些信号尚未处理，它的类型同样是 <code class="docutils literal notranslate"><span class="pre">SignalFlags</span></code> 表示一个信号集合。 <code class="docutils literal notranslate"><span class="pre">sys_kill</span></code> 的实现也比较简单：就是调用 <code class="docutils literal notranslate"><span class="pre">pid2task</span></code> 得到传入进程 ID 对应的进程控制块，然后把要发送的信号插入到 <code class="docutils literal notranslate"><span class="pre">signals</span></code> 字段中。</p>
 <p>然后是进程执行出错的情况（比如访存错误或非法指令异常），这会 Trap 到内核并在 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 中由内核将对应信号发送到当前进程：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/trap/mod.rs</span>
 
-<span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">StoreFault</span><span class="p">)</span><span class="w"></span>
-<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">StorePageFault</span><span class="p">)</span><span class="w"></span>
-<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">InstructionFault</span><span class="p">)</span><span class="w"></span>
-<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">InstructionPageFault</span><span class="p">)</span><span class="w"></span>
-<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadFault</span><span class="p">)</span><span class="w"></span>
-<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadPageFault</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="cp">#[no_mangle]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">..</span><span class="p">.</span>
+<span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">StoreFault</span><span class="p">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">StorePageFault</span><span class="p">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">InstructionFault</span><span class="p">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">InstructionPageFault</span><span class="p">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadFault</span><span class="p">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadPageFault</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">            </span><span class="cm">/*</span>
 <span class="cm">            println!(</span>
 <span class="cm">                &quot;[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.&quot;,</span>
@@ -819,23 +819,23 @@
 <span class="cm">                stval,</span>
 <span class="cm">                current_trap_cx().sepc,</span>
 <span class="cm">            );</span>
-<span class="cm">            */</span><span class="w"></span>
-<span class="w">            </span><span class="n">current_add_signal</span><span class="p">(</span><span class="n">SignalFlags</span>::<span class="n">SIGSEGV</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">IllegalInstruction</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">current_add_signal</span><span class="p">(</span><span class="n">SignalFlags</span>::<span class="n">SIGILL</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="cm">            */</span>
+<span class="w">            </span><span class="n">current_add_signal</span><span class="p">(</span><span class="n">SignalFlags</span>::<span class="n">SIGSEGV</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">IllegalInstruction</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">current_add_signal</span><span class="p">(</span><span class="n">SignalFlags</span>::<span class="n">SIGILL</span><span class="p">);</span>
+<span class="w">        </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
 
 <span class="c1">// os/src/task/mod.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_add_signal</span><span class="p">(</span><span class="n">signal</span>: <span class="nc">SignalFlags</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">signal</span><span class="p">;</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">current_add_signal</span><span class="p">(</span><span class="n">signal</span>: <span class="nc">SignalFlags</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">signal</span><span class="p">;</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 </div>
@@ -844,73 +844,73 @@
 <p>在 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 完成 Trap 处理并返回用户态之前，会调用 <code class="docutils literal notranslate"><span class="pre">handle_signals</span></code> 函数处理当前进程此前接收到的信号：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">killed</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">frozen</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">killed</span>: <span class="kt">bool</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">frozen</span>: <span class="kt">bool</span><span class="p">,</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
 
 <span class="c1">// os/src/task/mod.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">handle_signals</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">check_pending_signals</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">frozen</span><span class="p">,</span><span class="w"> </span><span class="n">killed</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="w">            </span><span class="p">(</span><span class="n">task_inner</span><span class="p">.</span><span class="n">frozen</span><span class="p">,</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">killed</span><span class="p">)</span><span class="w"></span>
-<span class="w">        </span><span class="p">};</span><span class="w"></span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">frozen</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">killed</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">handle_signals</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">check_pending_signals</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">frozen</span><span class="p">,</span><span class="w"> </span><span class="n">killed</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="w">            </span><span class="p">(</span><span class="n">task_inner</span><span class="p">.</span><span class="n">frozen</span><span class="p">,</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">killed</span><span class="p">)</span>
+<span class="w">        </span><span class="p">};</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">frozen</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">killed</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">suspend_current_and_run_next</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>可以看到 <code class="docutils literal notranslate"><span class="pre">handle_signals</span></code> 是一个无限循环，真正处理信号的逻辑在 <code class="docutils literal notranslate"><span class="pre">check_pending_signals</span></code> 函数中。这样做是为了处理 <code class="docutils literal notranslate"><span class="pre">SIGSTOP</span></code> 和 <code class="docutils literal notranslate"><span class="pre">SIGCONT</span></code> 这一对信号：当进程收到 <code class="docutils literal notranslate"><span class="pre">SIGSTOP</span></code> 信号之后，它的执行将被暂停，等到该进程收到 <code class="docutils literal notranslate"><span class="pre">SIGCONT</span></code> 信号之后再继续执行。我们在进程控制块中新增 <code class="docutils literal notranslate"><span class="pre">frozen</span></code> 字段表示进程目前是否已收到 <code class="docutils literal notranslate"><span class="pre">SIGSTOP</span></code> 信号被暂停，而 <code class="docutils literal notranslate"><span class="pre">killed</span></code> 字段表示进程是否已被杀死。这个循环的意义在于：只要进程还处于暂停且未被杀死的状态就会停留在循环中等待 <code class="docutils literal notranslate"><span class="pre">SIGCONT</span></code> 信号的到来。如果 <code class="docutils literal notranslate"><span class="pre">frozen</span></code> 为真，证明还没有收到 <code class="docutils literal notranslate"><span class="pre">SIGCONT</span></code> 信号，进程仍处于暂停状态，循环的末尾我们调用 <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 函数切换到其他进程期待其他进程将 <code class="docutils literal notranslate"><span class="pre">SIGCONT</span></code> 信号发过来。</p>
 <p><code class="docutils literal notranslate"><span class="pre">check_pending_signals</span></code> 会检查收到的信号并对它们进行处理，在这个过程中会更新上面的 <code class="docutils literal notranslate"><span class="pre">frozen</span></code> 和 <code class="docutils literal notranslate"><span class="pre">killed</span></code> 字段：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/mod.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">check_pending_signals</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">sig</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="p">(</span><span class="n">MAX_SIG</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">from_bits</span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">sig</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">task_inner</span><span class="p">.</span><span class="n">signal_mask</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">signal</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">masked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">handling_sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">handling_sig</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">handling_sig</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">                </span><span class="n">masked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">handling_sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handling_sig</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">task_inner</span><span class="p">.</span><span class="n">signal_actions</span><span class="p">.</span><span class="n">table</span><span class="p">[</span><span class="n">handling_sig</span><span class="p">]</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">                    </span><span class="p">.</span><span class="n">mask</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">                    </span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">                </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">                    </span><span class="n">masked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">                </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">masked</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">                </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">                </span><span class="nb">drop</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGKILL</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">                    </span><span class="o">||</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGSTOP</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">                    </span><span class="o">||</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGCONT</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">                    </span><span class="o">||</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGDEF</span><span class="w"></span>
-<span class="linenos">29</span><span class="w">                </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">fn</span> <span class="nf">check_pending_signals</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">sig</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="p">(</span><span class="n">MAX_SIG</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">from_bits</span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">sig</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">task_inner</span><span class="p">.</span><span class="n">signal_mask</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">signal</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">masked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="linenos">10</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">handling_sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">handling_sig</span><span class="p">;</span>
+<span class="linenos">11</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">handling_sig</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">                </span><span class="n">masked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="linenos">13</span><span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">handling_sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handling_sig</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
+<span class="linenos">15</span><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">task_inner</span><span class="p">.</span><span class="n">signal_actions</span><span class="p">.</span><span class="n">table</span><span class="p">[</span><span class="n">handling_sig</span><span class="p">]</span>
+<span class="linenos">16</span><span class="w">                    </span><span class="p">.</span><span class="n">mask</span>
+<span class="linenos">17</span><span class="w">                    </span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
+<span class="linenos">18</span><span class="w">                </span><span class="p">{</span>
+<span class="linenos">19</span><span class="w">                    </span><span class="n">masked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="linenos">20</span><span class="w">                </span><span class="p">}</span>
+<span class="linenos">21</span><span class="w">            </span><span class="p">}</span>
+<span class="linenos">22</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">masked</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">23</span><span class="w">                </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span>
+<span class="linenos">24</span><span class="w">                </span><span class="nb">drop</span><span class="p">(</span><span class="n">task</span><span class="p">);</span>
+<span class="linenos">25</span><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGKILL</span>
+<span class="linenos">26</span><span class="w">                    </span><span class="o">||</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGSTOP</span>
+<span class="linenos">27</span><span class="w">                    </span><span class="o">||</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGCONT</span>
+<span class="linenos">28</span><span class="w">                    </span><span class="o">||</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGDEF</span>
+<span class="linenos">29</span><span class="w">                </span><span class="p">{</span>
 <span class="linenos">30</span><span class="w">                    </span><span class="c1">// signal is a kernel signal</span>
-<span class="linenos">31</span><span class="w">                    </span><span class="n">call_kernel_signal_handler</span><span class="p">(</span><span class="n">signal</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">32</span><span class="w">                </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">                    </span><span class="n">call_kernel_signal_handler</span><span class="p">(</span><span class="n">signal</span><span class="p">);</span>
+<span class="linenos">32</span><span class="w">                </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos">33</span><span class="w">                    </span><span class="c1">// signal is a user signal</span>
-<span class="linenos">34</span><span class="w">                    </span><span class="n">call_user_signal_handler</span><span class="p">(</span><span class="n">sig</span><span class="p">,</span><span class="w"> </span><span class="n">signal</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">35</span><span class="w">                    </span><span class="k">return</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">36</span><span class="w">                </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">37</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">38</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">39</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">40</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">34</span><span class="w">                    </span><span class="n">call_user_signal_handler</span><span class="p">(</span><span class="n">sig</span><span class="p">,</span><span class="w"> </span><span class="n">signal</span><span class="p">);</span>
+<span class="linenos">35</span><span class="w">                    </span><span class="k">return</span><span class="p">;</span>
+<span class="linenos">36</span><span class="w">                </span><span class="p">}</span>
+<span class="linenos">37</span><span class="w">            </span><span class="p">}</span>
+<span class="linenos">38</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">39</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">40</span><span class="p">}</span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -921,65 +921,65 @@
 </ul>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/task.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">handling_sig</span>: <span class="kt">isize</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_ctx_backup</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">TrapContext</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">handling_sig</span>: <span class="kt">isize</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_ctx_backup</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">TrapContext</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
 
 <span class="c1">// os/src/task/mod.rs</span>
 
-<span class="k">fn</span> <span class="nf">call_kernel_signal_handler</span><span class="p">(</span><span class="n">signal</span>: <span class="nc">SignalFlags</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">SignalFlags</span>::<span class="n">SIGSTOP</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">task_inner</span><span class="p">.</span><span class="n">frozen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="w"> </span><span class="o">^=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGSTOP</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="n">SignalFlags</span>::<span class="n">SIGCONT</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">SignalFlags</span>::<span class="n">SIGCONT</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="w"> </span><span class="o">^=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGCONT</span><span class="p">;</span><span class="w"></span>
-<span class="w">                </span><span class="n">task_inner</span><span class="p">.</span><span class="n">frozen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">fn</span> <span class="nf">call_kernel_signal_handler</span><span class="p">(</span><span class="n">signal</span>: <span class="nc">SignalFlags</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">signal</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">SignalFlags</span>::<span class="n">SIGSTOP</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">task_inner</span><span class="p">.</span><span class="n">frozen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="w">            </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="w"> </span><span class="o">^=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGSTOP</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">SignalFlags</span>::<span class="n">SIGCONT</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">SignalFlags</span>::<span class="n">SIGCONT</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="w"> </span><span class="o">^=</span><span class="w"> </span><span class="n">SignalFlags</span>::<span class="n">SIGCONT</span><span class="p">;</span>
+<span class="w">                </span><span class="n">task_inner</span><span class="p">.</span><span class="n">frozen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">            </span><span class="c1">// println!(</span>
 <span class="w">            </span><span class="c1">//     &quot;[K] call_kernel_signal_handler:: current task sigflag {:?}&quot;,</span>
 <span class="w">            </span><span class="c1">//     task_inner.signals</span>
 <span class="w">            </span><span class="c1">// );</span>
-<span class="w">            </span><span class="n">task_inner</span><span class="p">.</span><span class="n">killed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">            </span><span class="n">task_inner</span><span class="p">.</span><span class="n">killed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 
-<span class="k">fn</span> <span class="nf">call_user_signal_handler</span><span class="p">(</span><span class="n">sig</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">signal</span>: <span class="nc">SignalFlags</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
+<span class="k">fn</span> <span class="nf">call_user_signal_handler</span><span class="p">(</span><span class="n">sig</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">signal</span>: <span class="nc">SignalFlags</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
 
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signal_actions</span><span class="p">.</span><span class="n">table</span><span class="p">[</span><span class="n">sig</span><span class="p">].</span><span class="n">handler</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">handler</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signal_actions</span><span class="p">.</span><span class="n">table</span><span class="p">[</span><span class="n">sig</span><span class="p">].</span><span class="n">handler</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">handler</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="c1">// user handler</span>
 
 <span class="w">        </span><span class="c1">// handle flag</span>
-<span class="w">        </span><span class="n">task_inner</span><span class="p">.</span><span class="n">handling_sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sig</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="w"> </span><span class="o">^=</span><span class="w"> </span><span class="n">signal</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="n">task_inner</span><span class="p">.</span><span class="n">handling_sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sig</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="p">;</span>
+<span class="w">        </span><span class="n">task_inner</span><span class="p">.</span><span class="n">signals</span><span class="w"> </span><span class="o">^=</span><span class="w"> </span><span class="n">signal</span><span class="p">;</span>
 
 <span class="w">        </span><span class="c1">// backup trapframe</span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">trap_ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="n">task_inner</span><span class="p">.</span><span class="n">trap_ctx_backup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="o">*</span><span class="n">trap_ctx</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">trap_ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span>
+<span class="w">        </span><span class="n">task_inner</span><span class="p">.</span><span class="n">trap_ctx_backup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="o">*</span><span class="n">trap_ctx</span><span class="p">);</span>
 
 <span class="w">        </span><span class="c1">// modify trapframe</span>
-<span class="w">        </span><span class="n">trap_ctx</span><span class="p">.</span><span class="n">sepc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handler</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="n">trap_ctx</span><span class="p">.</span><span class="n">sepc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handler</span><span class="p">;</span>
 
 <span class="w">        </span><span class="c1">// put args (a0)</span>
-<span class="w">        </span><span class="n">trap_ctx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sig</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">trap_ctx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sig</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="c1">// default action</span>
-<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;[K] task/call_user_signal_handler: default action: ignore it or kill process&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;[K] task/call_user_signal_handler: default action: ignore it or kill process&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -990,36 +990,36 @@
 <p>回到 <code class="docutils literal notranslate"><span class="pre">handle_signals</span></code> ，从 <code class="docutils literal notranslate"><span class="pre">handle_signals</span></code> 退出之后会回到 <code class="docutils literal notranslate"><span class="pre">trap_handler</span></code> 中，这里在回到用户态之前会检查当前进程是否出错并可以退出：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/trap/mod.rs</span>
 
-<span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">    </span><span class="n">handle_signals</span><span class="p">();</span><span class="w"></span>
+<span class="cp">#[no_mangle]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="n">handle_signals</span><span class="p">();</span>
 
 <span class="w">    </span><span class="c1">// check error signals (if error then exit)</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">((</span><span class="n">errno</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">))</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">check_signals_error_of_current</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;[kernel] {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="n">errno</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="n">trap_return</span><span class="p">();</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">((</span><span class="n">errno</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">))</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">check_signals_error_of_current</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;[kernel] {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">);</span>
+<span class="w">        </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="n">errno</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">trap_return</span><span class="p">();</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>这里的错误涵盖了 <code class="docutils literal notranslate"><span class="pre">SIGINT/SIGSEGV/SIGILL</span></code> 等，可以看 <code class="docutils literal notranslate"><span class="pre">check_signals_error_of_current</span></code> 的实现。出错之后会直接打印信息并调用 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 退出当前进程并进行调度。</p>
 <p>最后还需要补充 <code class="docutils literal notranslate"><span class="pre">sigreturn</span></code> 的实现。在信号处理例程的结尾需要插入这个系统调用来结束信号处理并继续进程原来的执行：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/process.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigreturn</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">handling_sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigreturn</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">handling_sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 <span class="w">        </span><span class="c1">// restore the trap context</span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="o">*</span><span class="n">trap_ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">trap_ctx_backup</span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="mi">0</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span>
+<span class="w">        </span><span class="o">*</span><span class="n">trap_ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">trap_ctx_backup</span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">        </span><span class="mi">0</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">-</span><span class="mi">1</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>这里只是将进程控制块中保存的记录了处理信号之前的进程上下文的 <code class="docutils literal notranslate"><span class="pre">trap_ctx_backup</span></code> 覆盖到当前的 Trap 上下文。这样接下来 Trap 回到用户态就会继续原来进程的执行了。</p>
@@ -1167,5 +1167,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

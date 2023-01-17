@@ -403,57 +403,57 @@
 <h2>将应用程序链接到内核<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
 <p>在本章中，我们把应用程序的二进制镜像文件（从 ELF 格式可执行文件剥离元数据，参考 <a class="reference internal" href="../chapter1/4first-instruction-in-kernel2.html#content-binary-from-elf"><span class="std std-ref">前面章节</span></a> ）作为内核的数据段链接到内核里面，因此内核需要知道内含的应用程序的数量和它们的位置，这样才能够在运行时对它们进行管理并能够加载到物理内存。</p>
 <p>在 <code class="docutils literal notranslate"><span class="pre">os/src/main.rs</span></code> 中能够找到这样一行：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="fm">global_asm!</span><span class="p">(</span><span class="fm">include_str!</span><span class="p">(</span><span class="s">&quot;link_app.S&quot;</span><span class="p">));</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="fm">global_asm!</span><span class="p">(</span><span class="fm">include_str!</span><span class="p">(</span><span class="s">&quot;link_app.S&quot;</span><span class="p">));</span>
 </pre></div>
 </div>
 <p>这里我们引入了一段汇编代码 <code class="docutils literal notranslate"><span class="pre">link_app.S</span></code> ，它一开始并不存在，而是在构建操作系统时自动生成的。当我们使用 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 让系统运行的过程中，这个汇编代码 <code class="docutils literal notranslate"><span class="pre">link_app.S</span></code> 就生成了。我们可以先来看一看 <code class="docutils literal notranslate"><span class="pre">link_app.S</span></code> 里面的内容：</p>
 <div class="highlight-asm notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1"># os/src/link_app.S</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span>    <span class="na">.align</span> <span class="mi">3</span>
-<span class="linenos"> 4</span>    <span class="na">.section</span> <span class="no">.data</span>
-<span class="linenos"> 5</span>    <span class="na">.global</span> <span class="no">_num_app</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="na">.align</span><span class="w"> </span><span class="mi">3</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="na">.section</span><span class="w"> </span><span class="no">.data</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="na">.global</span><span class="w"> </span><span class="no">_num_app</span>
 <span class="linenos"> 6</span><span class="nl">_num_app:</span>
-<span class="linenos"> 7</span>    <span class="na">.quad</span> <span class="mi">5</span>
-<span class="linenos"> 8</span>    <span class="na">.quad</span> <span class="no">app_0_start</span>
-<span class="linenos"> 9</span>    <span class="na">.quad</span> <span class="no">app_1_start</span>
-<span class="linenos">10</span>    <span class="na">.quad</span> <span class="no">app_2_start</span>
-<span class="linenos">11</span>    <span class="na">.quad</span> <span class="no">app_3_start</span>
-<span class="linenos">12</span>    <span class="na">.quad</span> <span class="no">app_4_start</span>
-<span class="linenos">13</span>    <span class="na">.quad</span> <span class="no">app_4_end</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="na">.quad</span><span class="w"> </span><span class="mi">5</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="na">.quad</span><span class="w"> </span><span class="no">app_0_start</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="na">.quad</span><span class="w"> </span><span class="no">app_1_start</span>
+<span class="linenos">10</span><span class="w">    </span><span class="na">.quad</span><span class="w"> </span><span class="no">app_2_start</span>
+<span class="linenos">11</span><span class="w">    </span><span class="na">.quad</span><span class="w"> </span><span class="no">app_3_start</span>
+<span class="linenos">12</span><span class="w">    </span><span class="na">.quad</span><span class="w"> </span><span class="no">app_4_start</span>
+<span class="linenos">13</span><span class="w">    </span><span class="na">.quad</span><span class="w"> </span><span class="no">app_4_end</span>
 <span class="linenos">14</span>
-<span class="linenos">15</span>    <span class="na">.section</span> <span class="no">.data</span>
-<span class="linenos">16</span>    <span class="na">.global</span> <span class="no">app_0_start</span>
-<span class="linenos">17</span>    <span class="na">.global</span> <span class="no">app_0_end</span>
+<span class="linenos">15</span><span class="w">    </span><span class="na">.section</span><span class="w"> </span><span class="no">.data</span>
+<span class="linenos">16</span><span class="w">    </span><span class="na">.global</span><span class="w"> </span><span class="no">app_0_start</span>
+<span class="linenos">17</span><span class="w">    </span><span class="na">.global</span><span class="w"> </span><span class="no">app_0_end</span>
 <span class="linenos">18</span><span class="nl">app_0_start:</span>
-<span class="linenos">19</span>    <span class="na">.incbin</span> <span class="s">&quot;../user/target/riscv64gc-unknown-none-elf/release/00hello_world.bin&quot;</span>
+<span class="linenos">19</span><span class="w">    </span><span class="na">.incbin</span><span class="w"> </span><span class="s">&quot;../user/target/riscv64gc-unknown-none-elf/release/00hello_world.bin&quot;</span>
 <span class="linenos">20</span><span class="nl">app_0_end:</span>
 <span class="linenos">21</span>
-<span class="linenos">22</span>    <span class="na">.section</span> <span class="no">.data</span>
-<span class="linenos">23</span>    <span class="na">.global</span> <span class="no">app_1_start</span>
-<span class="linenos">24</span>    <span class="na">.global</span> <span class="no">app_1_end</span>
+<span class="linenos">22</span><span class="w">    </span><span class="na">.section</span><span class="w"> </span><span class="no">.data</span>
+<span class="linenos">23</span><span class="w">    </span><span class="na">.global</span><span class="w"> </span><span class="no">app_1_start</span>
+<span class="linenos">24</span><span class="w">    </span><span class="na">.global</span><span class="w"> </span><span class="no">app_1_end</span>
 <span class="linenos">25</span><span class="nl">app_1_start:</span>
-<span class="linenos">26</span>    <span class="na">.incbin</span> <span class="s">&quot;../user/target/riscv64gc-unknown-none-elf/release/01store_fault.bin&quot;</span>
+<span class="linenos">26</span><span class="w">    </span><span class="na">.incbin</span><span class="w"> </span><span class="s">&quot;../user/target/riscv64gc-unknown-none-elf/release/01store_fault.bin&quot;</span>
 <span class="linenos">27</span><span class="nl">app_1_end:</span>
 <span class="linenos">28</span>
-<span class="linenos">29</span>    <span class="na">.section</span> <span class="no">.data</span>
-<span class="linenos">30</span>    <span class="na">.global</span> <span class="no">app_2_start</span>
-<span class="linenos">31</span>    <span class="na">.global</span> <span class="no">app_2_end</span>
+<span class="linenos">29</span><span class="w">    </span><span class="na">.section</span><span class="w"> </span><span class="no">.data</span>
+<span class="linenos">30</span><span class="w">    </span><span class="na">.global</span><span class="w"> </span><span class="no">app_2_start</span>
+<span class="linenos">31</span><span class="w">    </span><span class="na">.global</span><span class="w"> </span><span class="no">app_2_end</span>
 <span class="linenos">32</span><span class="nl">app_2_start:</span>
-<span class="linenos">33</span>    <span class="na">.incbin</span> <span class="s">&quot;../user/target/riscv64gc-unknown-none-elf/release/02power.bin&quot;</span>
+<span class="linenos">33</span><span class="w">    </span><span class="na">.incbin</span><span class="w"> </span><span class="s">&quot;../user/target/riscv64gc-unknown-none-elf/release/02power.bin&quot;</span>
 <span class="linenos">34</span><span class="nl">app_2_end:</span>
 <span class="linenos">35</span>
-<span class="linenos">36</span>    <span class="na">.section</span> <span class="no">.data</span>
-<span class="linenos">37</span>    <span class="na">.global</span> <span class="no">app_3_start</span>
-<span class="linenos">38</span>    <span class="na">.global</span> <span class="no">app_3_end</span>
+<span class="linenos">36</span><span class="w">    </span><span class="na">.section</span><span class="w"> </span><span class="no">.data</span>
+<span class="linenos">37</span><span class="w">    </span><span class="na">.global</span><span class="w"> </span><span class="no">app_3_start</span>
+<span class="linenos">38</span><span class="w">    </span><span class="na">.global</span><span class="w"> </span><span class="no">app_3_end</span>
 <span class="linenos">39</span><span class="nl">app_3_start:</span>
-<span class="linenos">40</span>    <span class="na">.incbin</span> <span class="s">&quot;../user/target/riscv64gc-unknown-none-elf/release/03priv_inst.bin&quot;</span>
+<span class="linenos">40</span><span class="w">    </span><span class="na">.incbin</span><span class="w"> </span><span class="s">&quot;../user/target/riscv64gc-unknown-none-elf/release/03priv_inst.bin&quot;</span>
 <span class="linenos">41</span><span class="nl">app_3_end:</span>
 <span class="linenos">42</span>
-<span class="linenos">43</span>    <span class="na">.section</span> <span class="no">.data</span>
-<span class="linenos">44</span>    <span class="na">.global</span> <span class="no">app_4_start</span>
-<span class="linenos">45</span>    <span class="na">.global</span> <span class="no">app_4_end</span>
+<span class="linenos">43</span><span class="w">    </span><span class="na">.section</span><span class="w"> </span><span class="no">.data</span>
+<span class="linenos">44</span><span class="w">    </span><span class="na">.global</span><span class="w"> </span><span class="no">app_4_start</span>
+<span class="linenos">45</span><span class="w">    </span><span class="na">.global</span><span class="w"> </span><span class="no">app_4_end</span>
 <span class="linenos">46</span><span class="nl">app_4_start:</span>
-<span class="linenos">47</span>    <span class="na">.incbin</span> <span class="s">&quot;../user/target/riscv64gc-unknown-none-elf/release/04priv_csr.bin&quot;</span>
+<span class="linenos">47</span><span class="w">    </span><span class="na">.incbin</span><span class="w"> </span><span class="s">&quot;../user/target/riscv64gc-unknown-none-elf/release/04priv_csr.bin&quot;</span>
 <span class="linenos">48</span><span class="nl">app_4_end:</span>
 </pre></div>
 </div>
@@ -470,11 +470,11 @@
 <p>应用管理器 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 结构体定义如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/batch.rs</span>
 
-<span class="k">struct</span> <span class="nc">AppManager</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">num_app</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">current_app</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">app_start</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="n">MAX_APP_NUM</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">],</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">struct</span> <span class="nc">AppManager</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">num_app</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">current_app</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">app_start</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="n">MAX_APP_NUM</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">],</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>这里我们可以看出，上面提到的应用管理器需要保存和维护的信息都在 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 里面。这样设计的原因在于：我们希望将 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 实例化为一个全局变量，使得任何函数都可以直接访问。但是里面的 <code class="docutils literal notranslate"><span class="pre">current_app</span></code> 字段表示当前执行的是第几个应用，它是一个可修改的变量，会在系统运行期间发生变化。因此在声明全局变量的时候，采用 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 是一种比较简单自然的方法。但是在 Rust 中，任何对于 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 变量的访问控制都是 unsafe 的，而我们要在编程中尽量避免使用 unsafe ，这样才能让编译器负责更多的安全性检查。因此，我们需要考虑如何在尽量避免触及 unsafe 的情况下仍能声明并使用可变的全局变量。</p>
@@ -496,12 +496,12 @@
 </div>
 <p id="term-interior-mutability">如果单独使用 <code class="docutils literal notranslate"><span class="pre">static</span></code> 而去掉 <code class="docutils literal notranslate"><span class="pre">mut</span></code> 的话，我们可以声明一个初始化之后就不可变的全局变量，但是我们需要 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 里面的内容在运行时发生变化。这涉及到 Rust 中的 <strong>内部可变性</strong> （Interior Mutability），也即在变量自身不可变或仅在不可变借用的情况下仍能修改绑定到变量上的值。我们可以通过用上面提到的 <code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 来包裹 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> ，这样 <code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 无需被声明为 <code class="docutils literal notranslate"><span class="pre">mut</span></code> ，同时被包裹的 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 也能被修改。但是，我们能否将 <code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 声明为一个全局变量呢？让我们写一小段代码试一试：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// https://play.rust-lang.org/?version=stable&amp;mode=debug&amp;edition=2021&amp;gist=18b0f956b83e6a8a408215edcfcb6d01</span>
-<span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">cell</span>::<span class="n">RefCell</span><span class="p">;</span><span class="w"></span>
-<span class="k">static</span><span class="w"> </span><span class="n">A</span>: <span class="nc">RefCell</span><span class="o">&lt;</span><span class="kt">i32</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RefCell</span>::<span class="n">new</span><span class="p">(</span><span class="mi">3</span><span class="p">);</span><span class="w"></span>
-<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="o">*</span><span class="n">A</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">.</span><span class="n">borrow</span><span class="p">());</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">cell</span>::<span class="n">RefCell</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="n">A</span>: <span class="nc">RefCell</span><span class="o">&lt;</span><span class="kt">i32</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RefCell</span>::<span class="n">new</span><span class="p">(</span><span class="mi">3</span><span class="p">);</span>
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">*</span><span class="n">A</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">.</span><span class="n">borrow</span><span class="p">());</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>这段代码无法通过编译，其错误是：</p>
@@ -522,24 +522,24 @@ For more information about this error, try `rustc --explain E0277`.
 <p>除了 <code class="docutils literal notranslate"><span class="pre">Sync</span></code> 的问题之外，看起来 <code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 已经非常接近我们的需求了，因此我们在 <code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 的基础上再封装一个 <code class="docutils literal notranslate"><span class="pre">UPSafeCell</span></code> ，它名字的含义是：允许我们在 <em>单核</em> 上安全使用可变全局变量。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/sync/up.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="sd">/// inner data</span>
-<span class="w">    </span><span class="n">inner</span>: <span class="nc">RefCell</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="n">inner</span>: <span class="nc">RefCell</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
 
-<span class="k">unsafe</span><span class="w"> </span><span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">UPSafeCell</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="k">unsafe</span><span class="w"> </span><span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">UPSafeCell</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{}</span>
 
-<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">UPSafeCell</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">UPSafeCell</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="sd">/// User is responsible to guarantee that inner struct is only used in</span>
 <span class="w">    </span><span class="sd">/// uniprocessor.</span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">value</span>: <span class="nc">T</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">inner</span>: <span class="nc">RefCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">value</span>: <span class="nc">T</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">inner</span>: <span class="nc">RefCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
 <span class="w">    </span><span class="sd">/// Panic if the data has been borrowed.</span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exclusive_access</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">RefMut</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">()</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exclusive_access</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">RefMut</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">borrow_mut</span><span class="p">()</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">UPSafeCell</span></code> 对于 <code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 简单进行封装，它和 <code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 一样提供内部可变性和运行时借用检查，只是更加严格：调用 <code class="docutils literal notranslate"><span class="pre">exclusive_access</span></code> 可以得到它包裹的数据的独占访问权。因此当我们要访问数据时（无论读还是写），需要首先调用 <code class="docutils literal notranslate"><span class="pre">exclusive_access</span></code> 获得数据的可变借用标记，通过它可以完成数据的读写，在操作完成之后我们需要销毁这个标记，此后才能开始对该数据的下一次访问。相比 <code class="docutils literal notranslate"><span class="pre">RefCell</span></code> 它不再允许多个读操作同时存在。</p>
@@ -551,23 +551,23 @@ For more information about this error, try `rustc --explain E0277`.
 <p>这样，我们就以尽量少的 unsafe code 来初始化 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 的全局实例 <code class="docutils literal notranslate"><span class="pre">APP_MANAGER</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/batch.rs</span>
 
-<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">APP_MANAGER</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">AppManager</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">({</span><span class="w"></span>
-<span class="w">        </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_num_app</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">num_app_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_num_app</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">num_app</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">num_app_ptr</span><span class="p">.</span><span class="n">read_volatile</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">app_start</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="n">MAX_APP_NUM</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">MAX_APP_NUM</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">app_start_raw</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">usize</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w">  </span><span class="n">core</span>::<span class="n">slice</span>::<span class="n">from_raw_parts</span><span class="p">(</span><span class="w"></span>
-<span class="w">            </span><span class="n">num_app_ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="n">num_app</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"></span>
-<span class="w">        </span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="n">app_start</span><span class="p">[</span><span class="o">..=</span><span class="n">num_app</span><span class="p">].</span><span class="n">copy_from_slice</span><span class="p">(</span><span class="n">app_start_raw</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="n">AppManager</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">num_app</span><span class="p">,</span><span class="w"></span>
-<span class="w">            </span><span class="n">current_app</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
-<span class="w">            </span><span class="n">app_start</span><span class="p">,</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">})};</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">APP_MANAGER</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">AppManager</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">({</span>
+<span class="w">        </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_num_app</span><span class="p">();</span><span class="w"> </span><span class="p">}</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">num_app_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_num_app</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">num_app</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">num_app_ptr</span><span class="p">.</span><span class="n">read_volatile</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">app_start</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="n">MAX_APP_NUM</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">MAX_APP_NUM</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">app_start_raw</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">usize</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w">  </span><span class="n">core</span>::<span class="n">slice</span>::<span class="n">from_raw_parts</span><span class="p">(</span>
+<span class="w">            </span><span class="n">num_app_ptr</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="n">num_app</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">        </span><span class="p">);</span>
+<span class="w">        </span><span class="n">app_start</span><span class="p">[</span><span class="o">..=</span><span class="n">num_app</span><span class="p">].</span><span class="n">copy_from_slice</span><span class="p">(</span><span class="n">app_start_raw</span><span class="p">);</span>
+<span class="w">        </span><span class="n">AppManager</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">num_app</span><span class="p">,</span>
+<span class="w">            </span><span class="n">current_app</span>: <span class="mi">0</span><span class="p">,</span>
+<span class="w">            </span><span class="n">app_start</span><span class="p">,</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">})};</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>初始化的逻辑很简单，就是找到 <code class="docutils literal notranslate"><span class="pre">link_app.S</span></code> 中提供的符号 <code class="docutils literal notranslate"><span class="pre">_num_app</span></code> ，并从这里开始解析出应用数量以及各个应用的起始地址。注意其中对于切片类型的使用能够很大程度上简化编程。</p>
@@ -575,34 +575,34 @@ For more information about this error, try `rustc --explain E0277`.
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/Cargo.toml</span>
 
 <span class="k">[dependencies]</span>
-<span class="n">lazy_static</span> <span class="o">=</span> <span class="p">{</span> <span class="n">version</span> <span class="o">=</span> <span class="s">&quot;1.4.0&quot;</span><span class="p">,</span> <span class="n">features</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;spin_no_std&quot;</span><span class="p">]</span> <span class="p">}</span>
+<span class="n">lazy_static</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;1.4.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;spin_no_std&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code> 宏提供了全局变量的运行时初始化功能。一般情况下，全局变量必须在编译期设置一个初始值，但是有些全局变量依赖于运行期间才能得到的数据作为初始值。这导致这些全局变量需要在运行时发生变化，即需要重新设置初始值之后才能使用。如果我们手动实现的话有诸多不便之处，比如需要把这种全局变量声明为 <code class="docutils literal notranslate"><span class="pre">static</span> <span class="pre">mut</span></code> 并衍生出很多 unsafe 代码 。这种情况下我们可以使用 <code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code> 宏来帮助我们解决这个问题。这里我们借助 <code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code> 声明了一个 <code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 结构的名为 <code class="docutils literal notranslate"><span class="pre">APP_MANAGER</span></code> 的全局实例，且只有在它第一次被使用到的时候，才会进行实际的初始化工作。</p>
 <p>因此，借助我们设计的 <code class="docutils literal notranslate"><span class="pre">UPSafeCell&lt;T&gt;</span></code> 和外部库 <code class="docutils literal notranslate"><span class="pre">lazy_static!</span></code>，我们就能使用尽量少的 unsafe 代码完成可变全局变量的声明和初始化，且一旦初始化完成，在后续的使用过程中便不再触及 unsafe 代码。</p>
 <p><code class="docutils literal notranslate"><span class="pre">AppManager</span></code> 的方法中， <code class="docutils literal notranslate"><span class="pre">print_app_info/get_current_app/move_to_next_app</span></code> 都相当简单直接，需要说明的是 <code class="docutils literal notranslate"><span class="pre">load_app</span></code>：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">load_app</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">app_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 2</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">app_id</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">num_app</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="w">        </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;All applications completed!&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;[kernel] Loading app_{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">app_id</span><span class="p">);</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">load_app</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">app_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 2</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">app_id</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">num_app</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">        </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;All applications completed!&quot;</span><span class="p">);</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;[kernel] Loading app_{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">app_id</span><span class="p">);</span>
 <span class="linenos"> 6</span><span class="w">    </span><span class="c1">// clear app area</span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="n">core</span>::<span class="n">slice</span>::<span class="n">from_raw_parts_mut</span><span class="p">(</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">        </span><span class="n">APP_BASE_ADDRESS</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">        </span><span class="n">APP_SIZE_LIMIT</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="p">).</span><span class="n">fill</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">app_src</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">core</span>::<span class="n">slice</span>::<span class="n">from_raw_parts</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">app_start</span><span class="p">[</span><span class="n">app_id</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">app_start</span><span class="p">[</span><span class="n">app_id</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">app_start</span><span class="p">[</span><span class="n">app_id</span><span class="p">]</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="p">);</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">app_dst</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">core</span>::<span class="n">slice</span>::<span class="n">from_raw_parts_mut</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">        </span><span class="n">APP_BASE_ADDRESS</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">        </span><span class="n">app_src</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">    </span><span class="p">);</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">    </span><span class="n">app_dst</span><span class="p">.</span><span class="n">copy_from_slice</span><span class="p">(</span><span class="n">app_src</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="n">core</span>::<span class="n">slice</span>::<span class="n">from_raw_parts_mut</span><span class="p">(</span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="n">APP_BASE_ADDRESS</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="n">APP_SIZE_LIMIT</span>
+<span class="linenos">10</span><span class="w">    </span><span class="p">).</span><span class="n">fill</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="linenos">11</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">app_src</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">core</span>::<span class="n">slice</span>::<span class="n">from_raw_parts</span><span class="p">(</span>
+<span class="linenos">12</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">app_start</span><span class="p">[</span><span class="n">app_id</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
+<span class="linenos">13</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">app_start</span><span class="p">[</span><span class="n">app_id</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">app_start</span><span class="p">[</span><span class="n">app_id</span><span class="p">]</span>
+<span class="linenos">14</span><span class="w">    </span><span class="p">);</span>
+<span class="linenos">15</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">app_dst</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">core</span>::<span class="n">slice</span>::<span class="n">from_raw_parts_mut</span><span class="p">(</span>
+<span class="linenos">16</span><span class="w">        </span><span class="n">APP_BASE_ADDRESS</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
+<span class="linenos">17</span><span class="w">        </span><span class="n">app_src</span><span class="p">.</span><span class="n">len</span><span class="p">()</span>
+<span class="linenos">18</span><span class="w">    </span><span class="p">);</span>
+<span class="linenos">19</span><span class="w">    </span><span class="n">app_dst</span><span class="p">.</span><span class="n">copy_from_slice</span><span class="p">(</span><span class="n">app_src</span><span class="p">);</span>
 <span class="linenos">20</span><span class="w">    </span><span class="c1">// memory fence about fetching the instruction memory</span>
-<span class="linenos">21</span><span class="w">    </span><span class="fm">asm!</span><span class="p">(</span><span class="s">&quot;fence.i&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">22</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">21</span><span class="w">    </span><span class="fm">asm!</span><span class="p">(</span><span class="s">&quot;fence.i&quot;</span><span class="p">);</span>
+<span class="linenos">22</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>这个方法负责将参数 <code class="docutils literal notranslate"><span class="pre">app_id</span></code> 对应的应用程序的二进制镜像加载到物理内存以 <code class="docutils literal notranslate"><span class="pre">0x80400000</span></code> 起始的位置，这个位置是批处理操作系统和应用程序之间约定的常数地址，回忆上一小节中，我们也调整应用程序的内存布局以同一个地址开头。第 7 行开始，我们首先将一块内存清空，然后找到待加载应用二进制镜像的位置，并将它复制到正确的位置。它本质上是把数据从一块内存复制到另一块内存，从批处理操作系统的角度来看，是将操作系统数据段的一部分数据（实际上是应用程序）复制到了一个可以执行代码的内存区域。在这一点上也体现了冯诺依曼计算机的 <em>代码即数据</em> 的特征。</p>
@@ -740,5 +740,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

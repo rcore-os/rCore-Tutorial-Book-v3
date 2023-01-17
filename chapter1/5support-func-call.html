@@ -567,24 +567,24 @@
 <p>这可以设置我们的默认编译目标，同时调整编译选项，设置链接脚本以及强制打开 <code class="docutils literal notranslate"><span class="pre">fp</span></code> 选项，这样才会避免 <code class="docutils literal notranslate"><span class="pre">fp</span></code> 相关指令被编译器优化掉。随后，我们可以使用 <code class="docutils literal notranslate"><span class="pre">rust-objdump</span></code> 工具反汇编内核或者应用程序可执行文件，并找到某个函数的入口。然后，我们能够看到在函数的开场和结尾阶段，编译器会生成类似的汇编代码：</p>
 <div class="highlight-riscv notranslate"><div class="highlight"><pre><span></span><span class="c"># 开场</span>
 <span class="c"># 为当前函数分配 64 字节的栈帧</span>
-<span class="nd">addi</span><span class="w">        </span><span class="na">sp</span>,<span class="w"> </span><span class="na">sp</span>,<span class="w"> </span>-<span class="m">64</span><span class="w"></span>
+<span class="nd">addi</span><span class="w">        </span><span class="na">sp</span>,<span class="w"> </span><span class="na">sp</span>,<span class="w"> </span>-<span class="m">64</span>
 <span class="c"># 将 ra 和 fp 压栈保存</span>
-<span class="nd">sd</span><span class="w">  </span><span class="na">ra</span>,<span class="w"> </span><span class="m">56</span>(<span class="na">sp</span>)<span class="w"></span>
-<span class="nd">sd</span><span class="w">  </span><span class="na">s0</span>,<span class="w"> </span><span class="m">48</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="nd">sd</span><span class="w">  </span><span class="na">ra</span>,<span class="w"> </span><span class="m">56</span>(<span class="na">sp</span>)
+<span class="nd">sd</span><span class="w">  </span><span class="na">s0</span>,<span class="w"> </span><span class="m">48</span>(<span class="na">sp</span>)
 <span class="c"># 更新 fp 为当前函数栈帧顶端地址</span>
-<span class="nd">addi</span><span class="w">        </span><span class="na">s0</span>,<span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">64</span><span class="w"></span>
+<span class="nd">addi</span><span class="w">        </span><span class="na">s0</span>,<span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">64</span>
 
 <span class="c"># 函数执行</span>
 <span class="c"># 中间如果再调用了其他函数会修改 ra</span>
 
 <span class="c"># 结尾</span>
 <span class="c"># 恢复 ra 和 fp</span>
-<span class="nd">ld</span><span class="w">  </span><span class="na">ra</span>,<span class="w"> </span><span class="m">56</span>(<span class="na">sp</span>)<span class="w"></span>
-<span class="nd">ld</span><span class="w">  </span><span class="na">s0</span>,<span class="w"> </span><span class="m">48</span>(<span class="na">sp</span>)<span class="w"></span>
+<span class="nd">ld</span><span class="w">  </span><span class="na">ra</span>,<span class="w"> </span><span class="m">56</span>(<span class="na">sp</span>)
+<span class="nd">ld</span><span class="w">  </span><span class="na">s0</span>,<span class="w"> </span><span class="m">48</span>(<span class="na">sp</span>)
 <span class="c"># 退栈</span>
-<span class="nd">addi</span><span class="w">        </span><span class="na">sp</span>,<span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">64</span><span class="w"></span>
+<span class="nd">addi</span><span class="w">        </span><span class="na">sp</span>,<span class="w"> </span><span class="na">sp</span>,<span class="w"> </span><span class="m">64</span>
 <span class="c"># 返回，使用 ret 指令或其他等价的实现方式</span>
-<span class="nd">ret</span><span class="w"></span>
+<span class="nd">ret</span>
 </pre></div>
 </div>
 <p>至此，我们基本上说明了函数调用是如何基于栈来实现的。不过我们可以暂时先忽略掉这些细节，因为我们现在只是需要在初始化阶段完成栈的设置，也就是设置好栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 寄存器，编译器会帮我们自动完成后面的函数调用相关机制的代码生成。麻烦的是， <code class="docutils literal notranslate"><span class="pre">sp</span></code> 的值也不能随便设置，至少我们需要保证它指向合法的物理内存，而且不能与程序的其他代码、数据段相交，因为在函数调用的过程中，栈区域里面的内容会被修改。如何保证这一点呢？</p>
@@ -593,17 +593,17 @@
 <span id="id6"></span><h2>分配并使用启动栈<a class="headerlink" href="#jump-practice" title="永久链接至标题">#</a></h2>
 <p>我们在 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 中分配启动栈空间，并在控制权被转交给 Rust 入口之前将栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 设置为栈顶的位置。</p>
 <div class="highlight-asm notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1"># os/src/entry.asm</span>
-<span class="linenos"> 2</span>    <span class="na">.section</span> <span class="no">.text.entry</span>
-<span class="linenos"> 3</span>    <span class="na">.globl</span> <span class="no">_start</span>
+<span class="linenos"> 2</span><span class="w">    </span><span class="na">.section</span><span class="w"> </span><span class="no">.text.entry</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="na">.globl</span><span class="w"> </span><span class="no">_start</span>
 <span class="linenos"> 4</span><span class="nl">_start:</span>
-<span class="linenos"> 5</span>    <span class="nf">la</span> <span class="no">sp</span><span class="p">,</span> <span class="no">boot_stack_top</span>
-<span class="linenos"> 6</span>    <span class="nf">call</span> <span class="no">rust_main</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="nf">la</span><span class="w"> </span><span class="no">sp</span><span class="p">,</span><span class="w"> </span><span class="no">boot_stack_top</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="nf">call</span><span class="w"> </span><span class="no">rust_main</span>
 <span class="linenos"> 7</span>
-<span class="linenos"> 8</span>    <span class="na">.section</span> <span class="no">.bss.stack</span>
-<span class="linenos"> 9</span>    <span class="na">.globl</span> <span class="no">boot_stack_lower_bound</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="na">.section</span><span class="w"> </span><span class="no">.bss.stack</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="na">.globl</span><span class="w"> </span><span class="no">boot_stack_lower_bound</span>
 <span class="linenos">10</span><span class="nl">boot_stack_lower_bound:</span>
-<span class="linenos">11</span>    <span class="na">.space</span> <span class="mi">4096</span> <span class="p">*</span> <span class="mi">16</span>
-<span class="linenos">12</span>    <span class="na">.globl</span> <span class="no">boot_stack_top</span>
+<span class="linenos">11</span><span class="w">    </span><span class="na">.space</span><span class="w"> </span><span class="mi">4096</span><span class="w"> </span><span class="p">*</span><span class="w"> </span><span class="mi">16</span>
+<span class="linenos">12</span><span class="w">    </span><span class="na">.globl</span><span class="w"> </span><span class="no">boot_stack_top</span>
 <span class="linenos">13</span><span class="nl">boot_stack_top:</span>
 </pre></div>
 </div>
@@ -622,30 +622,30 @@
 <p>前面我们提到过 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段一般放置需要被初始化为零的数据。然而栈并不需要在使用前被初始化为零，因为在函数调用的时候我们会插入栈帧覆盖已有的数据。我们尝试将其放置到全局数据 <code class="docutils literal notranslate"><span class="pre">.data</span></code> 段中但最后未能成功，因此才决定将其放置到 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段中。全局符号 <code class="docutils literal notranslate"><span class="pre">sbss</span></code> 和 <code class="docutils literal notranslate"><span class="pre">ebss</span></code> 分别指向 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段除 <code class="docutils literal notranslate"><span class="pre">.bss.stack</span></code> 以外的起始和终止地址，我们在使用这部分数据之前需要将它们初始化为零，这个过程将在下一节进行。</p>
 <p>回到 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> ，可以发现在控制权转交给 Rust 入口之前会执行两条指令，它们分别位于 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 的第 5、6 行。第 5 行我们将栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 设置为先前分配的启动栈栈顶地址，这样 Rust 代码在进行函数调用和返回的时候就可以正常在启动栈上分配和回收栈帧了。在我们设计好的内存布局中，这块启动栈所用的内存并不会和内核的其他代码、数据段产生冲突，它们是从物理上隔离的。然而如果启动栈溢出（比如在内核代码中出现了太多的函数调用），那么分配的栈帧将有可能覆盖内核其他部分的代码、数据从而出现十分诡异的错误。目前我们只能尽量避免栈溢出的情况发生，到了第四章，借助地址空间抽象和 MMU 硬件的帮助，我们可以做到完全禁止栈溢出。第 6 行我们通过伪指令 <code class="docutils literal notranslate"><span class="pre">call</span></code> 调用 Rust 编写的内核入口点 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 将控制权转交给 Rust 代码，该入口点在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 中实现：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/main.rs</span>
-<span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">rust_main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="cp">#[no_mangle]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">rust_main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>这里需要注意的是需要通过宏将 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 标记为 <code class="docutils literal notranslate"><span class="pre">#[no_mangle]</span></code> 以避免编译器对它的名字进行混淆，不然在链接的时候， <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 将找不到 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 提供的外部符号 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 从而导致链接失败。在 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 函数的开场白中，我们将第一次在栈上分配栈帧并保存函数调用上下文，它也是内核运行全程中最底层的栈帧。</p>
 <p>在内核初始化中，需要先完成对 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的清零。这是内核很重要的一部分初始化工作，在使用任何被分配到 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的全局变量之前我们需要确保 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段已被清零。我们就在 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 的开头完成这一工作，由于控制权已经被转交给 Rust ，我们终于不用手写汇编代码而是可以用 Rust 来实现这一功能了：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/main.rs</span>
-<span class="linenos"> 2</span><span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">rust_main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="n">clear_bss</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="cp">#[no_mangle]</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">rust_main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">clear_bss</span><span class="p">();</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{}</span>
+<span class="linenos"> 6</span><span class="p">}</span>
 <span class="linenos"> 7</span>
-<span class="linenos"> 8</span><span class="k">fn</span> <span class="nf">clear_bss</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">        </span><span class="k">fn</span> <span class="nf">sbss</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">        </span><span class="k">fn</span> <span class="nf">ebss</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="p">(</span><span class="n">sbss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="o">..</span><span class="n">ebss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">for_each</span><span class="p">(</span><span class="o">|</span><span class="n">a</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">    </span><span class="p">});</span><span class="w"></span>
-<span class="linenos">16</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="k">fn</span> <span class="nf">clear_bss</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">10</span><span class="w">        </span><span class="k">fn</span> <span class="nf">sbss</span><span class="p">();</span>
+<span class="linenos">11</span><span class="w">        </span><span class="k">fn</span> <span class="nf">ebss</span><span class="p">();</span>
+<span class="linenos">12</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">13</span><span class="w">    </span><span class="p">(</span><span class="n">sbss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="o">..</span><span class="n">ebss</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">).</span><span class="n">for_each</span><span class="p">(</span><span class="o">|</span><span class="n">a</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="linenos">15</span><span class="w">    </span><span class="p">});</span>
+<span class="linenos">16</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>在函数 <code class="docutils literal notranslate"><span class="pre">clear_bss</span></code> 中，我们会尝试从其他地方找到全局符号 <code class="docutils literal notranslate"><span class="pre">sbss</span></code> 和 <code class="docutils literal notranslate"><span class="pre">ebss</span></code> ，它们由链接脚本 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 给出，并分别指出需要被清零的 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段的起始和终止地址。接下来我们只需遍历该地址区间并逐字节进行清零即可。</p>
@@ -784,5 +784,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
     <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

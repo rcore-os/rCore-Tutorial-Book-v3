@@ -408,13 +408,13 @@
 <p>实际的指令位于第 5 行，也即 <code class="docutils literal notranslate"><span class="pre">li</span> <span class="pre">x1,</span> <span class="pre">100</span></code> 。 <code class="docutils literal notranslate"><span class="pre">li</span></code> 是 Load Immediate 的缩写，也即将一个立即数加载到某个寄存器，因此这条指令可以看做将寄存器 <code class="docutils literal notranslate"><span class="pre">x1</span></code> 赋值为 <code class="docutils literal notranslate"><span class="pre">100</span></code> 。第 4 行我们声明了一个符号 <code class="docutils literal notranslate"><span class="pre">_start</span></code> ，该符号指向紧跟在符号后面的内容——也就是位于第 5 行的指令，因此符号 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 的地址即为第 5 行的指令所在的地址。第 3 行我们告知编译器 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 是一个全局符号，因此可以被其他目标文件使用。第 2 行表明我们希望将第 2 行后面的内容全部放到一个名为 <code class="docutils literal notranslate"><span class="pre">.text.entry</span></code> 的段中。一般情况下，所有的代码都被放到一个名为 <code class="docutils literal notranslate"><span class="pre">.text</span></code> 的代码段中，这里我们将其命名为 <code class="docutils literal notranslate"><span class="pre">.text.entry</span></code> 从而区别于其他 <code class="docutils literal notranslate"><span class="pre">.text</span></code> 的目的在于我们想要确保该段被放置在相比任何其他代码段更低的地址上。这样，作为内核的入口点，这段指令才能被最先执行。</p>
 <p>接着，我们在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 中嵌入这段汇编代码，这样 Rust 编译器才能够注意到它，不然编译器会认为它是一个与项目无关的文件：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/main.rs</span>
-<span class="linenos">2</span><span class="cp">#![no_std]</span><span class="w"></span>
-<span class="linenos">3</span><span class="cp">#![no_main]</span><span class="w"></span>
+<span class="linenos">2</span><span class="cp">#![no_std]</span>
+<span class="linenos">3</span><span class="cp">#![no_main]</span>
 <span class="linenos">4</span>
-<span class="linenos">5</span><span class="k">mod</span> <span class="nn">lang_item</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">5</span><span class="k">mod</span> <span class="nn">lang_item</span><span class="p">;</span>
 <span class="linenos">6</span>
-<span class="linenos">7</span><span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">arch</span>::<span class="n">global_asm</span><span class="p">;</span><span class="w"></span>
-<span class="hll"><span class="linenos">8</span><span class="fm">global_asm!</span><span class="p">(</span><span class="fm">include_str!</span><span class="p">(</span><span class="s">&quot;entry.asm&quot;</span><span class="p">));</span><span class="w"></span>
+<span class="linenos">7</span><span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">arch</span>::<span class="n">global_asm</span><span class="p">;</span>
+<span class="hll"><span class="linenos">8</span><span class="fm">global_asm!</span><span class="p">(</span><span class="fm">include_str!</span><span class="p">(</span><span class="s">&quot;entry.asm&quot;</span><span class="p">));</span>
 </span></pre></div>
 </div>
 <p>第 8 行，我们通过 <code class="docutils literal notranslate"><span class="pre">include_str!</span></code> 宏将同目录下的汇编代码 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 转化为字符串并通过 <code class="docutils literal notranslate"><span class="pre">global_asm!</span></code> 宏嵌入到代码中。</p>
@@ -494,9 +494,9 @@
 <p>冒号前面表示最终生成的可执行文件的一个段的名字，花括号内按照放置顺序描述将所有输入目标文件的哪些段放在这个段中，每一行格式为 <code class="docutils literal notranslate"><span class="pre">&lt;ObjectFile&gt;(SectionName)</span></code>，表示目标文件 <code class="docutils literal notranslate"><span class="pre">ObjectFile</span></code> 的名为 <code class="docutils literal notranslate"><span class="pre">SectionName</span></code> 的段需要被放进去。我们也可以使用通配符来书写 <code class="docutils literal notranslate"><span class="pre">&lt;ObjectFile&gt;</span></code> 和 <code class="docutils literal notranslate"><span class="pre">&lt;SectionName&gt;</span></code> 分别表示可能的输入目标文件和段名。因此，最终的合并结果是，在最终可执行文件中各个常见的段 <code class="docutils literal notranslate"><span class="pre">.text,</span> <span class="pre">.rodata</span> <span class="pre">.data,</span> <span class="pre">.bss</span></code> 从低地址到高地址按顺序放置，每个段里面都包括了所有输入目标文件的同名段，且每个段都有两个全局符号给出了它的开始和结束地址（比如 <code class="docutils literal notranslate"><span class="pre">.text</span></code> 段的开始和结束地址分别是 <code class="docutils literal notranslate"><span class="pre">stext</span></code> 和 <code class="docutils literal notranslate"><span class="pre">etext</span></code> ）。</p>
 <p>第 12 行我们将包含内核第一条指令的 <code class="docutils literal notranslate"><span class="pre">.text.entry</span></code> 段放在最终的 <code class="docutils literal notranslate"><span class="pre">.text</span></code> 段的最开头，同时注意到在最终内存布局中代码段 <code class="docutils literal notranslate"><span class="pre">.text</span></code> 又是先于任何其他段的。因为所有的段都从 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 也即 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 开始放置，这就能够保证内核的第一条指令正好放在 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 从而能够正确对接到 Qemu 上。</p>
 <p>此后我们便可以生成内核可执行文件，切换到 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录下并进行以下操作：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build --release
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo<span class="w"> </span>build<span class="w"> </span>--release
 <span class="go">Finished release [optimized] target(s) in 0.10s</span>
-<span class="gp">$ </span>file target/riscv64gc-unknown-none-elf/release/os
+<span class="gp">$ </span>file<span class="w"> </span>target/riscv64gc-unknown-none-elf/release/os
 <span class="go">target/riscv64gc-unknown-none-elf/release/os: ELF 64-bit LSB executable, UCB RISC-V, version 1 (SYSV), statically linked, not stripped</span>
 </pre></div>
 </div>
@@ -523,15 +523,15 @@
 </div>
 <p>图中，红色的区域表示内核可执行文件中的元数据，深蓝色的区域表示各个段（包括代码段和数据段），而浅蓝色区域则表示内核被执行的第一条指令，它位于深蓝色区域的开头。图示的上半部分中，我们直接将内核可执行文件 <code class="docutils literal notranslate"><span class="pre">os</span></code> 提交给 Qemu ，而 Qemu 会将整个可执行文件不加处理的加载到 Qemu 内存的 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处，由于内核可执行文件的开头是一段元数据，这会导致 Qemu 内存 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处无法找到内核第一条指令，也就意味着 RustSBI 无法正常将计算机控制权转交给内核。相反，图示的下半部分中，将元数据丢弃得到的内核镜像 <code class="docutils literal notranslate"><span class="pre">os.bin</span></code> 被加载到 Qemu 之后，则可以在 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处正确找到内核第一条指令。如果想要深入了解这些元数据的内容，可以参考 <a class="reference internal" href="../appendix-b/index.html"><span class="doc">附录 B：常见工具的使用方法</span></a> 。</p>
 <p id="content-binary-from-elf">使用如下命令可以丢弃内核可执行文件中的元数据得到内核镜像：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/os -O binary target/riscv64gc-unknown-none-elf/release/os.bin
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>rust-objcopy<span class="w"> </span>--strip-all<span class="w"> </span>target/riscv64gc-unknown-none-elf/release/os<span class="w"> </span>-O<span class="w"> </span>binary<span class="w"> </span>target/riscv64gc-unknown-none-elf/release/os.bin
 </pre></div>
 </div>
 <p>我们可以使用 <code class="docutils literal notranslate"><span class="pre">stat</span></code> 工具来比较内核可执行文件和内核镜像的大小：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>stat target/riscv64gc-unknown-none-elf/release/os
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>stat<span class="w"> </span>target/riscv64gc-unknown-none-elf/release/os
 <span class="go">File: target/riscv64gc-unknown-none-elf/release/os</span>
 <span class="go">Size: 1016              Blocks: 8          IO Block: 4096   regular file</span>
 <span class="go">...</span>
-<span class="gp">$ </span>stat target/riscv64gc-unknown-none-elf/release/os.bin
+<span class="gp">$ </span>stat<span class="w"> </span>target/riscv64gc-unknown-none-elf/release/os.bin
 <span class="go">File: target/riscv64gc-unknown-none-elf/release/os.bin</span>
 <span class="go">Size: 4                 Blocks: 8          IO Block: 4096   regular file</span>
 <span class="go">...</span>
@@ -547,26 +547,26 @@
 <div class="section" id="gdb">
 <h2>基于 GDB 验证启动流程<a class="headerlink" href="#gdb" title="永久链接至标题">#</a></h2>
 <p>在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录下通过以下命令启动 Qemu 并加载 RustSBI 和内核镜像：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="gp">$ </span>qemu-system-riscv64 <span class="se">\</span>
-<span class="linenos">2</span>    -machine virt <span class="se">\</span>
-<span class="linenos">3</span>    -nographic <span class="se">\</span>
-<span class="linenos">4</span>    -bios ../bootloader/rustsbi-qemu.bin <span class="se">\</span>
-<span class="linenos">5</span>    -device loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80200000 <span class="se">\</span>
-<span class="linenos">6</span>    -s -S
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="gp">$ </span>qemu-system-riscv64<span class="w"> </span><span class="se">\</span>
+<span class="linenos">2</span><span class="w">    </span>-machine<span class="w"> </span>virt<span class="w"> </span><span class="se">\</span>
+<span class="linenos">3</span><span class="w">    </span>-nographic<span class="w"> </span><span class="se">\</span>
+<span class="linenos">4</span><span class="w">    </span>-bios<span class="w"> </span>../bootloader/rustsbi-qemu.bin<span class="w"> </span><span class="se">\</span>
+<span class="linenos">5</span><span class="w">    </span>-device<span class="w"> </span>loader,file<span class="o">=</span>target/riscv64gc-unknown-none-elf/release/os.bin,addr<span class="o">=</span>0x80200000<span class="w"> </span><span class="se">\</span>
+<span class="linenos">6</span><span class="w">    </span>-s<span class="w"> </span>-S
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">-s</span></code> 可以使 Qemu 监听本地 TCP 端口 1234 等待 GDB 客户端连接，而 <code class="docutils literal notranslate"><span class="pre">-S</span></code> 可以使 Qemu 在收到 GDB 的请求后再开始运行。因此，Qemu 暂时没有任何输出。注意，如果不想通过 GDB 对于 Qemu 进行调试而是直接运行 Qemu 的话，则要删掉最后一行的 <code class="docutils literal notranslate"><span class="pre">-s</span> <span class="pre">-S</span></code> 。</p>
 <p>打开另一个终端，启动一个 GDB 客户端连接到 Qemu ：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>riscv64-unknown-elf-gdb <span class="se">\</span>
-    -ex <span class="s1">&#39;file target/riscv64gc-unknown-none-elf/release/os&#39;</span> <span class="se">\</span>
-    -ex <span class="s1">&#39;set arch riscv:rv64&#39;</span> <span class="se">\</span>
-    -ex <span class="s1">&#39;target remote localhost:1234&#39;</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>riscv64-unknown-elf-gdb<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span><span class="s1">&#39;file target/riscv64gc-unknown-none-elf/release/os&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span><span class="s1">&#39;set arch riscv:rv64&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span><span class="s1">&#39;target remote localhost:1234&#39;</span>
 <span class="go">[GDB output]</span>
 <span class="go">0x0000000000001000 in ?? ()</span>
 </pre></div>
 </div>
 <p>可以看到，正如我们在上一节提到的那样，Qemu 启动后 PC 被初始化为 <code class="docutils literal notranslate"><span class="pre">0x1000</span></code> 。我们可以检查一下 Qemu 的启动固件的内容：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> x/10i <span class="nv">$pc</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>x/10i<span class="w"> </span><span class="nv">$pc</span>
 <span class="go">=&gt; 0x1000:  auipc   t0,0x0</span>
 <span class="go">0x1004:     addi    a1,t0,32</span>
 <span class="go">0x1008:     csrr    a0,mhartid</span>
@@ -580,22 +580,22 @@
 </pre></div>
 </div>
 <p>这里 <code class="docutils literal notranslate"><span class="pre">x/10i</span> <span class="pre">$pc</span></code> 的含义是从当前 PC 值的位置开始，在内存中反汇编 10 条指令。不过可以看到 Qemu 的固件仅包含 5 条指令，从 <code class="docutils literal notranslate"><span class="pre">0x1014</span></code> 开始都是数据，当数据为 0 的时候则会被反汇编为 <code class="docutils literal notranslate"><span class="pre">unimp</span></code> 指令。 <code class="docutils literal notranslate"><span class="pre">0x101a</span></code> 处的数据 <code class="docutils literal notranslate"><span class="pre">0x8000</span></code> 是能够跳转到 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> 进入启动下一阶段的关键。有兴趣的读者可以自行探究位于 <code class="docutils literal notranslate"><span class="pre">0x1000</span></code> 和 <code class="docutils literal notranslate"><span class="pre">0x100c</span></code> 两条指令的含义。总之，在执行位于 <code class="docutils literal notranslate"><span class="pre">0x1010</span></code> 的指令之前，寄存器 <code class="docutils literal notranslate"><span class="pre">t0</span></code> 的值恰好为 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，随后通过 <code class="docutils literal notranslate"><span class="pre">jr</span> <span class="pre">t0</span></code> 便可以跳转到该地址。我们可以通过单步调试来复盘这个过程：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> si
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>si
 <span class="go">0x0000000000001004 in ?? ()</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> si
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>si
 <span class="go">0x0000000000001008 in ?? ()</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> si
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>si
 <span class="go">0x000000000000100c in ?? ()</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> si
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>si
 <span class="go">0x0000000000001010 in ?? ()</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> p/x <span class="nv">$t0</span>
-<span class="gp">$</span><span class="nv">1</span> <span class="o">=</span> 0x80000000
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> si
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>p/x<span class="w"> </span><span class="nv">$t0</span>
+<span class="gp">$</span><span class="nv">1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>0x80000000
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>si
 <span class="go">0x0000000080000000 in ?? ()</span>
 </pre></div>
 </div>
 <p>其中， <code class="docutils literal notranslate"><span class="pre">si</span></code> 可以让 Qemu 每次向下执行一条指令，之后屏幕会打印出待执行的下一条指令的地址。 <code class="docutils literal notranslate"><span class="pre">p/x</span> <span class="pre">$t0</span></code> 以 16 进制打印寄存器 <code class="docutils literal notranslate"><span class="pre">t0</span></code> 的值，注意当我们要打印寄存器的时候需要在寄存器的名字前面加上 <code class="docutils literal notranslate"><span class="pre">$</span></code> 。可以看到，当位于 <code class="docutils literal notranslate"><span class="pre">0x1010</span></code> 的指令执行完毕后，下一条待执行的指令位于 RustSBI 的入口，也即 <code class="docutils literal notranslate"><span class="pre">0x80000000</span></code> ，这意味着我们即将把控制权转交给 RustSBI 。</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> x/10i <span class="nv">$pc</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>x/10i<span class="w"> </span><span class="nv">$pc</span>
 <span class="go">=&gt; 0x80000000:      auipc   sp,0x28</span>
 <span class="go">0x80000004: mv      sp,sp</span>
 <span class="go">0x80000008: lui     t0,0x4</span>
@@ -606,38 +606,38 @@
 <span class="go">0x80000016: j       0x8001125a</span>
 <span class="go">0x8000001a: unimp</span>
 <span class="go">0x8000001c: addi    sp,sp,-48</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> si
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>si
 <span class="go">0x0000000080000004 in ?? ()</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> si
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>si
 <span class="go">0x0000000080000008 in ?? ()</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> si
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>si
 <span class="go">0x000000008000000a in ?? ()</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> si
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>si
 <span class="go">0x000000008000000e in ?? ()</span>
 </pre></div>
 </div>
 <p>我们可以用同样的方式反汇编 RustSBI 最初的几条指令并单步调试。不过由于 RustSBI 超出了本书的范围，我们这里并不打算进行深入。接下来我们检查控制权能否被移交给我们的内核：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> b *0x80200000
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>b<span class="w"> </span>*0x80200000
 <span class="go">Breakpoint 1 at 0x80200000</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> c
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>c
 <span class="go">Continuing.</span>
 
 <span class="go">Breakpoint 1, 0x0000000080200000 in ?? ()</span>
 </pre></div>
 </div>
 <p>我们在内核的入口点，也即地址 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处打一个断点。需要注意，当需要在一个特定的地址打断点时，需要在地址前面加上 <code class="docutils literal notranslate"><span class="pre">*</span></code> 。接下来通过 <code class="docutils literal notranslate"><span class="pre">c</span></code> 命令（Continue 的缩写）让 Qemu 向下运行直到遇到一个断点。可以看到，我们成功停在了 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处。随后，可以检查内核第一条指令是否被正确执行：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> x/5i <span class="nv">$pc</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>x/5i<span class="w"> </span><span class="nv">$pc</span>
 <span class="go">=&gt; 0x80200000:      li      ra,100</span>
 <span class="go">0x80200004: unimp</span>
 <span class="go">0x80200006: unimp</span>
 <span class="go">0x80200008: unimp</span>
 <span class="go">0x8020000a: unimp</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> si
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>si
 <span class="go">0x0000000080200004 in ?? ()</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> p/d <span class="nv">$x1</span>
-<span class="gp">$</span><span class="nv">2</span> <span class="o">=</span> <span class="m">100</span>
-<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span> p/x <span class="nv">$sp</span>
-<span class="gp">$</span><span class="nv">3</span> <span class="o">=</span> 0x0
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>p/d<span class="w"> </span><span class="nv">$x1</span>
+<span class="gp">$</span><span class="nv">2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">100</span>
+<span class="gp">$ </span><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>p/x<span class="w"> </span><span class="nv">$sp</span>
+<span class="gp">$</span><span class="nv">3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>0x0
 </pre></div>
 </div>
 <p>可以看到我们在 <code class="docutils literal notranslate"><span class="pre">entry.asm</span></code> 中编写的第一条指令可以在 <code class="docutils literal notranslate"><span class="pre">0x80200000</span></code> 处找到。这里 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 是寄存器 <code class="docutils literal notranslate"><span class="pre">x1</span></code> 的别名， <code class="docutils literal notranslate"><span class="pre">p/d</span> <span class="pre">$x1</span></code> 可以以十进制打印寄存器 <code class="docutils literal notranslate"><span class="pre">x1</span></code> 的值，它的结果正确。最后，作为下一节的铺垫，我们可以检查此时栈指针 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 的值，可以发现它目前是 0 。下一节我们将设置好栈空间，使得内核代码可以正常进行函数调用，随后将控制权转交给 Rust 代码。</p>
@@ -758,5 +758,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

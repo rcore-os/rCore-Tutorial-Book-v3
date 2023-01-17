@@ -404,13 +404,13 @@
 <h2>移除 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏<a class="headerlink" href="#println" title="永久链接至标题">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏所在的 Rust 标准库 std 需要通过系统调用获得操作系统的服务，而如果要构建运行在裸机上的操作系统，就不能再依赖标准库了。所以我们第一步要尝试移除 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 宏及其所在的标准库。</p>
 <p>由于后续实验需要 <code class="docutils literal notranslate"><span class="pre">rustc</span></code> 编译器缺省生成RISC-V 64的目标代码，所以我们首先要给  <code class="docutils literal notranslate"><span class="pre">rustc</span></code> 添加一个target : <code class="docutils literal notranslate"><span class="pre">riscv64gc-unknown-none-elf</span></code> 。这可通过如下命令来完成：</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ rustup target add riscv64gc-unknown-none-elf
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>rustup<span class="w"> </span>target<span class="w"> </span>add<span class="w"> </span>riscv64gc-unknown-none-elf
 </pre></div>
 </div>
 <p>然后在 <code class="docutils literal notranslate"><span class="pre">os</span></code> 目录下新建 <code class="docutils literal notranslate"><span class="pre">.cargo</span></code> 目录，并在这个目录下创建 <code class="docutils literal notranslate"><span class="pre">config</span></code> 文件，并在里面输入如下内容：</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># os/.cargo/config</span>
 <span class="k">[build]</span>
-<span class="n">target</span> <span class="o">=</span> <span class="s">&quot;riscv64gc-unknown-none-elf&quot;</span>
+<span class="n">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;riscv64gc-unknown-none-elf&quot;</span>
 </pre></div>
 </div>
 <p id="term-cross-compile">这会对于 Cargo 工具在 os 目录下的行为进行调整：现在默认会使用 riscv64gc 作为目标平台而不是原先的默认 x86_64-unknown-linux-gnu。事实上，这是一种编译器运行的开发平台（x86_64）与可执行文件运行的目标平台（riscv-64）不同的情况。我们把这种情况称为 <strong>交叉编译</strong> (Cross Compile)。</p>
@@ -425,7 +425,7 @@
 <p>我们在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的开头加上一行 <code class="docutils literal notranslate"><span class="pre">#![no_std]</span></code> 来告诉 Rust 编译器不使用 Rust 标准库 std 转而使用核心库 core（core库不需要操作系统的支持）。编译器报出如下错误：</p>
 <div class="admonition error">
 <p class="admonition-title">错误</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo<span class="w"> </span>build
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">error: cannot find macro `println` in this scope</span>
 <span class="go">--&gt; src/main.rs:4:5</span>
@@ -442,7 +442,7 @@
 <p>我们重新编译简单的os程序，之前的 <cite>println</cite> 宏缺失的错误消失了，但又出现了如下新的编译错误：</p>
 <div class="admonition error">
 <p class="admonition-title">错误</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo<span class="w"> </span>build
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">error: `#[panic_handler]` function required, but not found</span>
 </pre></div>
@@ -457,18 +457,18 @@
 </div>
 <p>我们创建一个新的子模块 <code class="docutils literal notranslate"><span class="pre">lang_items.rs</span></code> 实现panic函数，并通过 <code class="docutils literal notranslate"><span class="pre">#[panic_handler]</span></code> 属性通知编译器用panic函数来对接 <code class="docutils literal notranslate"><span class="pre">panic!</span></code> 宏。为了将该子模块添加到项目中，我们还需要在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的 <code class="docutils literal notranslate"><span class="pre">#![no_std]</span></code> 的下方加上 <code class="docutils literal notranslate"><span class="pre">mod</span> <span class="pre">lang_items;</span></code> ，相关知识可参考 <a class="reference internal" href="#rust-modular-programming"><span class="std std-ref">Rust 模块编程</span></a> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/lang_items.rs</span>
-<span class="linenos">2</span><span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">panic</span>::<span class="n">PanicInfo</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">2</span><span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">panic</span>::<span class="n">PanicInfo</span><span class="p">;</span>
 <span class="linenos">3</span>
-<span class="linenos">4</span><span class="cp">#[panic_handler]</span><span class="w"></span>
-<span class="linenos">5</span><span class="k">fn</span> <span class="nf">panic</span><span class="p">(</span><span class="n">_info</span>: <span class="kp">&amp;</span><span class="nc">PanicInfo</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">6</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
-<span class="linenos">7</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">4</span><span class="cp">#[panic_handler]</span>
+<span class="linenos">5</span><span class="k">fn</span> <span class="nf">panic</span><span class="p">(</span><span class="n">_info</span>: <span class="kp">&amp;</span><span class="nc">PanicInfo</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">6</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{}</span>
+<span class="linenos">7</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>在把 <code class="docutils literal notranslate"><span class="pre">panic_handler</span></code> 配置在单独的文件 <code class="docutils literal notranslate"><span class="pre">os/src/lang_items.rs</span></code> 后，需要在os/src/main.rs文件中添加以下内容才能正常编译整个软件：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/main.rs</span>
-<span class="linenos">2</span><span class="cp">#![no_std]</span><span class="w"></span>
-<span class="linenos">3</span><span class="k">mod</span> <span class="nn">lang_items</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">2</span><span class="cp">#![no_std]</span>
+<span class="linenos">3</span><span class="k">mod</span> <span class="nn">lang_items</span><span class="p">;</span>
 <span class="linenos">4</span><span class="c1">// ... other code</span>
 </pre></div>
 </div>
@@ -488,26 +488,26 @@
 <p>编译器提醒我们缺少一个名为 <code class="docutils literal notranslate"><span class="pre">start</span></code> 的语义项。我们回忆一下，之前提到语言标准库和三方库作为应用程序的执行环境，需要负责在执行应用程序之前进行一些初始化工作，然后才跳转到应用程序的入口点（也就是跳转到我们编写的 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数）开始执行。事实上 <code class="docutils literal notranslate"><span class="pre">start</span></code> 语义项代表了标准库 std 在执行应用程序之前需要进行的一些初始化工作。由于我们禁用了标准库，编译器也就找不到这项功能的实现了。</p>
 <p>最简单的解决方案就是压根不让编译器使用这项功能。我们在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 的开头加入设置 <code class="docutils literal notranslate"><span class="pre">#![no_main]</span></code> 告诉编译器我们没有一般意义上的 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数，并将原来的 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数删除。在失去了 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数的情况下，编译器也就不需要完成所谓的初始化工作了。</p>
 <p>至此，我们成功移除了标准库的依赖，并完成了构建裸机平台上的“三叶虫”操作系统的第一步工作–通过编译器检查并生成执行码。</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo build
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo<span class="w"> </span>build
 <span class="go">   Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)</span>
 <span class="go">    Finished dev [unoptimized + debuginfo] target(s) in 0.06s</span>
 </pre></div>
 </div>
 <p>目前的主要代码包括 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">lang_items.rs</span></code> ，大致内容如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/main.rs</span>
-<span class="linenos"> 2</span><span class="cp">#![no_main]</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="cp">#![no_std]</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="k">mod</span> <span class="nn">lang_items</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="cp">#![no_main]</span>
+<span class="linenos"> 3</span><span class="cp">#![no_std]</span>
+<span class="linenos"> 4</span><span class="k">mod</span> <span class="nn">lang_items</span><span class="p">;</span>
 <span class="linenos"> 5</span><span class="c1">// ... other code</span>
 <span class="linenos"> 6</span>
 <span class="linenos"> 7</span>
 <span class="linenos"> 8</span><span class="c1">// os/src/lang_items.rs</span>
-<span class="linenos"> 9</span><span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">panic</span>::<span class="n">PanicInfo</span><span class="p">;</span><span class="w"></span>
+<span class="linenos"> 9</span><span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">panic</span>::<span class="n">PanicInfo</span><span class="p">;</span>
 <span class="linenos">10</span>
-<span class="linenos">11</span><span class="cp">#[panic_handler]</span><span class="w"></span>
-<span class="linenos">12</span><span class="k">fn</span> <span class="nf">panic</span><span class="p">(</span><span class="n">_info</span>: <span class="kp">&amp;</span><span class="nc">PanicInfo</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
-<span class="linenos">14</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">11</span><span class="cp">#[panic_handler]</span>
+<span class="linenos">12</span><span class="k">fn</span> <span class="nf">panic</span><span class="p">(</span><span class="n">_info</span>: <span class="kp">&amp;</span><span class="nc">PanicInfo</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">13</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{}</span>
+<span class="linenos">14</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>本小节我们固然脱离了标准库，通过了编译器的检验，但也是伤筋动骨，将原有的很多功能弱化甚至直接删除，看起来距离在 RV64GC 平台上打印 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 相去甚远了（我们甚至连 <code class="docutils literal notranslate"><span class="pre">println!</span></code> 和 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数都删除了）。不要着急，接下来我们会以自己的方式来重塑这些基本功能，并最终完成我们的目标。</p>
@@ -524,17 +524,17 @@
 <div class="section" id="id4">
 <h2>分析被移除标准库的程序<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
 <p>对于上面这个被移除标准库的应用程序，通过了Rust编译器的检查和编译，形成了二进制代码。但这个二进制代码的内容是什么，它能否在RISC-V 64计算机上正常执行呢？为了分析这个二进制可执行程序，首先需要安装 cargo-binutils 工具集：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo install cargo-binutils
-<span class="gp">$ </span>rustup component add llvm-tools-preview
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>cargo<span class="w"> </span>install<span class="w"> </span>cargo-binutils
+<span class="gp">$ </span>rustup<span class="w"> </span>component<span class="w"> </span>add<span class="w"> </span>llvm-tools-preview
 </pre></div>
 </div>
 <p>这样我们可以通过各种工具来分析目前的程序：</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>文件格式
-<span class="gp">$ </span>file target/riscv64gc-unknown-none-elf/debug/os
+<span class="gp">$ </span>file<span class="w"> </span>target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">target/riscv64gc-unknown-none-elf/debug/os: ELF 64-bit LSB executable, UCB RISC-V, ......</span>
 
 <span class="gp"># </span>文件头信息
-<span class="gp">$ </span>rust-readobj -h target/riscv64gc-unknown-none-elf/debug/os
+<span class="gp">$ </span>rust-readobj<span class="w"> </span>-h<span class="w"> </span>target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">   File: target/riscv64gc-unknown-none-elf/debug/os</span>
 <span class="go">   Format: elf64-littleriscv</span>
 <span class="go">   Arch: riscv64</span>
@@ -548,7 +548,7 @@
 <span class="go">   }</span>
 
 <span class="gp"># </span>反汇编导出汇编程序
-<span class="gp">$ </span>rust-objdump -S target/riscv64gc-unknown-none-elf/debug/os
+<span class="gp">$ </span>rust-objdump<span class="w"> </span>-S<span class="w"> </span>target/riscv64gc-unknown-none-elf/debug/os
 <span class="go">   target/riscv64gc-unknown-none-elf/debug/os:       file format elf64-littleriscv</span>
 </pre></div>
 </div>
@@ -693,5 +693,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

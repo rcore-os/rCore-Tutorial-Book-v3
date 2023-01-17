@@ -440,14 +440,14 @@
 <p>本章的应用和上一章相同，只不过由于内核提供给应用的访存接口被替换，应用的构建方式发生了变化，这方面在下面会深入介绍。
 因此应用运行起来的效果与上一章是一致的。</p>
 <p>获取本章代码：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
-<span class="gp">$ </span><span class="nb">cd</span> rCore-Tutorial-v3
-<span class="gp">$ </span>git checkout ch4
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/rcore-os/rCore-Tutorial-v3.git
+<span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>rCore-Tutorial-v3
+<span class="gp">$ </span>git<span class="w"> </span>checkout<span class="w"> </span>ch4
 </pre></div>
 </div>
 <p>在 qemu 模拟器上运行本章代码：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> os
-<span class="gp">$ </span>make run
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>os
+<span class="gp">$ </span>make<span class="w"> </span>run
 </pre></div>
 </div>
 <p>如果顺利的话，我们将看到和上一章相同的运行结果（以 K210 平台为例）：</p>
@@ -569,11 +569,11 @@ Test sleep OK!
 <p>一旦使能分页机制，CPU 访问到的地址都是虚拟地址了，那么内核中也将基于虚地址进行虚存访问。所以在给应用添加虚拟地址空间前，内核自己也会建立一个页表，把整块物理内存通过简单的恒等映射（即虚拟地址映射到对等的物理地址）映射到内核虚拟地址空间中。后续的应用在执行前，也需要操作系统帮助它建立一个虚拟地址空间。这意味着第三章的初级 <code class="docutils literal notranslate"><span class="pre">task</span></code> 将进化到第四章的拥有独立页表的 <code class="docutils literal notranslate"><span class="pre">task</span></code> 。虚拟地址空间需要有一个数据结构管理起来，这就是 <code class="docutils literal notranslate"><span class="pre">MemorySet</span></code> ，即地址空间这个抽象概念所对应的具象体现。在一个虚拟地址空间中，有代码段，数据段等不同属性且不一定连续的子空间，它们通过一个重要的数据结构 <code class="docutils literal notranslate"><span class="pre">MapArea</span></code> 来表示和管理。围绕 <code class="docutils literal notranslate"><span class="pre">MemorySet</span></code> 等一系列的数据结构和相关操作的实现，主要集中在 <code class="docutils literal notranslate"><span class="pre">os/src/mm/memory_set.rs</span></code> 中。比如内核的页表和虚拟空间的建立在如下代码中：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/mm/memory_set.rs</span>
 <span class="linenos">2</span>
-<span class="linenos">3</span><span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">4</span><span class="w">  </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">KERNEL_SPACE</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Mutex</span><span class="o">&lt;</span><span class="n">MemorySet</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">5</span><span class="w">     </span><span class="n">MemorySet</span>::<span class="n">new_kernel</span><span class="p">()</span><span class="w"></span>
-<span class="linenos">6</span><span class="w">  </span><span class="p">));</span><span class="w"></span>
-<span class="linenos">7</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">3</span><span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">4</span><span class="w">  </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">KERNEL_SPACE</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Mutex</span><span class="o">&lt;</span><span class="n">MemorySet</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span>
+<span class="linenos">5</span><span class="w">     </span><span class="n">MemorySet</span>::<span class="n">new_kernel</span><span class="p">()</span>
+<span class="linenos">6</span><span class="w">  </span><span class="p">));</span>
+<span class="linenos">7</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>完成到这里，我们就可以使能分页机制了。且我们应该有更加方便的机制来给支持应用运行。在本章之前，都是把应用程序的所有元数据丢弃从而转换成二进制格式来执行，这其实把编译器生成的 ELF 执行文件中大量有用的信息给去掉了，比如代码段、数据段的各种属性，程序的入口地址等。既然有了给应用运行提供虚拟地址空间的能力，我们就可以利用 ELF 执行文件中的各种信息来灵活构建应用运行所需要的虚拟地址空间。在 <code class="docutils literal notranslate"><span class="pre">os/src/loader.rs</span></code> 中可以看到如何获取一个应用的 ELF 执行文件数据，而在 <code class="docutils literal notranslate"><span class="pre">os/src/mm/memory_set</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">MemorySet::from_elf</span></code> 可以看到如何通过解析 ELF 来创建一个应用地址空间。</p>
@@ -703,5 +703,7 @@ commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
     <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

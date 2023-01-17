@@ -402,64 +402,64 @@
 <p>V操作会对信号量的值加1，然后检查是否有一个或多个线程在该信号量上睡眠等待。如有，则选择其中的一个线程唤醒并允许该线程继续完成它的P操作；如没有，则直接返回。注意，信号量的值加1，并可能唤醒一个线程的一系列操作同样也是不可分割的原子操作过程。不会有某个进程因执行v操作而阻塞。</p>
 <p>如果信号量是一个任意的整数，通常被称为计数信号量（Counting Semaphore），或一般信号量（General Semaphore）；如果信号量只有0或1的取值，则称为二值信号量（Binary Semaphore）。可以看出，互斥锁只是信号量的一种特例 – 二值信号量，信号量很好地解决了最多只允许N个线程访问临界资源的情况。</p>
 <p>关于一种信号量实现的伪代码如下所示：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">fn</span> <span class="nf">P</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 2</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">1</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="w">        </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">else</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="o">&lt;</span><span class="n">block</span><span class="w"> </span><span class="n">and</span><span class="w"> </span><span class="n">enqueue</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="k">fn</span> <span class="nf">V</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">&lt;</span><span class="n">some</span><span class="w"> </span><span class="n">threads</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">blocked</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">queue</span><span class="o">&gt;</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">        </span><span class="o">&lt;</span><span class="n">unblock</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="k">else</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">        </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">12</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">fn</span> <span class="nf">P</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 2</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">1</span>
+<span class="linenos"> 3</span><span class="w">        </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">else</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="o">&lt;</span><span class="n">block</span><span class="w"> </span><span class="n">and</span><span class="w"> </span><span class="n">enqueue</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="linenos"> 6</span><span class="p">}</span>
+<span class="linenos"> 7</span><span class="k">fn</span> <span class="nf">V</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">&lt;</span><span class="n">some</span><span class="w"> </span><span class="n">threads</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">blocked</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">queue</span><span class="o">&gt;</span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="o">&lt;</span><span class="n">unblock</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="linenos">10</span><span class="w">    </span><span class="k">else</span>
+<span class="linenos">11</span><span class="w">        </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos">12</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>在上述实现中，S的取值范围为大于等于0 的整数。 S的初值一般设置为一个大于0的正整数，表示可以进入临界区的线程数。当S取值为1，表示是二值信号量，也就是互斥锁了。使用信号量实现线程互斥访问临界区的伪代码如下：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="kd">let</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">S</span>: <span class="nc">semaphore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="kd">let</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">S</span>: <span class="nc">semaphore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="c1">// Thread i</span>
-<span class="linenos"> 4</span><span class="k">fn</span>  <span class="nf">foo</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="n">P</span><span class="p">(</span><span class="n">S</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="n">execute</span><span class="w"> </span><span class="n">Cricital</span><span class="w"> </span><span class="n">Section</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="n">V</span><span class="p">(</span><span class="n">S</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">10</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="k">fn</span>  <span class="nf">foo</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="n">P</span><span class="p">(</span><span class="n">S</span><span class="p">);</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="n">execute</span><span class="w"> </span><span class="n">Cricital</span><span class="w"> </span><span class="n">Section</span><span class="p">;</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="n">V</span><span class="p">(</span><span class="n">S</span><span class="p">);</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">10</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>下面是另外一种信号量实现的伪代码：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">fn</span> <span class="nf">P</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 2</span><span class="w">      </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="n">then</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">         </span><span class="o">&lt;</span><span class="n">block</span><span class="w"> </span><span class="n">and</span><span class="w"> </span><span class="n">enqueue</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="k">fn</span> <span class="nf">V</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">      </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="o">&lt;</span><span class="n">some</span><span class="w"> </span><span class="n">threads</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">blocked</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">queue</span><span class="o">&gt;</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">         </span><span class="o">&lt;</span><span class="n">unblock</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">10</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">fn</span> <span class="nf">P</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 2</span><span class="w">      </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos"> 3</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="n">then</span>
+<span class="linenos"> 4</span><span class="w">         </span><span class="o">&lt;</span><span class="n">block</span><span class="w"> </span><span class="n">and</span><span class="w"> </span><span class="n">enqueue</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="linenos"> 5</span><span class="p">}</span>
+<span class="linenos"> 6</span><span class="k">fn</span> <span class="nf">V</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 7</span><span class="w">      </span><span class="n">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos"> 8</span><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="o">&lt;</span><span class="n">some</span><span class="w"> </span><span class="n">threads</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">blocked</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">queue</span><span class="o">&gt;</span>
+<span class="linenos"> 9</span><span class="w">         </span><span class="o">&lt;</span><span class="n">unblock</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">thread</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="linenos">10</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>在这种实现中，S的初值一般设置为一个大于0的正整数，表示可以进入临界区的线程数。但S的取值范围可以是小于 0 的整数，表示等待进入临界区的睡眠线程数。</p>
 <p>信号量的另一种用途是用于实现同步（synchronization）。比如，把信号量的初始值设置为 0 ，当一个线程A对此信号量执行一个P操作，那么该线程立即会被阻塞睡眠。之后有另外一个线程B对此信号量执行一个V操作，就会将线程A唤醒。这样线程B中执行V操作之前的代码序列B-stmts和线程A中执行P操作之后的代码A-stmts序列之间就形成了一种确定的同步执行关系，即线程B的B-stmts会先执行，然后才是线程A的A-stmts开始执行。相关伪代码如下所示：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="kd">let</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">S</span>: <span class="nc">semaphore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="kd">let</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">S</span>: <span class="nc">semaphore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="c1">//Thread A</span>
-<span class="linenos"> 4</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="n">P</span><span class="p">(</span><span class="n">S</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 4</span><span class="o">..</span><span class="p">.</span>
+<span class="linenos"> 5</span><span class="n">P</span><span class="p">(</span><span class="n">S</span><span class="p">);</span>
 <span class="linenos"> 6</span><span class="n">Label_2</span>:
-<span class="linenos"> 7</span><span class="nc">A</span><span class="o">-</span><span class="n">stmts</span><span class="w"> </span><span class="n">after</span><span class="w"> </span><span class="n">Thread</span><span class="w"> </span><span class="n">B</span>::<span class="n">Label_1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos"> 7</span><span class="nc">A</span><span class="o">-</span><span class="n">stmts</span><span class="w"> </span><span class="n">after</span><span class="w"> </span><span class="n">Thread</span><span class="w"> </span><span class="n">B</span>::<span class="n">Label_1</span><span class="p">;</span>
+<span class="linenos"> 8</span><span class="o">..</span><span class="p">.</span>
 <span class="linenos"> 9</span>
 <span class="linenos">10</span><span class="c1">//Thread B</span>
-<span class="linenos">11</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">12</span><span class="n">B</span><span class="o">-</span><span class="n">stmts</span><span class="w"> </span><span class="n">before</span><span class="w"> </span><span class="n">Thread</span><span class="w"> </span><span class="n">A</span>::<span class="n">Label_2</span><span class="p">;</span><span class="w"></span>
+<span class="linenos">11</span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">12</span><span class="n">B</span><span class="o">-</span><span class="n">stmts</span><span class="w"> </span><span class="n">before</span><span class="w"> </span><span class="n">Thread</span><span class="w"> </span><span class="n">A</span>::<span class="n">Label_2</span><span class="p">;</span>
 <span class="linenos">13</span><span class="n">Label_1</span>:
-<span class="linenos">14</span><span class="nc">V</span><span class="p">(</span><span class="n">S</span><span class="p">);</span><span class="w"></span>
+<span class="linenos">14</span><span class="nc">V</span><span class="p">(</span><span class="n">S</span><span class="p">);</span>
 <span class="linenos">15</span>
-<span class="linenos">16</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
+<span class="linenos">16</span><span class="o">..</span><span class="p">.</span>
 </pre></div>
 </div>
 </div>
@@ -471,34 +471,34 @@
 在这个例子中，主线程先创建了初值为0的信号量SEM_SYNC，然后再创建两个线程 First和Second。线程First会先睡眠10ms，而当线程Second执行时，会由于执行信号量的P操作而等待睡眠；当线程First醒来后，会执行V操作，
 从而能够唤醒线程Second。这样线程First和线程Second就形成了一种稳定的同步关系。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">const</span><span class="w"> </span><span class="n">SEM_SYNC</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">//信号量ID</span>
-<span class="linenos"> 2</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">first</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;First work and wakeup Second&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="linenos"> 2</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">first</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;First work and wakeup Second&quot;</span><span class="p">);</span>
 <span class="hll"><span class="linenos"> 5</span><span class="w">    </span><span class="n">semaphore_up</span><span class="p">(</span><span class="n">SEM_SYNC</span><span class="p">);</span><span class="w"> </span><span class="c1">//信号量V操作</span>
-</span><span class="linenos"> 6</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">second</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Second want to continue,but need to wait first&quot;</span><span class="p">);</span><span class="w"></span>
+</span><span class="linenos"> 6</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="linenos"> 7</span><span class="p">}</span>
+<span class="linenos"> 8</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">second</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Second want to continue,but need to wait first&quot;</span><span class="p">);</span>
 <span class="hll"><span class="linenos">10</span><span class="w">    </span><span class="n">semaphore_down</span><span class="p">(</span><span class="n">SEM_SYNC</span><span class="p">);</span><span class="w"> </span><span class="c1">//信号量P操作</span>
-</span><span class="linenos">11</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Second can work now&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"></span>
-<span class="linenos">13</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">14</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
+</span><span class="linenos">11</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Second can work now&quot;</span><span class="p">);</span>
+<span class="linenos">12</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="linenos">13</span><span class="p">}</span>
+<span class="linenos">14</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
 <span class="linenos">15</span><span class="w">    </span><span class="c1">// create semaphores</span>
 <span class="hll"><span class="linenos">16</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">semaphore_create</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">SEM_SYNC</span><span class="p">);</span><span class="w"> </span><span class="c1">// 信号量初值为0</span>
 </span><span class="linenos">17</span><span class="w">    </span><span class="c1">// create first, second threads</span>
-<span class="linenos">18</span><span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">19</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">18</span><span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">19</span><span class="p">}</span>
 <span class="linenos">20</span>
-<span class="linenos">21</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_semaphore_create</span><span class="p">(</span><span class="n">res_count</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">22</span><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_SEMAPHORE_CREATE</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">res_count</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
-</span><span class="linenos">23</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">24</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_semaphore_up</span><span class="p">(</span><span class="n">sem_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">25</span><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_SEMAPHORE_UP</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">sem_id</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
-</span><span class="linenos">26</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">27</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_semaphore_down</span><span class="p">(</span><span class="n">sem_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">28</span><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_SEMAPHORE_DOWN</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">sem_id</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="w"></span>
-</span><span class="linenos">29</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">21</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_semaphore_create</span><span class="p">(</span><span class="n">res_count</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="hll"><span class="linenos">22</span><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_SEMAPHORE_CREATE</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">res_count</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span>
+</span><span class="linenos">23</span><span class="p">}</span>
+<span class="linenos">24</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_semaphore_up</span><span class="p">(</span><span class="n">sem_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="hll"><span class="linenos">25</span><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_SEMAPHORE_UP</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">sem_id</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span>
+</span><span class="linenos">26</span><span class="p">}</span>
+<span class="linenos">27</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_semaphore_down</span><span class="p">(</span><span class="n">sem_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="hll"><span class="linenos">28</span><span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYSCALL_SEMAPHORE_DOWN</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">sem_id</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span>
+</span><span class="linenos">29</span><span class="p">}</span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -511,56 +511,56 @@
 <h3>实现semaphore系统调用<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h3>
 <p>操作系统如何实现信号量系统调用呢？我们首先考虑一下与此相关的核心数据结构，然后考虑与数据结构相关的相关函数/方法的实现。</p>
 <p>在线程的眼里，信号量是一种每个线程能看到的共享资源，且可以存在多个不同信号量来合理使用不同的资源。所以我们可以把信号量也看成四一种资源，可放在一起让进程来管理，如下面代码第9行所示。这里需要注意的是： <code class="docutils literal notranslate"><span class="pre">semaphore_list:</span> <span class="pre">Vec&lt;Option&lt;Arc&lt;Semaphore&gt;&gt;&gt;</span></code> 表示的是信号量资源的列表。而 <code class="docutils literal notranslate"><span class="pre">Semaphore</span></code> 是信号量的内核数据结构，由信号量值和等待队列组成。操作系统需要显式地施加某种控制，来确定当一个线程执行P操作和V操作时，如何让线程睡眠或唤醒线程。在这里，P操作是由 <code class="docutils literal notranslate"><span class="pre">Semaphore</span></code> 的 <code class="docutils literal notranslate"><span class="pre">down</span></code> 方法实现，而V操作是由 <code class="docutils literal notranslate"><span class="pre">Semaphore</span></code> 的 <code class="docutils literal notranslate"><span class="pre">up</span></code> 方法实现。</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlock</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos"> 2</span><span class="w">    </span><span class="c1">// immutable</span>
-<span class="linenos"> 3</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">pid</span>: <span class="nc">PidHandle</span><span class="p">,</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">pid</span>: <span class="nc">PidHandle</span><span class="p">,</span>
 <span class="linenos"> 4</span><span class="w">    </span><span class="c1">// mutable</span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">ProcessControlBlockInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="hll"><span class="linenos"> 9</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">semaphore_list</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">Semaphore</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-</span><span class="linenos">10</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">ProcessControlBlockInner</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="linenos"> 6</span><span class="p">}</span>
+<span class="linenos"> 7</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlockInner</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="hll"><span class="linenos"> 9</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">semaphore_list</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">Semaphore</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
+</span><span class="linenos">10</span><span class="p">}</span>
 <span class="linenos">11</span>
-<span class="linenos">12</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">Semaphore</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">SemaphoreInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">14</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">15</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SemaphoreInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">16</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">count</span>: <span class="kt">isize</span><span class="p">,</span><span class="w"></span>
-</span><span class="hll"><span class="linenos">17</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">wait_queue</span>: <span class="nc">VecDeque</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-</span><span class="linenos">18</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">19</span><span class="k">impl</span><span class="w"> </span><span class="n">Semaphore</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">res_count</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">            </span><span class="n">inner</span>: <span class="nc">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">                </span><span class="n">SemaphoreInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">24</span><span class="w">                    </span><span class="n">count</span>: <span class="nc">res_count</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">25</span><span class="w">                    </span><span class="n">wait_queue</span>: <span class="nc">VecDeque</span>::<span class="n">new</span><span class="p">(),</span><span class="w"></span>
-<span class="linenos">26</span><span class="w">                </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">27</span><span class="w">            </span><span class="p">)},</span><span class="w"></span>
-<span class="linenos">28</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">29</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">12</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">Semaphore</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">13</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">SemaphoreInner</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="linenos">14</span><span class="p">}</span>
+<span class="linenos">15</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SemaphoreInner</span><span class="w"> </span><span class="p">{</span>
+<span class="hll"><span class="linenos">16</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">count</span>: <span class="kt">isize</span><span class="p">,</span>
+</span><span class="hll"><span class="linenos">17</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">wait_queue</span>: <span class="nc">VecDeque</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+</span><span class="linenos">18</span><span class="p">}</span>
+<span class="linenos">19</span><span class="k">impl</span><span class="w"> </span><span class="n">Semaphore</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">20</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">res_count</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">21</span><span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">22</span><span class="w">            </span><span class="n">inner</span>: <span class="nc">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span>
+<span class="linenos">23</span><span class="w">                </span><span class="n">SemaphoreInner</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">24</span><span class="w">                    </span><span class="n">count</span>: <span class="nc">res_count</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="p">,</span>
+<span class="linenos">25</span><span class="w">                    </span><span class="n">wait_queue</span>: <span class="nc">VecDeque</span>::<span class="n">new</span><span class="p">(),</span>
+<span class="linenos">26</span><span class="w">                </span><span class="p">}</span>
+<span class="linenos">27</span><span class="w">            </span><span class="p">)},</span>
+<span class="linenos">28</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">29</span><span class="w">    </span><span class="p">}</span>
 <span class="linenos">30</span>
-<span class="linenos">31</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">up</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">32</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">33</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">34</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">35</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">pop_front</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">36</span><span class="w">                </span><span class="n">add_task</span><span class="p">(</span><span class="n">task</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">37</span><span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">38</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">39</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos">31</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">up</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">32</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span>
+<span class="linenos">33</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos">34</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">35</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">pop_front</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">36</span><span class="w">                </span><span class="n">add_task</span><span class="p">(</span><span class="n">task</span><span class="p">);</span>
+<span class="linenos">37</span><span class="w">            </span><span class="p">}</span>
+<span class="linenos">38</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">39</span><span class="w">    </span><span class="p">}</span>
 <span class="linenos">40</span>
-<span class="linenos">41</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">down</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">42</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">43</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">44</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">45</span><span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span><span class="w"></span>
-<span class="linenos">46</span><span class="w">            </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">47</span><span class="w">            </span><span class="n">block_current_and_run_next</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">48</span><span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">49</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">50</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">41</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">down</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">42</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span>
+<span class="linenos">43</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos">44</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">45</span><span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span>
+<span class="linenos">46</span><span class="w">            </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span>
+<span class="linenos">47</span><span class="w">            </span><span class="n">block_current_and_run_next</span><span class="p">();</span>
+<span class="linenos">48</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">49</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">50</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>首先是核心数据结构：</p>
@@ -697,5 +697,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

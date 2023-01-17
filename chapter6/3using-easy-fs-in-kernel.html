@@ -405,10 +405,10 @@
 <p>有了文件这样的抽象后，操作系统内核就可把能读写并持久存储的数据按文件来进行管理，并把文件分配给进程，让进程以很简洁的统一抽象接口 <code class="docutils literal notranslate"><span class="pre">File</span></code> 来读写数据：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/mod.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">File</span><span class="w"> </span>: <span class="nb">Send</span> <span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">read</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="nc">UserBuffer</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">write</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="nc">UserBuffer</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span><span class="p">;</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">File</span><span class="w"> </span>: <span class="nb">Send</span> <span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">read</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="nc">UserBuffer</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span><span class="p">;</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">write</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="nc">UserBuffer</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span><span class="p">;</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>这个接口在内存和存储设备之间建立了数据交换的通道。其中 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> 是我们在 <code class="docutils literal notranslate"><span class="pre">mm</span></code> 子模块中定义的应用地址空间中的一段缓冲区（即内存）的抽象。它的具体实现在本质上其实只是一个 <code class="docutils literal notranslate"><span class="pre">&amp;[u8]</span></code> ，位于应用地址空间中，内核无法直接通过用户地址空间的虚拟地址来访问，因此需要进行封装。然而，在理解抽象接口 <code class="docutils literal notranslate"><span class="pre">File</span></code> 的各方法时，我们仍可以将 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> 看成一个 <code class="docutils literal notranslate"><span class="pre">&amp;[u8]</span></code> 切片，它是一个同时给出了缓冲区起始地址和长度的胖指针。</p>
@@ -416,28 +416,28 @@
 <p>回过头来再看一下用户缓冲区的抽象 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> ，它的声明如下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/page_table.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">translated_byte_buffer</span><span class="p">(</span><span class="w"></span>
-<span class="w">    </span><span class="n">token</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">translated_byte_buffer</span><span class="p">(</span>
+<span class="w">    </span><span class="n">token</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ptr</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
 <span class="w">    </span><span class="n">len</span>: <span class="kt">usize</span>
-<span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Vec</span><span class="o">&lt;&amp;&#39;</span><span class="nb">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Vec</span><span class="o">&lt;&amp;&#39;</span><span class="nb">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">;</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">UserBuffer</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">buffers</span>: <span class="nb">Vec</span><span class="o">&lt;&amp;&#39;</span><span class="nb">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">UserBuffer</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">buffers</span>: <span class="nb">Vec</span><span class="o">&lt;&amp;&#39;</span><span class="nb">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
 
-<span class="k">impl</span><span class="w"> </span><span class="n">UserBuffer</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">buffers</span>: <span class="nb">Vec</span><span class="o">&lt;&amp;&#39;</span><span class="nb">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">buffers</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">len</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">total</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">buffers</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">len</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="n">total</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">impl</span><span class="w"> </span><span class="n">UserBuffer</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">buffers</span>: <span class="nb">Vec</span><span class="o">&lt;&amp;&#39;</span><span class="nb">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">buffers</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">len</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">total</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">buffers</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">len</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">total</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>它只是将我们调用 <code class="docutils literal notranslate"><span class="pre">translated_byte_buffer</span></code> 获得的包含多个切片的 <code class="docutils literal notranslate"><span class="pre">Vec</span></code> 进一步包装起来，通过 <code class="docutils literal notranslate"><span class="pre">len</span></code> 方法可以得到缓冲区的长度。此外，我们还让它作为一个迭代器可以逐字节进行读写。有兴趣的同学可以参考类型 <code class="docutils literal notranslate"><span class="pre">UserBufferIterator</span></code> 还有 <code class="docutils literal notranslate"><span class="pre">IntoIterator</span></code> 和 <code class="docutils literal notranslate"><span class="pre">Iterator</span></code> 两个 Trait 的使用方法。</p>
@@ -447,15 +447,15 @@
 <p>在 <code class="docutils literal notranslate"><span class="pre">drivers</span></code> 子模块中的 <code class="docutils literal notranslate"><span class="pre">block/mod.rs</span></code> 中，我们可以找到内核访问的块设备实例 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/drivers/block/mod.rs</span>
 
-<span class="cp">#[cfg(feature = </span><span class="s">&quot;board_qemu&quot;</span><span class="cp">)]</span><span class="w"></span>
-<span class="k">type</span> <span class="nc">BlockDeviceImpl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">virtio_blk</span>::<span class="n">VirtIOBlock</span><span class="p">;</span><span class="w"></span>
+<span class="cp">#[cfg(feature = </span><span class="s">&quot;board_qemu&quot;</span><span class="cp">)]</span>
+<span class="k">type</span> <span class="nc">BlockDeviceImpl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">virtio_blk</span>::<span class="n">VirtIOBlock</span><span class="p">;</span>
 
-<span class="cp">#[cfg(feature = </span><span class="s">&quot;board_k210&quot;</span><span class="cp">)]</span><span class="w"></span>
-<span class="k">type</span> <span class="nc">BlockDeviceImpl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sdcard</span>::<span class="n">SDCardWrapper</span><span class="p">;</span><span class="w"></span>
+<span class="cp">#[cfg(feature = </span><span class="s">&quot;board_k210&quot;</span><span class="cp">)]</span>
+<span class="k">type</span> <span class="nc">BlockDeviceImpl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sdcard</span>::<span class="n">SDCardWrapper</span><span class="p">;</span>
 
-<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">BLOCK_DEVICE</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">BlockDevice</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">BlockDeviceImpl</span>::<span class="n">new</span><span class="p">());</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">BLOCK_DEVICE</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">BlockDevice</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">BlockDeviceImpl</span>::<span class="n">new</span><span class="p">());</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>qemu 和 k210 平台上的块设备是不同的。在 qemu 上，我们使用 <code class="docutils literal notranslate"><span class="pre">VirtIOBlock</span></code> 访问 VirtIO 块设备；而在 k210 上，我们使用 <code class="docutils literal notranslate"><span class="pre">SDCardWrapper</span></code> 来访问插入 k210 开发板上真实的 microSD 卡，它们都实现了 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 要求的 <code class="docutils literal notranslate"><span class="pre">BlockDevice</span></code> Trait 。通过 <code class="docutils literal notranslate"><span class="pre">#[cfg(feature)]</span></code> 可以在编译的时候根据编译参数调整 <code class="docutils literal notranslate"><span class="pre">BlockDeviceImpl</span></code> 具体为哪个块设备，之后将它全局实例化为 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> ，使得内核的其他模块可以访问。</p>
@@ -464,17 +464,17 @@
 <p>在启动 Qemu 模拟器的时候，我们可以配置参数来添加一块 VirtIO 块设备：</p>
 <div class="highlight-makefile notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c"># os/Makefile</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="nv">FS_IMG</span> <span class="o">:=</span> ../user/target/<span class="k">$(</span>TARGET<span class="k">)</span>/<span class="k">$(</span>MODE<span class="k">)</span>/fs.img
+<span class="linenos"> 3</span><span class="nv">FS_IMG</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span>../user/target/<span class="k">$(</span>TARGET<span class="k">)</span>/<span class="k">$(</span>MODE<span class="k">)</span>/fs.img
 <span class="linenos"> 4</span>
-<span class="linenos"> 5</span><span class="nf">run-inner</span><span class="o">:</span> <span class="n">build</span>
+<span class="linenos"> 5</span><span class="nf">run-inner</span><span class="o">:</span><span class="w"> </span><span class="n">build</span>
 <span class="linenos"> 6</span><span class="cp">ifeq ($(BOARD),qemu)</span>
-<span class="linenos"> 7</span>    @qemu-system-riscv64 <span class="se">\</span>
-<span class="linenos"> 8</span>        -machine virt <span class="se">\</span>
-<span class="linenos"> 9</span>        -nographic <span class="se">\</span>
-<span class="linenos">10</span>        -bios <span class="k">$(</span>BOOTLOADER<span class="k">)</span> <span class="se">\</span>
-<span class="linenos">11</span>        -device loader,file<span class="o">=</span><span class="k">$(</span>KERNEL_BIN<span class="k">)</span>,addr<span class="o">=</span><span class="k">$(</span>KERNEL_ENTRY_PA<span class="k">)</span> <span class="se">\</span>
-<span class="hll"><span class="linenos">12</span>        -drive <span class="nv">file</span><span class="o">=</span><span class="k">$(</span>FS_IMG<span class="k">)</span>,if<span class="o">=</span>none,format<span class="o">=</span>raw,id<span class="o">=</span>x0 <span class="se">\</span>
-</span><span class="hll"><span class="linenos">13</span>        -device virtio-blk-device,drive<span class="o">=</span>x0,bus<span class="o">=</span>virtio-mmio-bus.0
+<span class="linenos"> 7</span><span class="w">    </span>@qemu-system-riscv64<span class="w"> </span><span class="se">\</span>
+<span class="linenos"> 8</span><span class="w">        </span>-machine<span class="w"> </span>virt<span class="w"> </span><span class="se">\</span>
+<span class="linenos"> 9</span><span class="w">        </span>-nographic<span class="w"> </span><span class="se">\</span>
+<span class="linenos">10</span><span class="w">        </span>-bios<span class="w"> </span><span class="k">$(</span>BOOTLOADER<span class="k">)</span><span class="w"> </span><span class="se">\</span>
+<span class="linenos">11</span><span class="w">        </span>-device<span class="w"> </span>loader,file<span class="o">=</span><span class="k">$(</span>KERNEL_BIN<span class="k">)</span>,addr<span class="o">=</span><span class="k">$(</span>KERNEL_ENTRY_PA<span class="k">)</span><span class="w"> </span><span class="se">\</span>
+<span class="hll"><span class="linenos">12</span><span class="w">        </span>-drive<span class="w"> </span><span class="nv">file</span><span class="o">=</span><span class="k">$(</span>FS_IMG<span class="k">)</span>,if<span class="o">=</span>none,format<span class="o">=</span>raw,id<span class="o">=</span>x0<span class="w"> </span><span class="se">\</span>
+</span><span class="hll"><span class="linenos">13</span><span class="w">        </span>-device<span class="w"> </span>virtio-blk-device,drive<span class="o">=</span>x0,bus<span class="o">=</span>virtio-mmio-bus.0
 </span></pre></div>
 </div>
 <ul class="simple">
@@ -484,60 +484,60 @@
 <p><strong>内存映射 I/O</strong> (MMIO, Memory-Mapped I/O) 指的是外设的设备寄存器可以通过特定的物理内存地址来访问，每个外设的设备寄存器都分布在没有交集的一个或数个物理地址区间中，不同外设的设备寄存器所占的物理地址空间也不会产生交集，且这些外设物理地址区间也不会和RAM的物理内存所在的区间存在交集（注：在后续的外设相关章节有更深入的讲解）。从Qemu for RISC-V 64 平台的 <a class="reference external" href="https://github.com/qemu/qemu/blob/master/hw/riscv/virt.c#L58">源码</a> 中可以找到 VirtIO 外设总线的 MMIO 物理地址区间为从 0x10001000 开头的 4KiB 。为了能够在内核中访问 VirtIO 外设总线，我们就必须在内核地址空间中对特定内存区域提前进行映射：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/config.rs</span>
 
-<span class="cp">#[cfg(feature = </span><span class="s">&quot;board_qemu&quot;</span><span class="cp">)]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">MMIO</span>: <span class="kp">&amp;</span><span class="p">[(</span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="kt">usize</span><span class="p">)]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="p">[</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x10001000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w"></span>
-<span class="p">];</span><span class="w"></span>
+<span class="cp">#[cfg(feature = </span><span class="s">&quot;board_qemu&quot;</span><span class="cp">)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">MMIO</span>: <span class="kp">&amp;</span><span class="p">[(</span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="kt">usize</span><span class="p">)]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="p">[</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x10001000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span>
+<span class="p">];</span>
 </pre></div>
 </div>
 <p>如上面一段代码所示，在 <code class="docutils literal notranslate"><span class="pre">config</span></code> 子模块中我们硬编码 Qemu 上的 VirtIO 总线的 MMIO 地址区间（起始地址，长度）。在创建内核地址空间的时候需要建立页表映射：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/mm/memory_set.rs</span>
 
-<span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">config</span>::<span class="n">MMIO</span><span class="p">;</span><span class="w"></span>
+<span class="k">use</span><span class="w"> </span><span class="k">crate</span>::<span class="n">config</span>::<span class="n">MMIO</span><span class="p">;</span>
 
-<span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">impl</span><span class="w"> </span><span class="n">MemorySet</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="sd">/// Without kernel stacks.</span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new_kernel</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;mapping memory-mapped registers&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">pair</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">MMIO</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">memory_set</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">MapArea</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
-<span class="w">                </span><span class="p">(</span><span class="o">*</span><span class="n">pair</span><span class="p">).</span><span class="mf">0.</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
-<span class="w">                </span><span class="p">((</span><span class="o">*</span><span class="n">pair</span><span class="p">).</span><span class="mi">0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">pair</span><span class="p">).</span><span class="mi">1</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span><span class="w"></span>
-<span class="w">                </span><span class="n">MapType</span>::<span class="n">Identical</span><span class="p">,</span><span class="w"></span>
-<span class="w">                </span><span class="n">MapPermission</span>::<span class="n">R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">MapPermission</span>::<span class="n">W</span><span class="p">,</span><span class="w"></span>
-<span class="w">            </span><span class="p">),</span><span class="w"> </span><span class="nb">None</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="n">memory_set</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new_kernel</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">..</span><span class="p">.</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;mapping memory-mapped registers&quot;</span><span class="p">);</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">pair</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">MMIO</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">memory_set</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">MapArea</span>::<span class="n">new</span><span class="p">(</span>
+<span class="w">                </span><span class="p">(</span><span class="o">*</span><span class="n">pair</span><span class="p">).</span><span class="mf">0.</span><span class="n">into</span><span class="p">(),</span>
+<span class="w">                </span><span class="p">((</span><span class="o">*</span><span class="n">pair</span><span class="p">).</span><span class="mi">0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">pair</span><span class="p">).</span><span class="mi">1</span><span class="p">).</span><span class="n">into</span><span class="p">(),</span>
+<span class="w">                </span><span class="n">MapType</span>::<span class="n">Identical</span><span class="p">,</span>
+<span class="w">                </span><span class="n">MapPermission</span>::<span class="n">R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">MapPermission</span>::<span class="n">W</span><span class="p">,</span>
+<span class="w">            </span><span class="p">),</span><span class="w"> </span><span class="nb">None</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">memory_set</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>这里我们进行的是透明的恒等映射，从而让内核可以兼容于直接访问物理地址的设备驱动库。</p>
 <p>由于设备驱动的开发过程比较琐碎，我们这里直接使用已有的 <a class="reference external" href="https://github.com/rcore-os/virtio-drivers">virtio-drivers</a> crate ，它已经支持 VirtIO 总线架构下的块设备、网络设备、GPU 等设备。注：关于VirtIO 相关驱动的内容，在后续的外设相关章节有更深入的讲解。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/drivers/block/virtio_blk.rs</span>
 
-<span class="k">use</span><span class="w"> </span><span class="n">virtio_drivers</span>::<span class="p">{</span><span class="n">VirtIOBlk</span><span class="p">,</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">};</span><span class="w"></span>
-<span class="k">const</span><span class="w"> </span><span class="n">VIRTIO0</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mh">0x10001000</span><span class="p">;</span><span class="w"></span>
+<span class="k">use</span><span class="w"> </span><span class="n">virtio_drivers</span>::<span class="p">{</span><span class="n">VirtIOBlk</span><span class="p">,</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">};</span>
+<span class="k">const</span><span class="w"> </span><span class="n">VIRTIO0</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mh">0x10001000</span><span class="p">;</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlock</span><span class="p">(</span><span class="n">Mutex</span><span class="o">&lt;</span><span class="n">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="nb">static</span><span class="o">&gt;&gt;</span><span class="p">);</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtIOBlock</span><span class="p">(</span><span class="n">Mutex</span><span class="o">&lt;</span><span class="n">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="nb">static</span><span class="o">&gt;&gt;</span><span class="p">);</span>
 
-<span class="k">impl</span><span class="w"> </span><span class="n">VirtIOBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">Self</span><span class="p">(</span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">VirtIOBlk</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
-<span class="w">            </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="n">VIRTIO0</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="p">).</span><span class="n">unwrap</span><span class="p">()))</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">impl</span><span class="w"> </span><span class="n">VirtIOBlock</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">Self</span><span class="p">(</span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">VirtIOBlk</span>::<span class="n">new</span><span class="p">(</span>
+<span class="w">            </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="n">VIRTIO0</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">VirtIOHeader</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="w">        </span><span class="p">).</span><span class="n">unwrap</span><span class="p">()))</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 
-<span class="k">impl</span><span class="w"> </span><span class="n">BlockDevice</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">VirtIOBlock</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">read_block</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="mf">0.</span><span class="n">lock</span><span class="p">().</span><span class="n">read_block</span><span class="p">(</span><span class="n">block_id</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">).</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;Error when reading VirtIOBlk&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">write_block</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="mf">0.</span><span class="n">lock</span><span class="p">().</span><span class="n">write_block</span><span class="p">(</span><span class="n">block_id</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">).</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;Error when writing VirtIOBlk&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">impl</span><span class="w"> </span><span class="n">BlockDevice</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">VirtIOBlock</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">read_block</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="mf">0.</span><span class="n">lock</span><span class="p">().</span><span class="n">read_block</span><span class="p">(</span><span class="n">block_id</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">).</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;Error when reading VirtIOBlk&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">write_block</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="mf">0.</span><span class="n">lock</span><span class="p">().</span><span class="n">write_block</span><span class="p">(</span><span class="n">block_id</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">).</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;Error when writing VirtIOBlk&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>上面的代码中，我们将 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> crate 提供的 VirtIO 块设备抽象 <code class="docutils literal notranslate"><span class="pre">VirtIOBlk</span></code> 包装为我们自己的 <code class="docutils literal notranslate"><span class="pre">VirtIOBlock</span></code> ，实质上只是加上了一层互斥锁，生成一个新的类型来实现 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 需要的 <code class="docutils literal notranslate"><span class="pre">BlockDevice</span></code> Trait 。注意在 <code class="docutils literal notranslate"><span class="pre">VirtIOBlk::new</span></code> 的时候需要传入一个 <code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">VirtIOHeader</span></code> 的参数， <code class="docutils literal notranslate"><span class="pre">VirtIOHeader</span></code> 实际上就代表以 MMIO 方式访问 VirtIO 设备所需的一组设备寄存器。因此我们从 <code class="docutils literal notranslate"><span class="pre">qemu-system-riscv64</span></code> 平台上的 Virtio MMIO 区间左端 <code class="docutils literal notranslate"><span class="pre">VIRTIO0</span></code> 开始转化为一个 <code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">VirtIOHeader</span></code> 就可以在该平台上访问这些设备寄存器了。</p>
@@ -545,52 +545,52 @@
 <p>VirtIO 设备需要占用部分内存作为一个公共区域从而更好的和 CPU 进行合作。这就像 MMU 需要在内存中保存多级页表才能和 CPU 共同实现分页机制一样。在 VirtIO 架构下，需要在公共区域中放置一种叫做 VirtQueue 的环形队列，CPU 可以向此环形队列中向 VirtIO 设备提交请求，也可以从队列中取得请求的结果，详情可以参考 <a class="reference external" href="https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.pdf">virtio 文档</a> 。对于 VirtQueue 的使用涉及到物理内存的分配和回收，但这并不在 VirtIO 驱动 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> 的职责范围之内，因此它声明了数个相关的接口，需要库的使用者自己来实现：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// https://github.com/rcore-os/virtio-drivers/blob/master/src/hal.rs#L57</span>
 
-<span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">virtio_dma_alloc</span><span class="p">(</span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">virtio_dma_dealloc</span><span class="p">(</span><span class="n">paddr</span>: <span class="nc">PhysAddr</span><span class="p">,</span><span class="w"> </span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">virtio_phys_to_virt</span><span class="p">(</span><span class="n">paddr</span>: <span class="nc">PhysAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">VirtAddr</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">virtio_virt_to_phys</span><span class="p">(</span><span class="n">vaddr</span>: <span class="nc">VirtAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="p">;</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">virtio_dma_alloc</span><span class="p">(</span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="p">;</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">virtio_dma_dealloc</span><span class="p">(</span><span class="n">paddr</span>: <span class="nc">PhysAddr</span><span class="p">,</span><span class="w"> </span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span><span class="p">;</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">virtio_phys_to_virt</span><span class="p">(</span><span class="n">paddr</span>: <span class="nc">PhysAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">VirtAddr</span><span class="p">;</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">virtio_virt_to_phys</span><span class="p">(</span><span class="n">vaddr</span>: <span class="nc">VirtAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="p">;</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>由于我们已经实现了基于分页内存管理的地址空间，实现这些功能自然不在话下：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/drivers/block/virtio_blk.rs</span>
 
-<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">QUEUE_FRAMES</span>: <span class="nc">Mutex</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FrameTracker</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">());</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">QUEUE_FRAMES</span>: <span class="nc">Mutex</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FrameTracker</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">());</span>
+<span class="p">}</span>
 
-<span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">virtio_dma_alloc</span><span class="p">(</span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ppn_base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PhysPageNum</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">pages</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">frame_alloc</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ppn_base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">frame</span><span class="p">.</span><span class="n">ppn</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">ppn</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">ppn_base</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="n">QUEUE_FRAMES</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">push</span><span class="p">(</span><span class="n">frame</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="n">ppn_base</span><span class="p">.</span><span class="n">into</span><span class="p">()</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="cp">#[no_mangle]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">virtio_dma_alloc</span><span class="p">(</span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ppn_base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PhysPageNum</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">pages</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">frame_alloc</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">ppn_base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">frame</span><span class="p">.</span><span class="n">ppn</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">ppn</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">ppn_base</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
+<span class="w">        </span><span class="n">QUEUE_FRAMES</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">push</span><span class="p">(</span><span class="n">frame</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">ppn_base</span><span class="p">.</span><span class="n">into</span><span class="p">()</span>
+<span class="p">}</span>
 
-<span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">virtio_dma_dealloc</span><span class="p">(</span><span class="n">pa</span>: <span class="nc">PhysAddr</span><span class="p">,</span><span class="w"> </span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ppn_base</span>: <span class="nc">PhysPageNum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pa</span><span class="p">.</span><span class="n">into</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">pages</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">frame_dealloc</span><span class="p">(</span><span class="n">ppn_base</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="n">ppn_base</span><span class="p">.</span><span class="n">step</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="mi">0</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="cp">#[no_mangle]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">virtio_dma_dealloc</span><span class="p">(</span><span class="n">pa</span>: <span class="nc">PhysAddr</span><span class="p">,</span><span class="w"> </span><span class="n">pages</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ppn_base</span>: <span class="nc">PhysPageNum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pa</span><span class="p">.</span><span class="n">into</span><span class="p">();</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">pages</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">frame_dealloc</span><span class="p">(</span><span class="n">ppn_base</span><span class="p">);</span>
+<span class="w">        </span><span class="n">ppn_base</span><span class="p">.</span><span class="n">step</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="mi">0</span>
+<span class="p">}</span>
 
-<span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">virtio_phys_to_virt</span><span class="p">(</span><span class="n">paddr</span>: <span class="nc">PhysAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">VirtAddr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">VirtAddr</span><span class="p">(</span><span class="n">paddr</span><span class="p">.</span><span class="mi">0</span><span class="p">)</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="cp">#[no_mangle]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">virtio_phys_to_virt</span><span class="p">(</span><span class="n">paddr</span>: <span class="nc">PhysAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">VirtAddr</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">VirtAddr</span><span class="p">(</span><span class="n">paddr</span><span class="p">.</span><span class="mi">0</span><span class="p">)</span>
+<span class="p">}</span>
 
-<span class="cp">#[no_mangle]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">virtio_virt_to_phys</span><span class="p">(</span><span class="n">vaddr</span>: <span class="nc">VirtAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">PageTable</span>::<span class="n">from_token</span><span class="p">(</span><span class="n">kernel_token</span><span class="p">()).</span><span class="n">translate_va</span><span class="p">(</span><span class="n">vaddr</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="cp">#[no_mangle]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">virtio_virt_to_phys</span><span class="p">(</span><span class="n">vaddr</span>: <span class="nc">VirtAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">PhysAddr</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">PageTable</span>::<span class="n">from_token</span><span class="p">(</span><span class="n">kernel_token</span><span class="p">()).</span><span class="n">translate_va</span><span class="p">(</span><span class="n">vaddr</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>这里有一些细节需要注意：</p>
@@ -616,25 +616,25 @@
 <p>在对 microSD 进行操作的时候，会涉及到 K210 内置的各种外设，正所谓”牵一发而动全身“。因此 K210 平台上的 MMIO 包含很多区间：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/config.rs</span>
 
-<span class="cp">#[cfg(feature = </span><span class="s">&quot;board_k210&quot;</span><span class="cp">)]</span><span class="w"></span>
-<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">MMIO</span>: <span class="kp">&amp;</span><span class="p">[(</span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="kt">usize</span><span class="p">)]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="p">[</span><span class="w"></span>
+<span class="cp">#[cfg(feature = </span><span class="s">&quot;board_k210&quot;</span><span class="cp">)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">MMIO</span>: <span class="kp">&amp;</span><span class="p">[(</span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="kt">usize</span><span class="p">)]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="p">[</span>
 <span class="w">    </span><span class="c1">// we don&#39;t need clint in S priv when running</span>
 <span class="w">    </span><span class="c1">// we only need claim/complete for target0 after initializing</span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x0C00_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x3000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* PLIC      */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x0C20_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* PLIC      */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x3800_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* UARTHS    */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x3800_1000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* GPIOHS    */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x5020_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* GPIO      */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x5024_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* SPI_SLAVE */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x502B_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* FPIOA     */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x502D_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* TIMER0    */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x502E_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* TIMER1    */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x502F_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* TIMER2    */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x5044_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* SYSCTL    */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x5200_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* SPI0      */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x5300_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* SPI1      */</span><span class="w"></span>
-<span class="w">    </span><span class="p">(</span><span class="mh">0x5400_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* SPI2      */</span><span class="w"></span>
-<span class="p">];</span><span class="w"></span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x0C00_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x3000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* PLIC      */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x0C20_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* PLIC      */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x3800_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* UARTHS    */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x3800_1000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* GPIOHS    */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x5020_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* GPIO      */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x5024_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* SPI_SLAVE */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x502B_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* FPIOA     */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x502D_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* TIMER0    */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x502E_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* TIMER1    */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x502F_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* TIMER2    */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x5044_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* SYSCTL    */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x5200_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* SPI0      */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x5300_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* SPI1      */</span>
+<span class="w">    </span><span class="p">(</span><span class="mh">0x5400_0000</span><span class="p">,</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">),</span><span class="w">      </span><span class="cm">/* SPI2      */</span>
+<span class="p">];</span>
 </pre></div>
 </div>
 </div>
@@ -644,33 +644,33 @@
 <p>在本章的第一小节我们介绍过，站在用户的角度看来，在一个进程中可以使用多种不同的标志来打开一个文件，这会影响到打开的这个文件可以用何种方式被访问。此外，在连续调用 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 读写一个文件的时候，我们知道进程中也存在着一个文件读写的当前偏移量，它也随着文件读写的进行而被不断更新。这些用户视角中的文件系统抽象特征需要内核来实现，与进程有很大的关系，而 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 文件系统不必涉及这些与进程结合紧密的属性。因此，我们需要将 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 提供的 <code class="docutils literal notranslate"><span class="pre">Inode</span></code> 加上上述信息，进一步封装为 OS 中的索引节点 <code class="docutils literal notranslate"><span class="pre">OSInode</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/inode.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">OSInode</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">readable</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">writable</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">inner</span>: <span class="nc">Mutex</span><span class="o">&lt;</span><span class="n">OSInodeInner</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">OSInode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">readable</span>: <span class="kt">bool</span><span class="p">,</span>
+<span class="w">    </span><span class="n">writable</span>: <span class="kt">bool</span><span class="p">,</span>
+<span class="w">    </span><span class="n">inner</span>: <span class="nc">Mutex</span><span class="o">&lt;</span><span class="n">OSInodeInner</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">OSInodeInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">offset</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="n">inode</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">OSInodeInner</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">offset</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">inode</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
 
-<span class="k">impl</span><span class="w"> </span><span class="n">OSInode</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="w"></span>
-<span class="w">        </span><span class="n">readable</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
-<span class="w">        </span><span class="n">writable</span>: <span class="kt">bool</span><span class="p">,</span><span class="w"></span>
-<span class="w">        </span><span class="n">inode</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="w">    </span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="n">readable</span><span class="p">,</span><span class="w"></span>
-<span class="w">            </span><span class="n">writable</span><span class="p">,</span><span class="w"></span>
-<span class="w">            </span><span class="n">inner</span>: <span class="nc">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">OSInodeInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                </span><span class="n">offset</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
-<span class="w">                </span><span class="n">inode</span><span class="p">,</span><span class="w"></span>
-<span class="w">            </span><span class="p">}),</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">impl</span><span class="w"> </span><span class="n">OSInode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span>
+<span class="w">        </span><span class="n">readable</span>: <span class="kt">bool</span><span class="p">,</span>
+<span class="w">        </span><span class="n">writable</span>: <span class="kt">bool</span><span class="p">,</span>
+<span class="w">        </span><span class="n">inode</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">readable</span><span class="p">,</span>
+<span class="w">            </span><span class="n">writable</span><span class="p">,</span>
+<span class="w">            </span><span class="n">inner</span>: <span class="nc">Mutex</span>::<span class="n">new</span><span class="p">(</span><span class="n">OSInodeInner</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">offset</span>: <span class="mi">0</span><span class="p">,</span>
+<span class="w">                </span><span class="n">inode</span><span class="p">,</span>
+<span class="w">            </span><span class="p">}),</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">OSInode</span></code> 就表示进程中一个被打开的常规文件或目录。 <code class="docutils literal notranslate"><span class="pre">readable/writable</span></code> 分别表明该文件是否允许通过 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 进行读写。至于在 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 期间被维护偏移量 <code class="docutils literal notranslate"><span class="pre">offset</span></code> 和它在 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">Inode</span></code> 则加上一把互斥锁丢到 <code class="docutils literal notranslate"><span class="pre">OSInodeInner</span></code> 中。这在提供内部可变性的同时，也可以简单应对多个进程同时读写一个文件的情况。</p>
@@ -682,34 +682,34 @@
 <p>因为 <code class="docutils literal notranslate"><span class="pre">OSInode</span></code> 也是一种要放到进程文件描述符表中文件，并可通过 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 系统调用进行读写操作，因此我们也需要为它实现 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/inode.rs</span>
 
-<span class="k">impl</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">OSInode</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">readable</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">readable</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">writable</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">writable</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">read</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span>: <span class="nc">UserBuffer</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">total_read_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="k">usize</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">slice</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">buf</span><span class="p">.</span><span class="n">buffers</span><span class="p">.</span><span class="n">iter_mut</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">read_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">inode</span><span class="p">.</span><span class="n">read_at</span><span class="p">(</span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">slice</span><span class="p">);</span><span class="w"></span>
-<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">read_size</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">read_size</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="n">total_read_size</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">read_size</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="n">total_read_size</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="k">fn</span> <span class="nf">write</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="nc">UserBuffer</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">total_write_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="k">usize</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">slice</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">buf</span><span class="p">.</span><span class="n">buffers</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">write_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">inode</span><span class="p">.</span><span class="n">write_at</span><span class="p">(</span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">slice</span><span class="p">);</span><span class="w"></span>
-<span class="w">            </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">write_size</span><span class="p">,</span><span class="w"> </span><span class="n">slice</span><span class="p">.</span><span class="n">len</span><span class="p">());</span><span class="w"></span>
-<span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">write_size</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="n">total_write_size</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">write_size</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="n">total_write_size</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">impl</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">OSInode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">readable</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">readable</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">writable</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">writable</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">read</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buf</span>: <span class="nc">UserBuffer</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">total_read_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="k">usize</span><span class="p">;</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">slice</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">buf</span><span class="p">.</span><span class="n">buffers</span><span class="p">.</span><span class="n">iter_mut</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">read_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">inode</span><span class="p">.</span><span class="n">read_at</span><span class="p">(</span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">slice</span><span class="p">);</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">read_size</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">read_size</span><span class="p">;</span>
+<span class="w">            </span><span class="n">total_read_size</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">read_size</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">total_read_size</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">write</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="nc">UserBuffer</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">total_write_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="k">usize</span><span class="p">;</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">slice</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">buf</span><span class="p">.</span><span class="n">buffers</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">write_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">inode</span><span class="p">.</span><span class="n">write_at</span><span class="p">(</span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">slice</span><span class="p">);</span>
+<span class="w">            </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">write_size</span><span class="p">,</span><span class="w"> </span><span class="n">slice</span><span class="p">.</span><span class="n">len</span><span class="p">());</span>
+<span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">write_size</span><span class="p">;</span>
+<span class="w">            </span><span class="n">total_write_size</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">write_size</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">total_write_size</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>本章我们为 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait 新增了 <code class="docutils literal notranslate"><span class="pre">readable/writable</span></code> 两个抽象接口从而在 <code class="docutils literal notranslate"><span class="pre">sys_read/sys_write</span></code> 的时候进行简单的访问权限检查。 <code class="docutils literal notranslate"><span class="pre">read/write</span></code> 的实现也比较简单，只需遍历 <code class="docutils literal notranslate"><span class="pre">UserBuffer</span></code> 中的每个缓冲区片段，调用 <code class="docutils literal notranslate"><span class="pre">Inode</span></code> 写好的 <code class="docutils literal notranslate"><span class="pre">read/write_at</span></code> 接口就好了。注意 <code class="docutils literal notranslate"><span class="pre">read/write_at</span></code> 的起始位置是在 <code class="docutils literal notranslate"><span class="pre">OSInode</span></code> 中维护的 <code class="docutils literal notranslate"><span class="pre">offset</span></code> ，这个 <code class="docutils literal notranslate"><span class="pre">offset</span></code> 也随着遍历的进行被持续更新。在 <code class="docutils literal notranslate"><span class="pre">read/write</span></code> 的全程需要获取 <code class="docutils literal notranslate"><span class="pre">OSInode</span></code> 的互斥锁，保证两个进程无法同时访问同个文件。</p>
@@ -719,17 +719,17 @@
 <p>为了支持进程对文件的管理，我们需要在进程控制块中加入文件描述符表的相应字段：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/task.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_cx_ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">base_size</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_cx_ptr</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">memory_set</span>: <span class="nc">MemorySet</span><span class="p">,</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">parent</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Weak</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">10</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">children</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">,</span><span class="w"></span>
-<span class="hll"><span class="linenos">12</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">fd_table</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span><span class="w"></span>
-</span><span class="linenos">13</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_cx_ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">base_size</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_cx_ptr</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span><span class="p">,</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">memory_set</span>: <span class="nc">MemorySet</span><span class="p">,</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">parent</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Weak</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="linenos">10</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">children</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="linenos">11</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">,</span>
+<span class="hll"><span class="linenos">12</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">fd_table</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
+</span><span class="linenos">13</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>可以看到 <code class="docutils literal notranslate"><span class="pre">fd_table</span></code> 的类型包含多层嵌套，我们从外到里分别说明：</p>
@@ -767,24 +767,24 @@
 <p>2-3 步我们在这里完成：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/inode.rs</span>
 
-<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">ROOT_INODE</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">efs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">EasyFileSystem</span>::<span class="n">open</span><span class="p">(</span><span class="n">BLOCK_DEVICE</span><span class="p">.</span><span class="n">clone</span><span class="p">());</span><span class="w"></span>
-<span class="w">        </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">EasyFileSystem</span>::<span class="n">root_inode</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efs</span><span class="p">))</span><span class="w"></span>
-<span class="w">    </span><span class="p">};</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">ROOT_INODE</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">efs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">EasyFileSystem</span>::<span class="n">open</span><span class="p">(</span><span class="n">BLOCK_DEVICE</span><span class="p">.</span><span class="n">clone</span><span class="p">());</span>
+<span class="w">        </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">EasyFileSystem</span>::<span class="n">root_inode</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efs</span><span class="p">))</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>这之后就可以使用根目录的 inode <code class="docutils literal notranslate"><span class="pre">ROOT_INODE</span></code> ，在内核中进行各种  <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 的相关操作了。例如，在文件系统初始化完毕之后，在内核主函数 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 中调用 <code class="docutils literal notranslate"><span class="pre">list_apps</span></code> 函数来列举文件系统中可用的应用的文件名：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/inode.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">list_apps</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;/**** APPS ****&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">ROOT_INODE</span><span class="p">.</span><span class="n">ls</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">app</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;**************/&quot;</span><span class="p">)</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">list_apps</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;/**** APPS ****&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">ROOT_INODE</span><span class="p">.</span><span class="n">ls</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">app</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;**************/&quot;</span><span class="p">)</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 </div>
@@ -793,110 +793,110 @@
 <p>我们需要在内核中也定义一份打开文件的标志 <code class="docutils literal notranslate"><span class="pre">OpenFlags</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/inode.rs</span>
 
-<span class="n">bitflags</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">OpenFlags</span>: <span class="kt">u32</span> <span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">RDONLY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">WRONLY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">RDWR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">CREATE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">9</span><span class="p">;</span><span class="w"></span>
-<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">TRUNC</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="n">bitflags</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">OpenFlags</span>: <span class="kt">u32</span> <span class="p">{</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">RDONLY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">WRONLY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">RDWR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">CREATE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">9</span><span class="p">;</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">TRUNC</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 
-<span class="k">impl</span><span class="w"> </span><span class="n">OpenFlags</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">impl</span><span class="w"> </span><span class="n">OpenFlags</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="sd">/// Do not check validity for simplicity</span>
 <span class="w">    </span><span class="sd">/// Return (readable, writable)</span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">read_write</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="p">(</span><span class="kt">bool</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">is_empty</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="p">(</span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">)</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="bp">Self</span>::<span class="n">WRONLY</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="p">(</span><span class="kc">false</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">)</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="p">(</span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">)</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">read_write</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="p">(</span><span class="kt">bool</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">is_empty</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="p">(</span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">)</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="bp">Self</span>::<span class="n">WRONLY</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="p">(</span><span class="kc">false</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">)</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="p">(</span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">)</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>它的 <code class="docutils literal notranslate"><span class="pre">read_write</span></code> 方法可以根据标志的情况返回要打开的文件是否允许读写。简单起见，这里假设标志自身一定合法。</p>
 <p>接着，我们实现 <code class="docutils literal notranslate"><span class="pre">open_file</span></code> 内核函数，可根据文件名打开一个根目录下的文件：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/inode.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">open_file</span><span class="p">(</span><span class="n">name</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="nc">OpenFlags</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">OSInode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">readable</span><span class="p">,</span><span class="w"> </span><span class="n">writable</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">flags</span><span class="p">.</span><span class="n">read_write</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">flags</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">OpenFlags</span>::<span class="n">CREATE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">inode</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ROOT_INODE</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">open_file</span><span class="p">(</span><span class="n">name</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="nc">OpenFlags</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">OSInode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">readable</span><span class="p">,</span><span class="w"> </span><span class="n">writable</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">flags</span><span class="p">.</span><span class="n">read_write</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">flags</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">OpenFlags</span>::<span class="n">CREATE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">inode</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ROOT_INODE</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">            </span><span class="c1">// clear size</span>
-<span class="w">            </span><span class="n">inode</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
-<span class="w">            </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">OSInode</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
-<span class="w">                </span><span class="n">readable</span><span class="p">,</span><span class="w"></span>
-<span class="w">                </span><span class="n">writable</span><span class="p">,</span><span class="w"></span>
-<span class="w">                </span><span class="n">inode</span><span class="p">,</span><span class="w"></span>
-<span class="w">            </span><span class="p">)))</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">inode</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">            </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">OSInode</span>::<span class="n">new</span><span class="p">(</span>
+<span class="w">                </span><span class="n">readable</span><span class="p">,</span>
+<span class="w">                </span><span class="n">writable</span><span class="p">,</span>
+<span class="w">                </span><span class="n">inode</span><span class="p">,</span>
+<span class="w">            </span><span class="p">)))</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
 <span class="w">            </span><span class="c1">// create file</span>
-<span class="w">            </span><span class="n">ROOT_INODE</span><span class="p">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="w"></span>
-<span class="w">                </span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">inode</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                    </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">OSInode</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
-<span class="w">                        </span><span class="n">readable</span><span class="p">,</span><span class="w"></span>
-<span class="w">                        </span><span class="n">writable</span><span class="p">,</span><span class="w"></span>
-<span class="w">                        </span><span class="n">inode</span><span class="p">,</span><span class="w"></span>
-<span class="w">                    </span><span class="p">))</span><span class="w"></span>
-<span class="w">                </span><span class="p">})</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="n">ROOT_INODE</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="w"></span>
-<span class="w">            </span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">inode</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="n">flags</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">OpenFlags</span>::<span class="n">TRUNC</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                    </span><span class="n">inode</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
-<span class="w">                </span><span class="p">}</span><span class="w"></span>
-<span class="w">                </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">OSInode</span>::<span class="n">new</span><span class="p">(</span><span class="w"></span>
-<span class="w">                    </span><span class="n">readable</span><span class="p">,</span><span class="w"></span>
-<span class="w">                    </span><span class="n">writable</span><span class="p">,</span><span class="w"></span>
-<span class="w">                    </span><span class="n">inode</span><span class="w"></span>
-<span class="w">                </span><span class="p">))</span><span class="w"></span>
-<span class="w">            </span><span class="p">})</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">            </span><span class="n">ROOT_INODE</span><span class="p">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+<span class="w">                </span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">inode</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">OSInode</span>::<span class="n">new</span><span class="p">(</span>
+<span class="w">                        </span><span class="n">readable</span><span class="p">,</span>
+<span class="w">                        </span><span class="n">writable</span><span class="p">,</span>
+<span class="w">                        </span><span class="n">inode</span><span class="p">,</span>
+<span class="w">                    </span><span class="p">))</span>
+<span class="w">                </span><span class="p">})</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">ROOT_INODE</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+<span class="w">            </span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">inode</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="n">flags</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">OpenFlags</span>::<span class="n">TRUNC</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">inode</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">OSInode</span>::<span class="n">new</span><span class="p">(</span>
+<span class="w">                    </span><span class="n">readable</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">writable</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">inode</span>
+<span class="w">                </span><span class="p">))</span>
+<span class="w">            </span><span class="p">})</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>这里主要是实现了 <code class="docutils literal notranslate"><span class="pre">OpenFlags</span></code> 各标志位的语义。例如只有 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 参数包含 <cite>CREATE</cite> 标志位才允许创建文件；而如果文件已经存在，则清空文件的内容。另外我们将从 <code class="docutils literal notranslate"><span class="pre">OpenFlags</span></code> 解析得到的读写相关权限传入 <code class="docutils literal notranslate"><span class="pre">OSInode</span></code> 的创建过程中。</p>
 <p>在其基础上， <code class="docutils literal notranslate"><span class="pre">sys_open</span></code> 也就很容易实现了：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_open</span><span class="p">(</span><span class="n">path</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_str</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">);</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">inode</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open_file</span><span class="p">(</span><span class="w"></span>
-<span class="w">        </span><span class="n">path</span><span class="p">.</span><span class="n">as_str</span><span class="p">(),</span><span class="w"></span>
-<span class="w">        </span><span class="n">OpenFlags</span>::<span class="n">from_bits</span><span class="p">(</span><span class="n">flags</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()</span><span class="w"></span>
-<span class="w">    </span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">acquire_inner_lock</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">alloc_fd</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">inode</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_open</span><span class="p">(</span><span class="n">path</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_str</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">inode</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open_file</span><span class="p">(</span>
+<span class="w">        </span><span class="n">path</span><span class="p">.</span><span class="n">as_str</span><span class="p">(),</span>
+<span class="w">        </span><span class="n">OpenFlags</span>::<span class="n">from_bits</span><span class="p">(</span><span class="n">flags</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()</span>
+<span class="w">    </span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">acquire_inner_lock</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">alloc_fd</span><span class="p">();</span>
+<span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">inode</span><span class="p">);</span>
+<span class="w">        </span><span class="n">fd</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">-</span><span class="mi">1</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>关闭文件的系统调用 <code class="docutils literal notranslate"><span class="pre">sys_close</span></code> 实现非常简单，我们只需将进程控制块中的文件描述符表对应的一项改为 <code class="docutils literal notranslate"><span class="pre">None</span></code> 代表它已经空闲即可，同时这也会导致内层的引用计数类型 <code class="docutils literal notranslate"><span class="pre">Arc</span></code> 被销毁，会减少一个文件的引用计数，当引用计数减少到 0 之后文件所占用的资源就会被自动回收。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_close</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">].</span><span class="n">is_none</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">].</span><span class="n">take</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="mi">0</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_close</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">].</span><span class="n">is_none</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">].</span><span class="n">take</span><span class="p">();</span>
+<span class="w">    </span><span class="mi">0</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 </div>
@@ -905,52 +905,52 @@
 <p>在有了文件系统支持之后，我们在 <code class="docutils literal notranslate"><span class="pre">sys_exec</span></code> 所需的应用的 ELF 文件格式的数据就不再需要通过应用加载器从内核的数据段获取，而是从文件系统中获取，这样内核与应用的代码/数据就解耦了：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exec</span><span class="p">(</span><span class="n">path</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_str</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">);</span><span class="w"></span>
-<span class="hll"><span class="linenos"> 6</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">app_inode</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open_file</span><span class="p">(</span><span class="n">path</span><span class="p">.</span><span class="n">as_str</span><span class="p">(),</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-</span><span class="hll"><span class="linenos"> 7</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">all_data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">app_inode</span><span class="p">.</span><span class="n">read_all</span><span class="p">();</span><span class="w"></span>
-</span><span class="hll"><span class="linenos"> 8</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-</span><span class="hll"><span class="linenos"> 9</span><span class="w">        </span><span class="n">task</span><span class="p">.</span><span class="n">exec</span><span class="p">(</span><span class="n">all_data</span><span class="p">.</span><span class="n">as_slice</span><span class="p">());</span><span class="w"></span>
-</span><span class="linenos">10</span><span class="w">        </span><span class="mi">0</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">14</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_exec</span><span class="p">(</span><span class="n">path</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translated_str</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">);</span>
+<span class="hll"><span class="linenos"> 6</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">app_inode</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open_file</span><span class="p">(</span><span class="n">path</span><span class="p">.</span><span class="n">as_str</span><span class="p">(),</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span class="hll"><span class="linenos"> 7</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">all_data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">app_inode</span><span class="p">.</span><span class="n">read_all</span><span class="p">();</span>
+</span><span class="hll"><span class="linenos"> 8</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+</span><span class="hll"><span class="linenos"> 9</span><span class="w">        </span><span class="n">task</span><span class="p">.</span><span class="n">exec</span><span class="p">(</span><span class="n">all_data</span><span class="p">.</span><span class="n">as_slice</span><span class="p">());</span>
+</span><span class="linenos">10</span><span class="w">        </span><span class="mi">0</span>
+<span class="linenos">11</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">        </span><span class="o">-</span><span class="mi">1</span>
+<span class="linenos">13</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">14</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>注意上面代码片段中的高亮部分。当执行获取应用的 ELF 数据的操作时，首先调用 <code class="docutils literal notranslate"><span class="pre">open_file</span></code> 函数，以只读的方式在内核中打开应用文件并获取它对应的 <code class="docutils literal notranslate"><span class="pre">OSInode</span></code> 。接下来可以通过 <code class="docutils literal notranslate"><span class="pre">OSInode::read_all</span></code> 将该文件的数据全部读到一个向量 <code class="docutils literal notranslate"><span class="pre">all_data</span></code> 中：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/fs/inode.rs</span>
 
-<span class="k">impl</span><span class="w"> </span><span class="n">OSInode</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">read_all</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">512</span><span class="p">];</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">inode</span><span class="p">.</span><span class="n">read_at</span><span class="p">(</span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="p">);</span><span class="w"></span>
-<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">                </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="p">}</span><span class="w"></span>
-<span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">len</span><span class="p">;</span><span class="w"></span>
-<span class="w">            </span><span class="n">v</span><span class="p">.</span><span class="n">extend_from_slice</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buffer</span><span class="p">[</span><span class="o">..</span><span class="n">len</span><span class="p">]);</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">        </span><span class="n">v</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="k">impl</span><span class="w"> </span><span class="n">OSInode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">read_all</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">512</span><span class="p">];</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span>
+<span class="w">        </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">inode</span><span class="p">.</span><span class="n">read_at</span><span class="p">(</span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">buffer</span><span class="p">);</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">inner</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">len</span><span class="p">;</span>
+<span class="w">            </span><span class="n">v</span><span class="p">.</span><span class="n">extend_from_slice</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buffer</span><span class="p">[</span><span class="o">..</span><span class="n">len</span><span class="p">]);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">v</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>之后，就可以从向量 <code class="docutils literal notranslate"><span class="pre">all_data</span></code> 中拿到应用中的 ELF 数据，当解析完毕并创建完应用地址空间后该向量将会被回收。</p>
 <p>同样的，我们在内核中创建初始进程 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> 也需要替换为基于文件系统的实现：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/mod.rs</span>
 
-<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">INITPROC</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">({</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">inode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open_file</span><span class="p">(</span><span class="s">&quot;initproc&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inode</span><span class="p">.</span><span class="n">read_all</span><span class="p">();</span><span class="w"></span>
-<span class="w">        </span><span class="n">TaskControlBlock</span>::<span class="n">new</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">as_slice</span><span class="p">())</span><span class="w"></span>
-<span class="w">    </span><span class="p">});</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">INITPROC</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">({</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">inode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open_file</span><span class="p">(</span><span class="s">&quot;initproc&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">OpenFlags</span>::<span class="n">RDONLY</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inode</span><span class="p">.</span><span class="n">read_all</span><span class="p">();</span>
+<span class="w">        </span><span class="n">TaskControlBlock</span>::<span class="n">new</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">as_slice</span><span class="p">())</span>
+<span class="w">    </span><span class="p">});</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 </div>
@@ -959,43 +959,43 @@
 <p>基于文件抽象接口和文件描述符表，我们可以按照无结构的字节流来处理基本的文件读写，这样可以让文件读写系统调用 <code class="docutils literal notranslate"><span class="pre">sys_read/write</span></code> 变得更加具有普适性，为后续支持把管道等抽象为文件打下了基础：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/fs.rs</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">file</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_write</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">]</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">file</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
 <span class="w">        </span><span class="c1">// release current task TCB manually to avoid multi-borrow</span>
-<span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="n">file</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="w"></span>
-<span class="w">            </span><span class="n">UserBuffer</span>::<span class="n">new</span><span class="p">(</span><span class="n">translated_byte_buffer</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">))</span><span class="w"></span>
-<span class="w">        </span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span>
+<span class="w">        </span><span class="n">file</span><span class="p">.</span><span class="n">write</span><span class="p">(</span>
+<span class="w">            </span><span class="n">UserBuffer</span>::<span class="n">new</span><span class="p">(</span><span class="n">translated_byte_buffer</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">))</span>
+<span class="w">        </span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">-</span><span class="mi">1</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_read</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">file</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_read</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_user_token</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">inner</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">]</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">file</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
 <span class="w">        </span><span class="c1">// release current task TCB manually to avoid multi-borrow</span>
-<span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="n">file</span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="w"></span>
-<span class="w">            </span><span class="n">UserBuffer</span>::<span class="n">new</span><span class="p">(</span><span class="n">translated_byte_buffer</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">))</span><span class="w"></span>
-<span class="w">        </span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="o">-</span><span class="mi">1</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span>
+<span class="w">        </span><span class="n">file</span><span class="p">.</span><span class="n">read</span><span class="p">(</span>
+<span class="w">            </span><span class="n">UserBuffer</span>::<span class="n">new</span><span class="p">(</span><span class="n">translated_byte_buffer</span><span class="p">(</span><span class="n">token</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">))</span>
+<span class="w">        </span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">-</span><span class="mi">1</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>操作系统都是通过文件描述符在当前进程的文件描述符表中找到某个文件，无需关心文件具体的类型，只要知道它一定实现了 <code class="docutils literal notranslate"><span class="pre">File</span></code> Trait 的 <code class="docutils literal notranslate"><span class="pre">read/write</span></code> 方法即可。Trait 对象提供的运行时多态能力会在运行的时候帮助我们定位到符合实际类型的 <code class="docutils literal notranslate"><span class="pre">read/write</span></code> 方法。</p>
@@ -1129,5 +1129,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

@@ -488,7 +488,7 @@ $3 = (void (*)()) 0x10742 &lt;flap+18&gt;
 <h4>彩色化 LOG<a class="headerlink" href="#log" title="永久链接至标题">#</a></h4>
 <p>lab1 的工作使得我们从硬件世界跳入了软件世界，当看到自己的小 os 可以在裸机硬件上输出 <code class="docutils literal notranslate"><span class="pre">hello</span> <span class="pre">world</span></code> 是不是很高兴呢？但是为了后续的一步开发，更好的调试环境也是必不可少的，第一章的练习要求大家实现更加炫酷的彩色log。</p>
 <p>详细的原理不多说，感兴趣的同学可以参考 <a class="reference external" href="https://zh.wikipedia.org/wiki/ANSI%E8%BD%AC%E4%B9%89%E5%BA%8F%E5%88%97">ANSI转义序列</a> ，现在执行如下这条命令试试</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">echo</span> -e <span class="s2">&quot;\x1b[31mhello world\x1b[0m&quot;</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">echo</span><span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;\x1b[31mhello world\x1b[0m&quot;</span>
 </pre></div>
 </div>
 <p>如果你明白了我们是如何利用串口实现输出，那么要实现彩色输出就十分容易了，只需要用需要输出的字符串替换上一条命令中的 <code class="docutils literal notranslate"><span class="pre">hello</span> <span class="pre">world</span></code>，用期望颜色替换 <code class="docutils literal notranslate"><span class="pre">31(代表红色)</span></code> 即可。</p>
@@ -540,12 +540,12 @@ $3 = (void (*)()) 0x10742 &lt;flap+18&gt;
 <p>为了方便使用彩色输出，我们要求同学们实现彩色输出的宏或者函数，用以代替 print 完成输出内核信息的功能，它们有着和 prinf 十分相似的使用格式，要求支持可变参数解析，形如：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 这段代码输出了 os 内存空间布局，这到这些信息对于编写 os 十分重要</span>
 
-<span class="n">info</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.text [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s_text</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">e_text</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
-<span class="n">debug</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.rodata [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s_rodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">e_rodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
-<span class="n">error</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.data [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s_data</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">e_data</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span><span class="w"></span>
+<span class="n">info</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.text [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s_text</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">e_text</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span>
+<span class="n">debug</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.rodata [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s_rodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">e_rodata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span>
+<span class="n">error</span><span class="o">!</span><span class="p">(</span><span class="s">&quot;.data [{:#x}, {:#x})&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s_data</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">e_data</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span>
 </pre></div>
 </div>
-<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">info</span><span class="p">(</span><span class="s">&quot;load range : [%d, %d] start = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="n">start</span><span class="p">);</span><span class="w"></span>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">info</span><span class="p">(</span><span class="s">&quot;load range : [%d, %d] start = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="n">start</span><span class="p">);</span>
 </pre></div>
 </div>
 <p>在以后，我们还可以在 log 信息中增加线程、CPU等信息（只是一个推荐，不做要求），这些信息将极大的方便你的代码调试。</p>
@@ -587,9 +587,9 @@ $3 = (void (*)()) 0x10742 &lt;flap+18&gt;
 <ul class="simple">
 <li><p>检查</p></li>
 </ul>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> os
-<span class="gp">$ </span>git checkout ch1
-<span class="gp">$ </span>make run <span class="nv">LOG</span><span class="o">=</span>INFO
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>os
+<span class="gp">$ </span>git<span class="w"> </span>checkout<span class="w"> </span>ch1
+<span class="gp">$ </span>make<span class="w"> </span>run<span class="w"> </span><span class="nv">LOG</span><span class="o">=</span>INFO
 </pre></div>
 </div>
 <p>可以正确执行(可以不支持LOG参数，只有要彩色输出就好)，可以看到正确的内存布局输出，根据实现不同数值可能有差异，但应该位于 <code class="docutils literal notranslate"><span class="pre">linker.ld</span></code> 中指示 <code class="docutils literal notranslate"><span class="pre">BASE_ADDRESS</span></code> 后一段内存，输出之后关机。</p>
@@ -774,5 +774,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

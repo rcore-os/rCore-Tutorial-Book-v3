@@ -425,13 +425,13 @@
 <div class="section" id="id6">
 <h3>裸机设备驱动程序<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h3>
 <p>获取代码：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git clone https://github.com/rcore-os/virtio-drivers.git
-<span class="gp">$ </span><span class="nb">cd</span> virtio-drivers
-<span class="gp">$ </span><span class="nb">cd</span> examples/riscv
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/rcore-os/virtio-drivers.git
+<span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>virtio-drivers
+<span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>examples/riscv
 </pre></div>
 </div>
 <p>在 qemu 模拟器上运行：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>make qemu
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>make<span class="w"> </span>qemu
 <span class="go">... #可以看到测试用例发现并初始化和操作各个虚拟化设备的情况</span>
 <span class="go">[ INFO] Detected virtio MMIO device with vendor id 0x554D4551, device type Block, version Modern</span>
 <span class="go">[ INFO] Detected virtio MMIO device with vendor id 0x554D4551, device type GPU, version Modern</span>
@@ -445,25 +445,59 @@
 </div>
 <div class="section" id="id7">
 <h3>侏罗猎龙操作系统<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git clone https://github.com/rcore-os/rCore-Tutorial-v3.git
-<span class="gp">$ </span><span class="nb">cd</span> rCore-Tutorial-v3
-<span class="gp">$ </span>git checkout ch9
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/rcore-os/rCore-Tutorial-v3.git
+<span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>rCore-Tutorial-v3
+<span class="gp">$ </span>git<span class="w"> </span>checkout<span class="w"> </span>ch9
 </pre></div>
 </div>
 <p>在 qemu 模拟器上运行：</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span> os
-<span class="gp">$ </span>make run <span class="nv">GUI</span><span class="o">=</span><span class="m">1</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>os
+<span class="gp">$ </span>make<span class="w"> </span>run<span class="w"> </span><span class="nv">GUI</span><span class="o">=</span><span class="m">1</span>
 <span class="go"> &gt;&gt; gui_snake     #在OS启动后的shell界面中只需gui——snake游戏应用</span>
 </pre></div>
 </div>
-<p>在这个应用中，可以看到 <code class="docutils literal notranslate"><span class="pre">gui_snake</span></code> 图形应用通过操作系统提供的UART串口驱动和 <code class="docutils literal notranslate"><span class="pre">virtio-gui</span></code> 显示驱动提供的服务来实现的一个交互式小游戏。</p>
+<p>在这个应用中，可以看到 <code class="docutils literal notranslate"><span class="pre">gui_snake</span></code> 图形应用通过操作系统提供的UART串口驱动和 <code class="docutils literal notranslate"><span class="pre">virtio-gui</span></code> 显示驱动提供的服务来实现的一个贪吃蛇交互式小游戏。</p>
 <a class="reference internal image-reference" href="../_images/gui-snake.png" id="gui-snake"><img alt="../_images/gui-snake.png" class="align-center" id="gui-snake" src="../_images/gui-snake.png" style="width: 385.5px; height: 247.5px;" /></a>
 </div>
 </div>
 <div class="section" id="id8">
 <h2>本章代码树<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h2>
 <p>进一步增加了多种设备驱动程序的侏罗盗龙操作系统 – DeviceOS的总体结构如下图所示：</p>
-<a class="reference internal image-reference" href="../_images/device-os-detail.png" id="device-os-detail"><img alt="侏罗盗龙操作系统 -- DeviceOS总体结构" class="align-center" id="device-os-detail" src="../_images/device-os-detail.png" style="width: 886.4000000000001px; height: 688.8000000000001px;" /></a>
+<a class="reference internal image-reference" href="../_images/device-os-detail.png" id="device-os-detail"><img alt="侏罗盗龙操作系统 -- DeviceOS总体结构" class="align-center" id="device-os-detail" src="../_images/device-os-detail.png" style="width: 868.8000000000001px; height: 692.0px;" /></a>
+<p>我们先分析一下图的上下两部分。从上图的右上角可以看到为应用程序增加了GUI相关的新系统调用。应用程序可以通过 <code class="docutils literal notranslate"><span class="pre">sys_framebuffer</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sys_framebuffer_flush</span></code> 来显示图形界面，通过 <code class="docutils literal notranslate"><span class="pre">sys_event_get</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sys_key_pressed</span></code> 来接收来自串口/键盘/鼠标的输入事件。这其实就形成了基本的GUI应用支持框架。在上图的中上部，添加了三个GUI应用的图形显示，从左到右分别是： <code class="docutils literal notranslate"><span class="pre">gui_simple</span></code> 、 <code class="docutils literal notranslate"><span class="pre">gui_snake</span></code> 和 <code class="docutils literal notranslate"><span class="pre">gui_rect</span></code> 。</p>
+<p>在上图的最下面展示的硬件组成中，可以看到由Qemu模拟器仿真的 <code class="docutils literal notranslate"><span class="pre">Virt</span> <span class="pre">Machine</span></code> ，它包含了我们要管理的各种硬件组件，包括在前面章节中重点涉及的 <code class="docutils literal notranslate"><span class="pre">CPU</span></code> 和 <code class="docutils literal notranslate"><span class="pre">Main</span> <span class="pre">Memory</span></code> ，还包括新引入的外设，  <code class="docutils literal notranslate"><span class="pre">ns16500</span></code> UART串口外设、 <code class="docutils literal notranslate"><span class="pre">virtio-gpu</span></code> 图形显示外设、 <code class="docutils literal notranslate"><span class="pre">virtio-input</span></code> 键盘鼠标外设、 <code class="docutils literal notranslate"><span class="pre">vritio-blk</span></code> 硬盘存储设备。为了与这些硬件交互，系统软件还需了解有关这些外设的硬件参数模型，如各个外设的控制寄存器的内存起始地址和范围等，这就是Qemu模拟器中的 <code class="docutils literal notranslate"><span class="pre">Virt</span> <span class="pre">Machine</span></code> 硬件参数模型。硬件参数的具体内容可以在Qemu源码 <code class="docutils literal notranslate"><span class="pre">qemu/include/hw/riscv/virt.h</span></code> 和  <code class="docutils literal notranslate"><span class="pre">qemu/hw/riscv/virt.c</span></code> 中找到。</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// qemu/hw/riscv/virt.c</span>
+<span class="linenos"> 2</span><span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">MemMapEntry</span><span class="w"> </span><span class="n">virt_memmap</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">   </span><span class="p">[</span><span class="n">VIRT_PLIC</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w">        </span><span class="p">{</span><span class="w">  </span><span class="mh">0xc000000</span><span class="p">,</span><span class="w"> </span><span class="n">VIRT_PLIC_SIZE</span><span class="p">(</span><span class="n">VIRT_CPUS_MAX</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="p">},</span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="p">[</span><span class="n">VIRT_UART0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w">       </span><span class="p">{</span><span class="w"> </span><span class="mh">0x10000000</span><span class="p">,</span><span class="w">         </span><span class="mh">0x100</span><span class="w"> </span><span class="p">},</span>
+<span class="linenos"> 5</span><span class="w">   </span><span class="p">[</span><span class="n">VIRT_VIRTIO</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w">      </span><span class="p">{</span><span class="w"> </span><span class="mh">0x10001000</span><span class="p">,</span><span class="w">        </span><span class="mh">0x1000</span><span class="w"> </span><span class="p">},</span>
+<span class="linenos"> 6</span><span class="w">   </span><span class="p">[</span><span class="n">VIRT_DRAM</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="mh">0x80000000</span><span class="p">,</span><span class="w">           </span><span class="mh">0x0</span><span class="w"> </span><span class="p">},</span>
+<span class="linenos"> 7</span><span class="w">   </span><span class="p">...</span>
+<span class="linenos"> 8</span><span class="p">};</span>
+<span class="linenos"> 9</span><span class="c1">// qemu/include/hw/riscv/virt.h</span>
+<span class="linenos">10</span><span class="k">enum</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">11</span><span class="w">   </span><span class="n">UART0_IRQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span>
+<span class="linenos">12</span><span class="w">   </span><span class="n">VIRTIO_IRQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="cm">/* 1 to 8 */</span>
+<span class="linenos">13</span><span class="w">   </span><span class="p">...</span>
+<span class="linenos">14</span><span class="p">};</span>
+</pre></div>
+</div>
+<p>在上面的代码片段中，可以看到 UART 串口外设的控制寄存器的MMIO内存起始地址和空间大小为： <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">0x10000000,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">0x100</span> <span class="pre">}</span></code> ，而其它 <code class="docutils literal notranslate"><span class="pre">virtio</span></code> 外设的控制寄存器的MMIO内存起始地址和空间大小为 <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">0x10001000,</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">0x1000</span> <span class="pre">}</span></code> 。当操作系统知道这些外设的控制寄存器的MMIO内存地址后，就可以通过读写这些寄存器来访问和管理这些外设了。</p>
+<p>同时，我们也看到了各种外设的中断号，如串口中断号 <code class="docutils literal notranslate"><span class="pre">UART0_IRQ</span></code> 为10， 而``virtio`` 外设的中断号有8个，编号为 1~8。而对各种外设的中断的管理、检测发送给CPU等事务都在一个特殊的设备中完成，即 <code class="docutils literal notranslate"><span class="pre">PLIC</span></code> 平台级中断控制器（Platform Level InterruptController），它的控制寄存器内存起始地址和空间大小为 <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">0xc000000,</span> <span class="pre">VIRT_PLIC_SIZE(VIRT_CPUS_MAX</span> <span class="pre">*</span> <span class="pre">2)</span> <span class="pre">}</span></code> ，它的空间大小与CPU个数相关。</p>
+<p>现在看看上图中部的操作系统，蓝边橙底方块的部分是主要增加的内容，包括了外设驱动和与外设相关的中断处理。 根据与各种外设的连线可以看到两类驱动：外设驱动和平台驱动。</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">virtio-GPU</span> <span class="pre">Drv</span></code>：图形显示驱动</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ns16550a</span> <span class="pre">Drv</span></code>：串口驱动</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">virtio-input</span> <span class="pre">Drv</span></code>：键盘鼠标驱动</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">virtio-Block</span> <span class="pre">Drv</span></code>：块设备驱动</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PLIC</span> <span class="pre">drv</span></code>：平台级中断控制器驱动</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Virt</span> <span class="pre">Machine</span> <span class="pre">Conf</span></code>：<code class="docutils literal notranslate"><span class="pre">virt</span></code> 计算机系统配置信息（可以理解为平台级配置驱动）</p></li>
+</ul>
+</div></blockquote>
+<p>在与外设相关的中断处理方面，主要增加了对外设中断的处理，并被功能扩展的 <code class="docutils literal notranslate"><span class="pre">异常控制流管理</span></code> 内核模块进行统一管理。 <code class="docutils literal notranslate"><span class="pre">异常控制流管理</span></code> 内核模块主要的扩展包括两方面，一方面是支持在内核态响应各种中断，这样就能在内核态中处理外设的中断事件。为此需要扩展在内核态下的中断上下文保存/恢复操作，并根据外设中断号来调用相应外设驱动中的外设中断处理函数。</p>
+<p>另一方面是提供了 <code class="docutils literal notranslate"><span class="pre">UPIntrFreeCell&lt;T&gt;</span></code> 接口，代替了之前的 <code class="docutils literal notranslate"><span class="pre">UPSafeCell&lt;T&gt;</span></code> 。在Device OS 中把 <code class="docutils literal notranslate"><span class="pre">UPSafeCell&lt;T&gt;</span></code> 改为 <code class="docutils literal notranslate"><span class="pre">UPIntrFreeCell&lt;T&gt;</span></code> 。这是因为在第九章前，系统设置在S-Mode中屏蔽中断，所以在 S-Mode中运行的内核代码不会被各种外设中断打断，这样在单处理器的前提下，采用 <code class="docutils literal notranslate"><span class="pre">UPSafeCell</span></code> 来实现对可写数据的独占访问支持是够用的。但在第九章中，系统配置改为在S-Mode中使能中断，所以内核代码在内核执行过程中会被中断打断，无法实现可靠的独占访问。本章引入了新的 <code class="docutils literal notranslate"><span class="pre">UPIntrFreeCell</span></code> 机制，使得在通过 <code class="docutils literal notranslate"><span class="pre">UPIntrFreeCell</span></code> 对可写数据进行独占访问前，先屏蔽中断；而对可写数据独占访问结束后，再使能中断。从而确保线程对可写数据的独占访问时，不会被中断打断或引入可能的线程切换，而避免了竞态条件的产生。</p>
+<p>在内核层，为了支持Qemu模拟的 <code class="docutils literal notranslate"><span class="pre">Virt</span></code> 计算机中不同外设，增加了3个外设级设备驱动程序，分别是 <code class="docutils literal notranslate"><span class="pre">virtio-gpu</span></code> 显示驱动、 <code class="docutils literal notranslate"><span class="pre">virtio-input</span></code> 输入驱动和 <code class="docutils literal notranslate"><span class="pre">ns16650</span></code> 串口设备驱动，改进了 <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 块设备驱动，以支持高效的中断响应。而各种外设需要计算机中的支持。这4个外设级设备驱动程序需要计算机平台级的配置与管理，所以还增加了 <code class="docutils literal notranslate"><span class="pre">Virt</span> <span class="pre">Machine</span> <span class="pre">Conf</span></code> 和 <code class="docutils literal notranslate"><span class="pre">PLIC</span></code> 两个平台级设备驱动程序。在独立于操作系统的软件库中，增加了 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> 库，实现了各种 <code class="docutils literal notranslate"><span class="pre">virtio</span></code> 外设的裸机设备驱动的主要功能。这样在实现操作系统中的设备驱动程序时，就可以直接封装 <code class="docutils literal notranslate"><span class="pre">virtio</span></code> 裸机设备驱动中的功能，简化了设备驱动程序的编写难度。</p>
 <p>本章的代码主要包括两部分内容。一部分是virtio-drivers仓库中的驱动代码和裸机示例代码：</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>├── examples
 <span class="linenos"> 2</span>│   └── riscv
@@ -478,8 +512,6 @@
 <span class="linenos">11</span>   ├── input.rs (virtio-input 驱动)
 <span class="linenos">12</span>   ├── net.rs (virtio-net 驱动)
 <span class="linenos">13</span>   └── queue.rs (virtqueues: 批量I/O数据传输的机制)
-<span class="linenos">14</span>
-<span class="linenos">15</span>4 directories, 20 files
 </pre></div>
 </div>
 <p>另外一部分是侏罗猎龙操作系统 – Device OS 代码：</p>
@@ -538,19 +570,82 @@
 <span class="linenos">53</span><span class="go">      └── task.rs（进程线程相关的系统调用）</span>
 </pre></div>
 </div>
-<p>Device OS 中还有不少内核代码把 <code class="docutils literal notranslate"><span class="pre">UPSafeCell</span></code> 改为 <code class="docutils literal notranslate"><span class="pre">UPIntrFreeCell</span></code> 。这是因为在第九章前，系统设置在S-Mode中屏蔽中断，所以在 S-Mode中运行的内核代码不会被各种外设中断打断，采用 <code class="docutils literal notranslate"><span class="pre">UPSafeCell</span></code> 来实现对可写数据的独占访问支持是够用的。但在第九章中，系统配置改为在S-Mode中使能中断，所以内核代码在内核执行过程中会被中断打断，无法实现可靠的独占访问。本章引入了新的 <code class="docutils literal notranslate"><span class="pre">UPIntrFreeCell</span></code> 机制，使得在通过 <code class="docutils literal notranslate"><span class="pre">UPIntrFreeCell</span></code> 对可写数据进行独占访问前，先屏蔽中断；而对可写数据独占访问结束后，再使能中断。从而确保线程对可写数据的独占访问时，不会被中断打断或引入可能的线程切换，而避免了竞态条件的产生。</p>
 </div>
 <div class="section" id="id9">
 <h2>本章代码导读<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h2>
-<p>本章涉及的代码主要与设备驱动相关，需要了解硬件，需要阅读和运行测试相关代码。这里简要介绍一下在内核中添加设备驱动的大致开发过程。对于设计实现设备驱动，首先需要大致了解对应设备的硬件规范。在本章中，主要有两类设备，一类是实际的物理设备 – UART（QEMU模拟了这种NS16550A UART芯片规范）；另外一类是虚拟设备（如各种Virtio设备）。</p>
+<div class="section" id="id10">
+<h3>设计设备驱动程序的总体思路<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
+<p>这里简要介绍一下在内核中添加设备驱动的大致开发过程。本章涉及的代码主要与设备驱动相关，需要了解硬件，还需要了解如何与操作系统内核的其他部分进行对接，包括其他内核模块可以给驱动提供的内核服务，如内存分配等，以及需要驱动提供的支持功能，如外设中断响应等。在Rust软件工程开发中，推荐代码重用的Crate设计。所以在实际开发中，可以先在没有操作系统的裸机环境下（no-std）实现具备基本功能的裸机设备驱动 Crate，再实现一个最小执行环境（类似我们在第一章完成的 <code class="docutils literal notranslate"><span class="pre">三叶虫操作系统</span> <span class="pre">--</span> <span class="pre">LibOS</span></code> ），并在此最小执行环境中测试裸机设备驱动 Crate的基本功能能正常运行。然后再在操作系统内核中设计实现设备驱动程序。操作系统中的设备驱动程序可以通过一层封装来使用裸机设备驱动 Crate 的各种功能，并对接操作系统的而其他内核模块。这样，操作系统中的设备驱动的开发和测试相对会简化不少。</p>
+<p>设计设备驱动程序前，需要了解应用程序或操作系统中的其他子系统需要设备驱动程序完成哪些功能，再根据所需提供的功能完成如下基本操作：</p>
+<ul class="simple">
+<li><ol class="arabic simple">
+<li><p>设备扫描/发现</p></li>
+</ol>
+</li>
+<li><ol class="arabic simple" start="2">
+<li><p>设备初始化</p></li>
+</ol>
+</li>
+<li><ol class="arabic simple" start="3">
+<li><p>准备发给设备的命令</p></li>
+</ol>
+</li>
+<li><ol class="arabic simple" start="4">
+<li><p>通知设备</p></li>
+</ol>
+</li>
+<li><ol class="arabic simple" start="5">
+<li><p>接收设备通知</p></li>
+</ol>
+</li>
+<li><p>6.（可选）卸载设备驱动时回收设备驱动资源</p></li>
+</ul>
+<p>对于设计实现裸机设备驱动，首先需要大致了解对应设备的硬件规范。在本章中，主要有两类设备，一类是实际的物理设备 – UART（QEMU模拟了这种NS16550a UART芯片规范）；另外一类是虚拟设备（如各种Virtio设备）。</p>
 <p>然后需要了解外设是如何与CPU连接的。首先是CPU访问外设的方式，在RISC-V环境中，把外设相关的控制寄存器映射为某特定的内存区域（即MMIO映射方式），然后CPU通过读写这些特殊区域来访问外设（即PIO访问方式）。外设可以通过DMA来读写主机内存中的数据，并可通过中断来通知CPU。外设并不直接连接CPU，这就需要了解RISC-V中的平台级中断控制器（Platform-Level Interrupt Controller，PLIC），它管理并收集各种外设中断信息，并传递给CPU。</p>
-<p>对于设备驱动程序对外设的具体管理过程，大致会有初始化外设和I/O读写与控制操作。理解这些操作和对应的关键数据结构，就大致理解外设驱动要完成的功能包含哪些内容。每个设备驱动的关键数据结构和处理过程有共性部分和特定的部分。建议从 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> crate 中的  <code class="docutils literal notranslate"><span class="pre">examples/riscv/src/main.rs</span></code> 这个virtio设备的功能测试例子入手来分析。</p>
-<p>以 <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 存储设备为例，可以看到，首先是访问 <code class="docutils literal notranslate"><span class="pre">OpenSBI</span></code> (这里没有用RustSBI，用的是QEMU内置的SBI实现)提供的设备树信息，了解QEMU硬件中存在的各种外设，根据外设ID来找到 <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 存储设备；找到后，就进行外设的初始化，如果学习了 virtio规范（需要关注的是 virtqueue、virtio-mmio device， virtio-blk device的描述内容），那就可以看出代码实现的初始化过程和virtio规范中的virtio设备初始化步骤基本上是一致的，但也有与具体设备相关的特定初始化内容，比如分配 I/O buffer等。初始化完毕后，设备驱动在收到上层内核发出的读写扇区/磁盘块的请求后，就能通过 <code class="docutils literal notranslate"><span class="pre">virtqueue</span></code> 传输通道发出 <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 设备能接收的I/O命令和I/O buffer的区域信息； <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 设备收到信息后，会通过DMA操作完成磁盘数据的读写，然后通过中断或其他方式让设备驱动知道命令完成或命令执行失败。而 <code class="docutils literal notranslate"><span class="pre">virtio-gpu</span></code> 设备驱动程序的设计实现与 <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 设备驱动程序类似。</p>
+</div>
+<div class="section" id="id11">
+<h3>裸机设备驱动程序<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h3>
+<p>对于裸机设备驱动程序对外设的具体管理过程，大致会有发现外设、初始化外设和I/O读写与控制等操作。理解这些操作和对应的关键数据结构，就大致理解外设驱动要完成的功能包含哪些内容。每个设备驱动的关键数据结构和处理过程有共性部分和特定的部分。同学们可以从 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> crate 中的  <code class="docutils literal notranslate"><span class="pre">examples/riscv/src/main.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">src\blk.rs</span></code> 有关virtio设备的功能测试例子来分析。以 <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 存储设备为例，可以看到需要完成的工作包括：</p>
+<ol class="arabic simple">
+<li><p>设备扫描/发现：首先是访问 <code class="docutils literal notranslate"><span class="pre">OpenSBI</span></code> (这里没有用RustSBI，用的是QEMU内置的SBI实现)提供的设备树信息，了解QEMU硬件中存在的各种外设，根据外设ID来找到 <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 存储设备。</p></li>
+</ol>
+<div class="mermaid">
+            graph LR
+
+A[&quot;init_dt(device_tree_paddr)&quot;] --&gt; B[&quot;walk_dt_node(&amp;dt.root)&quot;] --&gt; C[&quot;virtio_probe(node)&quot;] --&gt; D[&quot;virtio_probe(dt)&quot;] --&gt; F[&quot;virtio_blk(header)&quot;]
+        </div><ol class="arabic simple" start="2">
+<li><p>设备初始化：找到 <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 外设后，就进行外设的初始化，如果学习了 virtio规范（需要关注的是 virtqueue、virtio-mmio device， virtio-blk device的描述内容），那就可以看出代码实现的初始化过程和virtio规范中的virtio设备初始化步骤基本上是一致的，但也有与具体设备相关的特定初始化内容，比如分配 I/O buffer等。</p></li>
+</ol>
+<div class="mermaid">
+            graph LR
+
+A[&quot;VirtIOBlk::&lt;HalImpl&gt;::new(header)&quot;] --&gt; B[&quot;header.begin_init(...)&quot;]
+A --&gt; C[read configuration space]
+A --&gt; D[&quot;VirtQueue::new(...)&quot;]
+A --&gt; E[&quot;header.finish_init()&quot;]
+        </div><ol class="arabic simple" start="3">
+<li><p>准备发给设备的命令：初始化完毕后，设备驱动在收到上层内核发出的读写扇区/磁盘块的请求后，就能通过 <code class="docutils literal notranslate"><span class="pre">virtqueue</span></code> 传输通道发出 <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 设备能接收的I/O命令和I/O buffer的区域信息。</p></li>
+<li><p>通知设备： 驱动程序通过 <cite>kick</cite> 机制（即写virtio设备中特定的通知控制寄存器）来通知设备有新请求。</p></li>
+</ol>
+<div class="mermaid">
+            graph LR
+
+A[read_block] --&gt; E[建立I/O命令] --&gt; F[加入到到virtqueue队列中] --&gt; G[通过写寄存器通知设备]
+B[read_block_nb] --&gt; E
+C[write_block] --&gt; E
+D[write_block_nb] --&gt; E
+        </div><ol class="arabic simple" start="5">
+<li><p>接收设备通知： <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 设备收到信息后，会通过DMA操作完成磁盘数据的读写，然后通过中断或其他方式让设备驱动知道命令完成或命令执行失败。由于中断处理例程的完整操作与操作系统内核相关性较大，所以在裸机设备驱动中，没有实现这部分的完整功能，而只是提供了表示收到中断的操作。</p></li>
+</ol>
+</div>
+<div class="section" id="id12">
+<h3>操作系统设备驱动程序<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
 <dl class="footnote brackets">
 <dt class="label" id="juravenator"><span class="brackets"><a class="fn-backref" href="#id4">1</a></span></dt>
 <dd><p>侏罗猎龙是一种小型恐龙，生活在1亿5千万年前的侏罗纪，它有独特的鳞片状的皮肤感觉器官，具有类似鳄鱼的触觉、冷热以及pH等综合感知能力，可能对狩猎有很大帮助。</p>
 </dd>
 </dl>
+</div>
 </div>
 </div>
 
@@ -622,7 +717,12 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#id8">本章代码树</a></li>
-<li><a class="reference internal" href="#id9">本章代码导读</a></li>
+<li><a class="reference internal" href="#id9">本章代码导读</a><ul>
+<li><a class="reference internal" href="#id10">设计设备驱动程序的总体思路</a></li>
+<li><a class="reference internal" href="#id11">裸机设备驱动程序</a></li>
+<li><a class="reference internal" href="#id12">操作系统设备驱动程序</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -674,5 +774,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>

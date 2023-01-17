@@ -395,38 +395,38 @@
 <div class="section" id="id3">
 <h2>互斥缺陷<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
 <p>互斥缺陷也称为违反原子性缺陷，在并发应用程序中对共享变量没进行合理的保护是导致出现这类缺陷的一个重要原因。下面是一个简单的例子：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="linenos"> 2</span><span class="c1">//... other code</span>
-<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos"> 4</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">A</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-</span><span class="linenos"> 5</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr1: A is Zero  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="hll"><span class="linenos"> 4</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">A</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span class="linenos"> 5</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr1: A is Zero  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span>
 <span class="linenos"> 7</span><span class="w">    </span><span class="c1">//... other code</span>
-<span class="linenos"> 8</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos">10</span><span class="w">    </span><span class="n">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">A</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-</span><span class="linenos">11</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr2: A is One  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">12</span><span class="p">}</span><span class="w"></span>
+<span class="linenos"> 8</span><span class="p">}</span>
+<span class="linenos"> 9</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="hll"><span class="linenos">10</span><span class="w">    </span><span class="n">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">A</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span>
+</span><span class="linenos">11</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr2: A is One  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span>
+<span class="linenos">12</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>A是共享变量。粗略地看，可以估计执行流程为：第一个线程thr1检查A的值，如果为0，则显示“”thr1: A is Zero  –&gt; 0”；第二个线程thr2设置A的值为2，并显示”thr2: A is One  –&gt; 1”。但如果线程thr1执行完第4行代码，准备执行第5行代码前发生了线程切换，开始执行线程th2；当线程thr2完成第10行后，操作系统有切换回线程thr1继续执行，那么线程thr1就会输出“thr1: A is Zero  –&gt; 1” 这样的奇怪结果。</p>
 <p>这里出现问题的根源是线程在对共享变量进行访问时，违反了临界区的互斥性（原子性）原则。解决这样的问题需要给共享变量的访问加锁，确保每个线程访问共享变量时，都持有锁，修改后的代码如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="linenos"> 2</span><span class="c1">//... other code</span>
-<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">A</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr1: A is Zero  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">    </span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">unlock</span><span class="p">();</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">A</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 6</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr1: A is Zero  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">unlock</span><span class="p">();</span>
 <span class="linenos"> 9</span><span class="w">    </span><span class="c1">//... other code</span>
-<span class="linenos">10</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">11</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">    </span><span class="n">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">A</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr2: A is One  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">unlock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">16</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">10</span><span class="p">}</span>
+<span class="linenos">11</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="linenos">13</span><span class="w">    </span><span class="n">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">A</span><span class="o">+</span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos">14</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thr2: A is One  --&gt; {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">);</span>
+<span class="linenos">15</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">unlock</span><span class="p">();</span>
+<span class="linenos">16</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>这种问题如果能发现，那么修复相对比较简单，即在对共享变量进行访问的代码区域前后加上请求锁和释放锁的操作。但主要的问题是发现缺陷比较难，特别是代码量比较大，代码的控制逻辑比较复杂的情况。</p>
@@ -434,56 +434,56 @@
 <div class="section" id="id4">
 <h2>同步缺陷<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h2>
 <p>同步缺陷也称为违反顺序缺陷，在并发应用程序中对共享变量访问的先后顺序的可能性没有充分分析是导致出现这类缺陷的一个重要原因。下面是一个简单的例子：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="linenos"> 2</span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="linenos"> 2</span><span class="o">..</span><span class="p">.</span>
+<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos"> 4</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w">    </span><span class="c1">//在某种情况下会休眠</span>
-<span class="hll"><span class="linenos"> 5</span><span class="w">   </span><span class="n">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-</span><span class="linenos"> 6</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="hll"><span class="linenos"> 9</span><span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="n">A</span><span class="o">==</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-</span><span class="linenos">10</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Correct&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">11</span><span class="w">   </span><span class="p">}</span><span class="k">else</span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Panic&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">14</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">15</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos">16</span><span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">17</span><span class="w">   </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">thr1</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">   </span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">   </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">thr2</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">22</span><span class="p">}</span><span class="w"></span>
+<span class="hll"><span class="linenos"> 5</span><span class="w">   </span><span class="n">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</span><span class="linenos"> 6</span><span class="w">   </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos"> 7</span><span class="p">}</span>
+<span class="linenos"> 8</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="hll"><span class="linenos"> 9</span><span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="n">A</span><span class="o">==</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span>
+</span><span class="linenos">10</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Correct&quot;</span><span class="p">);</span>
+<span class="linenos">11</span><span class="w">   </span><span class="p">}</span><span class="k">else</span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Panic&quot;</span><span class="p">);</span>
+<span class="linenos">13</span><span class="w">   </span><span class="p">}</span>
+<span class="linenos">14</span><span class="p">}</span>
+<span class="linenos">15</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
+<span class="linenos">16</span><span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span>
+<span class="linenos">17</span><span class="w">   </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">thr1</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span>
+<span class="linenos">18</span><span class="w">   </span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+<span class="linenos">19</span><span class="w">   </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">20</span><span class="w">   </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">thr2</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span>
+<span class="linenos">21</span><span class="w">   </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">22</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>A是共享变量。粗略地看，可以估计执行流程为：线程thr1先被创建，等了10ms后，线程thr2再被创建。一般情况下，这就导致了thr1先于thr2执行，即第5行会先于第9行执行，得到预期的结果。但可能出现一种执行情况：线程thr1在执行第5句前，由于某种原因进入了休眠，导致线程thr2执行第9行在前，线程th1执行第5行在后，导致获得非预期的错误结果。</p>
 <p>这里出现问题的根源是线程在对共享变量进行访问时，违反了临界区的预期顺序原则。解决这样的问题需要给线程的相关代码位置加上同步操作（如通过信号量或条件变量等），确保线程间的执行顺序符合预期，修改后的代码如下：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="linenos"> 2</span><span class="n">semaphore</span><span class="p">.</span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">//信号量初值为0</span>
-<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos"> 4</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w">    </span><span class="c1">//在某种情况下会休眠</span>
-<span class="hll"><span class="linenos"> 5</span><span class="w">   </span><span class="n">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-</span><span class="linenos"> 6</span><span class="w">   </span><span class="n">semaphore</span><span class="p">.</span><span class="n">up</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="p">}</span><span class="w"></span>
-<span class="hll"><span class="linenos"> 9</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="hll"><span class="linenos"> 5</span><span class="w">   </span><span class="n">A</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</span><span class="linenos"> 6</span><span class="w">   </span><span class="n">semaphore</span><span class="p">.</span><span class="n">up</span><span class="p">();</span>
+<span class="linenos"> 7</span><span class="w">   </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos"> 8</span><span class="p">}</span>
+<span class="hll"><span class="linenos"> 9</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
 </span><span class="linenos">10</span><span class="w">   </span><span class="n">semaphore</span><span class="p">.</span><span class="n">down</span><span class="p">();</span><span class="w">  </span><span class="c1">// 需要等待 semaphore.up()的唤醒</span>
-<span class="linenos">11</span><span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="n">A</span><span class="o">==</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos">12</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Correct&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">13</span><span class="w">   </span><span class="p">}</span><span class="k">else</span><span class="p">{</span><span class="w"></span>
-<span class="linenos">14</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Panic&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">15</span><span class="w">   </span><span class="p">}</span><span class="w"></span>
-<span class="linenos">16</span><span class="p">}</span><span class="w"></span>
-<span class="linenos">17</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span><span class="w"></span>
-<span class="linenos">18</span><span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
-<span class="linenos">19</span><span class="w">   </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">thr1</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span><span class="w"></span>
-<span class="linenos">20</span><span class="w">   </span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span><span class="w"></span>
-<span class="linenos">21</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">22</span><span class="w">   </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">thr2</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span><span class="w"></span>
-<span class="linenos">23</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">24</span><span class="p">}</span><span class="w"></span>
+<span class="linenos">11</span><span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="n">A</span><span class="o">==</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Correct&quot;</span><span class="p">);</span>
+<span class="linenos">13</span><span class="w">   </span><span class="p">}</span><span class="k">else</span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">      </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Panic&quot;</span><span class="p">);</span>
+<span class="linenos">15</span><span class="w">   </span><span class="p">}</span>
+<span class="linenos">16</span><span class="p">}</span>
+<span class="linenos">17</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
+<span class="linenos">18</span><span class="w">   </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span>
+<span class="linenos">19</span><span class="w">   </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">thr1</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span>
+<span class="linenos">20</span><span class="w">   </span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+<span class="linenos">21</span><span class="w">   </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">22</span><span class="w">   </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">thr2</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span>
+<span class="linenos">23</span><span class="w">   </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">24</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>这种问题如果能发现，那么修复相对也比较简单，即在线程的代码区域设置合理的同步操作，让线程间的执行顺序符合预期。但主要的问题还是发现缺陷比较难，特别是代码量比较大，代码的控制逻辑比较复杂的情况。</p>
@@ -492,29 +492,29 @@
 <div class="section" id="id5">
 <h2>死锁缺陷<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
 <p>除了上面的两类并发缺陷，还有一类导致程序无法正常执行的并发缺陷 – 死锁（Dead lock）。在并发应用中，经常需要线程排他性地访问若干种资源。大部分死锁都和不可抢占的资源相关，这里把线程需要申请获取、排他性使用和释放的对象称为资源（resource）。需要互斥访问的共享变量就是一种资源。操作系统通过互斥锁、信号量或条件变量等同步互斥机制，能授权一个线程（临时）具有排他地访问某一种资源的能力。下面是一个死锁的例子：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 2</span><span class="w">   </span><span class="n">mutex1</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="w">   </span><span class="n">mutex2</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">   </span><span class="n">mutex2</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">   </span><span class="n">mutex1</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">10</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 2</span><span class="w">   </span><span class="n">mutex1</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="linenos"> 3</span><span class="w">   </span><span class="n">mutex2</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos"> 5</span><span class="p">}</span>
+<span class="linenos"> 6</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 7</span><span class="w">   </span><span class="n">mutex2</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="linenos"> 8</span><span class="w">   </span><span class="n">mutex1</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="linenos"> 9</span><span class="w">   </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">10</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>当线程thr1持有锁mutex1，正在等待另外一个锁mutex2，而线程thr2持有锁mutex2，正在等待另外一个锁mutex1时，死锁就产生了。对于这个代码，可以很容易避免死锁：</p>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 2</span><span class="w">   </span><span class="n">mutex1</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 3</span><span class="w">   </span><span class="n">mutex2</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 4</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos"> 5</span><span class="p">}</span><span class="w"></span>
-<span class="linenos"> 6</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="linenos"> 7</span><span class="w">   </span><span class="n">mutex1</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 8</span><span class="w">   </span><span class="n">mutex2</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span><span class="w"></span>
-<span class="linenos"> 9</span><span class="w">   </span><span class="o">..</span><span class="p">.</span><span class="w"></span>
-<span class="linenos">10</span><span class="p">}</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 2</span><span class="w">   </span><span class="n">mutex1</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="linenos"> 3</span><span class="w">   </span><span class="n">mutex2</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="linenos"> 4</span><span class="w">   </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos"> 5</span><span class="p">}</span>
+<span class="linenos"> 6</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr2</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 7</span><span class="w">   </span><span class="n">mutex1</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="linenos"> 8</span><span class="w">   </span><span class="n">mutex2</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="linenos"> 9</span><span class="w">   </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">10</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>只要线程thr1和线程thr2都用相同的请求锁顺序，就不会发生死锁了。但这与上面的分析一样，对于实际的复杂程序，发现死锁就是一个很费劲的事情。目前计算机科学家对死锁的研究比较深入，指出了死锁产生的四个必要条件：</p>
@@ -554,9 +554,9 @@
 <li><p>如果 Request[i,j] ≤ Available[j]，则转步骤3；否则，表示尚无足够资源，线程thr[i]进入等待状态。</p></li>
 <li><p>操作系统试着把资源分配给线程thr[i]，并修改下面数据结构中的值：</p></li>
 </ol>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="n">Available</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Available</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">Request</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">];</span><span class="w"></span>
-<span class="linenos">2</span><span class="n">Allocation</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Allocation</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Request</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">];</span><span class="w"></span>
-<span class="linenos">3</span><span class="n">Need</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Need</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">Request</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">];</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="n">Available</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Available</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">Request</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">];</span>
+<span class="linenos">2</span><span class="n">Allocation</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Allocation</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Request</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">];</span>
+<span class="linenos">3</span><span class="n">Need</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Need</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">Request</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">];</span>
 </pre></div>
 </div>
 <ol class="arabic simple" start="4">
@@ -570,16 +570,16 @@
 <li><p>设置两个向量:工作向量Work，表示操作系统可提供给线程继续运行所需的各类资源数目，它含有m个元素，初始时，Work = Available；结束向量Finish，表示系统是否有足够的资源分配给线程，使之运行完成。初始时 Finish[0..n-1] = false，表示所有线程都没结束；当有足够资源分配给线程时，设置Finish[i] = true。</p></li>
 <li><p>从线程集合中找到一个能满足下述条件的线程</p></li>
 </ol>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="n">Finish</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"></span>
-<span class="linenos">2</span><span class="n">Need</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">Work</span><span class="p">[</span><span class="n">j</span><span class="p">];</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="n">Finish</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="linenos">2</span><span class="n">Need</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">Work</span><span class="p">[</span><span class="n">j</span><span class="p">];</span>
 </pre></div>
 </div>
 <p>若找到，执行步骤3，否则，执行步骤4。</p>
 <ol class="arabic simple" start="3">
 <li><p>当线程thr[i]获得资源后，可顺利执行，直至完成，并释放出分配给它的资源，故应执行:</p></li>
 </ol>
-<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="n">Work</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Work</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Allocation</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">];</span><span class="w"></span>
-<span class="linenos">2</span><span class="n">Finish</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w"></span>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="n">Work</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Work</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Allocation</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">];</span>
+<span class="linenos">2</span><span class="n">Finish</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
 </pre></div>
 </div>
 <p>跳转回步骤2</p>
@@ -714,5 +714,7 @@ var addUtterances = () => {
 commentsRunWhenDOMLoaded(addUtterances);
 </script>
     <script src="../_static/translations.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    <script src="../_static/js/mermaid.js"></script>
     </body>
 </html>
