@@ -13,7 +13,11 @@ BUILDDIR      = build
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-.PHONY: help Makefile deploy liveview
+html:
+	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	@cp scripts/mermaid.js build/html/_static/
+
+.PHONY: help html Makefile deploy liveview
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
@@ -30,6 +34,7 @@ liveview:
 deploy:
 	@make clean
 	@make html
+	@cp scripts/mermaid.js build/html/_static/
 	@python3 scripts/fix-comments.py
 	@rm -rf docs
 	@cp -r build/html docs
