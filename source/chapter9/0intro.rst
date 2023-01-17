@@ -127,6 +127,16 @@
 本章代码树
 -----------------------------------------
 
+进一步增加了多种设备驱动程序的侏罗盗龙操作系统 -- DeviceOS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec13/figs/device-os-detail.png
+   :align: center
+   :scale: 20 %
+   :name: device-os-detail
+   :alt: 侏罗盗龙操作系统 -- DeviceOS总体结构
+
+
+
 本章的代码主要包括两部分内容。一部分是virtio-drivers仓库中的驱动代码和裸机示例代码：
 
 .. code-block::
