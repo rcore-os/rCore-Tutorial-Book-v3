@@ -33,7 +33,14 @@ release = '3.6.0-alpha.1'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx_comments"
+    "sphinx_comments",
+    "sphinxcontrib.mermaid"
+]
+
+mermaid_output_format = 'raw'
+mermaid_version = ''
+html_js_files = [
+    'js/mermaid.js'
 ]
 
 comments_config = {
