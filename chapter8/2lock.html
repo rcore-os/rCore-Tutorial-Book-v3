@@ -835,7 +835,7 @@
 <div class="section" id="id10">
 <h3>多标记的组合<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h3>
 <p>既然仅使用一个标记不行，我们尝试使用多标记的组合来表示锁的状态。比如下面的 <a class="reference external" href="https://en.wikipedia.org/wiki/Peterson%27s_algorithm">Peterson 算法</a> 就适用于两个线程间的互斥访问：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/adder_peterson_spin.rs</span>
+<div class="highlight-rust notranslate" id="link-adder-peterson-spin"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/adder_peterson_spin.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="sd">/// FLAG[i]=true 表示线程 i 想要进入或已经进入临界区</span>
 <span class="linenos"> 4</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">FLAG</span>: <span class="p">[</span><span class="kt">bool</span><span class="p">;</span><span class="w"> </span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="kc">false</span><span class="p">;</span><span class="w"> </span><span class="mi">2</span><span class="p">];</span>
@@ -1002,7 +1002,70 @@
 </div>
 </div>
 <div class="section" id="id15">
-<h2>参考文献<a class="headerlink" href="#id15" title="永久链接至标题">#</a></h2>
+<h2>在内核态操作系统支持下实现锁机制<a class="headerlink" href="#id15" title="永久链接至标题">#</a></h2>
+<p>在编程时，常常遇到必须满足某些条件才能进行接下来的流程的情况。如果一开始这些条件并不成立，那么必须通过某种方式暂时在原地 <strong>等待</strong> 这些条件满足之后才能继续前进。我们可以用多种不同的方式进行等待，最为常见的几种包括：忙等、通过 yield 暂时让权以及后面重点介绍的阻塞。</p>
+<div class="section" id="id16">
+<h3>忙等<a class="headerlink" href="#id16" title="永久链接至标题">#</a></h3>
+<p>应用 <a class="reference internal" href="#link-adder-peterson-spin"><span class="std std-ref">adder_peterson_spin.rs</span></a> 展示了如何使用 Peterson 算法实现锁机制，在这里我们关注它如何进行等待。在其中的 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 函数中，需要满足 <span class="math notranslate nohighlight">\(\text{flag}_j\)</span> 为 false 和 <span class="math notranslate nohighlight">\(\text{turn}\not=j\)</span> 两个条件至少满足其一才能继续前进并成功进入临界区。于是在第 20 行，我们通过一个 while 循环进行 <strong>忙等待</strong> 直到条件成立。</p>
+<p>运行这个测例会发现一种现象：虽然其结果是正确的，但是每个线程尝试进入临界区的次数 <code class="docutils literal notranslate"><span class="pre">PER_THREAD</span></code> 比较大（比如大于 5000 ）的时候有时总运行时间会非常长，对于这种数据规模来说是完全不可接受的。如何解释这种现象呢？对于一个线程来说，在 while 循环的第一次迭代中如果发现条件不成立，那么就可以知道在这个分配给它的时间片中，接下来的所有迭代条件都不成立。因为我们是单核，此时 CPU 由这个线程使用，它只是不断做判断而不会做任何修改。另一个线程可以做修改，但是暂时没有 CPU 使用权。所以，在这种忙等待的做法中，只要一开始条件不成立，那么剩余时间片都会被浪费在 while 循环中，这也就导致了某些情况下测例运行时间很长。要解决这个问题，需要线程一旦注意到条件不成立，就立即主动或者被动交出 CPU 使用权，反正它暂时无法做任何有意义的事情了。我们后面再介绍具体如何实现。</p>
+<p>总体上说，若要以忙等方式进行等待，首先要保证忙等是有意义的，不然就只是单纯的在浪费 CPU 资源。怎样才算是有意义的忙等呢？那就是 <strong>在忙等的时候被等待的条件有可能从不满足变为满足</strong> 。比如说，一个线程占据 CPU 资源进行忙等的同时，另一个线程可以在另一个 CPU 上执行，外设也在工作，它们都可以修改内存使得条件得到满足。这种情况才有等待的价值。于是可以知道， <strong>在单核环境下且等待条件不涉及外设的时候，一个线程的忙等是没有意义的</strong> ，因为被等待的条件的状态不可能发生变化。</p>
+<p>在忙等有意义的前提下，忙等的优势是在条件成立的第一时间就能够进行响应，对于事件的响应延迟更低，实时性更好。它的缺点则是不可避免的会浪费一部分 CPU 资源在忙等上。因此，如果我们能够预测到条件将很快得到满足，在这种情况下使用忙等是一个好主意。如果条件成立的时间无法预测或者所需时间比较长，那还是及时交出 CPU 资源更好。</p>
+</div>
+<div class="section" id="yield">
+<h3>通过 yield 暂时让权<a class="headerlink" href="#yield" title="永久链接至标题">#</a></h3>
+<p>在应用 <a class="reference internal" href="#link-adder-peterson-spin"><span class="std std-ref">adder_peterson_spin.rs</span></a> 的基础上，线程可以在发现条件暂时不成立的情况下通过 yield 系统调用主动交出 CPU 使用权：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/adder_peterson_yield.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="n">id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">FLAG</span><span class="p">[</span><span class="n">id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="n">TURN</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">j</span><span class="p">;</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="c1">// Tell the compiler not to reorder memory operations</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="c1">// across this fence.</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="n">compiler_fence</span><span class="p">(</span><span class="n">Ordering</span>::<span class="n">SeqCst</span><span class="p">);</span>
+<span class="linenos">10</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="n">FLAG</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">TURN</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="p">{</span>
+<span class="hll"><span class="linenos">11</span><span class="w">        </span><span class="n">yield_</span><span class="p">();</span>
+</span><span class="linenos">12</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">13</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>事实上，这并不是我们第一次利用 yield 在等待条件不满足的时候让权了，此前我们就做过类似的事情。考虑 <code class="docutils literal notranslate"><span class="pre">sys_waitpid</span></code> 系统调用在 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中的封装 <code class="docutils literal notranslate"><span class="pre">waitpid</span></code> ：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/lib.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">waitpid</span><span class="p">(</span><span class="n">pid</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">exit_code</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">sys_waitpid</span><span class="p">(</span><span class="n">pid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="p">,</span><span class="w"> </span><span class="n">exit_code</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 6</span><span class="w">            </span><span class="o">-</span><span class="mi">2</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="hll"><span class="linenos"> 7</span><span class="w">                </span><span class="n">yield_</span><span class="p">();</span>
+</span><span class="linenos"> 8</span><span class="w">            </span><span class="p">}</span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="c1">// -1 or a real pid</span>
+<span class="linenos">10</span><span class="w">            </span><span class="n">exit_pid</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">exit_pid</span><span class="p">,</span>
+<span class="linenos">11</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">12</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">13</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>这里是被等待的子进程尚未退出，于是我们先 yield ，等下一次获得 CPU 使用权的时候再检查该子进程是否退出。</p>
+<p>另一个例子是在本章之前， <code class="docutils literal notranslate"><span class="pre">sleep</span></code> 由用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 提供而不是一个系统调用：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// user/src/lib.rs</span>
+<span class="linenos">2</span>
+<span class="linenos">3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sleep</span><span class="p">(</span><span class="n">period_ms</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sys_get_time</span><span class="p">();</span>
+<span class="linenos">5</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="n">sys_get_time</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">period_ms</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"> </span><span class="p">{</span>
+<span class="hll"><span class="linenos">6</span><span class="w">        </span><span class="n">sys_yield</span><span class="p">();</span>
+</span><span class="linenos">7</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">8</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>这里是发现睡眠的时间还不够，于是 yield 并在下一次获得时间片的时候再检查。</p>
+<p>使用 yield 实现通常情况下不会出错。但是它的实际表现却很大程度上受到操作系统调度器的影响。  如果在条件满足之前就多次调度到等待的线程，虽然看起来线程很快就会再次通过 yield 主动让权从而没什么开销，但是实际上却增加了上下文切换的次数。上下文切换的开销是很大的，除了要保存和恢复寄存器之外，更重要的一点是会破坏程序的时间和空间局部性使得我们无法高效利用 CPU 上的各类缓存。比如说，我们的实现中在 Trap 的时候需要切换地址空间，有可能需要清空 TLB ；由于用户态和内核态使用不同的栈，在应用 Trap 到内核态的时候，缓存中原本保存着用户栈的内容，在执行内核态代码的时候可能由于缓存容量不足而需要逐步替换成内核栈的内容，而在返回用户态之后又需要逐步替换回来。整个过程中的缓存命中率将会很低。所以说，即使线程只是短暂停留也有可能对整体性能产生影响。  相反，如果在条件满足很久之后才调度到等待的线程，这则会造成事件的响应延迟不可接受。使用 yield 就有可能出现这些极端情况，而且我们完全无法控制或预测其效果究竟如何。因此，我们需要一种更加确定、可控的等待方案。</p>
+</div>
+<div class="section" id="id17">
+<h3>阻塞<a class="headerlink" href="#id17" title="永久链接至标题">#</a></h3>
+</div>
+</div>
+<div class="section" id="id18">
+<h2>参考文献<a class="headerlink" href="#id18" title="永久链接至标题">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Race_condition">竞态条件，来自维基百科</a></p></li>
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Peterson%27s_algorithm">Peterson 算法，来自维基百科</a></p></li>
@@ -1098,7 +1161,13 @@
 <li><a class="reference internal" href="#id14">原子指令小结</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id15">参考文献</a></li>
+<li><a class="reference internal" href="#id15">在内核态操作系统支持下实现锁机制</a><ul>
+<li><a class="reference internal" href="#id16">忙等</a></li>
+<li><a class="reference internal" href="#yield">通过 yield 暂时让权</a></li>
+<li><a class="reference internal" href="#id17">阻塞</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id18">参考文献</a></li>
 </ul>
 </li>
 </ul>
