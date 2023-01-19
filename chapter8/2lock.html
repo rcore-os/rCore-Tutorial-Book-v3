@@ -1003,13 +1003,13 @@
 </div>
 <div class="section" id="id15">
 <h2>在内核态操作系统支持下实现锁机制<a class="headerlink" href="#id15" title="永久链接至标题">#</a></h2>
-<p>在编程时，常常遇到必须满足某些条件才能进行接下来的流程的情况。如果一开始这些条件并不成立，那么必须通过某种方式暂时在原地 <strong>等待</strong> 这些条件满足之后才能继续前进。我们可以用多种不同的方式进行等待，最为常见的几种包括：忙等、通过 yield 暂时让权以及后面重点介绍的阻塞。</p>
+<p>在编程时，常常遇到必须满足某些条件（或是遇到某些事件）才能进行接下来的流程的情况。如果一开始这些条件并不成立，那么必须通过某种方式暂时在原地 <strong>等待</strong> 这些条件满足之后才能继续前进。我们可以用多种不同的方式进行等待，最为常见的几种包括：忙等、通过 yield 暂时让权以及后面重点介绍的阻塞。</p>
 <div class="section" id="id16">
 <h3>忙等<a class="headerlink" href="#id16" title="永久链接至标题">#</a></h3>
 <p>应用 <a class="reference internal" href="#link-adder-peterson-spin"><span class="std std-ref">adder_peterson_spin.rs</span></a> 展示了如何使用 Peterson 算法实现锁机制，在这里我们关注它如何进行等待。在其中的 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 函数中，需要满足 <span class="math notranslate nohighlight">\(\text{flag}_j\)</span> 为 false 和 <span class="math notranslate nohighlight">\(\text{turn}\not=j\)</span> 两个条件至少满足其一才能继续前进并成功进入临界区。于是在第 20 行，我们通过一个 while 循环进行 <strong>忙等待</strong> 直到条件成立。</p>
 <p>运行这个测例会发现一种现象：虽然其结果是正确的，但是每个线程尝试进入临界区的次数 <code class="docutils literal notranslate"><span class="pre">PER_THREAD</span></code> 比较大（比如大于 5000 ）的时候有时总运行时间会非常长，对于这种数据规模来说是完全不可接受的。如何解释这种现象呢？对于一个线程来说，在 while 循环的第一次迭代中如果发现条件不成立，那么就可以知道在这个分配给它的时间片中，接下来的所有迭代条件都不成立。因为我们是单核，此时 CPU 由这个线程使用，它只是不断做判断而不会做任何修改。另一个线程可以做修改，但是暂时没有 CPU 使用权。所以，在这种忙等待的做法中，只要一开始条件不成立，那么剩余时间片都会被浪费在 while 循环中，这也就导致了某些情况下测例运行时间很长。要解决这个问题，需要线程一旦注意到条件不成立，就立即主动或者被动交出 CPU 使用权，反正它暂时无法做任何有意义的事情了。我们后面再介绍具体如何实现。</p>
 <p>总体上说，若要以忙等方式进行等待，首先要保证忙等是有意义的，不然就只是单纯的在浪费 CPU 资源。怎样才算是有意义的忙等呢？那就是 <strong>在忙等的时候被等待的条件有可能从不满足变为满足</strong> 。比如说，一个线程占据 CPU 资源进行忙等的同时，另一个线程可以在另一个 CPU 上执行，外设也在工作，它们都可以修改内存使得条件得到满足。这种情况才有等待的价值。于是可以知道， <strong>在单核环境下且等待条件不涉及外设的时候，一个线程的忙等是没有意义的</strong> ，因为被等待的条件的状态不可能发生变化。</p>
-<p>在忙等有意义的前提下，忙等的优势是在条件成立的第一时间就能够进行响应，对于事件的响应延迟更低，实时性更好。它的缺点则是不可避免的会浪费一部分 CPU 资源在忙等上。因此，如果我们能够预测到条件将很快得到满足，在这种情况下使用忙等是一个好主意。如果条件成立的时间无法预测或者所需时间比较长，那还是及时交出 CPU 资源更好。</p>
+<p>在忙等有意义的前提下，忙等的优势是在条件成立的第一时间就能够进行响应，对于事件的响应延迟更低，实时性更好，而且不涉及开销很大的上下文切换。它的缺点则是不可避免的会浪费一部分 CPU 资源在忙等上。因此，如果我们能够预测到条件将很快得到满足，在这种情况下使用忙等是一个好主意。如果条件成立的时间无法预测或者所需时间比较长，那还是及时交出 CPU 资源更好。</p>
 </div>
 <div class="section" id="yield">
 <h3>通过 yield 暂时让权<a class="headerlink" href="#yield" title="永久链接至标题">#</a></h3>
@@ -1062,10 +1062,36 @@
 </div>
 <div class="section" id="id17">
 <h3>阻塞<a class="headerlink" href="#id17" title="永久链接至标题">#</a></h3>
-</div>
-</div>
+<p id="term-blocking">在操作系统的协助下，我们可以对于等待进行更加精细的控制。为了避免等待事件的线程在事件到来之前被调度到而产生大量上下文切换开销，我们可以新增一种 <strong>阻塞</strong> (Blocking) 机制。当线程需要等待事件到来的时候，操作系统可以将该线程标记为阻塞状态 (Blocked) 并将其从调度器的就绪队列中移除。由于操作系统每次只会从就绪队列中选择一个线程分配 CPU 资源，被阻塞的线程就不再会获得 CPU 使用权，也就避免了上下文切换。相对的，在线程要等待的事件到来之后，我们需要解除线程的阻塞状态，将线程状态改成就绪状态，并将线程重新加入到就绪队列，使其有资格得到 CPU 资源。这就是与阻塞机制配套的唤醒机制。在线程被唤醒之后，由于它所等待的事件已经出现，在操作系统调度到它之后它就可以继续向下运行了。</p>
+<p>阻塞与唤醒机制相配合就可以实现精确且高效的等待。阻塞机制保证在线程等待的事件到来之前，线程不会参与调度，因此不会浪费任何时间片或产生上下文切换。唤醒机制则在事件到来之后允许线程正常继续执行。注意到，操作系统能够感知到事件以及等待该事件的线程，因此根据事件的实时性要求以及线程上任务的重要程度，操作系统可以在对于调度策略进行调整。比如，当事件为键盘或鼠标输入时，操作系统可以在唤醒之后将对应线程的优先级调高，让其能够被尽量早的调度到，这样就能够降低响应延迟并提升用户体验。也就是说，相比 yield ，这种做法的可控性更好。</p>
+<p>阻塞机制的缺点在于会不可避免的产生两次上下文切换。站在等待的线程的视角，它会被切换出去再切换回来然后再继续执行。在事件产生频率较低、事件到来速度比较慢的情况下这不是问题，但当事件产生频率很高的时候直接忙等也许是更好的选择。此外，阻塞机制相对比较复杂，需要操作系统的支持。</p>
+<p>下面介绍我们的操作系统如何实现阻塞机制以及阻塞机制的若干应用。</p>
 <div class="section" id="id18">
-<h2>参考文献<a class="headerlink" href="#id18" title="永久链接至标题">#</a></h2>
+<h4>实现阻塞机制<a class="headerlink" href="#id18" title="永久链接至标题">#</a></h4>
+<p>在 <code class="docutils literal notranslate"><span class="pre">suspend/exit_current_and_run_next</span></code> 之外，我们新增第三种任务管理接口 <code class="docutils literal notranslate"><span class="pre">block_current_and_run_next</span></code> ：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/mod.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">block_current_and_run_next</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">take_current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_cx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">;</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Blocked</span><span class="p">;</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="n">schedule</span><span class="p">(</span><span class="n">task_cx_ptr</span><span class="p">);</span>
+<span class="linenos">10</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="sleep">
+<h4>基于阻塞机制实现 sleep 系统调用<a class="headerlink" href="#sleep" title="永久链接至标题">#</a></h4>
+</div>
+<div class="section" id="id19">
+<h4>基于阻塞机制实现锁机制<a class="headerlink" href="#id19" title="永久链接至标题">#</a></h4>
+</div>
+</div>
+</div>
+<div class="section" id="id20">
+<h2>参考文献<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Race_condition">竞态条件，来自维基百科</a></p></li>
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Peterson%27s_algorithm">Peterson 算法，来自维基百科</a></p></li>
@@ -1164,10 +1190,15 @@
 <li><a class="reference internal" href="#id15">在内核态操作系统支持下实现锁机制</a><ul>
 <li><a class="reference internal" href="#id16">忙等</a></li>
 <li><a class="reference internal" href="#yield">通过 yield 暂时让权</a></li>
-<li><a class="reference internal" href="#id17">阻塞</a></li>
+<li><a class="reference internal" href="#id17">阻塞</a><ul>
+<li><a class="reference internal" href="#id18">实现阻塞机制</a></li>
+<li><a class="reference internal" href="#sleep">基于阻塞机制实现 sleep 系统调用</a></li>
+<li><a class="reference internal" href="#id19">基于阻塞机制实现锁机制</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id18">参考文献</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id20">参考文献</a></li>
 </ul>
 </li>
 </ul>
