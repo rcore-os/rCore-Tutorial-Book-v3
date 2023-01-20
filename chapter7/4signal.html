@@ -1006,29 +1006,29 @@
 </div>
 <p>这里的错误涵盖了 <code class="docutils literal notranslate"><span class="pre">SIGINT/SIGSEGV/SIGILL</span></code> 等，可以看 <code class="docutils literal notranslate"><span class="pre">check_signals_error_of_current</span></code> 的实现。出错之后会直接打印信息并调用 <code class="docutils literal notranslate"><span class="pre">exit_current_and_run_next</span></code> 退出当前进程并进行调度。</p>
 <p>最后还需要补充 <code class="docutils literal notranslate"><span class="pre">sigreturn</span></code> 的实现。在信号处理例程的结尾需要插入这个系统调用来结束信号处理并继续进程原来的执行：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/process.rs</span>
-
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigreturn</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
-<span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">handling_sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
-<span class="w">        </span><span class="c1">// restore the trap context</span>
-<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span>
-<span class="w">        </span><span class="o">*</span><span class="n">trap_ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">trap_ctx_backup</span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span>
-<span class="w">        </span><span class="mi">0</span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="o">-</span><span class="mi">1</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="p">}</span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/process.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sigreturn</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="n">inner</span><span class="p">.</span><span class="n">handling_sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="c1">// restore the trap context</span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">trap_ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">get_trap_cx</span><span class="p">();</span>
+<span class="linenos"> 9</span><span class="w">        </span><span class="o">*</span><span class="n">trap_ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">trap_ctx_backup</span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="linenos">10</span><span class="w">        </span><span class="n">trap_ctx</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span>
+<span class="linenos">11</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">        </span><span class="o">-</span><span class="mi">1</span>
+<span class="linenos">13</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">14</span><span class="p">}</span>
 </pre></div>
 </div>
-<p>这里只是将进程控制块中保存的记录了处理信号之前的进程上下文的 <code class="docutils literal notranslate"><span class="pre">trap_ctx_backup</span></code> 覆盖到当前的 Trap 上下文。这样接下来 Trap 回到用户态就会继续原来进程的执行了。</p>
+<p>这里只是将进程控制块中保存的记录了处理信号之前的进程上下文的 <code class="docutils literal notranslate"><span class="pre">trap_ctx_backup</span></code> 覆盖到当前的 Trap 上下文。这样接下来 Trap 回到用户态就会继续原来进程的执行了。注意在第 10 行，我们将 <code class="docutils literal notranslate"><span class="pre">trap_ctx</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">a0</span></code> 的值作为系统调用返回值而不是使用 0 这种特定值，不然的话，在返回用户态恢复 Trap 上下文的时候，原来进程上下文中的 <code class="docutils literal notranslate"><span class="pre">a0</span></code> 寄存器将会被这些特定值覆盖，使得进程无法在信号处理完成后恢复正常执行。</p>
 </div>
 </div>
 <div class="section" id="id13">
 <h2>小结<a class="headerlink" href="#id13" title="永久链接至标题">#</a></h2>
 <p>信号作为一种软件中断机制和硬件中断有很多相似之处：比如它们都可以用某种方式屏蔽，还细分为全局屏蔽和局部屏蔽；它们的处理都有一定延迟，硬件中断每个 CPU 周期仅在固定的阶段被检查，而信号只有在 Trap 陷入内核态之后才被检查并处理。这个延迟还与屏蔽、优先级和软件或硬件层面的调度策略有关。</p>
-<p>这里仅仅给出了一个基本的信号机制的使用和实现的过程描述，在实际操作系统中，信号处理的过程要复杂很多，有兴趣的同学可以查找实际操作系统，如 Linux，在信号处理上的具体实现。</p>
+<p>这里仅仅给出了一个基本的信号机制的使用和实现的过程描述，在实际操作系统中，信号处理的过程要复杂很多，有兴趣的同学可以查找实际操作系统（如 Linux ）在信号处理上的具体实现。</p>
 <p>至此，我们基本上完成了“迅猛龙”操作系统，它具有 UNIX 的很多核心特征，比如进程管理、虚存管理、文件系统、管道、I/O 重定向、信号等，是一个典型的宏内核操作系统。虽然它还缺少很多优化的算法、机制和策略，但我们已经一步一步地建立了一个相对完整的操作系统框架和核心模块实现。在这个过程中，我们经历了从简单到复杂的 LibOS、批处理、多道程序、分时多任务、虚存支持、进程支持、文件系统支持等各种操作系统的设计过程，相信同学对操作系统的总体设计也有了一个连贯的多层次的理解。而且我们可以在这个操作系统的框架下，进一步扩展和改进它的设计实现，支持更多的功能并提高性能，这将是我们后续会进一步讲解的内容。</p>
 </div>
 <div class="section" id="id14">
