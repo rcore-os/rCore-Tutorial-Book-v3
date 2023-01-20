@@ -1067,8 +1067,8 @@
 <p>阻塞机制的缺点在于会不可避免的产生两次上下文切换。站在等待的线程的视角，它会被切换出去再切换回来然后再继续执行。在事件产生频率较低、事件到来速度比较慢的情况下这不是问题，但当事件产生频率很高的时候直接忙等也许是更好的选择。此外，阻塞机制相对比较复杂，需要操作系统的支持。</p>
 <p>下面介绍我们的操作系统如何实现阻塞机制以及阻塞机制的若干应用。</p>
 <div class="section" id="id18">
-<h4>实现阻塞机制<a class="headerlink" href="#id18" title="永久链接至标题">#</a></h4>
-<p>在 <code class="docutils literal notranslate"><span class="pre">suspend/exit_current_and_run_next</span></code> 之外，我们新增第三种任务管理接口 <code class="docutils literal notranslate"><span class="pre">block_current_and_run_next</span></code> ：</p>
+<h4>实现阻塞与唤醒机制<a class="headerlink" href="#id18" title="永久链接至标题">#</a></h4>
+<p>在任务管理方面，此前我们已经有 <code class="docutils literal notranslate"><span class="pre">suspend/exit_current_and_run_next</span></code> 两种接口。现在我们新增第三种接口 <code class="docutils literal notranslate"><span class="pre">block_current_and_run_next</span></code> ：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/mod.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">block_current_and_run_next</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
@@ -1079,19 +1079,207 @@
 <span class="linenos"> 8</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span>
 <span class="linenos"> 9</span><span class="w">    </span><span class="n">schedule</span><span class="p">(</span><span class="n">task_cx_ptr</span><span class="p">);</span>
 <span class="linenos">10</span><span class="p">}</span>
+<span class="linenos">11</span>
+<span class="linenos">12</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">suspend_current_and_run_next</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">13</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">take_current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="linenos">14</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="linenos">15</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task_cx_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_cx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">;</span>
+<span class="linenos">16</span><span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Ready</span><span class="p">;</span>
+<span class="linenos">17</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span>
+<span class="hll"><span class="linenos">18</span><span class="w">    </span><span class="n">add_task</span><span class="p">(</span><span class="n">task</span><span class="p">);</span>
+</span><span class="linenos">19</span><span class="w">    </span><span class="n">schedule</span><span class="p">(</span><span class="n">task_cx_ptr</span><span class="p">);</span>
+<span class="linenos">20</span><span class="p">}</span>
 </pre></div>
 </div>
+<p>当一个线程陷入内核态之后，如果内核发现这个线程需要等待某个暂未到来的事件或暂未满足的条件，就需要调用这个函数阻塞这个线程。从实现来看，第 4 行我们将线程从当前 CPU 的处理器管理结构中移除；第 5~8 行我们将线程状态修改为阻塞状态 Blocked ；最后在第 9 行我们保存当前的任务上下文到线程控制块中并触发调度切换到其他线程。</p>
+<p>作为比较，上面还给出了我们非常熟悉的会在时钟中断时被调用的 <code class="docutils literal notranslate"><span class="pre">suspend_current_and_run_next</span></code> 函数。我们的 block 版本和它的区别仅仅在于我们会将线程状态修改为 Blocked 以及我们此处 <strong>不会将被阻塞的线程重新加回到就绪队列中</strong> 。这样才能保证被阻塞的线程在事件到来之前不会被调度到。</p>
+<p>上面就是阻塞机制的实现，那么唤醒机制如何实现呢？当一个事件到来或是条件被满足的时候，首先我们要找到有哪些线程在等待这个事件或条件，这样才能够唤醒它们。因此，在内核中我们会 <strong>将被阻塞的线程的控制块按照它们等待的具体事件或条件分类存储</strong> 。通常情况，对于每种事件，我们将所有等待该事件的线程而被阻塞的线程保存在这个事件的阻塞队列（或称等待队列）中。这样我们在事件到来的时候就知道要唤醒哪些线程了。</p>
+<p>在事件到来的时候，我们要从事件的等待队列中取出线程，并调用唤醒它们的函数 <code class="docutils literal notranslate"><span class="pre">wakeup_task</span></code> ：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/task/manager.rs</span>
+<span class="linenos">2</span>
+<span class="linenos">3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">wakeup_task</span><span class="p">(</span><span class="n">task</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">task_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="linenos">5</span><span class="w">    </span><span class="n">task_inner</span><span class="p">.</span><span class="n">task_status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TaskStatus</span>::<span class="n">Ready</span><span class="p">;</span>
+<span class="linenos">6</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task_inner</span><span class="p">);</span>
+<span class="linenos">7</span><span class="w">    </span><span class="n">add_task</span><span class="p">(</span><span class="n">task</span><span class="p">);</span>
+<span class="linenos">8</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>这里只是简单的将线程状态修改为就绪状态 Ready 并将线程加回到就绪队列。</p>
+<p>在引入阻塞机制后，还需要注意它跟线程机制的结合。我们知道，当进程的主线程退出之后，进程的所有其他线程都会被强制退出。此时，这些线程不光有可能处于就绪队列中，还有可能正被阻塞等待某些事件，因而在这些事件的阻塞队列中。所以，在线程退出时，我们需要检查线程所有可能出现的位置并将线程控制块移除，不然就会造成内存泄漏。有兴趣的同学可以参考 <code class="docutils literal notranslate"><span class="pre">os/src/task/mod.rs</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">remove_inactive_task</span></code> 的实现。</p>
+<p>这样，我们就成功实现了阻塞-唤醒机制。</p>
 </div>
 <div class="section" id="sleep">
 <h4>基于阻塞机制实现 sleep 系统调用<a class="headerlink" href="#sleep" title="永久链接至标题">#</a></h4>
+<p>现在我们尝试基于阻塞机制将 sleep 功能作为一个系统调用而不是在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中通过 yield 来实现。首先来看该系统调用的接口定义：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 功能：当前线程睡眠一段时间。</span>
+<span class="sd">/// 参数： sleep_ms 表示线程睡眠的时间，单位为毫秒。</span>
+<span class="sd">/// 返回值： 0</span>
+<span class="sd">/// syscall ID ： 101</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sleep</span><span class="p">(</span><span class="n">sleep_ms</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>当线程使用这个系统调用之后，它将在陷入内核态之后被阻塞。线程等待的事件则是 <a class="reference internal" href="../chapter3/4time-sharing-system.html#link-time-counter"><span class="std std-ref">时钟计数器</span></a> 的值超过当前时间再加上线程睡眠的时长的总和，也就是超时之后就可以唤醒线程了。因此，我们要等待的事件可以用一个超时时间表示。然后，我们用一个数据结构 <code class="docutils literal notranslate"><span class="pre">TimerCondVar</span></code> 将这个超时时间以及等待它的线程放到一起，这是唤醒机制的关键数据结构：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TimerCondVar</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">2</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">expire_ms</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="linenos">3</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="linenos">4</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>那么如何保证在超时的时候内核能够接收到这个事件并做相应处理呢？我们这里选择一种比较简单的做法：即在每次时钟中断的时候检查在上个时间片中是否有一些线程的睡眠超时了，如果有的话我们就唤醒它们。这样的做法可能使得线程实际睡眠的时间不太精确，但是其误差也不会超过一个时间片，还算可以接受。同学有兴趣的话可以想想看有没有什么更好的做法。</p>
+<p>当时钟中断的时候我们可以扫描所有的 <code class="docutils literal notranslate"><span class="pre">TimerCondVar</span></code> ，将其中已经超时的移除并唤醒相应的线程。不过这里我们可以用学过的数据结构知识做一点小优化：可以以超时时间为键值将所有的 <code class="docutils literal notranslate"><span class="pre">TimerCondVar</span></code> 组织成一个小根堆（另一种叫法是优先级队列），这样每次时钟中断的时候只需不断弹出堆顶直到堆顶还没有超时。</p>
+<p>为了能将 <code class="docutils literal notranslate"><span class="pre">TimerCondVar</span></code> 放入堆中，需要为其定义偏序、全序比较方法和相等运算，也就是要实现 <code class="docutils literal notranslate"><span class="pre">PartialEq,</span> <span class="pre">Eq,</span> <span class="pre">PartialOrd,</span> <span class="pre">Ord</span></code> 这些 Trait ：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/timer.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="nb">PartialEq</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">TimerCondVar</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">fn</span> <span class="nf">eq</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">other</span>: <span class="kp">&amp;</span><span class="nc">Self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">expire_ms</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">other</span><span class="p">.</span><span class="n">expire_ms</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos"> 7</span><span class="p">}</span>
+<span class="linenos"> 8</span><span class="k">impl</span><span class="w"> </span><span class="nb">Eq</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">TimerCondVar</span><span class="w"> </span><span class="p">{}</span>
+<span class="linenos"> 9</span><span class="k">impl</span><span class="w"> </span><span class="nb">PartialOrd</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">TimerCondVar</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">10</span><span class="w">    </span><span class="k">fn</span> <span class="nf">partial_cmp</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">other</span>: <span class="kp">&amp;</span><span class="nc">Self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Ordering</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">11</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">expire_ms</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="p">);</span>
+<span class="linenos">12</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="p">(</span><span class="n">other</span><span class="p">.</span><span class="n">expire_ms</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="p">);</span>
+<span class="linenos">13</span><span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">cmp</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="p">))</span>
+<span class="linenos">14</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">15</span><span class="p">}</span>
+<span class="linenos">16</span><span class="k">impl</span><span class="w"> </span><span class="nb">Ord</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">TimerCondVar</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">17</span><span class="w">    </span><span class="k">fn</span> <span class="nf">cmp</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">other</span>: <span class="kp">&amp;</span><span class="nc">Self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Ordering</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">18</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">partial_cmp</span><span class="p">(</span><span class="n">other</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()</span>
+<span class="linenos">19</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">20</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>由于标准库提供的二叉堆 <code class="docutils literal notranslate"><span class="pre">BinaryHeap</span></code> 是一个大根堆，因此在实现 <code class="docutils literal notranslate"><span class="pre">PartialOrd</span></code> Trait 的时候我们需要将超时时间取反。这样的话，就可以把所有的 <code class="docutils literal notranslate"><span class="pre">TimerCondVar</span></code> 放到一个全局二叉堆 <code class="docutils literal notranslate"><span class="pre">TIMERS</span></code> 中：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/timer.rs</span>
+
+<span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">collections</span>::<span class="n">BinaryHeap</span><span class="p">;</span>
+
+<span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">TIMERS</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">BinaryHeap</span><span class="o">&lt;</span><span class="n">TimerCondVar</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span>
+<span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">BinaryHeap</span>::<span class="o">&lt;</span><span class="n">TimerCondVar</span><span class="o">&gt;</span>::<span class="n">new</span><span class="p">())</span><span class="w"> </span><span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>设计好数据结构之后，首先来看 sleep 系统调用如何实现：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/syscall/sync.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_sleep</span><span class="p">(</span><span class="n">ms</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">expire_ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_time_ms</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ms</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="n">add_timer</span><span class="p">(</span><span class="n">expire_ms</span><span class="p">,</span><span class="w"> </span><span class="n">task</span><span class="p">);</span>
+<span class="w">    </span><span class="n">block_current_and_run_next</span><span class="p">();</span>
+<span class="w">    </span><span class="mi">0</span>
+<span class="p">}</span>
+
+<span class="c1">// os/src/timer.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">add_timer</span><span class="p">(</span><span class="n">expire_ms</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">task</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">timers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TIMERS</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span>
+<span class="w">    </span><span class="n">timers</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">TimerCondVar</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">expire_ms</span><span class="p">,</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="p">});</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>在 <code class="docutils literal notranslate"><span class="pre">sys_sleep</span></code> 中，我们首先计算当前线程睡眠超时时间 <code class="docutils literal notranslate"><span class="pre">expire_ms</span></code> ，然后调用 <code class="docutils literal notranslate"><span class="pre">adder_timer</span></code> 生成一个 <code class="docutils literal notranslate"><span class="pre">TimerCondVar</span></code> 并将其加入到全局堆 <code class="docutils literal notranslate"><span class="pre">TIMERS</span></code> 中。注意这个过程中线程控制块是如何流动的：它被复制了一份并移动到 <code class="docutils literal notranslate"><span class="pre">TimerCondVar</span></code> 中，此时在处理器管理结构 <code class="docutils literal notranslate"><span class="pre">PROCESSOR</span></code> 中还有一份。而在调用 <code class="docutils literal notranslate"><span class="pre">block_current_and_run_next</span></code> 阻塞当前线程之后， <code class="docutils literal notranslate"><span class="pre">PROCESSOR</span></code> 中的那一份就被移除了。此后直到线程被唤醒之前，线程控制块都只存在于 <code class="docutils literal notranslate"><span class="pre">TimerCondVar</span></code> 中。</p>
+<p>在时钟中断的时候则会调用 <code class="docutils literal notranslate"><span class="pre">check_timer</span></code> 尝试唤醒睡眠超时的线程：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/timer.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">check_timer</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">current_ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_time_ms</span><span class="p">();</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">timers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TIMERS</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">timer</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">timers</span><span class="p">.</span><span class="n">peek</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">timer</span><span class="p">.</span><span class="n">expire_ms</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">current_ms</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 8</span><span class="w">            </span><span class="c1">// 调用 wakeup_task 唤醒超时线程</span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="n">wakeup_task</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">timer</span><span class="p">.</span><span class="n">task</span><span class="p">));</span>
+<span class="linenos">10</span><span class="w">            </span><span class="n">timers</span><span class="p">.</span><span class="n">pop</span><span class="p">();</span>
+<span class="linenos">11</span><span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="linenos">13</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">14</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">15</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>当线程睡眠的时候退出， <code class="docutils literal notranslate"><span class="pre">timer.rs</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">remove_timer</span></code> 可以移除掉线程所在的 <code class="docutils literal notranslate"><span class="pre">TimerCondVar</span></code> ，在此不再赘述。</p>
 </div>
 <div class="section" id="id19">
 <h4>基于阻塞机制实现锁机制<a class="headerlink" href="#id19" title="永久链接至标题">#</a></h4>
+<p>为了在操作系统的支持下实现锁机制，我们可以将锁看成进程内的一种资源（类似文件描述符表和地址空间），一个进程可以有多把锁，这些锁可以用它们的 ID 来区分，每把锁可以用来保护不同的共享资源。进程内的所有线程均可以访问锁，但是只能通过系统调用这种间接的方式进行访问。因此，需要新增若干锁机制相关的系统调用：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="sd">/// 功能：为当前进程新增一把互斥锁。</span>
+<span class="linenos"> 2</span><span class="sd">/// 参数： blocking 为 true 表示互斥锁基于阻塞机制实现，</span>
+<span class="linenos"> 3</span><span class="sd">/// 否则表示互斥锁基于类似 yield 的方法实现。</span>
+<span class="linenos"> 4</span><span class="sd">/// 返回值：假设该操作必定成功，返回创建的锁的 ID 。</span>
+<span class="linenos"> 5</span><span class="sd">/// syscall ID: 1010</span>
+<span class="linenos"> 6</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_create</span><span class="p">(</span><span class="n">blocking</span>: <span class="kt">bool</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="sd">/// 功能：当前线程尝试获取所属进程的一把互斥锁。</span>
+<span class="linenos"> 9</span><span class="sd">/// 参数： mutex_id 表示要获取的锁的 ID 。</span>
+<span class="linenos">10</span><span class="sd">/// 返回值： 0</span>
+<span class="linenos">11</span><span class="sd">/// syscall ID: 1011</span>
+<span class="linenos">12</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_lock</span><span class="p">(</span><span class="n">mutex_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span>
+<span class="linenos">13</span>
+<span class="linenos">14</span><span class="sd">/// 功能：当前线程释放所属进程的一把互斥锁。</span>
+<span class="linenos">15</span><span class="sd">/// 参数： mutex_id 表示要释放的锁的 ID 。</span>
+<span class="linenos">16</span><span class="sd">/// 返回值： 0</span>
+<span class="linenos">17</span><span class="sd">/// syscall ID: 1012</span>
+<span class="linenos">18</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_unlock</span><span class="p">(</span><span class="n">mutex_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>下面来看我们如何基于这些系统调用实现多线程计数器：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/adder_mutex_blocking.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">f</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="k">usize</span><span class="p">;</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">PER_THREAD</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="n">mutex_lock</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="n">critical_section</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">t</span><span class="p">);</span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="n">mutex_unlock</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">10</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span>
+<span class="linenos">11</span><span class="p">}</span>
+<span class="linenos">12</span>
+<span class="linenos">13</span><span class="cp">#[no_mangle]</span>
+<span class="linenos">14</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">(</span><span class="n">argc</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="o">&amp;</span><span class="kt">str</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
+<span class="linenos">15</span><span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">16</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">mutex_blocking_create</span><span class="p">(),</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="linenos">17</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span>
+<span class="linenos">18</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">thread_count</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">19</span><span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">f</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span>
+<span class="linenos">20</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">21</span><span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">22</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>在第 16 行我们调用用户库提供的 <code class="docutils literal notranslate"><span class="pre">mutex_blocking_create</span></code> 在进程内创建一把基于阻塞实现的互斥锁，由于这是进程内创建的第一把锁，其 ID 一定为 0 。接下来，每个线程在执行的函数 <code class="docutils literal notranslate"><span class="pre">f</span></code> 中，在进入临界区前后分别获取（第 6 行调用 <code class="docutils literal notranslate"><span class="pre">mutex_lock</span></code> ）和释放（第 8 行调用 <code class="docutils literal notranslate"><span class="pre">mutex_unlock</span></code> ）在主线程中创建的 ID 为 0 的锁。这里用到的三个函数都是由用户库直接封装相关系统调用得到的。</p>
+<p>那么在内核态这些系统调用是如何实现的呢？在我们的设计中，允许同个进程内的多把锁有着不同的底层实现，这样更加灵活。因此，我们用 <code class="docutils literal notranslate"><span class="pre">Mutex</span></code> Trait 来规定描述一把互斥锁应该有哪些功能：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/sync/mutex.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Mutex</span>: <span class="nb">Sync</span> <span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>其实只包含 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 和 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 两个方法。然后，我们可以在进程控制块中新增互斥锁这类资源：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/task/process.rs</span>
+<span class="linenos">2</span>
+<span class="linenos">3</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlockInner</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">4</span><span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">5</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">fd_table</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
+<span class="hll"><span class="linenos">6</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">mutex_list</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">Mutex</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
+</span><span class="linenos">7</span><span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="linenos">8</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>和文件描述符表 <code class="docutils literal notranslate"><span class="pre">fd_table</span></code> 一样， <code class="docutils literal notranslate"><span class="pre">mutex_list</span></code> 使用 <code class="docutils literal notranslate"><span class="pre">Vec&lt;Option&lt;T&gt;&gt;</span></code> 构建一个含有多个可空槽位且槽位数可以拓展的互斥锁表，表中的每个元素都实现了 <code class="docutils literal notranslate"><span class="pre">Mutex</span></code> Trait ，是一种互斥锁实现。</p>
 </div>
 </div>
 </div>
 <div class="section" id="id20">
-<h2>参考文献<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h2>
+<h2>小结<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h2>
+</div>
+<div class="section" id="id21">
+<h2>参考文献<a class="headerlink" href="#id21" title="永久链接至标题">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Race_condition">竞态条件，来自维基百科</a></p></li>
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Peterson%27s_algorithm">Peterson 算法，来自维基百科</a></p></li>
@@ -1191,14 +1379,15 @@
 <li><a class="reference internal" href="#id16">忙等</a></li>
 <li><a class="reference internal" href="#yield">通过 yield 暂时让权</a></li>
 <li><a class="reference internal" href="#id17">阻塞</a><ul>
-<li><a class="reference internal" href="#id18">实现阻塞机制</a></li>
+<li><a class="reference internal" href="#id18">实现阻塞与唤醒机制</a></li>
 <li><a class="reference internal" href="#sleep">基于阻塞机制实现 sleep 系统调用</a></li>
 <li><a class="reference internal" href="#id19">基于阻塞机制实现锁机制</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id20">参考文献</a></li>
+<li><a class="reference internal" href="#id20">小结</a></li>
+<li><a class="reference internal" href="#id21">参考文献</a></li>
 </ul>
 </li>
 </ul>
