@@ -640,6 +640,31 @@ D[write_block_nb] --&gt; E
 </div>
 <div class="section" id="id12">
 <h3>操作系统设备驱动程序<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
+<p>由于有了裸机设备驱动程序的实现，对于操作系统设备程序，可以直接访问裸机设备驱动程序的各种功能。这样操作系统设备驱动程序的复杂性和代码量大大降低，整个代码量不到100行。不过还需解决如下一些关键问题：</p>
+<ul class="simple">
+<li><p>发现具体计算机（如 <code class="docutils literal notranslate"><span class="pre">virt</span> <span class="pre">machine</span></code> ）中的设备（即与设备交互的设备控制寄存器的MMIO内存地址）；</p></li>
+<li><p>与其它操作系统内核模块（如文件系统、同步互斥、进程管理等）的对接；</p></li>
+<li><p>封装裸机设备驱动程序，提供操作系统层面的I/O设备访问能力（初始化、读写、控制等操作）。</p></li>
+</ul>
+<p>另外，操作系统还需满足裸机设备驱动程序对操作系统的需求，并能对各种外设进行统一的管理，这主要集中在硬件平台级的支持。主要的服务能力包括:</p>
+<ul class="simple">
+<li><p>在硬件平台层面发现具体计算机（如 <code class="docutils literal notranslate"><span class="pre">virt</span> <span class="pre">machine</span></code> ）中的各种外设的能力；</p></li>
+<li><p>在硬件平台层面的外设中断总控能力，即在外设中断产生后，能分析出具体是哪个外设产生的中断，并进行相应的处理；</p></li>
+<li><p>给裸机设备驱动程序提供操作系统级别的服务能力，以 <code class="docutils literal notranslate"><span class="pre">virtio-drivers</span></code> 为例，OS需要提供 <code class="docutils literal notranslate"><span class="pre">HAL</span></code> Trait的具体实现，即驱动进行I/O操作所需的内存动态分配。</p></li>
+</ul>
+<p>以面向 <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> 外设的操作系统驱动为例，我们可以看看上述过程的具体实现。在硬件平台的总体支持方面，为简化操作，通过对Qemu的分析，在操作系统中直接给出  <code class="docutils literal notranslate"><span class="pre">virt</span> <span class="pre">machine</span></code> 中各个外设的控制寄存器地址（代码位置: <code class="docutils literal notranslate"><span class="pre">os/src/boards/qemu.rs</span></code> ）。为了完成外设中断总控，操作系统提供了 <code class="docutils literal notranslate"><span class="pre">PLIC</span></code> 驱动，支持对 <code class="docutils literal notranslate"><span class="pre">virt</span> <span class="pre">machine</span></code> 中各种外设的中断响应（代码位置: <code class="docutils literal notranslate"><span class="pre">os/src/drivers/plic.rs</span></code> ）。</p>
+<p>在具体设备驱动实现上，首先是发现设备，操作系统建立了表示virtio_blk设备驱动的全局变量 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> （代码位置: <code class="docutils literal notranslate"><span class="pre">os/src/drivers/block/mod.rs</span></code> ）。为简化发现设备的过程，操作系统直接指定了virtio_blk设备在 <code class="docutils literal notranslate"><span class="pre">virt</span> <span class="pre">machine</span></code> 中的设备控制寄存器地址 <code class="docutils literal notranslate"><span class="pre">VIRTIO0</span></code>。</p>
+<p>然后是驱动程序初始化、读写块和中断处理的实现（代码位置: <code class="docutils literal notranslate"><span class="pre">os/src/drivers/block/virtio_blk.rs</span></code> ）。在操作系统的第一次访问 <code class="docutils literal notranslate"><span class="pre">BLOCK_DEVICE</span></code> 时，会执行 <code class="docutils literal notranslate"><span class="pre">VirtIOBlock::new()</span></code> 方法，通过调用virtio_blk裸机设备驱动库中的功能，完成了块设备驱动的初始化工作，并初始化条件变量，用于后续块读写过程中与进程的交互（即让等待I/O访问结果的进程先挂起）。</p>
+<p>块设备驱动的服务对象是文件系统，它们之间需要有一个交互的接口，这就是在 <code class="docutils literal notranslate"><span class="pre">easy-fs</span></code> 文件系统模块定义的 <code class="docutils literal notranslate"><span class="pre">BlockDevice</span></code> trait：</p>
+<div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">BlockDevice</span>: <span class="nb">Send</span> <span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Any</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">2</span><span class="w">   </span><span class="k">fn</span> <span class="nf">read_block</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]);</span>
+<span class="linenos">3</span><span class="w">   </span><span class="k">fn</span> <span class="nf">write_block</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_id</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">]);</span>
+<span class="linenos">4</span><span class="w">   </span><span class="k">fn</span> <span class="nf">handle_irq</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span>
+<span class="linenos">5</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>操作系统块设备驱动程序通过调用裸机块设备驱动程序库，可以很简洁地实现上述功能。在具体实现上，在调用了裸机块设备驱动程序库的读写块方法后，通过条件变量让等待I/O访问结果的进程先挂起）。在中断处理的方法中，在得到I/O读写块完成的中断信息后，通过条件变量唤醒等待的挂起进程。</p>
+<p>至此，就分析完毕操作系统设备驱动程序的所有功能了。接下来，我们就可以深入分析到I/O设备管理的级别概念、抽象描述和侏罗猎龙操作系统的具体实现。</p>
 <dl class="footnote brackets">
 <dt class="label" id="juravenator"><span class="brackets"><a class="fn-backref" href="#id4">1</a></span></dt>
 <dd><p>侏罗猎龙是一种小型恐龙，生活在1亿5千万年前的侏罗纪，它有独特的鳞片状的皮肤感觉器官，具有类似鳄鱼的触觉、冷热以及pH等综合感知能力，可能对狩猎有很大帮助。</p>
