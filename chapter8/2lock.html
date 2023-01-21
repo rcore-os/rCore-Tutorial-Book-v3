@@ -2,7 +2,7 @@
 <html class="no-js" lang="zh_CN">
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
-    <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="锁机制" href="2lock-legacy.html" /><link rel="prev" title="内核态的线程管理" href="1thread-kernel.html" />
+    <meta name="color-scheme" content="light dark"><link rel="index" title="索引" href="../genindex.html" /><link rel="search" title="搜索" href="../search.html" /><link rel="next" title="信号量机制" href="3semaphore.html" /><link rel="prev" title="内核态的线程管理" href="1thread-kernel.html" />
 
     <meta name="generator" content="sphinx-4.3.2, furo 2022.06.21"/>
         <title>互斥锁 - rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</title>
@@ -292,7 +292,6 @@
 <li class="toctree-l2"><a class="reference internal" href="1thread.html">用户态的线程管理</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1thread-kernel.html">内核态的线程管理</a></li>
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">互斥锁</a></li>
-<li class="toctree-l2"><a class="reference internal" href="2lock-legacy.html">锁机制</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3semaphore.html">信号量机制</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4condition-variable.html">条件变量机制</a></li>
 <li class="toctree-l2"><a class="reference internal" href="5concurrency-problem.html">并发中的问题</a></li>
@@ -390,6 +389,7 @@
 <h1>互斥锁<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h1>
 <div class="section" id="id2">
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
+<p>此前两节中，我们分别介绍了用户态和内核态的线程管理。相比进程模型，它们可以更加高效方便的进行协作。比如同进程下的线程共享进程的地址空间，它们可以直接通过读写内存中的共享变量来进行通信而不必进行繁琐且低效的进程间通信。然而，在方便的同时，这种做法也会产生一些问题。本节就让我们从一个简单的多线程计数器的例子入手来看看我们会遇到什么问题以及如何解决。</p>
 </div>
 <div class="section" id="id3">
 <h2>引子：多线程计数器<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
@@ -634,11 +634,11 @@
 </div>
 <p id="term-atomicity">Rust 核心库在 <code class="docutils literal notranslate"><span class="pre">core::sync::atomic</span></code> 中提供了很多原子类型，比如我们这里可以使用 <code class="docutils literal notranslate"><span class="pre">usize</span></code> 对应的原子类型 <code class="docutils literal notranslate"><span class="pre">AtomicUsize</span></code> ，它支持很多原子操作。比如，第 12 行 <code class="docutils literal notranslate"><span class="pre">fetch_add</span></code> 的功能是将 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的值加一并返回 <code class="docutils literal notranslate"><span class="pre">A</span></code> 之前的值，这其中涉及到读取内存、算术运算和写回内存，但是却只需要这一个操作就能同时完成。这种原子操作基于硬件提供的原子指令，硬件可以保证其 <strong>原子性</strong> (Atomicity)，含义是该操作的一系列功能要么全部完成，要么都不完成，而不会出现有些完成有些未完成的情况。原子性中的“原子”是为了强调操作中的各种功能作为一个整体不可分割的属性。这种由硬件提供的 <strong>原子指令是整个计算机系统中最根本的原子性和互斥性的来源</strong> 。无论软件执行了哪些指令，也无论 CPU 执行指令的时候出现了哪些中断/异常，又或者多个 CPU 同时访问内存中同一个位置这种情形，都不能破坏原子指令的原子性。</p>
 <p>可惜的是，原子指令虽然强大，其应用范围却比较有限，通常它只能用来保护 <strong>单内存位置</strong> 上的简单操作，比如 <code class="docutils literal notranslate"><span class="pre">A=A+1</span></code> 这种操作。当资源是比较复杂的数据结构的时候它就无能为力了。当然，我们也不会指望硬件提供一条“原子地完成红黑树插入/删除”这种指令，毕竟这样的数据结构有无数种，硬件总不可能对每种可能的数据结构和每种可能的操作都提供一条指令，这样的硬件是不存在的。即使如此我们也没有必要担心，只要我们能够灵活使用原子指令来根据实际需求限制多线程对共享资源的并发访问，比如基于原子指令实现通用的锁机制来保证互斥访问，所有的并发访问问题就一定能够迎刃而解。</p>
-<p>需要注意的是， <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 的错误结果是多种因素共同导致的，这里我们深入分析的操作系统调度带来的影响只不过是其中之一，其实 CPU 的指令执行也会有影响，这个我们会在后面再详细介绍。</p>
+<p>需要注意的是， <code class="docutils literal notranslate"><span class="pre">adder.rs</span></code> 的错误结果是多种因素共同导致的，这里我们深入分析的操作系统调度带来的影响只不过是其中之一，其实 CPU 的指令执行也会有影响。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>原子性</strong></p>
-<p>原子性最早来源于数据库领域，…</p>
+<p>原子性的说法最常见于数据库领域的原子 <strong>事务</strong> (Transaction) ，表示对于数据库的一次修改要么全部完成，要么没有任何影响，而不存在任何中间状态。事务模型可以保证数据库能够在出错时顺利恢复以及高并发访问的正确性。但其实原子性这个概念在很多不同领域均有应用且有不同内涵。</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
@@ -1002,7 +1002,7 @@
 </div>
 </div>
 <div class="section" id="id15">
-<h2>在内核态操作系统支持下实现锁机制<a class="headerlink" href="#id15" title="永久链接至标题">#</a></h2>
+<h2>在操作系统支持下实现让权等待<a class="headerlink" href="#id15" title="永久链接至标题">#</a></h2>
 <p>在编程时，常常遇到必须满足某些条件（或是遇到某些事件）才能进行接下来的流程的情况。如果一开始这些条件并不成立，那么必须通过某种方式暂时在原地 <strong>等待</strong> 这些条件满足之后才能继续前进。我们可以用多种不同的方式进行等待，最为常见的几种包括：忙等、通过 yield 暂时让权以及后面重点介绍的阻塞。</p>
 <div class="section" id="id16">
 <h3>忙等<a class="headerlink" href="#id16" title="永久链接至标题">#</a></h3>
@@ -1106,7 +1106,7 @@
 </pre></div>
 </div>
 <p>这里只是简单的将线程状态修改为就绪状态 Ready 并将线程加回到就绪队列。</p>
-<p>在引入阻塞机制后，还需要注意它跟线程机制的结合。我们知道，当进程的主线程退出之后，进程的所有其他线程都会被强制退出。此时，这些线程不光有可能处于就绪队列中，还有可能正被阻塞等待某些事件，因而在这些事件的阻塞队列中。所以，在线程退出时，我们需要检查线程所有可能出现的位置并将线程控制块移除，不然就会造成内存泄漏。有兴趣的同学可以参考 <code class="docutils literal notranslate"><span class="pre">os/src/task/mod.rs</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">remove_inactive_task</span></code> 的实现。</p>
+<p>在引入阻塞机制后，还需要注意它跟线程机制的结合。我们知道，当进程的主线程退出之后，进程的所有其他线程都会被强制退出。此时，这些线程不光有可能处于就绪队列中，还有可能正被阻塞等待某些事件，因而在这些事件的阻塞队列中。所以，在线程退出时，我们需要 <strong>检查线程所有可能出现的位置并将线程控制块移除，不然就会造成内存泄漏</strong> 。有兴趣的同学可以参考 <code class="docutils literal notranslate"><span class="pre">os/src/task/mod.rs</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">remove_inactive_task</span></code> 的实现。</p>
 <p>这样，我们就成功实现了阻塞-唤醒机制。</p>
 </div>
 <div class="section" id="sleep">
@@ -1271,16 +1271,117 @@
 <span class="linenos">8</span><span class="p">}</span>
 </pre></div>
 </div>
-<p>和文件描述符表 <code class="docutils literal notranslate"><span class="pre">fd_table</span></code> 一样， <code class="docutils literal notranslate"><span class="pre">mutex_list</span></code> 使用 <code class="docutils literal notranslate"><span class="pre">Vec&lt;Option&lt;T&gt;&gt;</span></code> 构建一个含有多个可空槽位且槽位数可以拓展的互斥锁表，表中的每个元素都实现了 <code class="docutils literal notranslate"><span class="pre">Mutex</span></code> Trait ，是一种互斥锁实现。</p>
+<p>和文件描述符表 <code class="docutils literal notranslate"><span class="pre">fd_table</span></code> 一样， <code class="docutils literal notranslate"><span class="pre">mutex_list</span></code> 使用 <code class="docutils literal notranslate"><span class="pre">Vec&lt;Option&lt;T&gt;&gt;</span></code> 构建一个含有多个可空槽位且槽位数可以拓展的互斥锁表，表中的每个元素都实现了 <code class="docutils literal notranslate"><span class="pre">Mutex</span></code> Trait ，是一种互斥锁实现。 <code class="docutils literal notranslate"><span class="pre">sys_mutex_create</span></code> 会找到第一个空闲的槽位（如果没有则新增一个）并将指定类型的锁的实例插入进来：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/sync.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_create</span><span class="p">(</span><span class="n">blocking</span>: <span class="kt">bool</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_process</span><span class="p">();</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">mutex</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">Mutex</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">blocking</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">MutexSpin</span>::<span class="n">new</span><span class="p">()))</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 8</span><span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">MutexBlocking</span>::<span class="n">new</span><span class="p">()))</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="p">};</span>
+<span class="linenos">10</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="linenos">11</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process_inner</span>
+<span class="linenos">12</span><span class="w">        </span><span class="p">.</span><span class="n">mutex_list</span>
+<span class="linenos">13</span><span class="w">        </span><span class="p">.</span><span class="n">iter</span><span class="p">()</span>
+<span class="linenos">14</span><span class="w">        </span><span class="p">.</span><span class="n">enumerate</span><span class="p">()</span>
+<span class="linenos">15</span><span class="w">        </span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="o">|</span><span class="p">(</span><span class="n">_</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">)</span><span class="o">|</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">is_none</span><span class="p">())</span>
+<span class="linenos">16</span><span class="w">        </span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">_</span><span class="p">)</span><span class="o">|</span><span class="w"> </span><span class="n">id</span><span class="p">)</span>
+<span class="linenos">17</span><span class="w">    </span><span class="p">{</span>
+<span class="linenos">18</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">[</span><span class="n">id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mutex</span><span class="p">;</span>
+<span class="linenos">19</span><span class="w">        </span><span class="n">id</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span>
+<span class="linenos">20</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">21</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">mutex</span><span class="p">);</span>
+<span class="linenos">22</span><span class="w">        </span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span>
+<span class="linenos">23</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">24</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>然后是 <code class="docutils literal notranslate"><span class="pre">sys_mutex_lock</span></code> 和 <code class="docutils literal notranslate"><span class="pre">sys_mutex_unlock</span></code> 的实现，它们都只是从进程控制块中的互斥锁表的指定槽位中复制一份 <code class="docutils literal notranslate"><span class="pre">Mutex</span></code> 实现，并调用其 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 和 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 方法。以 <code class="docutils literal notranslate"><span class="pre">sys_mutex_lock</span></code> 为例：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/syscall/sync.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mutex_lock</span><span class="p">(</span><span class="n">mutex_id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_process</span><span class="p">();</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">mutex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">process_inner</span><span class="p">.</span><span class="n">mutex_list</span><span class="p">[</span><span class="n">mutex_id</span><span class="p">].</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">process_inner</span><span class="p">);</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">process</span><span class="p">);</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="n">mutex</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="linenos">10</span><span class="w">    </span><span class="mi">0</span>
+<span class="linenos">11</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>目前，我们仅提供了两种互斥锁实现：基于阻塞机制的 <code class="docutils literal notranslate"><span class="pre">MutexBlocking</span></code> 和基于类似 yield 机制的 <code class="docutils literal notranslate"><span class="pre">MutexSpin</span></code> ，篇幅原因我们只介绍前者。首先看 <code class="docutils literal notranslate"><span class="pre">MutexBlocking</span></code> 包含哪些内容：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/sync/mutex.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">MutexBlocking</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="n">inner</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">MutexBlockingInner</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="linenos"> 5</span><span class="p">}</span>
+<span class="linenos"> 6</span>
+<span class="linenos"> 7</span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">MutexBlockingInner</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="n">locked</span>: <span class="kt">bool</span><span class="p">,</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="n">wait_queue</span>: <span class="nc">VecDeque</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="linenos">10</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>可以看到，最外层是一个 <code class="docutils literal notranslate"><span class="pre">UPSafeCell</span></code> ，然后 inner 里面有两个成员：</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">locked</span></code> 作用和 <a class="reference internal" href="#link-adder-simple-spin"><span class="std std-ref">之前介绍的单标记软件实现</span></a> 相同，表示目前是否有线程进入临界区。在线程通过 <code class="docutils literal notranslate"><span class="pre">sys_mutex_lock</span></code> 系统调用尝试获取锁的时候，如果发现 <code class="docutils literal notranslate"><span class="pre">locked</span></code> 为 true ，那么就需要等待 <code class="docutils literal notranslate"><span class="pre">locked</span></code> 变为 false ，在此之前都需要被阻塞。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">wait_queue</span></code> 作为阻塞队列记录所有等待 <code class="docutils literal notranslate"><span class="pre">locked</span></code> 变为 false 而被阻塞的线程控制块。</p></li>
+</ul>
+<p>于是，获取和释放锁的实现方式如下：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/sync/mutex.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">impl</span><span class="w"> </span><span class="n">Mutex</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">MutexBlocking</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">fn</span> <span class="nf">lock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 7</span><span class="w">            </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span>
+<span class="linenos"> 8</span><span class="w">            </span><span class="nb">drop</span><span class="p">(</span><span class="n">mutex_inner</span><span class="p">);</span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="n">block_current_and_run_next</span><span class="p">();</span>
+<span class="linenos">10</span><span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">11</span><span class="w">            </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="linenos">12</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">13</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">14</span>
+<span class="linenos">15</span><span class="w">    </span><span class="k">fn</span> <span class="nf">unlock</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">16</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">mutex_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">inner</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">();</span>
+<span class="linenos">17</span><span class="w">        </span><span class="fm">assert!</span><span class="p">(</span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="p">);</span>
+<span class="linenos">18</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">waking_task</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">wait_queue</span><span class="p">.</span><span class="n">pop_front</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">19</span><span class="w">            </span><span class="n">wakeup_task</span><span class="p">(</span><span class="n">waking_task</span><span class="p">);</span>
+<span class="linenos">20</span><span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">21</span><span class="w">            </span><span class="n">mutex_inner</span><span class="p">.</span><span class="n">locked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="linenos">22</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">23</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">24</span><span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>对于 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 来说，首先检查是否已经有线程在临界区中。如果 <code class="docutils literal notranslate"><span class="pre">locked</span></code> 为 true ，则将当前线程复制一份到阻塞队列中，然后调用 <code class="docutils literal notranslate"><span class="pre">block_current_and_run_next</span></code> 阻塞当前线程；否则当前线程可以进入临界区，将 <code class="docutils literal notranslate"><span class="pre">locked</span></code> 修改为 true 。</p></li>
+<li><p>对于 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 来说，简单起见我们假定当前线程一定持有锁（也就是所有的线程一定将 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 和 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 配对使用），因此断言 <code class="docutils literal notranslate"><span class="pre">locked</span></code> 为 true 。接下来尝试从阻塞队列中取出一个线程，如果存在的话就将这个线程唤醒。被唤醒的线程将继续执行 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 并返回，进而回到用户态进入临界区。在此期间 <code class="docutils literal notranslate"><span class="pre">locked</span></code> 始终为 true ，相当于 <strong>释放锁的线程将锁直接移交给这次唤醒的线程</strong> 。反之，如果阻塞队列中没有线程的话，我们则将 <code class="docutils literal notranslate"><span class="pre">locked</span></code> 改成 false ，让后来的线程能够进入临界区。</p></li>
+</ul>
+<p>观察 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 中调用 <code class="docutils literal notranslate"><span class="pre">block_current_and_run_next</span></code> 的位置，可以发现阻塞在 <code class="docutils literal notranslate"><span class="pre">lock</span></code> 中的线程一经唤醒便能够立刻进入临界区，因此在 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 的时候我们最多只能唤醒一个线程，不然便无法满足互斥访问要求。我们这种实现能够满足一定的公平性，因为我们每次都是唤醒阻塞队列队头的线程，于是每个线程在被阻塞有限时间之后一定能进入临界区。但还有一些其他的互斥锁实现，比如在 <code class="docutils literal notranslate"><span class="pre">unlock</span></code> 的时候将阻塞队列中的所有线程同时唤醒，感兴趣的同学可自行想想如何实现以及其优缺点。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>为什么同样使用单标记，这里却无需用到原子操作？</strong></p>
+<p>这里我们仅用到单标记 <code class="docutils literal notranslate"><span class="pre">locked</span></code> ，为什么无需使用原子指令来保证对于 <code class="docutils literal notranslate"><span class="pre">locked</span></code> 本身访问的互斥性呢？这其实是因为，RISC-V 架构规定从用户态陷入内核态之后所有（内核态）中断默认被自动屏蔽，也就是说与应用的执行不同， <strong>目前系统调用的执行是不会被中断打断的</strong> 。同时，目前我们是在单核上，也 <strong>不会有多个 CPU 同时执行系统调用的情况</strong> 。在这种情况下，内核态的共享数据访问就仍在 <code class="docutils literal notranslate"><span class="pre">UPSafeCell</span></code> 的框架之内，只要使用它就能保证互斥访问。</p>
+</div>
 </div>
 </div>
 </div>
 <div class="section" id="id20">
 <h2>小结<a class="headerlink" href="#id20" title="永久链接至标题">#</a></h2>
+<p>本节我们从一个多线程计数器的小例子入手，它的结果与我们的预期不同。于是我们以一种通用的方式：即从编译结果，到操作系统调度，再到处理器执行这多个阶段排查出错的原因。我们着重分析由于操作系统调度所导致的不同线程对全局变量 <code class="docutils literal notranslate"><span class="pre">A</span></code> 的操作出现的 <strong>交错</strong> 现象，进而引入了 <strong>共享资源</strong> 、 <strong>临界区</strong> 以及 <strong>互斥</strong> 等重要概念。我们介绍了 <strong>锁</strong> 这种通用的互斥原语的功能和使用方式，还提到了如何评价一种锁的实现：有忙则等待、空闲则入和有界等待这些必须的功能性要求，还有让权等待这种性能层面上的可选要求。</p>
+<p>接下来，我们尝试以多种方式实现锁机制。首先我们尝试锁的纯软件实现。第一种方法是设置单变量作为锁标记，但是由于它自身无法支持互斥访问而失败。第二种方式是使用多变量联合表示锁的状态，我们以经典的 Peterson 算法为例说明了它的正确性，但它以及类似的其他算法尤其是在现代 CPU 上存在局限性。</p>
+<p>于是我们考虑在硬件的帮助下实现锁机制。一种简单的做法是屏蔽中断保证临界区的原子性，但这种做法需要过度放权给用户态而且在多核环境下无效。另一种做法则是依赖原子指令，我们深入理解了其原子性内涵及其使用范围（仅支持通用存储单位）。我们介绍了经典的 CAS/TAS 型原子指令以及 RISC-V 架构提供的 AMO 和 LR/SC 原子指令，并最终用它们成功简单且高效的实现了锁机制。</p>
+<p>随后我们介绍如何基于操作系统支持实现让权等待。一般地，我们列举出了三种不同的等待方式： <strong>忙等</strong> 、 <strong>yield 轮询</strong> 和 <strong>阻塞</strong> 并分析了它们的优劣势和各自的适用场景。我们着重在我们内核中实现了关键的阻塞机制，并实现了 sleep 和互斥锁系统调用作为其应用。在实际中实现锁的时候，我们可以将软件算法、硬件支持和操作系统支持融合起来，这样才能得到更好的锁实现。</p>
+<p>最后，让我们再从整体上回顾一下互斥这一关键概念。可以思考一下为何会存在互斥访问需求？是因为不同线程（或其他执行流，比如说系统调用执行）在执行期间出现了 <strong>时间与空间的交集</strong> 。空间交集体现为访问同种共享资源，而时间交集体现在对于共享资源的操作或访问在时间上存在交错。只要满足了这两个条件，那就必须考虑使用锁之类的互斥原语对共享资源进行保护。另一种思路则是想办法规避时间或空间交集，这样也能够避免并发问题。</p>
 </div>
 <div class="section" id="id21">
 <h2>参考文献<a class="headerlink" href="#id21" title="永久链接至标题">#</a></h2>
 <ul class="simple">
+<li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Database_transaction">Database Transaction, Wikipedia</a></p></li>
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Race_condition">竞态条件，来自维基百科</a></p></li>
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Peterson%27s_algorithm">Peterson 算法，来自维基百科</a></p></li>
 <li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Dekker%27s_algorithm">Dekkers 算法，来自维基百科</a></p></li>
@@ -1299,12 +1400,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="2lock-legacy.html">
+          <a class="next-page" href="3semaphore.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">锁机制</div>
+                <div class="title">信号量机制</div>
               </div>
               <svg><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -1375,7 +1476,7 @@
 <li><a class="reference internal" href="#id14">原子指令小结</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id15">在内核态操作系统支持下实现锁机制</a><ul>
+<li><a class="reference internal" href="#id15">在操作系统支持下实现让权等待</a><ul>
 <li><a class="reference internal" href="#id16">忙等</a></li>
 <li><a class="reference internal" href="#yield">通过 yield 暂时让权</a></li>
 <li><a class="reference internal" href="#id17">阻塞</a><ul>

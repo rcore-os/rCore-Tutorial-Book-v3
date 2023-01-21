@@ -292,7 +292,6 @@
 <li class="toctree-l2"><a class="reference internal" href="1thread.html">用户态的线程管理</a></li>
 <li class="toctree-l2"><a class="reference internal" href="1thread-kernel.html">内核态的线程管理</a></li>
 <li class="toctree-l2"><a class="reference internal" href="2lock.html">互斥锁</a></li>
-<li class="toctree-l2"><a class="reference internal" href="2lock-legacy.html">锁机制</a></li>
 <li class="toctree-l2"><a class="reference internal" href="3semaphore.html">信号量机制</a></li>
 <li class="toctree-l2"><a class="reference internal" href="4condition-variable.html">条件变量机制</a></li>
 <li class="toctree-l2"><a class="reference internal" href="5concurrency-problem.html">并发中的问题</a></li>
@@ -439,7 +438,7 @@
 <div class="section" id="id4">
 <h3>同步互斥<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
 <p>在上面提到了数据不一致性、不确定的计算结果，意味在操作系统的执行过程中，可能存在并发问题，并导致程序或操作系统执行失败。我们先给出 <strong>线程的数据一致性</strong> 的定义：在单处理器（即只有一个核的CPU）下，如果某线程更新了一个可被其他线程读到的共享数据，那么后续其他线程都能读到这个最新被更新的共享数据。当多个线程共享同一进程的地址空间时，每个线程都可以访问属于这个进程的数据（全局变量）。如果每个线程使用到的变量都是其他线程不会读取或者修改的话，各个线程访问的变量与预期结果一样，那么就不存在一致性问题。如果变量是只读的，多个线程读取该变量与预期结果一致，也不会有一致性问题。</p>
-<p>但是，当某些线程在修改变量，而其他线程在读取这个变量时，由于线程之间的执行顺序不能提前预知（取决于操作系统的调度），导致各个线程对同一变量的读写操作序列不确定，这就会导致不同线程可能会看到与预期结果不一样的值，这就出现了数据不一致性的问题，而且每次执行的结果不确定。我们把这种两个或多个线程在竞争访问同一资源时，执行结果取决于它们的不可预知的执行顺序的情况称为**线程的竞态条件（race condition）**。竞态条件是一种常见的并发问题，可能导致应用程序或操作系统执行失败。</p>
+<p>但是，当某些线程在修改变量，而其他线程在读取这个变量时，由于线程之间的执行顺序不能提前预知（取决于操作系统的调度），导致各个线程对同一变量的读写操作序列不确定，这就会导致不同线程可能会看到与预期结果不一样的值，这就出现了数据不一致性的问题，而且每次执行的结果不确定。我们把这种两个或多个线程在竞争访问同一资源时，执行结果取决于它们的不可预知的执行顺序的情况称为 <strong>线程的竞态条件（race condition）</strong>。竞态条件是一种常见的并发问题，可能导致应用程序或操作系统执行失败。</p>
 <p>出现线程的数据不一致问题和竞态条件问题的根本原因是 <strong>调度的不可控性</strong> ：即读写共享变量的代码片段会随时可能被操作系统调度和切换。先看看如下的伪代码例子：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">//全局共享变量 NUM初始化为 0</span>
 <span class="linenos"> 2</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">NUM</span><span class="w"> </span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
@@ -832,7 +831,7 @@
 </div>
 <div class="section" id="id12">
 <h3>同步互斥机制的设计实现<a class="headerlink" href="#id12" title="永久链接至标题">#</a></h3>
-<p>在实现支持同步互斥机制的慈母龙操作系统 – SyncMutexOS中，包括三种同步互斥机制，在  <a class="reference internal" href="2lock-legacy.html"><span class="doc">锁机制</span></a> 一节中讲述了互斥锁的设计与实现，在  <a class="reference internal" href="3semaphore.html"><span class="doc">信号量机制</span></a> 一节中讲述了信号量的设计与实现，在  <a class="reference internal" href="4condition-variable.html"><span class="doc">条件变量机制</span></a> 一节中讲述了条件变量的设计与实现。无论哪种同步互斥机制，都需要确保操作系统任意抢占线程，调度和切换线程的执行，都可以保证线程执行的互斥需求和同步需求，从而能够得到可预测和可重现的共享资源访问结果。这三种用于多线程的同步互斥机制所对应的内核数据结构都在进程控制块中，以进程资源的形式存在。</p>
+<p>在实现支持同步互斥机制的慈母龙操作系统 – SyncMutexOS中，包括三种同步互斥机制，在  <a class="reference internal" href="2lock.html"><span class="doc">互斥锁</span></a> 一节中讲述了互斥锁的设计与实现，在  <a class="reference internal" href="3semaphore.html"><span class="doc">信号量机制</span></a> 一节中讲述了信号量的设计与实现，在  <a class="reference internal" href="4condition-variable.html"><span class="doc">条件变量机制</span></a> 一节中讲述了条件变量的设计与实现。无论哪种同步互斥机制，都需要确保操作系统任意抢占线程，调度和切换线程的执行，都可以保证线程执行的互斥需求和同步需求，从而能够得到可预测和可重现的共享资源访问结果。这三种用于多线程的同步互斥机制所对应的内核数据结构都在进程控制块中，以进程资源的形式存在。</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="w">    </span><span class="c1">// 进程控制块内部结构</span>
 <span class="linenos">2</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">ProcessControlBlockInner</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos">3</span><span class="w">            </span><span class="o">..</span><span class="p">.</span>
