@@ -526,7 +526,79 @@
 </div>
 <div class="section" id="id8">
 <h3>生产者和消费者问题<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
-<p>TODO:</p>
+<img alt="../_images/mpsc-problem.png" class="align-center" src="../_images/mpsc-problem.png" />
+<p>生产者-消费者问题（也称为有限缓冲问题）是 Dijkstra 自 1965 年以来描述的一系列同步互斥问题中的一个。如图所示，一共有 5 个线程在同进程下进行协作，其中有 4 个生产者（Producer，图中右侧）和 1 个消费者（Consumer，图中左侧），它们共享一个容量有限的环形缓冲区（图中间）。生产者的职责是将输入放入缓冲区，而消费者则从缓冲区中取出数据进行处理。然而，这两种操作并不总是能够立即成功的。比如，当缓冲区已满的情况下，生产者就无法将数据放入缓冲区，需要等消费者取出数据空出缓冲区槽位；而当缓冲区为空没有数据的时候，消费者也无法从中取出数据，需要等生产者将数据填充到缓冲区。考虑使用信号量来实现上述同步需求，可以看成管理以下资源：</p>
+<ul class="simple">
+<li><p>空闲槽位资源，初始数量 <span class="math notranslate nohighlight">\(N\)</span> 等于缓冲区容量。生产者每次写入需要占用 1 个，消费者每次读取恢复 1 个；</p></li>
+<li><p>可用数据资源，初始数量 <span class="math notranslate nohighlight">\(N=0\)</span> （最开始缓冲区为空）。消费者每次读取占用 1 个，生产者每次写入恢复 1 个；</p></li>
+<li><p>将缓冲区以及相应指针（即 <code class="docutils literal notranslate"><span class="pre">front</span></code> 和 <code class="docutils literal notranslate"><span class="pre">tail</span></code> ）整体上视作一种共享资源，那么生产者和消费者的写入和读取都会对这个共享资源进行修改。注意 <strong>信号量只保证无可用资源时进行阻塞，但并不保证访问共享资源的互斥性，甚至这可能是两种不同资源</strong> 。因此，我们还需要引入互斥锁对缓冲区进行保护，这里使用一个 <span class="math notranslate nohighlight">\(N=1\)</span> 的二值信号量来实现。</p></li>
+</ul>
+<p>代码如下：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/mpsc_sem.rs</span>
+<span class="linenos"> 2</span>
+<span class="linenos"> 3</span><span class="k">const</span><span class="w"> </span><span class="n">SEM_MUTEX</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="linenos"> 4</span><span class="k">const</span><span class="w"> </span><span class="n">SEM_EMPTY</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos"> 5</span><span class="k">const</span><span class="w"> </span><span class="n">SEM_AVAIL</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="linenos"> 6</span><span class="k">const</span><span class="w"> </span><span class="n">BUFFER_SIZE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">;</span>
+<span class="linenos"> 7</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">BUFFER</span>: <span class="p">[</span><span class="kt">usize</span><span class="p">;</span><span class="w"> </span><span class="n">BUFFER_SIZE</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">BUFFER_SIZE</span><span class="p">];</span>
+<span class="linenos"> 8</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">FRONT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="linenos"> 9</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">TAIL</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="linenos">10</span><span class="k">const</span><span class="w"> </span><span class="n">PRODUCER_COUNT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="linenos">11</span><span class="k">const</span><span class="w"> </span><span class="n">NUMBER_PER_PRODUCER</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span>
+<span class="linenos">12</span>
+<span class="linenos">13</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">producer</span><span class="p">(</span><span class="n">id</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">id</span><span class="p">;</span>
+<span class="linenos">15</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">NUMBER_PER_PRODUCER</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">16</span><span class="w">        </span><span class="n">semaphore_down</span><span class="p">(</span><span class="n">SEM_EMPTY</span><span class="p">);</span>
+<span class="linenos">17</span><span class="w">        </span><span class="n">semaphore_down</span><span class="p">(</span><span class="n">SEM_MUTEX</span><span class="p">);</span>
+<span class="linenos">18</span><span class="w">        </span><span class="n">BUFFER</span><span class="p">[</span><span class="n">TAIL</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+<span class="linenos">19</span><span class="w">        </span><span class="n">TAIL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">TAIL</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">BUFFER_SIZE</span><span class="p">;</span>
+<span class="linenos">20</span><span class="w">        </span><span class="n">semaphore_up</span><span class="p">(</span><span class="n">SEM_MUTEX</span><span class="p">);</span>
+<span class="linenos">21</span><span class="w">        </span><span class="n">semaphore_up</span><span class="p">(</span><span class="n">SEM_AVAIL</span><span class="p">);</span>
+<span class="linenos">22</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">23</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="linenos">24</span><span class="p">}</span>
+<span class="linenos">25</span>
+<span class="linenos">26</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">consumer</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">27</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">PRODUCER_COUNT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">NUMBER_PER_PRODUCER</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">28</span><span class="w">        </span><span class="n">semaphore_down</span><span class="p">(</span><span class="n">SEM_AVAIL</span><span class="p">);</span>
+<span class="linenos">29</span><span class="w">        </span><span class="n">semaphore_down</span><span class="p">(</span><span class="n">SEM_MUTEX</span><span class="p">);</span>
+<span class="linenos">30</span><span class="w">        </span><span class="fm">print!</span><span class="p">(</span><span class="s">&quot;{} &quot;</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFER</span><span class="p">[</span><span class="n">FRONT</span><span class="p">]);</span>
+<span class="linenos">31</span><span class="w">        </span><span class="n">FRONT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">FRONT</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">BUFFER_SIZE</span><span class="p">;</span>
+<span class="linenos">32</span><span class="w">        </span><span class="n">semaphore_up</span><span class="p">(</span><span class="n">SEM_MUTEX</span><span class="p">);</span>
+<span class="linenos">33</span><span class="w">        </span><span class="n">semaphore_up</span><span class="p">(</span><span class="n">SEM_EMPTY</span><span class="p">);</span>
+<span class="linenos">34</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">35</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">);</span>
+<span class="linenos">36</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="linenos">37</span><span class="p">}</span>
+<span class="linenos">38</span>
+<span class="linenos">39</span><span class="cp">#[no_mangle]</span>
+<span class="linenos">40</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
+<span class="linenos">41</span><span class="w">    </span><span class="c1">// create semaphores</span>
+<span class="linenos">42</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">semaphore_create</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">SEM_MUTEX</span><span class="p">);</span>
+<span class="linenos">43</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">semaphore_create</span><span class="p">(</span><span class="n">BUFFER_SIZE</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">SEM_EMPTY</span><span class="p">);</span>
+<span class="linenos">44</span><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">semaphore_create</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">SEM_AVAIL</span><span class="p">);</span>
+<span class="linenos">45</span><span class="w">    </span><span class="c1">// create threads</span>
+<span class="linenos">46</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">ids</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">_</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="o">..</span><span class="n">PRODUCER_COUNT</span><span class="p">).</span><span class="n">collect</span><span class="p">();</span>
+<span class="linenos">47</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">threads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span>
+<span class="linenos">48</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">PRODUCER_COUNT</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">49</span><span class="w">        </span><span class="n">threads</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span>
+<span class="linenos">50</span><span class="w">            </span><span class="n">producer</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span>
+<span class="linenos">51</span><span class="w">            </span><span class="o">&amp;</span><span class="n">ids</span><span class="p">.</span><span class="n">as_slice</span><span class="p">()[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span>
+<span class="linenos">52</span><span class="w">        </span><span class="p">));</span>
+<span class="linenos">53</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">54</span><span class="w">    </span><span class="n">threads</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">consumer</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span>
+<span class="linenos">55</span><span class="w">    </span><span class="c1">// wait for all threads to complete</span>
+<span class="linenos">56</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">thread</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">threads</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">57</span><span class="w">        </span><span class="n">waittid</span><span class="p">(</span><span class="o">*</span><span class="n">thread</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span>
+<span class="linenos">58</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">59</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;mpsc_sem passed!&quot;</span><span class="p">);</span>
+<span class="linenos">60</span><span class="w">    </span><span class="mi">0</span>
+<span class="linenos">61</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>第 42-44 行分别创建了二值信号量 <code class="docutils literal notranslate"><span class="pre">SEM_MUTEX</span></code> ，描述空闲槽位资源的信号量 <code class="docutils literal notranslate"><span class="pre">SEM_EMPTY</span></code> 以及描述可用数据资源的信号量 <code class="docutils literal notranslate"><span class="pre">SEM_AVAIL</span></code> 。生产者线程会执行 <code class="docutils literal notranslate"><span class="pre">producer</span></code> 函数，循环的每次迭代向共享缓冲区写入数据。于是在写入之前需要进行信号量 <code class="docutils literal notranslate"><span class="pre">SEM_EMPTY</span></code> 的 down 操作尝试占用一个空闲槽位资源，而在写入之后进行信号量 <code class="docutils literal notranslate"><span class="pre">SEM_AVAIL</span></code> 的 up 操作释放一个可用数据资源。相对的，消费者线程会执行 <code class="docutils literal notranslate"><span class="pre">consumer</span></code> 函数，循环的每次迭代从共享缓冲区读取数据。于是在读入之前需要进行信号量 <code class="docutils literal notranslate"><span class="pre">SEM_AVAIL</span></code> 的 down 操作尝试占用一个可用数据资源，而在读取之后进行信号量 <code class="docutils literal notranslate"><span class="pre">SEM_EMPTY</span></code> 的 up 操作释放一个空闲槽位资源。两个线程对共享缓冲区的操作都需要用二值信号量 <code class="docutils literal notranslate"><span class="pre">SEM_MUTEX</span></code> 来保护。</p>
+<p>从这个例子可以看出，信号量的使用可以是非常灵活的。同一个信号量的 P 操作和 V 操作不一定是连续的，甚至可以不在一个线程上。</p>
 </div>
 </div>
 <div class="section" id="id9">
@@ -601,11 +673,16 @@
 <p><code class="docutils literal notranslate"><span class="pre">new</span></code> 方法比较简单。而 <code class="docutils literal notranslate"><span class="pre">up</span></code> 和 <code class="docutils literal notranslate"><span class="pre">down</span></code> 方法和我们在信号量基本思路中介绍的 <a class="reference internal" href="#link-the-second-sem-impl"><span class="std std-ref">信号量的第二种实现</span></a> 一致。只需要注意如何使用阻塞-唤醒机制的核心接口 <code class="docutils literal notranslate"><span class="pre">block_current_and_run_next</span></code> 和 <code class="docutils literal notranslate"><span class="pre">wakeup_task</span></code> 即可。</p>
 </div>
 <div class="section" id="id10">
-<h2>参考文献<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h2>
+<h2>小结<a class="headerlink" href="#id10" title="永久链接至标题">#</a></h2>
+<p>本节我们介绍了相比互斥锁更加灵活强大的同步原语——信号量，并用它解决了条件同步和经典的生产者-消费者问题。但是要看到的是，信号量还是比较复杂的。对于程序员来说开发和阅读代码比较困难，且比较容易出错，对程序员的要求比较高。</p>
+</div>
+<div class="section" id="id11">
+<h2>参考文献<a class="headerlink" href="#id11" title="永久链接至标题">#</a></h2>
 <ul class="simple">
 <li><p>Dijkstra, Edsger W. Cooperating sequential processes (EWD-123) (PDF). E.W. Dijkstra Archive. Center for American History, University of Texas at Austin. (transcription) (September 1965)  <a class="reference external" href="https://www.cs.utexas.edu/users/EWD/transcriptions/EWD01xx/EWD123.html">https://www.cs.utexas.edu/users/EWD/transcriptions/EWD01xx/EWD123.html</a></p></li>
 <li><p>Downey, Allen B. (2016) [2005]. “The Little Book of Semaphores” (2nd ed.). Green Tea Press.</p></li>
 <li><p>Leppäjärvi, Jouni (May 11, 2008). “A pragmatic, historically oriented survey on the universality of synchronization primitives” (pdf). University of Oulu, Finland.</p></li>
+<li><p><a class="reference external" href="https://en.wikipedia.org/wiki/Producer%E2%80%93consumer_problem">Producer-consumer problem, Wikipedia</a></p></li>
 </ul>
 </div>
 </div>
@@ -678,7 +755,8 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#id9">实现信号量</a></li>
-<li><a class="reference internal" href="#id10">参考文献</a></li>
+<li><a class="reference internal" href="#id10">小结</a></li>
+<li><a class="reference internal" href="#id11">参考文献</a></li>
 </ul>
 </li>
 </ul>
