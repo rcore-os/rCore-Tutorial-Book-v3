@@ -482,9 +482,9 @@
 </div>
 <div class="section" id="id6">
 <h2>信号量的应用<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
-<p>这里给出两个应用：第一个是信号量作为同步原语的简单应用；第二个则是生产者和消费者基于一个有限缓冲进行协作的复杂问题。</p>
-<div class="section" id="id7">
-<h3>信号量作为同步原语的简单应用<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h3>
+<p>这里给出两个应用：第一个是信号量作为同步原语来解决条件同步问题；第二个则是生产者和消费者基于一个有限缓冲进行协作的复杂问题。</p>
+<div class="section" id="link-cond-sync">
+<span id="id7"></span><h3>条件同步问题<a class="headerlink" href="#link-cond-sync" title="永久链接至标题">#</a></h3>
 <p>来看这样一个例子：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/sync_sem.rs</span>
 <span class="linenos"> 2</span>
@@ -599,6 +599,10 @@
 </div>
 <p>第 42-44 行分别创建了二值信号量 <code class="docutils literal notranslate"><span class="pre">SEM_MUTEX</span></code> ，描述空闲槽位资源的信号量 <code class="docutils literal notranslate"><span class="pre">SEM_EMPTY</span></code> 以及描述可用数据资源的信号量 <code class="docutils literal notranslate"><span class="pre">SEM_AVAIL</span></code> 。生产者线程会执行 <code class="docutils literal notranslate"><span class="pre">producer</span></code> 函数，循环的每次迭代向共享缓冲区写入数据。于是在写入之前需要进行信号量 <code class="docutils literal notranslate"><span class="pre">SEM_EMPTY</span></code> 的 down 操作尝试占用一个空闲槽位资源，而在写入之后进行信号量 <code class="docutils literal notranslate"><span class="pre">SEM_AVAIL</span></code> 的 up 操作释放一个可用数据资源。相对的，消费者线程会执行 <code class="docutils literal notranslate"><span class="pre">consumer</span></code> 函数，循环的每次迭代从共享缓冲区读取数据。于是在读入之前需要进行信号量 <code class="docutils literal notranslate"><span class="pre">SEM_AVAIL</span></code> 的 down 操作尝试占用一个可用数据资源，而在读取之后进行信号量 <code class="docutils literal notranslate"><span class="pre">SEM_EMPTY</span></code> 的 up 操作释放一个空闲槽位资源。两个线程对共享缓冲区的操作都需要用二值信号量 <code class="docutils literal notranslate"><span class="pre">SEM_MUTEX</span></code> 来保护。</p>
 <p>从这个例子可以看出，信号量的使用可以是非常灵活的。同一个信号量的 P 操作和 V 操作不一定是连续的，甚至可以不在一个线程上。</p>
+<div class="admonition hint">
+<p class="admonition-title">提示</p>
+<p>请同学们思考：能否将二值信号量的 down 和 up 操作放在循环每次迭代的最外层？为什么？</p>
+</div>
 </div>
 </div>
 <div class="section" id="id9">
@@ -750,7 +754,7 @@
 <li><a class="reference internal" href="#id4">信号量的使用方法</a></li>
 <li><a class="reference internal" href="#id5">信号量的系统调用接口</a></li>
 <li><a class="reference internal" href="#id6">信号量的应用</a><ul>
-<li><a class="reference internal" href="#id7">信号量作为同步原语的简单应用</a></li>
+<li><a class="reference internal" href="#link-cond-sync">条件同步问题</a></li>
 <li><a class="reference internal" href="#id8">生产者和消费者问题</a></li>
 </ul>
 </li>
