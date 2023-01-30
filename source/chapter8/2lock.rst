@@ -4,6 +4,8 @@
 本节导读
 -----------------------------------------------
 
+此前两节中，我们分别介绍了用户态和内核态的线程管理。相比进程模型，它们可以更加高效方便的进行协作。比如同进程下的线程共享进程的地址空间，它们可以直接通过读写内存中的共享变量来进行通信而不必进行繁琐且低效的进程间通信。然而，在方便的同时，这种做法也会产生一些问题。本节就让我们从一个简单的多线程计数器的例子入手来看看我们会遇到什么问题以及如何解决。
+
 引子：多线程计数器
 -----------------------------------------------
 
@@ -275,13 +277,13 @@ Rust 核心库在 ``core::sync::atomic`` 中提供了很多原子类型，比如
 
 可惜的是，原子指令虽然强大，其应用范围却比较有限，通常它只能用来保护 **单内存位置** 上的简单操作，比如 ``A=A+1`` 这种操作。当资源是比较复杂的数据结构的时候它就无能为力了。当然，我们也不会指望硬件提供一条“原子地完成红黑树插入/删除”这种指令，毕竟这样的数据结构有无数种，硬件总不可能对每种可能的数据结构和每种可能的操作都提供一条指令，这样的硬件是不存在的。即使如此我们也没有必要担心，只要我们能够灵活使用原子指令来根据实际需求限制多线程对共享资源的并发访问，比如基于原子指令实现通用的锁机制来保证互斥访问，所有的并发访问问题就一定能够迎刃而解。
 
-需要注意的是， ``adder.rs`` 的错误结果是多种因素共同导致的，这里我们深入分析的操作系统调度带来的影响只不过是其中之一，其实 CPU 的指令执行也会有影响，这个我们会在后面再详细介绍。
+需要注意的是， ``adder.rs`` 的错误结果是多种因素共同导致的，这里我们深入分析的操作系统调度带来的影响只不过是其中之一，其实 CPU 的指令执行也会有影响。
 
 .. note::
 
     **原子性**
 
-    原子性最早来源于数据库领域，...
+    原子性的说法最常见于数据库领域的原子 **事务** (Transaction) ，表示对于数据库的一次修改要么全部完成，要么没有任何影响，而不存在任何中间状态。事务模型可以保证数据库能够在出错时顺利恢复以及高并发访问的正确性。但其实原子性这个概念在很多不同领域均有应用且有不同内涵。
 
 
 .. note::
@@ -732,7 +734,7 @@ RISC-V 并不原生支持 CAS/TAS 原子指令，但我们可以通过 LR/SC 指
 
 虽然原子指令已经能够简单高效的解决问题了，但是在很多情况下，我们可以在此基础上再引入软件对资源进行灵活的调度管理，从而避免资源浪费并得到更高的性能。
 
-在内核态操作系统支持下实现锁机制
+在操作系统支持下实现让权等待
 ---------------------------------------------------------------------
 
 在编程时，常常遇到必须满足某些条件（或是遇到某些事件）才能进行接下来的流程的情况。如果一开始这些条件并不成立，那么必须通过某种方式暂时在原地 **等待** 这些条件满足之后才能继续前进。我们可以用多种不同的方式进行等待，最为常见的几种包括：忙等、通过 yield 暂时让权以及后面重点介绍的阻塞。
@@ -877,7 +879,7 @@ RISC-V 并不原生支持 CAS/TAS 原子指令，但我们可以通过 LR/SC 指
 
 这里只是简单的将线程状态修改为就绪状态 Ready 并将线程加回到就绪队列。
 
-在引入阻塞机制后，还需要注意它跟线程机制的结合。我们知道，当进程的主线程退出之后，进程的所有其他线程都会被强制退出。此时，这些线程不光有可能处于就绪队列中，还有可能正被阻塞等待某些事件，因而在这些事件的阻塞队列中。所以，在线程退出时，我们需要检查线程所有可能出现的位置并将线程控制块移除，不然就会造成内存泄漏。有兴趣的同学可以参考 ``os/src/task/mod.rs`` 中的 ``remove_inactive_task`` 的实现。
+在引入阻塞机制后，还需要注意它跟线程机制的结合。我们知道，当进程的主线程退出之后，进程的所有其他线程都会被强制退出。此时，这些线程不光有可能处于就绪队列中，还有可能正被阻塞等待某些事件，因而在这些事件的阻塞队列中。所以，在线程退出时，我们需要 **检查线程所有可能出现的位置并将线程控制块移除，不然就会造成内存泄漏** 。有兴趣的同学可以参考 ``os/src/task/mod.rs`` 中的 ``remove_inactive_task`` 的实现。
 
 这样，我们就成功实现了阻塞-唤醒机制。
 
@@ -1076,21 +1078,132 @@ RISC-V 并不原生支持 CAS/TAS 原子指令，但我们可以通过 LR/SC 指
         ...
     }
 
-和文件描述符表 ``fd_table`` 一样， ``mutex_list`` 使用 ``Vec<Option<T>>`` 构建一个含有多个可空槽位且槽位数可以拓展的互斥锁表，表中的每个元素都实现了 ``Mutex`` Trait ，是一种互斥锁实现。
+和文件描述符表 ``fd_table`` 一样， ``mutex_list`` 使用 ``Vec<Option<T>>`` 构建一个含有多个可空槽位且槽位数可以拓展的互斥锁表，表中的每个元素都实现了 ``Mutex`` Trait ，是一种互斥锁实现。 ``sys_mutex_create`` 会找到第一个空闲的槽位（如果没有则新增一个）并将指定类型的锁的实例插入进来：
 
-.. ``sys_mutex_create`` 的实现方法比较简单...
+.. code-block:: rust
+    :linenos:
 
-.. 目前，我们仅提供了两种互斥锁实现：基于阻塞机制的 ``MutexBlocking`` 和基于类似 yield 机制的 ``MutexSpin`` ，其中我们会重点介绍前者。但在此之前，首先我们来看创建互斥锁的 ``sys_mutex_create`` 是如何实现的：
+    // os/src/syscall/sync.rs
+
+    pub fn sys_mutex_create(blocking: bool) -> isize {
+        let process = current_process();
+        let mutex: Option<Arc<dyn Mutex>> = if !blocking {
+            Some(Arc::new(MutexSpin::new()))
+        } else {
+            Some(Arc::new(MutexBlocking::new()))
+        };
+        let mut process_inner = process.inner_exclusive_access();
+        if let Some(id) = process_inner
+            .mutex_list
+            .iter()
+            .enumerate()
+            .find(|(_, item)| item.is_none())
+            .map(|(id, _)| id)
+        {
+            process_inner.mutex_list[id] = mutex;
+            id as isize
+        } else {
+            process_inner.mutex_list.push(mutex);
+            process_inner.mutex_list.len() as isize - 1
+        }
+    }
+
+然后是 ``sys_mutex_lock`` 和 ``sys_mutex_unlock`` 的实现，它们都只是从进程控制块中的互斥锁表的指定槽位中复制一份 ``Mutex`` 实现，并调用其 ``lock`` 和 ``unlock`` 方法。以 ``sys_mutex_lock`` 为例：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/syscall/sync.rs
+
+    pub fn sys_mutex_lock(mutex_id: usize) -> isize {
+        let process = current_process();
+        let process_inner = process.inner_exclusive_access();
+        let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
+        drop(process_inner);
+        drop(process);
+        mutex.lock();
+        0
+    }
+
+目前，我们仅提供了两种互斥锁实现：基于阻塞机制的 ``MutexBlocking`` 和基于类似 yield 机制的 ``MutexSpin`` ，篇幅原因我们只介绍前者。首先看 ``MutexBlocking`` 包含哪些内容：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/sync/mutex.rs
+
+    pub struct MutexBlocking {
+        inner: UPSafeCell<MutexBlockingInner>,
+    }
+
+    pub struct MutexBlockingInner {
+        locked: bool,
+        wait_queue: VecDeque<Arc<TaskControlBlock>>,
+    }
+
+可以看到，最外层是一个 ``UPSafeCell`` ，然后 inner 里面有两个成员：
+
+- ``locked`` 作用和 :ref:`之前介绍的单标记软件实现 <link-adder-simple-spin>` 相同，表示目前是否有线程进入临界区。在线程通过 ``sys_mutex_lock`` 系统调用尝试获取锁的时候，如果发现 ``locked`` 为 true ，那么就需要等待 ``locked`` 变为 false ，在此之前都需要被阻塞。
+- ``wait_queue`` 作为阻塞队列记录所有等待 ``locked`` 变为 false 而被阻塞的线程控制块。
+
+于是，获取和释放锁的实现方式如下：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/sync/mutex.rs
+
+    impl Mutex for MutexBlocking {
+        fn lock(&self) {
+            let mut mutex_inner = self.inner.exclusive_access();
+            if mutex_inner.locked {
+                mutex_inner.wait_queue.push_back(current_task().unwrap());
+                drop(mutex_inner);
+                block_current_and_run_next();
+            } else {
+                mutex_inner.locked = true;
+            }
+        }
+
+        fn unlock(&self) {
+            let mut mutex_inner = self.inner.exclusive_access();
+            assert!(mutex_inner.locked);
+            if let Some(waking_task) = mutex_inner.wait_queue.pop_front() {
+                wakeup_task(waking_task);
+            } else {
+                mutex_inner.locked = false;
+            }
+        }
+    }
+
+- 对于 ``lock`` 来说，首先检查是否已经有线程在临界区中。如果 ``locked`` 为 true ，则将当前线程复制一份到阻塞队列中，然后调用 ``block_current_and_run_next`` 阻塞当前线程；否则当前线程可以进入临界区，将 ``locked`` 修改为 true 。
+- 对于 ``unlock`` 来说，简单起见我们假定当前线程一定持有锁（也就是所有的线程一定将 ``lock`` 和 ``unlock`` 配对使用），因此断言 ``locked`` 为 true 。接下来尝试从阻塞队列中取出一个线程，如果存在的话就将这个线程唤醒。被唤醒的线程将继续执行 ``lock`` 并返回，进而回到用户态进入临界区。在此期间 ``locked`` 始终为 true ，相当于 **释放锁的线程将锁直接移交给这次唤醒的线程** 。反之，如果阻塞队列中没有线程的话，我们则将 ``locked`` 改成 false ，让后来的线程能够进入临界区。
+
+观察 ``lock`` 中调用 ``block_current_and_run_next`` 的位置，可以发现阻塞在 ``lock`` 中的线程一经唤醒便能够立刻进入临界区，因此在 ``unlock`` 的时候我们最多只能唤醒一个线程，不然便无法满足互斥访问要求。我们这种实现能够满足一定的公平性，因为我们每次都是唤醒阻塞队列队头的线程，于是每个线程在被阻塞有限时间之后一定能进入临界区。但还有一些其他的互斥锁实现，比如在 ``unlock`` 的时候将阻塞队列中的所有线程同时唤醒，感兴趣的同学可自行想想如何实现以及其优缺点。
+
+.. note::
+
+    **为什么同样使用单标记，这里却无需用到原子操作？**
+
+    这里我们仅用到单标记 ``locked`` ，为什么无需使用原子指令来保证对于 ``locked`` 本身访问的互斥性呢？这其实是因为，RISC-V 架构规定从用户态陷入内核态之后所有（内核态）中断默认被自动屏蔽，也就是说与应用的执行不同， **目前系统调用的执行是不会被中断打断的** 。同时，目前我们是在单核上，也 **不会有多个 CPU 同时执行系统调用的情况** 。在这种情况下，内核态的共享数据访问就仍在 ``UPSafeCell`` 的框架之内，只要使用它就能保证互斥访问。 
 
 小结
 ----------------------------------------------------------------------
 
+本节我们从一个多线程计数器的小例子入手，它的结果与我们的预期不同。于是我们以一种通用的方式：即从编译结果，到操作系统调度，再到处理器执行这多个阶段排查出错的原因。我们着重分析由于操作系统调度所导致的不同线程对全局变量 ``A`` 的操作出现的 **交错** 现象，进而引入了 **共享资源** 、 **临界区** 以及 **互斥** 等重要概念。我们介绍了 **锁** 这种通用的互斥原语的功能和使用方式，还提到了如何评价一种锁的实现：有忙则等待、空闲则入和有界等待这些必须的功能性要求，还有让权等待这种性能层面上的可选要求。
 
+接下来，我们尝试以多种方式实现锁机制。首先我们尝试锁的纯软件实现。第一种方法是设置单变量作为锁标记，但是由于它自身无法支持互斥访问而失败。第二种方式是使用多变量联合表示锁的状态，我们以经典的 Peterson 算法为例说明了它的正确性，但它以及类似的其他算法尤其是在现代 CPU 上存在局限性。
 
+于是我们考虑在硬件的帮助下实现锁机制。一种简单的做法是屏蔽中断保证临界区的原子性，但这种做法需要过度放权给用户态而且在多核环境下无效。另一种做法则是依赖原子指令，我们深入理解了其原子性内涵及其使用范围（仅支持通用存储单位）。我们介绍了经典的 CAS/TAS 型原子指令以及 RISC-V 架构提供的 AMO 和 LR/SC 原子指令，并最终用它们成功简单且高效的实现了锁机制。
+
+随后我们介绍如何基于操作系统支持实现让权等待。一般地，我们列举出了三种不同的等待方式： **忙等** 、 **yield 轮询** 和 **阻塞** 并分析了它们的优劣势和各自的适用场景。我们着重在我们内核中实现了关键的阻塞机制，并实现了 sleep 和互斥锁系统调用作为其应用。在实际中实现锁的时候，我们可以将软件算法、硬件支持和操作系统支持融合起来，这样才能得到更好的锁实现。
+
+最后，让我们再从整体上回顾一下互斥这一关键概念。可以思考一下为何会存在互斥访问需求？是因为不同线程（或其他执行流，比如说系统调用执行）在执行期间出现了 **时间与空间的交集** 。空间交集体现为访问同种共享资源，而时间交集体现在对于共享资源的操作或访问在时间上存在交错。只要满足了这两个条件，那就必须考虑使用锁之类的互斥原语对共享资源进行保护。另一种思路则是想办法规避时间或空间交集，这样也能够避免并发问题。
 
 参考文献
 ----------------------------------------------------------------------
 
+- `Database Transaction, Wikipedia <https://en.wikipedia.org/wiki/Database_transaction>`_
 - `竞态条件，来自维基百科 <https://en.wikipedia.org/wiki/Race_condition>`_
 - `Peterson 算法，来自维基百科 <https://en.wikipedia.org/wiki/Peterson%27s_algorithm>`_
 - `Dekkers 算法，来自维基百科 <https://en.wikipedia.org/wiki/Dekker%27s_algorithm>`_
