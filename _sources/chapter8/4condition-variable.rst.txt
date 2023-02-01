@@ -13,6 +13,8 @@
 条件变量的背景
 ----------------------------------------------
 
+.. _link-condsync-problem:
+
 首先来看我们需要解决的一类一种同步互斥问题。在信号量一节中提到的 :ref:`条件同步问题 <link-cond-sync>` 的基础上，有的时候我们还需要基于共享资源的状态进行同步。如下面的例子所示：
 
 .. code-block:: rust
@@ -215,7 +217,7 @@
 - 当前线程被唤醒之后，重新获取到锁。
 - ``wait`` 返回，当前线程成功向下执行。
 
-由于互斥锁的存在， ``signal`` 操作也不只是简单的唤醒操作。当线程 :math:`T_1` 在执行过程（位于管程过程中）中发现某条件满足准备唤醒线程 :math:`T_2` 的时候，如果直接让线程 :math:`T_2` 继续执行（位于管程过程中），就会违背管程过程的互斥访问要求。因此，问题的关键是，在 :math:`T_1` 唤醒 :math:`T_2` 的时候， :math:`T_1` 如何处理它正持有的锁。具体来说，根据相关线程的优先级顺序，唤醒操作有这几种语义：
+由于互斥锁的存在， ``signal`` 操作也不只是简单的唤醒操作。当线程 :math:`T_1` 在执行过程（位于管程过程中）中发现某条件满足准备唤醒线程 :math:`T_2` 的时候，如果直接让线程 :math:`T_2` 继续执行（也位于管程过程中），就会违背管程过程的互斥访问要求。因此，问题的关键是，在 :math:`T_1` 唤醒 :math:`T_2` 的时候， :math:`T_1` 如何处理它正持有的锁。具体来说，根据相关线程的优先级顺序，唤醒操作有这几种语义：
 
 - Hoare 语义：优先级 :math:`T_2>T_1>其他线程` 。也就是说，当 :math:`T_1` 发现条件满足之后，立即通过 ``signal`` 唤醒 :math:`T_2` 并 **将锁转交** 给 :math:`T_2` ，这样 :math:`T_2` 就能立即继续执行，而 :math:`T_1` 则暂停执行并进入一个 *紧急等待队列* 。当 :math:`T_2` 退出管程过程后会将锁交回给紧急等待队列中的 :math:`T_1` ，从而 :math:`T_1` 可以继续执行。
 - Hansen 语义：优先级 :math:`T_1>T_2>其他线程` 。即 :math:`T_1` 发现条件满足之后，先继续执行，直到退出管程之前再使用 ``signal`` 唤醒并 **将锁转交** 给 :math:`T_2` ，于是 :math:`T_2` 可以继续执行。注意在 Hansen 语义下， ``signal`` 必须位于管程过程末尾。
@@ -267,36 +269,96 @@
 
 .. 一般开发者会采纳Brinch Hansen的建议，因为它在概念上更简单，并且更容易实现。这种沟通机制的具体实现就是  **条件变量** 和对应的操作：wait和signal。线程使用条件变量来等待一个条件变成真。条件变量其实是一个线程等待队列，当条件不满足时，线程通过执行条件变量的wait操作就可以把自己加入到等待队列中，睡眠等待（waiting）该条件。另外某个线程，当它改变条件为真后，就可以通过条件变量的signal操作来唤醒一个或者多个等待的线程（通过在该条件上发信号），让它们继续执行。
 
+早期提出的管程是基于 Concurrent Pascal 语言来设计的，其他语言，如 C 和 Rust 等，并没有在语言上支持这种机制。对此，我们的做法是从管程中将比较通用的同步原语——条件变量抽取出来，然后再将其和互斥锁组合使用（手动加入加锁/解锁操作代替编译器），以这种方式模拟原始的管程机制。在目前的 C 语言应用开发中，实际上也是这样做的。
 
-早期提出的管程是基于Concurrent Pascal来设计的，其他语言，如C和Rust等，并没有在语言上支持这种机制。我们还是可以用手动加入互斥锁的方式来代替编译器，就可以在C和Rust的基础上实现原始的管程机制了。在目前的C语言应用开发中，实际上也是这么做的。这样，我们就可以用互斥锁和条件变量来重现实现上述的同步互斥例子：
+.. 早期提出的管程是基于Concurrent Pascal来设计的，其他语言，如C和Rust等，并没有在语言上支持这种机制。我们还是可以用手动加入互斥锁的方式来代替编译器，就可以在C和Rust的基础上实现原始的管程机制了。在目前的C语言应用开发中，实际上也是这么做的。这样，我们就可以用互斥锁和条件变量来重现实现上述的同步互斥例子：
 
+条件变量系统调用
+----------------------------------------------------------
+
+于是，我们新增条件变量相关系统调用如下：
+
+.. code-block:: rust
+
+    /// 功能：为当前进程新增一个条件变量。
+    /// 返回值：假定该操作必定成功，返回创建的条件变量的 ID 。
+    /// syscall ID : 1030
+    pub fn sys_condvar_create() -> isize;
+
+    /// 功能：对当前进程的指定条件变量进行 signal 操作，即
+    /// 唤醒一个在该条件变量上阻塞的线程（如果存在）。
+    /// 参数：condvar_id 表示要操作的条件变量的 ID 。
+    /// 返回值：假定该操作必定成功，返回 0 。
+    /// syscall ID : 1031
+    pub fn sys_condvar_signal(condvar_id: usize) -> isize;
+
+    /// 功能：对当前进程的指定条件变量进行 wait 操作，分为多个阶段：
+    /// 1. 释放当前线程持有的一把互斥锁；
+    /// 2. 阻塞当前线程并将其加入指定条件变量的阻塞队列；
+    /// 3. 直到当前线程被其他线程通过 signal 操作唤醒；
+    /// 4. 重新获取当前线程之前持有的锁。
+    /// 参数：mutex_id 表示当前线程持有的互斥锁的 ID ，而
+    /// condvar_id 表示要操作的条件变量的 ID 。
+    /// 返回值：假定该操作必定成功，返回 0 。
+    /// syscall ID : 1032
+    pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize;
+
+这里，条件变量也被视作进程内的一种资源，进程内的不同条件变量使用条件变量 ID 区分。注意 ``wait`` 操作不仅需要提供条件变量的 ID ，还需要提供线程目前持有的锁的 ID 。需要注意的是， **我们内核中实现的条件变量是 Mesa 语义的** 。
+
+条件变量的使用方法
+-----------------------------------------------------------------
+
+条件同步问题
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+下面展示了如何使用条件变量解决本节开头提到的 :ref:`条件同步问题 <link-condsync-problem>` ：
 
 .. code-block:: rust
     :linenos:
+    :emphasize-lines: 11,21
 
-    static mut A: usize = 0;
+    // user/src/bin/condsync_condvar.rs
+
+    const CONDVAR_ID: usize = 0;
+    const MUTEX_ID: usize = 0;
+
     unsafe fn first() -> ! {
-        mutex.lock();
-        A=1;
-        condvar.wakeup();
-        mutex.unlock();
-        ...
+        sleep(10);
+        println!("First work, Change A --> 1 and wakeup Second");
+        mutex_lock(MUTEX_ID);
+        A = 1;
+        condvar_signal(CONDVAR_ID);
+        mutex_unlock(MUTEX_ID);
+        exit(0)
     }
 
     unsafe fn second() -> ! {
-        mutex.lock();
-        while A==0 { 
-           condvar.wait(mutex); //在睡眠等待之前，需要释放mutex
-        };
-        mutex.unlock();
-        //继续执行相关事务
+        println!("Second want to continue,but need to wait A=1");
+        mutex_lock(MUTEX_ID);
+        while A == 0 {
+            println!("Second: A is {}", A);
+            condvar_wait(CONDVAR_ID, MUTEX_ID);
+        }
+        println!("A is {}, Second can work now", A);
+        mutex_unlock(MUTEX_ID);
+        exit(0)
     }
 
+    #[no_mangle]
+    pub fn main() -> i32 {
+        // create condvar & mutex
+        assert_eq!(condvar_create() as usize, CONDVAR_ID);
+        assert_eq!(mutex_blocking_create() as usize, MUTEX_ID);
+        ...
+    }
 
+第 31 和 32 行我们分别创建要用到的条件变量和互斥锁。在 ``second`` 中，首先有一层互斥锁保护，然后由于条件变量是 Mesa 语义的，所以我们需要使用 while 循环进行等待，不符合条件调用 ``condvar_wait`` 阻塞自身的时候还要给出当前持有的互斥锁的 ID ；在 ``first`` 中，最外层同样有互斥锁保护。在修改完成之后只需调用 ``condvar_signal`` 即可唤醒执行 ``second`` 的线程。
 
-有了上面的介绍，我们就可以实现条件变量的基本逻辑了。下面是条件变量的wait和signal操作的伪代码：
+**在使用条件变量的时候需要特别注意** :ref:`唤醒丢失 <term-lost-wakeup>` **问题** 。也就是说和信号量不同，如果调用 ``signal`` 的时候没有任何线程在条件变量的阻塞队列中，那么这次 ``signal`` 不会有任何效果，这次唤醒也不会被记录下来。
 
-.. code-block:: rust
+.. 有了上面的介绍，我们就可以实现条件变量的基本逻辑了。下面是条件变量的wait和signal操作的伪代码：
+
+.. .. code-block:: rust
     :linenos:
 
     fn wait(mutex) {
@@ -310,116 +372,147 @@
     }
 
 
-条件变量的wait操作包含三步，1. 释放锁；2. 把自己挂起；3. 被唤醒后，再获取锁。条件变量的signal操作只包含一步：找到挂在条件变量上睡眠的线程，把它唤醒。
+.. 条件变量的wait操作包含三步，1. 释放锁；2. 把自己挂起；3. 被唤醒后，再获取锁。条件变量的signal操作只包含一步：找到挂在条件变量上睡眠的线程，把它唤醒。
 
-注意，条件变量不像信号量那样有一个整型计数值的成员变量，所以条件变量也不能像信号量那样有读写计数值的能力。如果一个线程向一个条件变量发送唤醒操作，但是在该条件变量上并没有等待的线程，则唤醒操作实际上什么也没做。
+.. 注意，条件变量不像信号量那样有一个整型计数值的成员变量，所以条件变量也不能像信号量那样有读写计数值的能力。如果一个线程向一个条件变量发送唤醒操作，但是在该条件变量上并没有等待的线程，则唤醒操作实际上什么也没做。
 
+同步屏障问题
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+接下来我们看一个有趣的问题。假设有 3 个线程，每个线程都执行如下 ``thread_fn`` 函数：
+
+.. code-block:: rust
+
+    // user/src/bin/barrier_fail.rs
+
+    fn thread_fn() {
+        for _ in 0..300 { print!("a"); }
+        for _ in 0..300 { print!("b"); }
+        for _ in 0..300 { print!("c"); }
+        exit(0)
+    }
+
+可以将 ``thread_fn`` 分成打印字符 a、打印字符 b 和打印字符 c 这三个阶段。考虑这样一种同步需求：即在阶段间设置 **同步屏障** ，只有 *所有的* 线程都完成上一阶段之后，这些线程才能够进入下一阶段。也就是说，如果有线程更早完成了一个阶段，那么它需要等待其他较慢的线程也完成这一阶段才能进入下一阶段。最后的执行结果应该是所有的 a 被打印出来，然后是所有的 b ，最后是所有的 c 。同学们在向下阅读之前可以思考如何用我们学过的同步原语来实现这种同步需求呢？
+
+这里给出基于互斥锁和条件变量的一种参考实现：
+
+.. code-block:: rust
+    :linenos:
+
+    // user/src/bin/barrier_condvar.rs
+
+    const THREAD_NUM: usize = 3;
+
+    struct Barrier {
+        mutex_id: usize,
+        condvar_id: usize,
+        count: UnsafeCell<usize>,
+    }
+
+    impl Barrier {
+        pub fn new() -> Self {
+            Self {
+                mutex_id: mutex_create() as usize,
+                condvar_id: condvar_create() as usize,
+                count: UnsafeCell::new(0),
+            }
+        }
+        pub fn block(&self) {
+            mutex_lock(self.mutex_id);
+            let count = self.count.get();
+            // SAFETY: Here, the accesses of the count is in the
+            // critical section protected by the mutex.
+            unsafe { *count = *count + 1; } 
+            if unsafe { *count } == THREAD_NUM {
+                condvar_signal(self.condvar_id);
+            } else {
+                condvar_wait(self.condvar_id, self.mutex_id);
+                condvar_signal(self.condvar_id);
+            }
+            mutex_unlock(self.mutex_id);
+        }
+    }
+
+    unsafe impl Sync for Barrier {}
+
+    lazy_static! {
+        static ref BARRIER_AB: Barrier = Barrier::new();
+        static ref BARRIER_BC: Barrier = Barrier::new();
+    }
+
+    fn thread_fn() {
+        for _ in 0..300 { print!("a"); }
+        BARRIER_AB.block();
+        for _ in 0..300 { print!("b"); }
+        BARRIER_BC.block();
+        for _ in 0..300 { print!("c"); }
+        exit(0)
+    }
+
+我们自定义一种 ``Barrier`` 类型，类似于前面讲到的管程。这里的关键在于 ``Barrier::block`` 方法。在拿到锁之后，首先检查 ``count`` 变量。 ``count`` 变量是一种共享资源，记录目前有多少线程阻塞在同步屏障中。如果所有的线程都已经到了，那么当前线程就可以唤醒其中一个；否则就需要先阻塞，在被唤醒之后再去唤醒一个其他的。最终来看会形成一条唤醒链。
+
+有兴趣的同学可以思考如何用其他同步原语来解决这个问题。
 
 实现条件变量
--------------------------------------------
+----------------------------------------------
 
-使用condvar系统调用
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-我们通过例子来看看如何实际使用条件变量。下面是面向应用程序对条件变量系统调用的简单使用，可以看到对它的使用与上一节介绍的信号量系统调用类似。 在这个例子中，主线程先创建了初值为1的互斥锁和一个条件变量，然后再创建两个线程 First和Second。线程First会先睡眠10ms，而当线程Second执行时，会由于条件不满足执行条件变量的wait操作而等待睡眠；当线程First醒来后，通过设置A为1，让线程second等待的条件满足，然后会执行条件变量的signal操作， 从而能够唤醒线程Second。这样线程First和线程Second就形成了一种稳定的同步与互斥关系。
+最后我们来看在我们的内核中条件变量是如何实现的。首先还是将条件变量作为一种资源加入到进程控制块中：
 
 .. code-block:: rust
     :linenos:
-    :emphasize-lines: 11,19,26,33,36,39
+    :emphasize-lines: 7
 
-    static mut A: usize = 0;   //全局变量
+    // os/src/task/process.rs
 
-    const CONDVAR_ID: usize = 0;
-    const MUTEX_ID: usize = 0;
-
-    unsafe fn first() -> ! {
-        sleep(10);
-        println!("First work, Change A --> 1 and wakeup Second");
-        mutex_lock(MUTEX_ID);
-        A=1;
-        condvar_signal(CONDVAR_ID);
-        mutex_unlock(MUTEX_ID);
-        ...
-    }
-    unsafe fn second() -> ! {
-        println!("Second want to continue,but need to wait A=1");
-        mutex_lock(MUTEX_ID);
-        while A==0 {
-            condvar_wait(CONDVAR_ID, MUTEX_ID);
-        }
-        mutex_unlock(MUTEX_ID);
-        ...
-    }
-    pub fn main() -> i32 {
-        // create condvar & mutex
-        assert_eq!(condvar_create() as usize, CONDVAR_ID);
-        assert_eq!(mutex_blocking_create() as usize, MUTEX_ID);
-        // create first, second threads
-        ...
-    }
-
-    pub fn condvar_create() -> isize {
-        sys_condvar_create(0)
-    }
-    pub fn condvar_signal(condvar_id: usize) {
-        sys_condvar_signal(condvar_id);
-    }
-    pub fn condvar_wait(condvar_id: usize, mutex_id: usize) {
-        sys_condvar_wait(condvar_id, mutex_id);
-    }
-
-- 第26行，创建了一个ID为 CONDVAR_ID 的条件量，对应的是第33行 SYSCALL_CONDVAR_CREATE 系统调用；
-- 第19行，线程Second执行条件变量wait操作（对应的是第39行 SYSCALL_CONDVAR_WAIT 系统调用），该线程将释放mutex锁并阻塞；
-- 第5行，线程First执行条件变量signal操作（对应的是第36行 SYSCALL_CONDVAR_SIGNAL 系统调用），会唤醒等待该条件变量的线程Second。
-
-
-实现condvar系统调用
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-操作系统如何实现条件变量系统调用呢？我们还是采用通常的分析做法：数据结构+方法，即首先考虑一下与此相关的核心数据结构，然后考虑与数据结构相关的相关函数/方法的实现。
-
-在线程的眼里，条件变量 是一种每个线程能看到的共享资源，且在一个进程中，可以存在多个不同条件变量资源，所以我们可以把所有的条件变量资源放在一起让进程来管理，如下面代码第9行所示。这里需要注意的是： condvar_list: Vec<Option<Arc<Condvar>>> 表示的是条件变量资源的列表。而 Condvar 是条件变量的内核数据结构，由等待队列组成。操作系统需要显式地施加某种控制，来确定当一个线程执行wait操作和signal操作时，如何让线程睡眠或唤醒线程。在这里，wait操作是由Condvar的wait方法实现，而signal操作是由Condvar的signal方法实现。
-
-
-.. code-block:: rust
-    :linenos:
-    :emphasize-lines: 9,15,18,27,33
-
-    pub struct ProcessControlBlock {
-        // immutable
-        pub pid: PidHandle,
-        // mutable
-        inner: UPSafeCell<ProcessControlBlockInner>,
-    }
     pub struct ProcessControlBlockInner {
         ...
+        pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
+        pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
         pub condvar_list: Vec<Option<Arc<Condvar>>>,
     }
+
+条件变量 ``Condvar`` 在数据结构层面上比信号量还简单，只有一个阻塞队列 ``wait_queue`` （因此再次强调小心唤醒丢失问题）：
+
+.. code-block:: rust
+    :linenos:
+
+    // os/src/sync/condvar.rs
+
     pub struct Condvar {
         pub inner: UPSafeCell<CondvarInner>,
     }
+
     pub struct CondvarInner {
         pub wait_queue: VecDeque<Arc<TaskControlBlock>>,
     }
+
+条件变量相关的系统调用也是直接调用 ``Condvar`` 的同名方法实现的，因此这里我们主要看 ``Condvar`` 的方法：
+
+.. code-block:: rust
+    :linenos:
+    :emphasize-lines: 17,26
+
+    // os/src/sync/condvar.rs
+
     impl Condvar {
         pub fn new() -> Self {
             Self {
-                inner: unsafe { UPSafeCell::new(
-                    CondvarInner {
+                inner: unsafe {
+                    UPSafeCell::new(CondvarInner {
                         wait_queue: VecDeque::new(),
-                    }
-                )},
+                    })
+                },
             }
         }
+
         pub fn signal(&self) {
             let mut inner = self.inner.exclusive_access();
             if let Some(task) = inner.wait_queue.pop_front() {
-                add_task(task);
+                wakeup_task(task);
             }
         }
-        pub fn wait(&self, mutex:Arc<dyn Mutex>) {
+
+        pub fn wait(&self, mutex: Arc<dyn Mutex>) {
             mutex.unlock();
             let mut inner = self.inner.exclusive_access();
             inner.wait_queue.push_back(current_task().unwrap());
@@ -429,22 +522,19 @@
         }
     }
 
+- 第 4 行的 ``new`` 创建一个空的阻塞队列；
+- 第 14 行的 ``signal`` 从阻塞队列中移除一个线程并调用唤醒原语 ``wakeup_task`` 将其唤醒。注意如果此时阻塞队列为空则此操作不会有任何影响；
+- 第 21 行的 ``wait`` 接收一个当前线程持有的锁作为参数。首先将锁释放，然后将当前线程挂在条件变量阻塞队列中，之后调用阻塞原语 ``block_current_and_run_next`` 阻塞当前线程。在被唤醒之后还需要重新获取锁，这样 ``wait`` 才能返回。
 
-首先是核心数据结构：
+.. 我们通过例子来看看如何实际使用条件变量。下面是面向应用程序对条件变量系统调用的简单使用，可以看到对它的使用与上一节介绍的信号量系统调用类似。 在这个例子中，主线程先创建了初值为1的互斥锁和一个条件变量，然后再创建两个线程 First和Second。线程First会先睡眠10ms，而当线程Second执行时，会由于条件不满足执行条件变量的wait操作而等待睡眠；当线程First醒来后，通过设置A为1，让线程second等待的条件满足，然后会执行条件变量的signal操作， 从而能够唤醒线程Second。这样线程First和线程Second就形成了一种稳定的同步与互斥关系。
 
-- 第9行，进程控制块中管理的条件变量列表。
-- 第15行，条件变量的核心数据成员：等待队列。
+.. 操作系统如何实现条件变量系统调用呢？我们还是采用通常的分析做法：数据结构+方法，即首先考虑一下与此相关的核心数据结构，然后考虑与数据结构相关的相关函数/方法的实现。
 
-然后是重要的三个成员函数：
-
-- 第18行，创建条件变量，即创建了一个空的等待队列。
-- 第27行，实现signal操作，将从条件变量的等待队列中弹出一个线程放入线程就绪队列。
-- 第33行，实现wait操作，释放mutex互斥锁，将把当前线程放入条件变量的等待队列，设置当前线程为挂起状态并选择新线程执行。在恢复执行后，再加上mutex互斥锁。
-
+.. 在线程的眼里，条件变量 是一种每个线程能看到的共享资源，且在一个进程中，可以存在多个不同条件变量资源，所以我们可以把所有的条件变量资源放在一起让进程来管理，如下面代码第9行所示。这里需要注意的是： condvar_list: Vec<Option<Arc<Condvar>>> 表示的是条件变量资源的列表。而 Condvar 是条件变量的内核数据结构，由等待队列组成。操作系统需要显式地施加某种控制，来确定当一个线程执行wait操作和signal操作时，如何让线程睡眠或唤醒线程。在这里，wait操作是由Condvar的wait方法实现，而signal操作是由Condvar的signal方法实现。
 
 参考文献
 --------------------------------------------------------------
 
 - Hansen, Per Brinch (1993). "Monitors and concurrent Pascal: a personal history". HOPL-II: The second ACM SIGPLAN conference on History of programming languages. History of Programming Languages. New York, NY, USA: ACM. pp. 1–35. doi:10.1145/155360.155361. ISBN 0-89791-570-4.
 - `Monitor, Wikipedia <https://en.wikipedia.org/wiki/Monitor_(synchronization)>`_
-- `Concurrent Pascal, Wikipedia <https://en.wikipedia.org/wiki/Concurrent_Pascal>`
+- `Concurrent Pascal, Wikipedia <https://en.wikipedia.org/wiki/Concurrent_Pascal>`_
