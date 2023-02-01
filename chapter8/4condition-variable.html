@@ -522,7 +522,30 @@
 <li><p>Hansen 语义：优先级 <span class="math notranslate nohighlight">\(T_1&gt;T_2&gt;其他线程\)</span> 。即 <span class="math notranslate nohighlight">\(T_1\)</span> 发现条件满足之后，先继续执行，直到退出管程之前再使用 <code class="docutils literal notranslate"><span class="pre">signal</span></code> 唤醒并 <strong>将锁转交</strong> 给 <span class="math notranslate nohighlight">\(T_2\)</span> ，于是 <span class="math notranslate nohighlight">\(T_2\)</span> 可以继续执行。注意在 Hansen 语义下， <code class="docutils literal notranslate"><span class="pre">signal</span></code> 必须位于管程过程末尾。</p></li>
 <li><p>Mesa 语义：优先级 <span class="math notranslate nohighlight">\(T_1&gt;T_2=其他线程\)</span> 。即 <span class="math notranslate nohighlight">\(T_1\)</span> 发现条件满足之后，就可以使用 <code class="docutils literal notranslate"><span class="pre">signal</span></code> 唤醒 <span class="math notranslate nohighlight">\(T_2\)</span> ，但是并 <strong>不会将锁转交</strong> 给 <span class="math notranslate nohighlight">\(T_2\)</span> 。这意味着在 <span class="math notranslate nohighlight">\(T_1\)</span> 退出管程过程释放锁之后， <span class="math notranslate nohighlight">\(T_2\)</span> 还需要和其他线程竞争，直到抢到锁之后才能继续执行。</p></li>
 </ul>
-<p>一般开发者会采纳Brinch Hansen的建议，因为它在概念上更简单，并且更容易实现。这种沟通机制的具体实现就是  <strong>条件变量</strong> 和对应的操作：wait和signal。线程使用条件变量来等待一个条件变成真。条件变量其实是一个线程等待队列，当条件不满足时，线程通过执行条件变量的wait操作就可以把自己加入到等待队列中，睡眠等待（waiting）该条件。另外某个线程，当它改变条件为真后，就可以通过条件变量的signal操作来唤醒一个或者多个等待的线程（通过在该条件上发信号），让它们继续执行。</p>
+<p>这些优先级顺序如下图所示：</p>
+<img alt="../_images/condvar-priority.png" class="align-center" src="../_images/condvar-priority.png" />
+<p>可以看出， Hoare 和 Hansen 语义的区别在于 <span class="math notranslate nohighlight">\(T_1\)</span> 和 <span class="math notranslate nohighlight">\(T_2\)</span> 的优先级顺序不同。 Hoare 语义认为被唤醒的线程应当立即执行，而 Hensen 语义则认为应该优先继续执行当前线程。二者的相同之处在于它们都将锁直接转交给唤醒的线程，也就保证了 <span class="math notranslate nohighlight">\(T_2\)</span> 一定紧跟着 <span class="math notranslate nohighlight">\(T_1\)</span> 回到管程过程中，于是在 <span class="math notranslate nohighlight">\(T_2\)</span> <strong>被唤醒之后其等待的条件一定是成立的</strong> （因为 <span class="math notranslate nohighlight">\(T_1\)</span> 和 <span class="math notranslate nohighlight">\(T_2\)</span> 中间没有其他线程），因此 <strong>没有必要重复检查条件是否成立就可以向下执行</strong> 。相对的， Mesa 语义中 <span class="math notranslate nohighlight">\(T_1\)</span> 就不会将锁转交给 <span class="math notranslate nohighlight">\(T_2\)</span> ，而是将锁释放让 <span class="math notranslate nohighlight">\(T_2\)</span> 和其他同优先级的线程竞争。这样， <span class="math notranslate nohighlight">\(T_1\)</span> 和 <span class="math notranslate nohighlight">\(T_2\)</span> 之间可能存在其他线程，这些线程的执行会影响到共享资源，以至于 <span class="math notranslate nohighlight">\(T_2\)</span> 抢到锁继续执行的时候，它所等待的条件又已经不成立了。所以，在 Mesa 语义下， <strong>wait 操作返回之时不见得线程等待的条件一定成立，有必要重复检查确认之后再继续执行</strong> 。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>条件等待应该使用 if/else 还是 while?</strong></p>
+<p>在使用 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 操作进行条件等待的时候，通常有以下两种方式：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">// 第一种方法，基于 if/else</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">condition</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">wait</span><span class="p">();</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">...</span>
+<span class="p">}</span>
+
+<span class="c1">// 第二种方法，基于 while</span>
+<span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">condition</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">wait</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>如果基于 if/else 的话，其假定了 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 返回之后条件一定已经成立，于是不再做检查直接向下执行。而基于 while 循环的话，则是无法确定 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 返回之后条件是否成立，于是将 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 包裹在一个 while 循环中重复检查直到条件成立。</p>
+<p>根据上面的分析可以，如果条件变量是 Mesa 语义，则必须将 <code class="docutils literal notranslate"><span class="pre">wait</span></code> 操作放在 while 循环中；如果是 Hoare/Hansen 语义，则使用 if/else 或者 while 均可。在不能确定条件变量为何种语义的情况下，应使用 while 循环，这样保证不会出错。</p>
+</div>
+<p>一般情况下条件变量会使用 Hansen 语义，因为它在概念上更简单，并且更容易实现。其实除了条件变量之外，这几种语义也作用于其他基于阻塞-唤醒机制的同步原语。例如，前两节的互斥锁和信号量就是基于 Hansen 语义实现的，有兴趣的同学可以回顾一下。在操作系统中 Mesa 语义也比较常用。</p>
 <p>早期提出的管程是基于Concurrent Pascal来设计的，其他语言，如C和Rust等，并没有在语言上支持这种机制。我们还是可以用手动加入互斥锁的方式来代替编译器，就可以在C和Rust的基础上实现原始的管程机制了。在目前的C语言应用开发中，实际上也是这么做的。这样，我们就可以用互斥锁和条件变量来重现实现上述的同步互斥例子：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="linenos"> 2</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">first</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
