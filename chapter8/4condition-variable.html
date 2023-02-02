@@ -619,7 +619,7 @@
 </pre></div>
 </div>
 <p>第 31 和 32 行我们分别创建要用到的条件变量和互斥锁。在 <code class="docutils literal notranslate"><span class="pre">second</span></code> 中，首先有一层互斥锁保护，然后由于条件变量是 Mesa 语义的，所以我们需要使用 while 循环进行等待，不符合条件调用 <code class="docutils literal notranslate"><span class="pre">condvar_wait</span></code> 阻塞自身的时候还要给出当前持有的互斥锁的 ID ；在 <code class="docutils literal notranslate"><span class="pre">first</span></code> 中，最外层同样有互斥锁保护。在修改完成之后只需调用 <code class="docutils literal notranslate"><span class="pre">condvar_signal</span></code> 即可唤醒执行 <code class="docutils literal notranslate"><span class="pre">second</span></code> 的线程。</p>
-<p><strong>在使用条件变量的时候需要特别注意</strong> <a class="reference internal" href="3semaphore.html#term-lost-wakeup"><span class="std std-ref">唤醒丢失</span></a> <strong>问题</strong> 。也就是说和信号量不同，如果调用 <code class="docutils literal notranslate"><span class="pre">signal</span></code> 的时候没有任何线程在条件变量的阻塞队列中，那么这次 <code class="docutils literal notranslate"><span class="pre">signal</span></code> 不会有任何效果，这次唤醒也不会被记录下来。</p>
+<p><strong>在使用条件变量的时候需要特别注意</strong> <a class="reference internal" href="3semaphore.html#term-lost-wakeup"><span class="std std-ref">唤醒丢失</span></a> <strong>问题</strong> 。也就是说和信号量不同，如果调用 <code class="docutils literal notranslate"><span class="pre">signal</span></code> 的时候没有任何线程在条件变量的阻塞队列中，那么这次 <code class="docutils literal notranslate"><span class="pre">signal</span></code> 不会有任何效果，这次唤醒也不会被记录下来。对于这个例子来说，我们在 <code class="docutils literal notranslate"><span class="pre">first</span></code> 中还会修改 <code class="docutils literal notranslate"><span class="pre">A</span></code> ，因此如果 <code class="docutils literal notranslate"><span class="pre">first</span></code> 先执行，即使其中的 <code class="docutils literal notranslate"><span class="pre">signal</span></code> 没有任何效果，之后执行 <code class="docutils literal notranslate"><span class="pre">second</span></code> 的时候也会发现条件已经满足而不必进入阻塞。</p>
 </div>
 <div class="section" id="id8">
 <h3>同步屏障问题<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h3>
@@ -634,7 +634,7 @@
 <span class="p">}</span>
 </pre></div>
 </div>
-<p>可以将 <code class="docutils literal notranslate"><span class="pre">thread_fn</span></code> 分成打印字符 a、打印字符 b 和打印字符 c 这三个阶段。考虑这样一种同步需求：即在阶段间设置 <strong>同步屏障</strong> ，只有 <em>所有的</em> 线程都完成上一阶段之后，这些线程才能够进入下一阶段。也就是说，如果有线程更早完成了一个阶段，那么它需要等待其他较慢的线程也完成这一阶段才能进入下一阶段。最后的执行结果应该是所有的 a 被打印出来，然后是所有的 b ，最后是所有的 c 。同学们在向下阅读之前可以思考如何用我们学过的同步原语来实现这种同步需求呢？</p>
+<p>可以将 <code class="docutils literal notranslate"><span class="pre">thread_fn</span></code> 分成打印字符 a、打印字符 b 和打印字符 c 这三个阶段。考虑这样一种同步需求：即在阶段间设置 <strong>同步屏障</strong> ，只有 <em>所有的</em> 线程都完成上一阶段之后，这些线程才能够进入下一阶段。也就是说，如果有线程更早完成了一个阶段，那么它需要等待其他较慢的线程也完成这一阶段才能进入下一阶段。最后的执行结果应该是所有的 a 被打印出来，然后是所有的 b ，最后是所有的 c 。同学们在向下阅读之前可以思考如何用我们学过的同步原语来实现这种同步需求。</p>
 <p>这里给出基于互斥锁和条件变量的一种参考实现：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// user/src/bin/barrier_condvar.rs</span>
 <span class="linenos"> 2</span>
