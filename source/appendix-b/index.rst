@@ -10,7 +10,8 @@
 
 下载或编译GDB
 ^^^^^^^^^^^^^^^^^^^^^^^
-可以在 :doc:`chapter0/5setup-devel-env` 中下载编译好的二进制（版本为8.3.0，由于包括整个哦那工具链，解压后大小约为1G）,也可以编译最新版本（仅gdb，大小约为300M）
+
+可以在 :doc:`/chapter0/5setup-devel-env` 中下载编译好的二进制（版本为8.3.0，由于包括整个哦那工具链，解压后大小约为1G）,也可以编译最新版本（仅gdb，大小约为300M）
 
 .. code-block:: console
 
@@ -37,6 +38,7 @@
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: console
+
    # 启动gdb，传入二进制文件作为参数。
    # 记得修改路径
    ./bin/riscv64-unknown-elf-gdb  /Volumes/Code/rCore-Tutorial-v3/os/target/riscv64gc-unknown-none-elf/debug/os
@@ -75,6 +77,7 @@
 2. 在项目中新建一个 ``sh`` 文件，输入以下内容并给予可执行权限：
 
 .. code-block:: console
+
    #!/usr/bin/env bash
    killall qemu-system-riscv64 # 由于无法在debug结束时关闭虚拟机，我们在debug开始时关闭上一次开启的虚拟机。
    nohup bash -c "make run > run.log 2>&1" & # 后台启动qemu
