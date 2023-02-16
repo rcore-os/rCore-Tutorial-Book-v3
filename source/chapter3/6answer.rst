@@ -579,7 +579,7 @@ iv. 任务结束
 ``spp``\ 位做判断，如果为0则是用户态中断，否则是内核态中断。类似地，在中断返回时也要做一次判断。将
 ``__restore`` 改为：
 
-.. code:: asm
+.. code:: 
 
    __restore:
        # now sp->kernel stack(after allocated), sscratch->user stack
