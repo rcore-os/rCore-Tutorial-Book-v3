@@ -464,7 +464,63 @@
 <li><p><cite>**</cite> 扩展内核，实现新系统调用get_taskinfo，能显示当前task的id和task name；实现一个裸机应用程序B，能访问get_taskinfo系统调用。</p></li>
 <li><p><cite>**</cite> 扩展内核，能够统计多个应用的执行过程中系统调用编号和访问此系统调用的次数。</p></li>
 <li><p><cite>**</cite> 扩展内核，能够统计每个应用执行后的完成时间。</p></li>
-<li><p><cite>***</cite> 扩展内核，统计执行异常的程序的异常情况（主要是各种特权级涉及的异常），能够打印异常程序的出错的地址和指令等信息。</p></li>
+<li><p><cite>***</cite> 扩展内核，统计执行异常的程序的异常情况（主要是各种特权级涉及的异常），能够打印异常程序的出错的地址和指令等信息。</p>
+<p>在trap.c中添加相关异常情况的处理：</p>
+<div class="literal-block-wrapper docutils container" id="id10">
+<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">os/trap.c</span></code></span><a class="headerlink" href="#id10" title="永久链接至代码">#</a></div>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">usertrap</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="n">set_kerneltrap</span><span class="p">();</span>
+<span class="w">   </span><span class="k">struct</span><span class="w"> </span><span class="nc">trapframe</span><span class="w"> </span><span class="o">*</span><span class="n">trapframe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">curr_proc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="p">;</span>
+
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">r_sstatus</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">SSTATUS_SPP</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">            </span><span class="n">panic</span><span class="p">(</span><span class="s">&quot;usertrap: not from user mode&quot;</span><span class="p">);</span>
+
+<span class="w">   </span><span class="n">uint64</span><span class="w"> </span><span class="n">cause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r_scause</span><span class="p">();</span>
+<span class="w">   </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cause</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="mi">1ULL</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">63</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">cause</span><span class="w"> </span><span class="o">&amp;=</span><span class="w"> </span><span class="o">~</span><span class="p">(</span><span class="mi">1ULL</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">63</span><span class="p">);</span>
+<span class="w">            </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">cause</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">SupervisorTimer</span><span class="p">:</span>
+<span class="w">                  </span><span class="n">tracef</span><span class="p">(</span><span class="s">&quot;time interrupt!</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">                  </span><span class="n">set_next_timer</span><span class="p">();</span>
+<span class="w">                  </span><span class="n">yield</span><span class="p">();</span>
+<span class="w">                  </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                  </span><span class="n">unknown_trap</span><span class="p">();</span>
+<span class="w">                  </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">   </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">cause</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">UserEnvCall</span><span class="p">:</span>
+<span class="w">                  </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="w">                  </span><span class="n">syscall</span><span class="p">();</span>
+<span class="w">                  </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">StoreMisaligned</span><span class="p">:</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">StorePageFault</span><span class="p">:</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">InstructionMisaligned</span><span class="p">:</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">InstructionPageFault</span><span class="p">:</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">LoadMisaligned</span><span class="p">:</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">LoadPageFault</span><span class="p">:</span>
+<span class="w">                  </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d in application, bad addr = %p, bad instruction = %p, &quot;</span>
+<span class="w">                           </span><span class="s">&quot;core dumped.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
+<span class="w">                           </span><span class="n">cause</span><span class="p">,</span><span class="w"> </span><span class="n">r_stval</span><span class="p">(),</span><span class="w"> </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="p">);</span>
+<span class="w">                  </span><span class="n">exit</span><span class="p">(</span><span class="mi">-2</span><span class="p">);</span>
+<span class="w">                  </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">IllegalInstruction</span><span class="p">:</span>
+<span class="w">                  </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;IllegalInstruction in application, core dumped.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">                  </span><span class="n">exit</span><span class="p">(</span><span class="mi">-3</span><span class="p">);</span>
+<span class="w">                  </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                  </span><span class="n">unknown_trap</span><span class="p">();</span>
+<span class="w">                  </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="w">   </span><span class="n">usertrapret</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</li>
 </ol>
 <p>注：上述编程基于 rcore/ucore tutorial v3: Branch ch2</p>
 </div>
@@ -506,11 +562,48 @@
 </li>
 </ul>
 </li>
-<li><p><cite>**</cite> 如果操作系统以应用程序库的形式存在，应用程序可以通过哪些方式破坏操作系统？</p></li>
-<li><p><cite>**</cite> 编译器/操作系统/处理器如何合作，可采用哪些方法来保护操作系统不受应用程序的破坏？</p></li>
-<li><p><cite>**</cite> RISC-V处理器的S态特权指令有哪些，其大致含义是什么，有啥作用？</p></li>
-<li><p><cite>**</cite> RISC-V处理器在用户态执行特权指令后的硬件层面的处理过程是什么？</p></li>
-<li><p><cite>**</cite> 操作系统在完成用户态&lt;–&gt;内核态双向切换中的一般处理过程是什么？</p></li>
+<li><p><cite>**</cite> 如果操作系统以应用程序库的形式存在，应用程序可以通过哪些方式破坏操作系统？</p>
+<p>如果操作系统以应用程序库的形式存在，那么编译器在链接OS库时会把应用程序跟OS库链接成一个可执行文件，两者处于同一地址空间，这也是LibOS（Unikernel）架构，此时存在如下几个破坏操作系统的方式：</p>
+<ul class="simple">
+<li><p>缓冲区溢出：应用程序可以覆盖写其合法内存边界之外的部分，这可能会危及 OS；</p></li>
+<li><p>整数溢出：当对整数值的运算产生的值超出整数数据类型可以表示的范围时，就会发生整数溢出， 这可能会导致OS出现意外行为和安全漏洞。 例如，如果允许应用程序分配大量内存，攻击者可能会在内存分配例程中触发整数溢出，从而可能导致缓冲区溢出或其他安全漏洞；</p></li>
+<li><p>系统调用拦截：应用程序可能会拦截或重定向系统调用，从而可能损害OS的行为。例如，攻击者可能会拦截读取敏感文件的系统调用并将其重定向到他们选择的文件，从而可能危及 unikernel 的安全性。</p></li>
+<li><p>资源耗尽：应用程序可能会消耗内存或网络带宽等资源，可能导致拒绝服务或其他安全漏洞。</p></li>
+</ul>
+</li>
+<li><p><cite>**</cite> 编译器/操作系统/处理器如何合作，可采用哪些方法来保护操作系统不受应用程序的破坏？</p>
+<p>硬件操作系统运行在一个硬件保护的安全执行环境中，不受到应用程序的破坏；应用程序运行在另外一个无法破坏操作系统的受限执行环境中。
+现代CPU提供了很多硬件机制来保护操作系统免受恶意应用程序的破坏，包括如下几个：</p>
+<ul class="simple">
+<li><p>特权级模式：处理器能够设置不同安全等级的执行环境，即用户态执行环境和内核态特权级的执行环境。处理器在执行指令前会进行特权级安全检查，如果在用户态执行环境中执行内核态特权级指令，会产生异常阻止当前非法指令的执行。</p></li>
+<li><p>TEE（可信执行环境）：CPU的TEE能够构建一个可信的执行环境，用于抵御恶意软件或攻击，能够确保处理敏感数据的应用程序（例如移动银行和支付应用程序）的安全。</p></li>
+<li><p>ASLR（地址空间布局随机化）：ASLR 是CPU的一种随机化进程地址空间布局的安全功能，其能够随机生成进程地址空间，例如栈、共享库等关键部分的起始地址，使攻击者预测特定数据或代码的位置。</p></li>
+</ul>
+</li>
+<li><p><cite>**</cite> RISC-V处理器的S态特权指令有哪些，其大致含义是什么，有啥作用？</p>
+<p>RISC-V处理器的S态特权指令有两类：指令本身属于高特权级的指令，如 sret 指令（表示从 S 模式返回到 U 模式）。指令访问了S模式特权级下才能访问的寄存器或内存，如表示S模式系统状态的 控制状态寄存器 sstatus 等。如下所示：</p>
+<ul class="simple">
+<li><p>sret：从 S 模式返回 U 模式。如可以让位于S模式的驱动程序返回U模式。</p></li>
+<li><p>wfi：让CPU在空闲时进入等待状态，以降低CPU功耗。</p></li>
+<li><p>sfence.vma：刷新 TLB 缓存，在U模式下执行会尝试非法指令异常。</p></li>
+<li><p>访问 S 模式 CSR 的指令：通过访问spce/stvec/scause/sscartch/stval/sstatus/satp等CSR来改变系统状态。</p></li>
+</ul>
+</li>
+<li><p><cite>**</cite> RISC-V处理器在用户态执行特权指令后的硬件层面的处理过程是什么？</p>
+<p>CPU 执行完一条指令（如 ecall ）并准备从用户特权级 陷入（ Trap ）到 S 特权级的时候，硬件会自动完成如下这些事情：</p>
+<ul class="simple">
+<li><p>sstatus 的 SPP 字段会被修改为 CPU 当前的特权级（U/S）。</p></li>
+<li><p>sepc 会被修改为 Trap 处理完成后默认会执行的下一条指令的地址。</p></li>
+<li><p>scause/stval 分别会被修改成这次 Trap 的原因以及相关的附加信息。</p></li>
+<li><p>cpu 会跳转到 stvec 所设置的 Trap 处理入口地址，并将当前特权级设置为 S ，然后从Trap 处理入口地址处开始执行。</p></li>
+</ul>
+<p>CPU 完成 Trap 处理准备返回的时候，需要通过一条 S 特权级的特权指令 sret 来完成，这一条指令具体完成以下功能：
+* CPU 会将当前的特权级按照 sstatus 的 SPP 字段设置为 U 或者 S ；
+* CPU 会跳转到 sepc 寄存器指向的那条指令，然后继续执行。</p>
+</li>
+<li><p><cite>**</cite> 操作系统在完成用户态&lt;–&gt;内核态双向切换中的一般处理过程是什么？</p>
+<p>当 CPU 在用户态特权级（ RISC-V 的 U 模式）运行应用程序，执行到 Trap，切换到内核态特权级（ RISC-V的S 模式），批处理操作系统的对应代码响应 Trap，并执行系统调用服务，处理完毕后，从内核态返回到用户态应用程序继续执行后续指令。</p>
+</li>
 <li><p><cite>**</cite> 程序陷入内核的原因有中断、异常和陷入（系统调用），请问 riscv64 支持哪些中断 / 异常？如何判断进入内核是由于中断还是异常？描述陷入内核时的几个重要寄存器及其值。</p>
 <ul class="simple">
 <li><p>具体支持的异常和中断，参见 RISC-V 特权集规范 <em>The RISC-V Instruction Set Manual Volume II: Privileged Architecture</em> 。其它很多问题在这里也有答案。</p></li>
@@ -525,9 +618,21 @@
 </li>
 </ul>
 </li>
-<li><p><cite>*</cite> 在哪些情况下会出现特权级切换：用户态–&gt;内核态，以及内核态–&gt;用户态？</p></li>
+<li><p><cite>*</cite> 在哪些情况下会出现特权级切换：用户态–&gt;内核态，以及内核态–&gt;用户态？</p>
+<ul class="simple">
+<li><p>用户态–&gt;内核态：应用程序发起系统调用；应用程序执行出错，需要到批处理操作系统中杀死该应用并加载运行下一个应用；应用程序执行结束，需要到批处理操作系统中加载运行下一个应用。</p></li>
+<li><p>内核态–&gt;用户态：启动应用程序需要初始化应用程序的用户态上下文时；应用程序发起的系统调用执行完毕返回应用程序时。</p></li>
+</ul>
+</li>
 <li><p><cite>**</cite> Trap上下文的含义是啥？在本章的操作系统中，Trap上下文的具体内容是啥？如果不进行Trap上下文的保存于恢复，会出现什么情况？</p></li>
 </ol>
+<blockquote>
+<div><p>Trap上下文的主要有两部分含义：</p>
+<ul class="simple">
+<li><p>在触发 Trap 之前 CPU 运行在哪个特权级；</p></li>
+<li><p>CPU 需要切换到哪个特权级来处理该 Trap ，并在处理完成之后返回原特权级。在本章的实际操作系统中，Trap上下文的具体内容主要包括通用寄存器和栈两部分。如果不进行Trap的上下文保存与恢复，CPU就无法在处理完成之后，返回原特权级。</p></li>
+</ul>
+</div></blockquote>
 </div>
 </div>
 <div class="section" id="id5">
