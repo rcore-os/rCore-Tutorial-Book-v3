@@ -390,7 +390,82 @@
 <div class="toctree-wrapper compound">
 </div>
 <div class="section" id="id1">
-<h2>分析可执行文件<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h2>
+<h2>调试工具的使用<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h2>
+<div class="section" id="gdb">
+<h3>下载或编译GDB<a class="headerlink" href="#gdb" title="永久链接至标题">#</a></h3>
+<p>可以在 <a class="reference internal" href="../chapter0/5setup-devel-env.html"><span class="doc">实验环境配置</span></a> 中下载编译好的二进制（版本为8.3.0，由于包括整个哦那工具链，解压后大小约为1G）,也可以编译最新版本（仅gdb，大小约为300M）</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">wget https://github.com/riscv/riscv-binutils-gdb/archive/refs/heads/riscv-binutils-2.36.1.zip</span>
+<span class="go">unzip riscv-binutils-2.36.1.zip</span>
+<span class="go">mkdir build</span>
+<span class="go">cd build</span>
+<span class="go">../riscv-binutils-2.36.1/configure --target=riscv64-unknown-elf</span>
+<span class="go">make</span>
+</pre></div>
+</div>
+<p>如果是编译好的二进制，gdb在 <code class="docutils literal notranslate"><span class="pre">./bin/riscv64-unknown-elf-gdb</span></code> 中。如果是自己编译的最新版本，gdb在 <code class="docutils literal notranslate"><span class="pre">build/bin/gdb</span></code> 中。你可以移动到一个你喜欢的位置。</p>
+<p>首先修改 <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> ，下以 <code class="docutils literal notranslate"><span class="pre">ch1</span></code> 分支的为例：</p>
+<ol class="arabic simple">
+<li><p>第三行 <code class="docutils literal notranslate"><span class="pre">release</span></code> 改为 <code class="docutils literal notranslate"><span class="pre">debug</span></code></p></li>
+<li><p>第46行去掉 <code class="docutils literal notranslate"><span class="pre">--release</span></code></p></li>
+<li><p>第66行的qemu的选项中增加 <code class="docutils literal notranslate"><span class="pre">-s</span> <span class="pre">-S</span></code></p></li>
+</ol>
+<p>这时，运行 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 应该会停在系统开始前，等待 <code class="docutils literal notranslate"><span class="pre">gdb</span></code> 客户端连接。</p>
+</div>
+<div class="section" id="id2">
+<h3>在命令行中直接使用gdb<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h3>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>启动gdb，传入二进制文件作为参数。
+<span class="gp"># </span>记得修改路径
+<span class="go">./bin/riscv64-unknown-elf-gdb  /Volumes/Code/rCore-Tutorial-v3/os/target/riscv64gc-unknown-none-elf/debug/os</span>
+<span class="gp"># </span>导入源码路径
+<span class="gp gp-VirtualEnv">(gdb)</span> <span class="go">directory /Volumes/Code/rCore-Tutorial-v3/os/</span>
+<span class="go">Source directories searched: /Volumes/Code/rCore-Tutorial-v3/os:$cdir:$cwd</span>
+<span class="gp"># </span>连接到qemu中的gdb-server
+<span class="gp gp-VirtualEnv">(gdb)</span> <span class="go">target remote localhost:1234</span>
+<span class="go">Remote debugging using localhost:1234</span>
+<span class="go">0x0000000000001000 in ?? ()</span>
+<span class="gp"># </span>现在可以开始调试了，下面给出一些示例指令：
+<span class="gp gp-VirtualEnv">(gdb)</span> <span class="go">b rust_main</span>
+<span class="go">Breakpoint 1 at 0x802005aa: file /Volumes/Code/rCore-Tutorial-v3/os/src/main.rs, line 36.</span>
+<span class="gp gp-VirtualEnv">(gdb)</span> <span class="go">continue</span>
+<span class="go">Continuing.</span>
+
+<span class="go">Breakpoint 1, os::rust_main () at /Volumes/Code/rCore-Tutorial-v3/os/src/main.rs:36</span>
+<span class="go">36       clear_bss();</span>
+<span class="gp gp-VirtualEnv">(gdb)</span> <span class="go">l</span>
+<span class="go">31           fn sbss();</span>
+<span class="go">32           fn ebss();</span>
+<span class="go">33           fn boot_stack();</span>
+<span class="go">34           fn boot_stack_top();</span>
+<span class="go">35       }</span>
+<span class="go">36       clear_bss();</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="idegdb">
+<h3>在IDE中直接使用gdb<a class="headerlink" href="#idegdb" title="永久链接至标题">#</a></h3>
+<p>下面以[CLion](<a class="reference external" href="https://www.jetbrains.com/clion/">https://www.jetbrains.com/clion/</a>)中[Rust插件](<a class="reference external" href="https://plugins.jetbrains.com/plugin/8182-rust">https://plugins.jetbrains.com/plugin/8182-rust</a>)为例。其他IDE的配置大同小异。</p>
+<p>注意：上面提供的GDB二进制版本过低，需要使用自己编译的最新版本的GDB。</p>
+<ol class="arabic simple">
+<li><p>在 CLion 中打开项目（os文件夹），选择 <code class="docutils literal notranslate"><span class="pre">cargo</span> <span class="pre">project</span></code> 。</p></li>
+<li><p>在项目中新建一个 <code class="docutils literal notranslate"><span class="pre">sh</span></code> 文件，输入以下内容并给予可执行权限：</p></li>
+</ol>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">#</span>!/usr/bin/env<span class="w"> </span>bash
+<span class="go">killall qemu-system-riscv64 # 由于无法在debug结束时关闭虚拟机，我们在debug开始时关闭上一次开启的虚拟机。</span>
+<span class="go">nohup bash -c &quot;make run &gt; run.log 2&gt;&amp;1&quot; &amp; # 后台启动qemu</span>
+<span class="go">echo &quot;Done!&quot;</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p>在右上角点击 <code class="docutils literal notranslate"><span class="pre">Edit</span> <span class="pre">Configurations</span></code> ,新增一个 <code class="docutils literal notranslate"><span class="pre">GDB</span> <span class="pre">Remote</span> <span class="pre">Debug</span></code> ,并如图配置：</p></li>
+</ol>
+<img alt="../_images/clion_config.jpg" src="../_images/clion_config.jpg" />
+<p>第 1 个红框中选择你的自己编译的gdb路径
+第 3, 4 个红框中根据你的代码路径做适当修改
+第 5 个红框中，点击下面加号，选择`External Tools`，并选择上面新建的`sh`脚本。</p>
+</div>
+</div>
+<div class="section" id="id3">
+<h2>分析可执行文件<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
 <p>对于Rust编译器生成的执行程序，可通过各种有效工具进行分析。如果掌握了对这些工具的使用，那么在后续的开发工作中，对碰到的各种奇怪问题就进行灵活处理和解决了。
 我们以Rust编译生成的一个简单的“Hello, world”应用执行程序为分析对象，看看如何进行分析。</p>
 <p>让我们先来通过 <code class="docutils literal notranslate"><span class="pre">file</span></code> 工具看看最终生成的可执行文件的格式：</p>
@@ -634,8 +709,8 @@ Disassembly of section <span class="nl">.text</span><span class="p">:</span>
 </pre></div>
 </div>
 </div>
-<div class="section" id="id2">
-<h3>qemu<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h3>
+<div class="section" id="id4">
+<h3>qemu<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
 <p>注意其中高亮部分给出了传给 qemu 的参数。</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">-machine</span></code> 告诉 qemu 使用预设的硬件配置。在整个项目中我们将一直沿用该配置。</p></li>
@@ -684,8 +759,8 @@ Disassembly of section <span class="nl">.text</span><span class="p">:</span>
 </ul>
 <p>可以输入 Ctrl+] 退出 miniterm。</p>
 </div>
-<div class="section" id="id3">
-<h2>其他工具和文件格式说明的参考<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h2>
+<div class="section" id="id5">
+<h2>其他工具和文件格式说明的参考<a class="headerlink" href="#id5" title="永久链接至标题">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference external" href="https://blog.csdn.net/m0_47799526/article/details/108765403">链接脚本(Linker Scripts)语法和规则解析(翻译自官方手册)</a></p></li>
 <li><p><a class="reference external" href="https://www.w3cschool.cn/mexvtg/">Make 命令教程</a></p></li>
@@ -751,7 +826,13 @@ Disassembly of section <span class="nl">.text</span><span class="p">:</span>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">附录 B：常见工具的使用方法</a><ul>
-<li><a class="reference internal" href="#id1">分析可执行文件</a><ul>
+<li><a class="reference internal" href="#id1">调试工具的使用</a><ul>
+<li><a class="reference internal" href="#gdb">下载或编译GDB</a></li>
+<li><a class="reference internal" href="#id2">在命令行中直接使用gdb</a></li>
+<li><a class="reference internal" href="#idegdb">在IDE中直接使用gdb</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id3">分析可执行文件</a><ul>
 <li><a class="reference internal" href="#rust-readobj">rust-readobj</a></li>
 <li><a class="reference internal" href="#rust-objdump">rust-objdump</a></li>
 <li><a class="reference internal" href="#rust-objcopy">rust-objcopy</a></li>
@@ -759,11 +840,11 @@ Disassembly of section <span class="nl">.text</span><span class="p">:</span>
 </li>
 <li><a class="reference internal" href="#qemu">qemu 平台上可执行文件和二进制镜像的生成流程</a><ul>
 <li><a class="reference internal" href="#make-makefile">make &amp; Makefile</a></li>
-<li><a class="reference internal" href="#id2">qemu</a></li>
+<li><a class="reference internal" href="#id4">qemu</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#k210">k210 平台上可执行文件和二进制镜像的生成流程</a></li>
-<li><a class="reference internal" href="#id3">其他工具和文件格式说明的参考</a></li>
+<li><a class="reference internal" href="#id5">其他工具和文件格式说明的参考</a></li>
 </ul>
 </li>
 </ul>

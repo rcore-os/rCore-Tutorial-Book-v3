@@ -5,7 +5,91 @@
    :hidden:
    :maxdepth: 4
 
+调试工具的使用
+------------------------
 
+下载或编译GDB
+^^^^^^^^^^^^^^^^^^^^^^^
+
+可以在 :doc:`/chapter0/5setup-devel-env` 中下载编译好的二进制（版本为8.3.0，由于包括整个哦那工具链，解压后大小约为1G）,也可以编译最新版本（仅gdb，大小约为300M）
+
+.. code-block:: console
+
+   wget https://github.com/riscv/riscv-binutils-gdb/archive/refs/heads/riscv-binutils-2.36.1.zip
+   unzip riscv-binutils-2.36.1.zip
+   mkdir build
+   cd build
+   ../riscv-binutils-2.36.1/configure --target=riscv64-unknown-elf
+   make
+
+如果是编译好的二进制，gdb在 ``./bin/riscv64-unknown-elf-gdb`` 中。如果是自己编译的最新版本，gdb在 ``build/bin/gdb`` 中。你可以移动到一个你喜欢的位置。
+
+首先修改 ``Makefile`` ，下以 ``ch1`` 分支的为例：
+
+1. 第三行 ``release`` 改为 ``debug`` 
+
+2. 第46行去掉 ``--release`` 
+
+3. 第66行的qemu的选项中增加 ``-s -S`` 
+
+这时，运行 ``make run`` 应该会停在系统开始前，等待 ``gdb`` 客户端连接。
+
+在命令行中直接使用gdb
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: console
+
+   # 启动gdb，传入二进制文件作为参数。
+   # 记得修改路径
+   ./bin/riscv64-unknown-elf-gdb  /Volumes/Code/rCore-Tutorial-v3/os/target/riscv64gc-unknown-none-elf/debug/os
+   # 导入源码路径
+   (gdb) directory /Volumes/Code/rCore-Tutorial-v3/os/
+   Source directories searched: /Volumes/Code/rCore-Tutorial-v3/os:$cdir:$cwd
+   # 连接到qemu中的gdb-server
+   (gdb) target remote localhost:1234
+   Remote debugging using localhost:1234
+   0x0000000000001000 in ?? ()
+   # 现在可以开始调试了，下面给出一些示例指令：
+   (gdb) b rust_main
+   Breakpoint 1 at 0x802005aa: file /Volumes/Code/rCore-Tutorial-v3/os/src/main.rs, line 36.
+   (gdb) continue
+   Continuing.
+
+   Breakpoint 1, os::rust_main () at /Volumes/Code/rCore-Tutorial-v3/os/src/main.rs:36
+   36	    clear_bss();
+   (gdb) l
+   31	        fn sbss();
+   32	        fn ebss();
+   33	        fn boot_stack();
+   34	        fn boot_stack_top();
+   35	    }
+   36	    clear_bss();
+
+在IDE中直接使用gdb
+^^^^^^^^^^^^^^^^^^^^^^^
+
+下面以[CLion](https://www.jetbrains.com/clion/)中[Rust插件](https://plugins.jetbrains.com/plugin/8182-rust)为例。其他IDE的配置大同小异。
+
+注意：上面提供的GDB二进制版本过低，需要使用自己编译的最新版本的GDB。
+
+1. 在 CLion 中打开项目（os文件夹），选择 ``cargo project`` 。
+
+2. 在项目中新建一个 ``sh`` 文件，输入以下内容并给予可执行权限：
+
+.. code-block:: console
+
+   #!/usr/bin/env bash
+   killall qemu-system-riscv64 # 由于无法在debug结束时关闭虚拟机，我们在debug开始时关闭上一次开启的虚拟机。
+   nohup bash -c "make run > run.log 2>&1" & # 后台启动qemu
+   echo "Done!"
+
+3. 在右上角点击 ``Edit Configurations`` ,新增一个 ``GDB Remote Debug`` ,并如图配置：
+
+.. image:: clion_config.jpg
+
+第 1 个红框中选择你的自己编译的gdb路径
+第 3, 4 个红框中根据你的代码路径做适当修改
+第 5 个红框中，点击下面加号，选择`External Tools`，并选择上面新建的`sh`脚本。
 
 分析可执行文件
 ------------------------
