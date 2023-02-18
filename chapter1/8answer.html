@@ -499,11 +499,23 @@
 <div class="section" id="id4">
 <h3>问答题<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
 <ol class="arabic">
-<li><p><cite>*</cite> 应用程序在执行过程中，会占用哪些计算机资源？</p></li>
-<li><p><cite>*</cite> 请用相关工具软件分析并给出应用程序A的代码段/数据段/堆/栈的地址空间范围。</p></li>
-<li><p><cite>*</cite> 请用分析并给出应用程序C的代码段/数据段/堆/栈的地址空间范围。</p></li>
-<li><p><cite>*</cite> 请结合编译器的知识和编写的应用程序B，说明应用程序B是如何建立调用栈链信息的。</p></li>
-<li><p><cite>*</cite> 请简要说明应用程序与操作系统的异同之处。</p></li>
+<li><p><cite>*</cite> 应用程序在执行过程中，会占用哪些计算机资源？</p>
+<blockquote>
+<div><p>占用 CPU 计算资源（CPU 流水线，缓存等），内存（内存不够还会占用外存）等</p>
+</div></blockquote>
+</li>
+<li><p><cite>*</cite> 请用相关工具软件分析并给出应用程序A的代码段/数据段/堆/栈的地址空间范围。</p>
+<blockquote>
+<div><p>简便起见，我们静态编译该程序生成可执行文件。使用 <code class="docutils literal notranslate"><span class="pre">readelf</span></code> 工具查看地址空间：</p>
+<p>数据段（.data）和代码段（.text）的起止地址可以从输出信息中看出。</p>
+<p>应用程序的堆栈是由内核为其动态分配的，需要在运行时查看。将 A 程序置于后台执行，通过查看 <code class="docutils literal notranslate"><span class="pre">/proc/[pid]/maps</span></code> 得到堆栈空间的分布：</p>
+</div></blockquote>
+</li>
+<li><p><cite>*</cite> 请简要说明应用程序与操作系统的异同之处。</p>
+<blockquote>
+<div><p>这个问题相信大家完成了实验的学习后一定会有更深的理解。</p>
+</div></blockquote>
+</li>
 <li><p><cite>**</cite> 请基于QEMU模拟RISC—V的执行过程和QEMU源代码，说明RISC-V硬件加电后的几条指令在哪里？完成了哪些功能？</p>
 <p>在 QEMU 源码 <a class="footnote-reference brackets" href="#qemu-bootrom" id="id5">1</a> 中可以找到“上电”的时候刚执行的几条指令，如下：</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">reset_vec</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
@@ -533,10 +545,22 @@
 <li><p>跳转到 <code class="docutils literal notranslate"><span class="pre">start_addr</span></code> ，在我们实验中是 RustSBI 的地址</p></li>
 </ul>
 </li>
-<li><p><cite>*</cite> RISC-V中的SBI的含义和功能是啥？</p></li>
-<li><p><cite>**</cite> 为了让应用程序能在计算机上执行，操作系统与编译器之间需要达成哪些协议？</p></li>
-<li><p><cite>**</cite> 请简要说明从QEMU模拟的RISC-V计算机加电开始运行到执行应用程序的第一条指令这个阶段的执行过程。</p></li>
-<li><p><cite>**</cite> 为何应用程序员编写应用时不需要建立栈空间和指定地址空间？</p></li>
+<li><p><cite>*</cite> RISC-V中的SBI的含义和功能是啥？</p>
+<blockquote>
+<div><p>详情见 <a class="reference external" href="https://github.com/riscv-non-isa/riscv-sbi-doc/blob/master/riscv-sbi.adoc">SBI 官方文档</a></p>
+</div></blockquote>
+</li>
+<li><p><cite>**</cite> 为了让应用程序能在计算机上执行，操作系统与编译器之间需要达成哪些协议？</p>
+<blockquote>
+<div><p>编译器依赖操作系统提供的程序库，操作系统执行应用程序需要编译器提供段位置、符号表、依赖库等信息。 <a class="reference external" href="https://en.wikipedia.org/wiki/Executable_and_Linkable_Format">ELF</a> 就是比较常见的一种文件格式。</p>
+</div></blockquote>
+</li>
+<li><p><cite>**</cite> 请简要说明从QEMU模拟的RISC-V计算机加电开始运行到执行应用程序的第一条指令这个阶段的执行过程。</p>
+<p>接第 5 题，跳转到 RustSBI 后，SBI 会对部分硬件例如串口等进行初始化，然后通过 mret 跳转到 payload 也就是 kernel 所在的起始地址。kernel 进行一系列的初始化后（内存管理，虚存管理，线程（进程）初始化等），通过 sret 跳转到应用程序的第一条指令开始执行。</p>
+</li>
+<li><p><cite>**</cite> 为何应用程序员编写应用时不需要建立栈空间和指定地址空间？</p>
+<p>应用程度对内存的访问需要通过 MMU 的地址翻译完成，应用程序运行时看到的地址和实际位于内存中的地址是不同的，栈空间和地址空间需要内核进行管理和分配。应用程序的栈指针在 trap return 过程中初始化。此外，应用程序可能需要动态加载某些库的内容，也需要内核完成映射。</p>
+</li>
 <li><p><cite>***</cite> 现代的很多编译器生成的代码，默认情况下不再严格保存/恢复栈帧指针。在这个情况下，我们只要编译器提供足够的信息，也可以完成对调用栈的恢复。（题目剩余部分省略）</p>
 <ul class="simple">
 <li><p>首先，我们当前的 <code class="docutils literal notranslate"><span class="pre">pc</span></code> 在 <code class="docutils literal notranslate"><span class="pre">flip</span></code> 函数的开头，这是我们正在运行的函数。返回给调用者处的地址在 <code class="docutils literal notranslate"><span class="pre">ra</span></code> 寄存器里，是 <code class="docutils literal notranslate"><span class="pre">0x10742</span></code> 。因为我们还没有开始操作栈指针，所以调用处的 <code class="docutils literal notranslate"><span class="pre">sp</span></code> 与我们相同，都是 <code class="docutils literal notranslate"><span class="pre">0x40007f1310</span></code> 。</p></li>
