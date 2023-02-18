@@ -392,7 +392,859 @@
 <div class="section" id="id2">
 <h2>课后练习<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
 <div class="section" id="id3">
-<h3>问答题<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h3>
+<h3>编程题<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h3>
+<ol class="arabic simple">
+<li><p><cite>*</cite> 扩展easy-fs文件系统功能，扩大单个文件的大小，支持三级间接inode。</p></li>
+</ol>
+<p>在修改之前，先看看原始inode的结构：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// The max number of direct inodes</span>
+<span class="k">const</span><span class="w"> </span><span class="n">INODE_DIRECT_COUNT</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">28</span><span class="p">;</span>
+
+<span class="cp">#[repr(C)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">DiskInode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">size</span>: <span class="kt">u32</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">direct</span>: <span class="p">[</span><span class="kt">u32</span><span class="p">;</span><span class="w"> </span><span class="n">INODE_DIRECT_COUNT</span><span class="p">],</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">indirect1</span>: <span class="kt">u32</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">indirect2</span>: <span class="kt">u32</span><span class="p">,</span>
+<span class="w">    </span><span class="n">type_</span>: <span class="nc">DiskInodeType</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="cp">#[derive(PartialEq)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span> <span class="nc">DiskInodeType</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">File</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Directory</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>一个 <code class="docutils literal notranslate"><span class="pre">DiskInode</span></code> 在磁盘上占据128字节的空间。我们考虑加入 <code class="docutils literal notranslate"><span class="pre">indirect3</span></code> 字段并缩减 <code class="docutils literal notranslate"><span class="pre">INODE_DIRECT_COUNT</span></code> 为27以保持 <code class="docutils literal notranslate"><span class="pre">DiskInode</span></code> 的大小不变。此时直接索引可索引13.5KiB的内容，一级间接索引和二级间接索引仍然能索引64KiB和8MiB的内容，而三级间接索引能索引128 * 8MiB = 1GiB的内容。当文件大小大于13.5KiB + 64KiB + 8MiB时，需要用到三级间接索引。</p>
+<p>下面的改动都集中在 <code class="docutils literal notranslate"><span class="pre">easy-fs/src/layout.rs</span></code> 中。首先修改 <code class="docutils literal notranslate"><span class="pre">DiskInode</span></code> 和相关的常量定义。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">DiskInode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">size</span>: <span class="kt">u32</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">direct</span>: <span class="p">[</span><span class="kt">u32</span><span class="p">;</span><span class="w"> </span><span class="n">INODE_DIRECT_COUNT</span><span class="p">],</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">indirect1</span>: <span class="kt">u32</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">indirect2</span>: <span class="kt">u32</span><span class="p">,</span>
+<span class="hll"><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">indirect3</span>: <span class="kt">u32</span><span class="p">,</span>
+</span><span class="w">    </span><span class="n">type_</span>: <span class="nc">DiskInodeType</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>在计算给定文件大小对应的块总数时，需要新增对三级间接索引的处理。三级间接索引的存在使得二级间接索引所需的块数不再计入所有的剩余数据块。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">total_blocks</span><span class="p">(</span><span class="n">size</span>: <span class="kt">u32</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">u32</span> <span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">data_blocks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">Self</span>::<span class="n">_data_blocks</span><span class="p">(</span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data_blocks</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// indirect1</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">data_blocks</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">INODE_DIRECT_COUNT</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// indirect2</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">data_blocks</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">INDIRECT1_BOUND</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">        </span><span class="c1">// sub indirect1</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">level2_extra</span><span class="w"> </span><span class="o">=</span>
+<span class="w">            </span><span class="p">(</span><span class="n">data_blocks</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">INDIRECT1_BOUND</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">INODE_INDIRECT1_COUNT</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">INODE_INDIRECT1_COUNT</span><span class="p">;</span>
+<span class="hll"><span class="w">        </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">level2_extra</span><span class="p">.</span><span class="n">min</span><span class="p">(</span><span class="n">INODE_INDIRECT1_COUNT</span><span class="p">);</span>
+</span><span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// indirect3</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">data_blocks</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">INDIRECT2_BOUND</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">remaining</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data_blocks</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">INDIRECT2_BOUND</span><span class="p">;</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">level2_extra</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">remaining</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">INODE_INDIRECT2_COUNT</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">INODE_INDIRECT2_COUNT</span><span class="p">;</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">level3_extra</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">remaining</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">INODE_INDIRECT1_COUNT</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">INODE_INDIRECT1_COUNT</span><span class="p">;</span>
+<span class="w">        </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">level2_extra</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">level3_extra</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">total</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">DiskInode</span></code> 的 <code class="docutils literal notranslate"><span class="pre">get_block_id</span></code> 方法中遇到三级间接索引要额外读取三次块缓存。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">get_block_id</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">inner_id</span>: <span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">block_device</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">BlockDevice</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">u32</span> <span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">inner_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner_id</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">inner_id</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">INODE_DIRECT_COUNT</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">inner_id</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">INDIRECT1_BOUND</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">inner_id</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">INDIRECT2_BOUND</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 对三级间接索引的处理</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">last</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inner_id</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">INDIRECT2_BOUND</span><span class="p">;</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">indirect1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_block_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">indirect3</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">block_device</span><span class="p">))</span>
+<span class="w">            </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span>
+<span class="w">            </span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">|</span><span class="n">indirect3</span>: <span class="kp">&amp;</span><span class="nc">IndirectBlock</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">indirect3</span><span class="p">[</span><span class="n">last</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">INODE_INDIRECT2_COUNT</span><span class="p">]</span>
+<span class="w">            </span><span class="p">});</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">indirect2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_block_cache</span><span class="p">(</span><span class="n">indirect1</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">block_device</span><span class="p">))</span>
+<span class="w">            </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span>
+<span class="w">            </span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">|</span><span class="n">indirect2</span>: <span class="kp">&amp;</span><span class="nc">IndirectBlock</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">indirect2</span><span class="p">[(</span><span class="n">last</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">INODE_INDIRECT2_COUNT</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">INODE_INDIRECT1_COUNT</span><span class="p">]</span>
+<span class="w">            </span><span class="p">});</span>
+<span class="w">        </span><span class="n">get_block_cache</span><span class="p">(</span><span class="n">indirect2</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">block_device</span><span class="p">))</span>
+<span class="w">            </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span>
+<span class="w">            </span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">|</span><span class="n">indirect1</span>: <span class="kp">&amp;</span><span class="nc">IndirectBlock</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">indirect1</span><span class="p">[(</span><span class="n">last</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">INODE_INDIRECT2_COUNT</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">INODE_INDIRECT1_COUNT</span><span class="p">]</span>
+<span class="w">            </span><span class="p">})</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>方法 <code class="docutils literal notranslate"><span class="pre">increase_size</span></code> 的实现本身比较繁琐，如果按照原有的一级和二级间接索引的方式实现对三级间接索引的处理，代码会比较丑陋。实际上多重间接索引是树结构，变量 <code class="docutils literal notranslate"><span class="pre">current_blocks</span></code> 和 <code class="docutils literal notranslate"><span class="pre">total_blocks</span></code> 对应着当前树的叶子数量和目标叶子数量，我们可以用递归函数来实现树的生长。先实现以下的辅助方法：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// Helper to build tree recursively</span>
+<span class="sd">/// extend number of leaves from `src_leaf` to `dst_leaf`</span>
+<span class="k">fn</span> <span class="nf">build_tree</span><span class="p">(</span>
+<span class="w">    </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span>
+<span class="w">    </span><span class="n">blocks</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">vec</span>::<span class="n">IntoIter</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">block_id</span>: <span class="kt">u32</span><span class="p">,</span>
+<span class="w">    </span><span class="k">mut</span><span class="w"> </span><span class="n">cur_leaf</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">src_leaf</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">dst_leaf</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">cur_depth</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">dst_depth</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">block_device</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">BlockDevice</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">cur_depth</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">dst_depth</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">cur_leaf</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">get_block_cache</span><span class="p">(</span><span class="n">block_id</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">block_device</span><span class="p">))</span>
+<span class="w">        </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span>
+<span class="w">        </span><span class="p">.</span><span class="n">modify</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">|</span><span class="n">indirect_block</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">IndirectBlock</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">INODE_INDIRECT1_COUNT</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">cur_leaf</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">dst_leaf</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="n">cur_leaf</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">src_leaf</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">indirect_block</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">blocks</span><span class="p">.</span><span class="n">next</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="n">cur_leaf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">build_tree</span><span class="p">(</span>
+<span class="w">                    </span><span class="n">blocks</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">indirect_block</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+<span class="w">                    </span><span class="n">cur_leaf</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">src_leaf</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">dst_leaf</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">cur_depth</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">dst_depth</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">block_device</span><span class="p">,</span>
+<span class="w">                </span><span class="p">);</span>
+<span class="w">                </span><span class="n">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">    </span><span class="n">cur_leaf</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>然后修改方法 <code class="docutils literal notranslate"><span class="pre">increase_size</span></code>。不要忘记在填充二级间接索引时维护 <code class="docutils literal notranslate"><span class="pre">current_blocks</span></code> 的变化，并限制目标索引 <code class="docutils literal notranslate"><span class="pre">(a1,</span> <span class="pre">b1)</span></code> 的范围。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// Increase the size of current disk inode</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">increase_size</span><span class="p">(</span>
+<span class="w">    </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span>
+<span class="w">    </span><span class="n">new_size</span>: <span class="kt">u32</span><span class="p">,</span>
+<span class="w">    </span><span class="n">new_blocks</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">block_device</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">BlockDevice</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="c1">// alloc indirect2</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="c1">// fill indirect2 from (a0, b0) -&gt; (a1, b1)</span>
+<span class="w">    </span><span class="c1">// 不要忘记限制 (a1, b1) 的范围</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="c1">// alloc indirect3</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">total_blocks</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">INODE_INDIRECT2_COUNT</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">current_blocks</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">INODE_INDIRECT2_COUNT</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">indirect3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_blocks</span><span class="p">.</span><span class="n">next</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">current_blocks</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">INODE_INDIRECT2_COUNT</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">;</span>
+<span class="w">        </span><span class="n">total_blocks</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">INODE_INDIRECT2_COUNT</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// fill indirect3</span>
+<span class="w">    </span><span class="bp">self</span><span class="p">.</span><span class="n">build_tree</span><span class="p">(</span>
+<span class="w">        </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">new_blocks</span><span class="p">,</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">indirect3</span><span class="p">,</span>
+<span class="w">        </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">        </span><span class="n">current_blocks</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span>
+<span class="w">        </span><span class="n">total_blocks</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span>
+<span class="w">        </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">        </span><span class="mi">3</span><span class="p">,</span>
+<span class="w">        </span><span class="n">block_device</span><span class="p">,</span>
+<span class="w">    </span><span class="p">);</span>
+</pre></div>
+</div>
+<p>对方法 <code class="docutils literal notranslate"><span class="pre">clear_size</span></code> 的修改与 <code class="docutils literal notranslate"><span class="pre">increase_size</span></code> 类似。先实现辅助方法 <code class="docutils literal notranslate"><span class="pre">collect_tree_blocks</span></code>：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// Helper to recycle blocks recursively</span>
+<span class="k">fn</span> <span class="nf">collect_tree_blocks</span><span class="p">(</span>
+<span class="w">    </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span>
+<span class="w">    </span><span class="n">collected</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">block_id</span>: <span class="kt">u32</span><span class="p">,</span>
+<span class="w">    </span><span class="k">mut</span><span class="w"> </span><span class="n">cur_leaf</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">max_leaf</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">cur_depth</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">dst_depth</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="n">block_device</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">BlockDevice</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">cur_depth</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">dst_depth</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">cur_leaf</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">get_block_cache</span><span class="p">(</span><span class="n">block_id</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="n">block_device</span><span class="p">))</span>
+<span class="w">        </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span>
+<span class="w">        </span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">|</span><span class="n">indirect_block</span>: <span class="kp">&amp;</span><span class="nc">IndirectBlock</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">INODE_INDIRECT1_COUNT</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">cur_leaf</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">max_leaf</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">collected</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">indirect_block</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">                </span><span class="n">cur_leaf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">collect_tree_blocks</span><span class="p">(</span>
+<span class="w">                    </span><span class="n">collected</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">indirect_block</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+<span class="w">                    </span><span class="n">cur_leaf</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">max_leaf</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">cur_depth</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">dst_depth</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">block_device</span><span class="p">,</span>
+<span class="w">                </span><span class="p">);</span>
+<span class="w">                </span><span class="n">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">    </span><span class="n">cur_leaf</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>然后修改方法 <code class="docutils literal notranslate"><span class="pre">clear_size</span></code>。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// Clear size to zero and return blocks that should be deallocated.</span>
+<span class="sd">/// We will clear the block contents to zero later.</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">clear_size</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">block_device</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">BlockDevice</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="c1">// indirect2 block</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="c1">// indirect2</span>
+<span class="w">    </span><span class="c1">// 不要忘记限制 (a1, b1) 的范围</span>
+<span class="w">    </span><span class="bp">self</span><span class="p">.</span><span class="n">indirect2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// indirect3 block</span>
+<span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">data_blocks</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">INODE_INDIRECT3_COUNT</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">data_blocks</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">INODE_INDIRECT2_COUNT</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">indirect3</span><span class="p">);</span>
+<span class="w">        </span><span class="n">data_blocks</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">INODE_INDIRECT2_COUNT</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">v</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// indirect3</span>
+<span class="w">    </span><span class="bp">self</span><span class="p">.</span><span class="n">collect_tree_blocks</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">indirect3</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">data_blocks</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">block_device</span><span class="p">);</span>
+<span class="w">    </span><span class="bp">self</span><span class="p">.</span><span class="n">indirect3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">v</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>接下来你可以在 <code class="docutils literal notranslate"><span class="pre">easy-fs-fuse/src/main.rs</span></code> 中测试easy-fs文件系统的修改，比如读写大小超过10MiB的文件。</p>
+<ol class="arabic simple" start="2">
+<li><p><cite>*</cite> 扩展内核功能，支持stat系统调用，能显示文件的inode元数据信息。</p></li>
+</ol>
+<p>你将在本章的编程实验中实现这个功能。</p>
+<ol class="arabic simple" start="3">
+<li><p><cite>**</cite> 扩展内核功能，支持mmap系统调用，支持对文件的映射，实现基于内存读写方式的文件读写功能。</p></li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p>这里只是给出了一种参考实现。mmap本身行为比较复杂，使用你认为合理的方式实现即可。</p>
+</div>
+<p>在第四章的编程实验中你应该已经实现了mmap的匿名映射功能，这里我们要实现文件映射。
+<a class="reference external" href="https://man7.org/linux/man-pages/man2/mmap.2.html">mmap</a> 的原型如下：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="nf">mmap</span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">length</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">prot</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">flags</span><span class="p">,</span>
+<span class="w">                </span><span class="kt">int</span><span class="w"> </span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="kt">off_t</span><span class="w"> </span><span class="n">offset</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>其中 <code class="docutils literal notranslate"><span class="pre">addr</span></code> 是一个虚拟地址的hint，在映射文件时我们不关心具体的虚拟地址（相当于传入 <code class="docutils literal notranslate"><span class="pre">NULL</span></code> ），这里我们的系统调用忽略这个参数。 <code class="docutils literal notranslate"><span class="pre">prot</span></code> 和 <code class="docutils literal notranslate"><span class="pre">flags</span></code> 指定了一些属性，为简单起见我们也不要这两个参数，映射的虚拟内存的属性直接继承自文件的读写属性。我们最终保留 <code class="docutils literal notranslate"><span class="pre">length</span></code> 、 <code class="docutils literal notranslate"><span class="pre">fd</span></code> 和 <code class="docutils literal notranslate"><span class="pre">offset</span></code> 三个参数。</p>
+<p>考虑最简单的一种实现方式：mmap调用时随便选择一段虚拟地址空间，将它映射到一些随机的物理页面上，之后再把文件的对应部分全部读到内存里。如果这段映射是可写的，那么内核还要在合适的时机（比如调用msync、munmap、进程退出时）把内存里的东西回写到文件。</p>
+<p>这样做的问题是被映射的文件可能很大，将映射的区域全部读入内存可能很慢，而且用户未必会访问所有的页面。这里可以应用按需分页的惰性加载策略：先不实际建立虚拟内存到物理内存的映射，当用户访问映射的区域时会触发缺页异常，我们在处理异常时分配实际的物理页面并将文件读入内存。</p>
+<p>按照上述方式已经可以实现文件映射了，但让我们来考虑较为微妙的情况。比如以下的Linux C程序：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fcntl.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;sys/mman.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">str</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="s">&quot;asdbasdq3423423</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">};</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="s">&quot;2.txt&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">O_RDWR</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">O_CREAT</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">O_TRUNC</span><span class="p">,</span><span class="w"> </span><span class="mo">0664</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fd</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;open failed</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">str</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">str</span><span class="p">))</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;write failed</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">p1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mmap</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">str</span><span class="p">),</span><span class="w"> </span><span class="n">PROT_READ</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PROT_WRITE</span><span class="p">,</span><span class="w"> </span><span class="n">MAP_SHARED</span><span class="p">,</span><span class="w"> </span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">p2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mmap</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">str</span><span class="p">),</span><span class="w"> </span><span class="n">PROT_READ</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PROT_WRITE</span><span class="p">,</span><span class="w"> </span><span class="n">MAP_SHARED</span><span class="p">,</span><span class="w"> </span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;p1 = %p, p2 = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">p1</span><span class="p">,</span><span class="w"> </span><span class="n">p2</span><span class="p">);</span>
+<span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;1&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">p2</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;2&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">p2</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;2&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">p1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;1&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;content1: %s&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">p1</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;content2: %s&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">p2</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>一个可能的输出结果如下：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">p1</span> <span class="o">=</span> <span class="mh">0x7f955a3cf000</span><span class="p">,</span> <span class="n">p2</span> <span class="o">=</span> <span class="mh">0x7f955a3a2000</span>
+<span class="n">content1</span><span class="p">:</span> <span class="mi">112</span><span class="n">basdq3423423</span>
+<span class="n">content2</span><span class="p">:</span> <span class="mi">112</span><span class="n">basdq3423423</span>
+</pre></div>
+</div>
+<p>可以看到文件的同一段区域被映射到了两个不同的虚拟地址，对这两段虚拟内存的修改全部生效（冲突的修改也是最后的可见），修改后再读出来的内容也相同。这样的结果是符合直觉的，因为底层的文件只有一个（也与 <code class="docutils literal notranslate"><span class="pre">MAP_SHARED</span></code> 有关，由于设置 <code class="docutils literal notranslate"><span class="pre">MAP_PRIVATE</span></code> 标志不会将修改真正写入文件，我们参考 <code class="docutils literal notranslate"><span class="pre">MAP_SHARED</span></code> 的行为）。如果按照上面说的方式将两个虚拟内存区域映射到不同的物理页面，那么对两个区域的修改无法同时生效，我们也无法确定应该将哪个页面回写到文件。这个例子启示我们， <strong>如果文件映射包含文件的相同部分，那么相应的虚拟页面应该映射到相同的物理页</strong> 。</p>
+<p>不幸的是，现有的 <code class="docutils literal notranslate"><span class="pre">MapArea</span></code> 类型只含 <code class="docutils literal notranslate"><span class="pre">Identical</span></code> 和 <code class="docutils literal notranslate"><span class="pre">Framed</span></code> ，不支持不同的虚拟页面共享物理页，所以我们需要手动管理一些资源。下面的 <code class="docutils literal notranslate"><span class="pre">FileMapping</span></code> 结构描述了一个文件的若干段映射：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">FileMapping</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">file</span>: <span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ranges</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">MapRange</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">frames</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FrameTracker</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">dirty_parts</span>: <span class="nc">BTreeSet</span><span class="o">&lt;</span><span class="kt">usize</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="c1">// file segments that need writing back</span>
+<span class="w">    </span><span class="n">map</span>: <span class="nc">BTreeMap</span><span class="o">&lt;</span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">PhysPageNum</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="c1">// file offset -&gt; ppn</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>其中 <code class="docutils literal notranslate"><span class="pre">file</span></code> 代表被映射的文件，你可能会好奇它的类型为什么不是一个文件描述符编号或者 <code class="docutils literal notranslate"><span class="pre">Arc&lt;dyn</span> <span class="pre">File&gt;</span></code> 。首先mmap之后使用的文件描述符可以立即被关闭而不会对文件映射造成任何影响，所以不适合只存放fd编号；其次mmap通常要求映射的文件是常规文件 （例：映射stdin和stdout毫无意义），这里用 <code class="docutils literal notranslate"><span class="pre">Inode</span></code> 来提醒我们这点。 <code class="docutils literal notranslate"><span class="pre">ranges</span></code> 里面存放了若干 <code class="docutils literal notranslate"><span class="pre">MapRange</span></code> ，每个都用于描述一段映射区域。 <code class="docutils literal notranslate"><span class="pre">frames</span></code> 用于管理实际分配的物理页帧。 <code class="docutils literal notranslate"><span class="pre">dirty_parts</span></code> 记录了需要回写的脏页，注意它实际上用文件内的偏移来表示。 <code class="docutils literal notranslate"><span class="pre">map</span></code> 维护文件内偏移到物理页号的映射。需要注意的是这里记录脏页的方式比较简单，而且也完全没有考虑在进程间共享物理页，你可以使用引用计数等手段进行扩展。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[derive(Clone)]</span>
+<span class="k">struct</span> <span class="nc">MapRange</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">start</span>: <span class="nc">VirtAddr</span><span class="p">,</span>
+<span class="w">    </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">,</span><span class="w">    </span><span class="c1">// length in bytes</span>
+<span class="w">    </span><span class="n">offset</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="c1">// offset in file</span>
+<span class="w">    </span><span class="n">perm</span>: <span class="nc">MapPermission</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">MapRange</span></code> 描述了一段映射区域。 <code class="docutils literal notranslate"><span class="pre">start</span></code> 是该区域的起始虚拟地址， <code class="docutils literal notranslate"><span class="pre">offset</span></code> 为其在文件中的偏移， <code class="docutils literal notranslate"><span class="pre">perm</span></code> 记录了该区域的属性。</p>
+<p>前面提到过，我们的mmap忽略掉作为hint的 <code class="docutils literal notranslate"><span class="pre">addr</span></code> 参数，那这里的虚拟地址填什么呢？一般来说64位架构具有大到用不完的虚拟地址空间，用一个简单的线性分配器随便分配虚拟地址即可。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// Base virtual address for mmap</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">MMAP_AREA_BASE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mh">0x0000_0001_0000_0000</span><span class="p">;</span><span class="w"> </span><span class="c1">// 随便选的基址，挑块没人用的</span>
+
+<span class="sd">/// A naive linear virtual address space allocator</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">VirtualAddressAllocator</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">cur_va</span>: <span class="nc">VirtAddr</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">VirtualAddressAllocator</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// Create a new allocator with given base virtual address</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">base</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">cur_va</span>: <span class="nc">base</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="sd">/// Allocate a virtual address area</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">alloc</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">VirtAddr</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">cur_va</span><span class="p">;</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">end</span>: <span class="nc">VirtAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">cur_va</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">len</span><span class="p">).</span><span class="n">into</span><span class="p">();</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">cur_va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">end</span><span class="p">.</span><span class="n">ceil</span><span class="p">().</span><span class="n">into</span><span class="p">();</span>
+<span class="w">        </span><span class="n">start</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 不必释放</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>然后把 <code class="docutils literal notranslate"><span class="pre">VirtualAddressAllocator</span></code> 和 <code class="docutils literal notranslate"><span class="pre">FileMapping</span></code> 放进 <code class="docutils literal notranslate"><span class="pre">TaskControlBlockInner</span></code> 里。为简单起见，fork时不考虑这两个字段的复制和映射的共享。</p>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">os/src/task/task.rs</span></code></span><a class="headerlink" href="#id5" title="永久链接至代码">#</a></div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">TaskControlBlockInner</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">trap_cx_ppn</span>: <span class="nc">PhysPageNum</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">base_size</span>: <span class="kt">usize</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_cx</span>: <span class="nc">TaskContext</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">task_status</span>: <span class="nc">TaskStatus</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">memory_set</span>: <span class="nc">MemorySet</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">parent</span>: <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Weak</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">children</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">TaskControlBlock</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">fd_table</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">File</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="o">&gt;&gt;&gt;</span><span class="p">,</span>
+<span class="hll"><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">mmap_va_allocator</span>: <span class="nc">VirtualAddressAllocator</span><span class="p">,</span>
+</span><span class="hll"><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">file_mappings</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FileMapping</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p>下面来添加mmap系统调用：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// This is a simplified version of mmap which only supports file-backed mapping</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sys_mmap</span><span class="p">(</span><span class="n">fd</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">len</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">offset</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">isize</span> <span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// invalid length</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">offset</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">PAGE_SIZE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">))</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// offset must be page size aligned</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">tcb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">tcb</span><span class="p">.</span><span class="n">fd_table</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">tcb</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">].</span><span class="n">is_none</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tcb</span><span class="p">.</span><span class="n">fd_table</span><span class="p">[</span><span class="n">fd</span><span class="p">].</span><span class="n">as_ref</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">opt_inode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fp</span><span class="p">.</span><span class="n">as_any</span><span class="p">().</span><span class="n">downcast_ref</span>::<span class="o">&lt;</span><span class="n">OSInode</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">opt_inode</span><span class="p">.</span><span class="n">is_none</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// must be a regular file</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">inode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">opt_inode</span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">perm</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parse_permission</span><span class="p">(</span><span class="n">inode</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inode</span><span class="p">.</span><span class="n">clone_inner_inode</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">offset</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">file</span><span class="p">.</span><span class="n">get_size</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// file offset exceeds size limit</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tcb</span><span class="p">.</span><span class="n">mmap_va_allocator</span><span class="p">.</span><span class="n">alloc</span><span class="p">(</span><span class="n">len</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">mappings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">tcb</span><span class="p">.</span><span class="n">file_mappings</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">m</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">find_file_mapping</span><span class="p">(</span><span class="n">mappings</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">file</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">m</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">,</span><span class="w"> </span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="n">perm</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FileMapping</span>::<span class="n">new_empty</span><span class="p">(</span><span class="n">file</span><span class="p">);</span>
+<span class="w">        </span><span class="n">m</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">,</span><span class="w"> </span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="n">perm</span><span class="p">);</span>
+<span class="w">        </span><span class="n">mappings</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">m</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">start</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>这里面有不少无聊的参数检查和辅助函数，就不详细介绍了。总之这个系统调用实际做的事情只有维护对应的 <code class="docutils literal notranslate"><span class="pre">FileMapping</span></code> 结构，实际的工作被推迟到缺页异常处理例程中。</p>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">os/src/trap/mod.rs</span></code></span><a class="headerlink" href="#id6" title="永久链接至代码">#</a></div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[no_mangle]</span>
+<span class="sd">/// handle an interrupt, exception, or system call from user space</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span>
+<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">UserEnvCall</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// ...</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">StoreFault</span><span class="p">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">StorePageFault</span><span class="p">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">InstructionFault</span><span class="p">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">InstructionPageFault</span><span class="p">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadFault</span><span class="p">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">LoadPageFault</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="hll"><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">handle_page_fault</span><span class="p">(</span><span class="n">stval</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span class="w">                </span><span class="fm">println!</span><span class="p">(</span>
+<span class="w">                    </span><span class="s">&quot;[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">(),</span>
+<span class="w">                    </span><span class="n">stval</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">current_trap_cx</span><span class="p">().</span><span class="n">sepc</span><span class="p">,</span>
+<span class="w">                </span><span class="p">);</span>
+<span class="w">                </span><span class="c1">// page fault exit code</span>
+<span class="w">                </span><span class="n">exit_current_and_run_next</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">IllegalInstruction</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// ...</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">Trap</span>::<span class="n">Interrupt</span><span class="p">(</span><span class="n">Interrupt</span>::<span class="n">SupervisorTimer</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// ...</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="fm">panic!</span><span class="p">(</span>
+<span class="w">                </span><span class="s">&quot;Unsupported trap {:?}, stval = {:#x}!&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">(),</span>
+<span class="w">                </span><span class="n">stval</span>
+<span class="w">            </span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">trap_return</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p>我们在这里尝试处理缺页异常，如果 <code class="docutils literal notranslate"><span class="pre">handle_page_fault</span></code> 返回 <code class="docutils literal notranslate"><span class="pre">true</span></code> 表明异常已经被处理，否则内核仍然会杀死当前进程。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="sd">/// Try to handle page fault caused by demand paging</span>
+<span class="linenos"> 2</span><span class="sd">/// Returns whether this page fault is fixed</span>
+<span class="linenos"> 3</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">handle_page_fault</span><span class="p">(</span><span class="n">fault_addr</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fault_va</span>: <span class="nc">VirtAddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fault_addr</span><span class="p">.</span><span class="n">into</span><span class="p">();</span>
+<span class="linenos"> 5</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">fault_vpn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fault_va</span><span class="p">.</span><span class="n">floor</span><span class="p">();</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="linenos"> 7</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">tcb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="linenos"> 8</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">pte</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tcb</span><span class="p">.</span><span class="n">memory_set</span><span class="p">.</span><span class="n">translate</span><span class="p">(</span><span class="n">fault_vpn</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">10</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">pte</span><span class="p">.</span><span class="n">is_valid</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">11</span><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"> </span><span class="c1">// fault va already mapped, we cannot handle this</span>
+<span class="linenos">12</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">13</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">14</span>
+<span class="linenos">15</span><span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">tcb</span><span class="p">.</span><span class="n">file_mappings</span><span class="p">.</span><span class="n">iter_mut</span><span class="p">().</span><span class="n">find</span><span class="p">(</span><span class="o">|</span><span class="n">m</span><span class="o">|</span><span class="w"> </span><span class="n">m</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">fault_va</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">16</span><span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="n">mapping</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">17</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">mapping</span><span class="p">.</span><span class="n">file</span><span class="p">);</span>
+<span class="linenos">18</span><span class="w">            </span><span class="c1">// fix vm mapping</span>
+<span class="linenos">19</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">ppn</span><span class="p">,</span><span class="w"> </span><span class="n">range</span><span class="p">,</span><span class="w"> </span><span class="n">shared</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mapping</span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="n">fault_va</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="linenos">20</span><span class="w">            </span><span class="n">tcb</span><span class="p">.</span><span class="n">memory_set</span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="n">fault_vpn</span><span class="p">,</span><span class="w"> </span><span class="n">ppn</span><span class="p">,</span><span class="w"> </span><span class="n">range</span><span class="p">.</span><span class="n">perm</span><span class="p">);</span>
+<span class="linenos">21</span>
+<span class="linenos">22</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">shared</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">23</span><span class="w">                </span><span class="c1">// load file content</span>
+<span class="linenos">24</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">file_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">file</span><span class="p">.</span><span class="n">get_size</span><span class="p">();</span>
+<span class="linenos">25</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">file_offset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">range</span><span class="p">.</span><span class="n">file_offset</span><span class="p">(</span><span class="n">fault_vpn</span><span class="p">);</span>
+<span class="linenos">26</span><span class="w">                </span><span class="fm">assert!</span><span class="p">(</span><span class="n">file_offset</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">file_size</span><span class="p">);</span>
+<span class="linenos">27</span>
+<span class="linenos">28</span><span class="w">                </span><span class="c1">// let va_offset = range.va_offset(fault_vpn);</span>
+<span class="linenos">29</span><span class="w">                </span><span class="c1">// let va_len = range.len - va_offset;</span>
+<span class="linenos">30</span><span class="w">                </span><span class="c1">// Note: we do not limit `read_len` with `va_len`</span>
+<span class="linenos">31</span><span class="w">                </span><span class="c1">// consider two overlapping areas with different lengths</span>
+<span class="linenos">32</span>
+<span class="linenos">33</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">read_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">.</span><span class="n">min</span><span class="p">(</span><span class="n">file_size</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">file_offset</span><span class="p">);</span>
+<span class="linenos">34</span><span class="w">                </span><span class="n">file</span><span class="p">.</span><span class="n">read_at</span><span class="p">(</span><span class="n">file_offset</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">ppn</span><span class="p">.</span><span class="n">get_bytes_array</span><span class="p">()[</span><span class="o">..</span><span class="n">read_len</span><span class="p">]);</span>
+<span class="linenos">35</span><span class="w">            </span><span class="p">}</span>
+<span class="linenos">36</span><span class="w">            </span><span class="kc">true</span>
+<span class="linenos">37</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">38</span><span class="w">        </span><span class="nb">None</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="linenos">39</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">40</span><span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">handle_page_fault</span></code> 的9~13行先检查触发异常的虚拟内存页是否已经映射到物理页面，如果是则说明此异常并非源自惰性按需分页（比如写入只读页），这个问题不归我们管，直接返回 <code class="docutils literal notranslate"><span class="pre">false</span></code>。</p></li>
+<li><p>接下来的第15行检查出错的虚拟地址是否在映射区域内，如果是我们才上手来处理。</p></li>
+</ul>
+<p>在实际的修复过程中：
+- 第19行先调用 <code class="docutils literal notranslate"><span class="pre">FileMapping</span></code> 的 <code class="docutils literal notranslate"><span class="pre">map</span></code> 方法建立目标虚拟地址到物理页面的映射；
+- 第20行将新的映射关系添加到页表；
+- 第22~35行处理文件读入。注意实际的文件读取只发生在物理页面的引用计数从0变为1的时候，存在共享的情况下再读取文件可能会覆盖掉用户对内存的修改。</p>
+<p><code class="docutils literal notranslate"><span class="pre">FileMapping</span></code> 的 <code class="docutils literal notranslate"><span class="pre">map</span></code> 方法实现如下：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">impl</span><span class="w"> </span><span class="n">FileMapping</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 2</span><span class="w">    </span><span class="sd">/// Create mapping for given virtual address</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="k">fn</span> <span class="nf">map</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">va</span>: <span class="nc">VirtAddr</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="p">(</span><span class="n">PhysPageNum</span><span class="p">,</span><span class="w"> </span><span class="n">MapRange</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">        </span><span class="c1">// Note: currently virtual address ranges never intersect</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">vpn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">va</span><span class="p">.</span><span class="n">floor</span><span class="p">();</span>
+<span class="linenos"> 6</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">range</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">ranges</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 7</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">range</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">va</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 8</span><span class="w">                </span><span class="k">continue</span><span class="p">;</span>
+<span class="linenos"> 9</span><span class="w">            </span><span class="p">}</span>
+<span class="linenos">10</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">offset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">range</span><span class="p">.</span><span class="n">file_offset</span><span class="p">(</span><span class="n">vpn</span><span class="p">);</span>
+<span class="linenos">11</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">ppn</span><span class="p">,</span><span class="w"> </span><span class="n">shared</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">match</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">map</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="o">&amp;</span><span class="n">offset</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">12</span><span class="w">                </span><span class="nb">Some</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ppn</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">(</span><span class="n">ppn</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">),</span>
+<span class="linenos">13</span><span class="w">                </span><span class="nb">None</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">frame_alloc</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="linenos">15</span><span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="n">ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">frame</span><span class="p">.</span><span class="n">ppn</span><span class="p">;</span>
+<span class="linenos">16</span><span class="w">                    </span><span class="bp">self</span><span class="p">.</span><span class="n">frames</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">frame</span><span class="p">);</span>
+<span class="linenos">17</span><span class="w">                    </span><span class="bp">self</span><span class="p">.</span><span class="n">map</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="n">ppn</span><span class="p">);</span>
+<span class="linenos">18</span><span class="w">                    </span><span class="p">(</span><span class="n">ppn</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">)</span>
+<span class="linenos">19</span><span class="w">                </span><span class="p">}</span>
+<span class="linenos">20</span><span class="w">            </span><span class="p">};</span>
+<span class="linenos">21</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">range</span><span class="p">.</span><span class="n">perm</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="n">MapPermission</span>::<span class="n">W</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">22</span><span class="w">                </span><span class="bp">self</span><span class="p">.</span><span class="n">dirty_parts</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">offset</span><span class="p">);</span>
+<span class="linenos">23</span><span class="w">            </span><span class="p">}</span>
+<span class="linenos">24</span><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb">Some</span><span class="p">((</span><span class="n">ppn</span><span class="p">,</span><span class="w"> </span><span class="n">range</span><span class="p">.</span><span class="n">clone</span><span class="p">(),</span><span class="w"> </span><span class="n">shared</span><span class="p">));</span>
+<span class="linenos">25</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">26</span><span class="w">        </span><span class="nb">None</span>
+<span class="linenos">27</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">28</span><span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>第6~9行先找到包含目标虚拟地址的映射区域；</p></li>
+<li><p>第10行计算虚拟地址对应的文件内偏移；</p></li>
+<li><p>第11~20行先查询此文件偏移是否对应已分配的物理页，如果没有则分配一个物理页帧并记录映射关系；</p></li>
+<li><p>第21~23行检查此映射区域是否有写入权限，如果有则将对应的物理页面标记为脏页。这个处理实际上比较粗糙，有些没有被真正写入的页面也被视为脏页，导致最后会有多余的文件回写。你也可以考虑不维护脏页信息，而是通过检查页表项中由硬件维护的 Dirty 位来确定哪些是真正的脏页。</p></li>
+</ul>
+<p>修复后用户进程重新执行触发缺页异常的指令，此时物理页里存放了文件的内容，这样用户就实现了以读取内存的方式来读取文件。最后来处理被修改的脏页的同步，给 <code class="docutils literal notranslate"><span class="pre">FileMapping</span></code> 添加 <code class="docutils literal notranslate"><span class="pre">sync</span></code> 方法：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">impl</span><span class="w"> </span><span class="n">FileMapping</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 2</span><span class="w">    </span><span class="sd">/// Write back all dirty pages</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">sync</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 4</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">file_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">file</span><span class="p">.</span><span class="n">get_size</span><span class="p">();</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="o">&amp;</span><span class="n">offset</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">dirty_parts</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 6</span><span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">ppn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">map</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="o">&amp;</span><span class="n">offset</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="linenos"> 7</span><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">offset</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">file_size</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 8</span><span class="w">                </span><span class="c1">// WARNING: this can still cause garbage written</span>
+<span class="linenos"> 9</span><span class="w">                </span><span class="c1">//  to file when sharing physical page</span>
+<span class="linenos">10</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">va_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span>
+<span class="linenos">11</span><span class="w">                    </span><span class="p">.</span><span class="n">ranges</span>
+<span class="linenos">12</span><span class="w">                    </span><span class="p">.</span><span class="n">iter</span><span class="p">()</span>
+<span class="linenos">13</span><span class="w">                    </span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">r</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">                        </span><span class="k">if</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">offset</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">offset</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">len</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">15</span><span class="w">                            </span><span class="n">PAGE_SIZE</span><span class="p">.</span><span class="n">min</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">offset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">len</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">offset</span><span class="p">)</span>
+<span class="linenos">16</span><span class="w">                        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">17</span><span class="w">                            </span><span class="mi">0</span>
+<span class="linenos">18</span><span class="w">                        </span><span class="p">}</span>
+<span class="linenos">19</span><span class="w">                    </span><span class="p">})</span>
+<span class="linenos">20</span><span class="w">                    </span><span class="p">.</span><span class="n">max</span><span class="p">()</span>
+<span class="linenos">21</span><span class="w">                    </span><span class="p">.</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="linenos">22</span><span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">write_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">va_len</span><span class="p">.</span><span class="n">min</span><span class="p">(</span><span class="n">file_size</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">offset</span><span class="p">);</span>
+<span class="linenos">23</span>
+<span class="linenos">24</span><span class="w">                </span><span class="bp">self</span><span class="p">.</span><span class="n">file</span>
+<span class="linenos">25</span><span class="w">                    </span><span class="p">.</span><span class="n">write_at</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">ppn</span><span class="p">.</span><span class="n">get_bytes_array</span><span class="p">()[</span><span class="o">..</span><span class="n">write_len</span><span class="p">]);</span>
+<span class="linenos">26</span><span class="w">            </span><span class="p">}</span>
+<span class="linenos">27</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">28</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">29</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>这个方法将所有潜在的脏物理页内容回写至文件。第10~22行的计算主要为了限制写入内容的长度，以避免垃圾被意外写入文件。</p>
+<p>剩下的问题是何时调用 <code class="docutils literal notranslate"><span class="pre">sync</span></code> 。正常来说munmap、msync是同步点，你可以自行实现这两个系统调用，这里我们把它放在进程退出之前：</p>
+<div class="literal-block-wrapper docutils container" id="id7">
+<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">os/src/task/mod.rs</span></code></span><a class="headerlink" href="#id7" title="永久链接至代码">#</a></div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// Exit the current &#39;Running&#39; task and run the next task in task list.</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">exit_current_and_run_next</span><span class="p">(</span><span class="n">exit_code</span>: <span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">take_current_task</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">task</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">children</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">    </span><span class="c1">// deallocate user space</span>
+<span class="w">    </span><span class="n">inner</span><span class="p">.</span><span class="n">memory_set</span><span class="p">.</span><span class="n">recycle_data_pages</span><span class="p">();</span>
+<span class="hll"><span class="w">    </span><span class="c1">// write back dirty pages</span>
+</span><span class="hll"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">mapping</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">inner</span><span class="p">.</span><span class="n">file_mappings</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span class="hll"><span class="w">        </span><span class="n">mapping</span><span class="p">.</span><span class="n">sync</span><span class="p">();</span>
+</span><span class="hll"><span class="w">    </span><span class="p">}</span>
+</span><span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">inner</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// **** release current PCB</span>
+<span class="w">    </span><span class="c1">// drop task manually to maintain rc correctly</span>
+<span class="w">    </span><span class="nb">drop</span><span class="p">(</span><span class="n">task</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p>这样我们就实现了基于内存读写方式的文件读写功能。可以看到mmap不是魔法，内核悄悄帮你完成了实际的文件读写。</p>
+<ol class="arabic simple" start="4">
+<li><p><cite>**</cite> 扩展easy-fs文件系统功能，支持二级目录结构。可扩展：支持N级目录结构。</p></li>
+</ol>
+<p>实际上easy-fs现有的代码支持目录的存在，只不过整个文件系统只有根目录一个目录，我们考虑放宽现有代码的一些限制。</p>
+<p>原本的 <code class="docutils literal notranslate"><span class="pre">easy-fs/src/vfs.rs</span></code> 中有一个用于在当前目录下创建常规文件的 <code class="docutils literal notranslate"><span class="pre">create</span></code> 方法，我们给它加个参数并包装一下：</p>
+<div class="literal-block-wrapper docutils container" id="id8">
+<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">easy-fs/src/vfs.rs</span></code></span><a class="headerlink" href="#id8" title="永久链接至代码">#</a></div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">impl</span><span class="w"> </span><span class="n">Inode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// Create inode under current inode by name</span>
+<span class="hll"><span class="w">    </span><span class="k">fn</span> <span class="nf">create_inode</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">name</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">inode_type</span>: <span class="nc">DiskInodeType</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span>
+</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">fs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">fs</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">|</span><span class="n">root_inode</span>: <span class="kp">&amp;</span><span class="nc">DiskInode</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// assert it is a directory</span>
+<span class="w">            </span><span class="fm">assert!</span><span class="p">(</span><span class="n">root_inode</span><span class="p">.</span><span class="n">is_dir</span><span class="p">());</span>
+<span class="w">            </span><span class="c1">// has the file been created?</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">find_inode_id</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">root_inode</span><span class="p">)</span>
+<span class="w">        </span><span class="p">};</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">read_disk_inode</span><span class="p">(</span><span class="n">op</span><span class="p">).</span><span class="n">is_some</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="c1">// create a new file</span>
+<span class="w">        </span><span class="c1">// alloc a inode with an indirect block</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">new_inode_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fs</span><span class="p">.</span><span class="n">alloc_inode</span><span class="p">();</span>
+<span class="w">        </span><span class="c1">// initialize inode</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">new_inode_block_id</span><span class="p">,</span><span class="w"> </span><span class="n">new_inode_block_offset</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fs</span><span class="p">.</span><span class="n">get_disk_inode_pos</span><span class="p">(</span><span class="n">new_inode_id</span><span class="p">);</span>
+<span class="w">        </span><span class="n">get_block_cache</span><span class="p">(</span><span class="n">new_inode_block_id</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">block_device</span><span class="p">))</span>
+<span class="w">            </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span>
+<span class="w">            </span><span class="p">.</span><span class="n">modify</span><span class="p">(</span><span class="n">new_inode_block_offset</span><span class="p">,</span><span class="w"> </span><span class="o">|</span><span class="n">new_inode</span>: <span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">DiskInode</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="hll"><span class="w">                </span><span class="n">new_inode</span><span class="p">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">inode_type</span><span class="p">);</span>
+</span><span class="w">            </span><span class="p">});</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">modify_disk_inode</span><span class="p">(</span><span class="o">|</span><span class="n">root_inode</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// append file in the dirent</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">file_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">root_inode</span><span class="p">.</span><span class="n">size</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">DIRENT_SZ</span><span class="p">;</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">new_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">file_count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">DIRENT_SZ</span><span class="p">;</span>
+<span class="w">            </span><span class="c1">// increase size</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">increase_size</span><span class="p">(</span><span class="n">new_size</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">root_inode</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">fs</span><span class="p">);</span>
+<span class="w">            </span><span class="c1">// write dirent</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">dirent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DirEntry</span>::<span class="n">new</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">new_inode_id</span><span class="p">);</span>
+<span class="w">            </span><span class="n">root_inode</span><span class="p">.</span><span class="n">write_at</span><span class="p">(</span>
+<span class="w">                </span><span class="n">file_count</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">DIRENT_SZ</span><span class="p">,</span>
+<span class="w">                </span><span class="n">dirent</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">(),</span>
+<span class="w">                </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">block_device</span><span class="p">,</span>
+<span class="w">            </span><span class="p">);</span>
+<span class="w">        </span><span class="p">});</span>
+
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">block_id</span><span class="p">,</span><span class="w"> </span><span class="n">block_offset</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fs</span><span class="p">.</span><span class="n">get_disk_inode_pos</span><span class="p">(</span><span class="n">new_inode_id</span><span class="p">);</span>
+<span class="w">        </span><span class="n">block_cache_sync_all</span><span class="p">();</span>
+<span class="w">        </span><span class="c1">// return inode</span>
+<span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="bp">Self</span>::<span class="n">new</span><span class="p">(</span>
+<span class="w">            </span><span class="n">block_id</span><span class="p">,</span>
+<span class="w">            </span><span class="n">block_offset</span><span class="p">,</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">fs</span><span class="p">.</span><span class="n">clone</span><span class="p">(),</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">block_device</span><span class="p">.</span><span class="n">clone</span><span class="p">(),</span>
+<span class="w">        </span><span class="p">)))</span>
+<span class="w">        </span><span class="c1">// release efs lock automatically by compiler</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="hll"><span class="w">    </span><span class="sd">/// Create regular file under current inode</span>
+</span><span class="hll"><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">create</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">name</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span>
+</span><span class="hll"><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">create_inode</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">DiskInodeType</span>::<span class="n">File</span><span class="p">)</span>
+</span><span class="hll"><span class="w">    </span><span class="p">}</span>
+</span>
+<span class="hll"><span class="w">    </span><span class="sd">/// Create directory under current inode</span>
+</span><span class="hll"><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">create_dir</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">name</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span>
+</span><span class="hll"><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">create_inode</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">DiskInodeType</span>::<span class="n">Directory</span><span class="p">)</span>
+</span><span class="hll"><span class="w">    </span><span class="p">}</span>
+</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p>这样我们就可以在一个目录底下调用 <code class="docutils literal notranslate"><span class="pre">create_dir</span></code> 创建新目录了（笑）。本质上我们什么也没改，我们再改改其它方法装装样子：</p>
+<div class="literal-block-wrapper docutils container" id="id9">
+<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">easy-fs/src/vfs.rs</span></code></span><a class="headerlink" href="#id9" title="永久链接至代码">#</a></div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">impl</span><span class="w"> </span><span class="n">Inode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// List inodes under current inode</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">ls</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">_fs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">fs</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">read_disk_inode</span><span class="p">(</span><span class="o">|</span><span class="n">disk_inode</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span>
+<span class="hll"><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">disk_inode</span><span class="p">.</span><span class="n">is_file</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+</span><span class="hll"><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">v</span><span class="p">;</span>
+</span><span class="hll"><span class="w">            </span><span class="p">}</span>
+</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">file_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">disk_inode</span><span class="p">.</span><span class="n">size</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">DIRENT_SZ</span><span class="p">;</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">file_count</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">dirent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DirEntry</span>::<span class="n">empty</span><span class="p">();</span>
+<span class="w">                </span><span class="fm">assert_eq!</span><span class="p">(</span>
+<span class="w">                    </span><span class="n">disk_inode</span><span class="p">.</span><span class="n">read_at</span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">DIRENT_SZ</span><span class="p">,</span><span class="w"> </span><span class="n">dirent</span><span class="p">.</span><span class="n">as_bytes_mut</span><span class="p">(),</span><span class="w"> </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">block_device</span><span class="p">,),</span>
+<span class="w">                    </span><span class="n">DIRENT_SZ</span><span class="p">,</span>
+<span class="w">                </span><span class="p">);</span>
+<span class="w">                </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="nb">String</span>::<span class="n">from</span><span class="p">(</span><span class="n">dirent</span><span class="p">.</span><span class="n">name</span><span class="p">()));</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">v</span>
+<span class="w">        </span><span class="p">})</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="sd">/// Write data to current inode</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write_at</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">offset</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">fs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">fs</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">modify_disk_inode</span><span class="p">(</span><span class="o">|</span><span class="n">disk_inode</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="hll"><span class="w">            </span><span class="fm">assert!</span><span class="p">(</span><span class="n">disk_inode</span><span class="p">.</span><span class="n">is_file</span><span class="p">());</span>
+</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">increase_size</span><span class="p">((</span><span class="n">offset</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">buf</span><span class="p">.</span><span class="n">len</span><span class="p">())</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">disk_inode</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">fs</span><span class="p">);</span>
+<span class="w">            </span><span class="n">disk_inode</span><span class="p">.</span><span class="n">write_at</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">block_device</span><span class="p">)</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">        </span><span class="n">block_cache_sync_all</span><span class="p">();</span>
+<span class="w">        </span><span class="n">size</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="sd">/// Clear the data in current inode</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">clear</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">fs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">fs</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">modify_disk_inode</span><span class="p">(</span><span class="o">|</span><span class="n">disk_inode</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="hll"><span class="w">            </span><span class="fm">assert!</span><span class="p">(</span><span class="n">disk_inode</span><span class="p">.</span><span class="n">is_file</span><span class="p">());</span>
+</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">disk_inode</span><span class="p">.</span><span class="n">size</span><span class="p">;</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">data_blocks_dealloc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">disk_inode</span><span class="p">.</span><span class="n">clear_size</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">block_device</span><span class="p">);</span>
+<span class="w">            </span><span class="fm">assert!</span><span class="p">(</span><span class="n">data_blocks_dealloc</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">DiskInode</span>::<span class="n">total_blocks</span><span class="p">(</span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="n">data_block</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">data_blocks_dealloc</span><span class="p">.</span><span class="n">into_iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">fs</span><span class="p">.</span><span class="n">dealloc_data</span><span class="p">(</span><span class="n">data_block</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">        </span><span class="n">block_cache_sync_all</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p>对一个普通文件的inode调用 <code class="docutils literal notranslate"><span class="pre">ls</span></code> 方法毫无意义，但为了保持接口不变，我们返回一个空 <code class="docutils literal notranslate"><span class="pre">Vec</span></code>。随意地清空或写入目录文件都会损坏目录结构，这里直接在 <code class="docutils literal notranslate"><span class="pre">write_at</span></code> 和 <code class="docutils literal notranslate"><span class="pre">clear</span></code> 方法中断言，你也可以改成其它的错误处理方式。</p>
+<p>接下来是实际一点的修改（有，但不多）：我们让 <code class="docutils literal notranslate"><span class="pre">find</span></code> 方法支持简单的相对路径（不含“.”和“..”）。</p>
+<div class="literal-block-wrapper docutils container" id="id10">
+<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">easy-fs/src/vfs.rs</span></code></span><a class="headerlink" href="#id10" title="永久链接至代码">#</a></div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">impl</span><span class="w"> </span><span class="n">Inode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// Find inode under current inode by **path**</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">find</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">path</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">fs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">fs</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">block_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">block_id</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">;</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">block_offset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">block_offset</span><span class="p">;</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">path</span><span class="p">.</span><span class="n">split</span><span class="p">(</span><span class="sc">&#39;/&#39;</span><span class="p">).</span><span class="n">filter</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span><span class="w"> </span><span class="o">!</span><span class="n">s</span><span class="p">.</span><span class="n">is_empty</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">inode_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_block_cache</span><span class="p">(</span><span class="n">block_id</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">block_device</span><span class="p">.</span><span class="n">clone</span><span class="p">())</span>
+<span class="w">                </span><span class="p">.</span><span class="n">lock</span><span class="p">()</span>
+<span class="w">                </span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="n">block_offset</span><span class="p">,</span><span class="w"> </span><span class="o">|</span><span class="n">disk_inode</span>: <span class="kp">&amp;</span><span class="nc">DiskInode</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="n">disk_inode</span><span class="p">.</span><span class="n">is_file</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="k">return</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                    </span><span class="bp">self</span><span class="p">.</span><span class="n">find_inode_id</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">disk_inode</span><span class="p">)</span>
+<span class="w">                </span><span class="p">});</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">inode_id</span><span class="p">.</span><span class="n">is_none</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="p">(</span><span class="n">block_id</span><span class="p">,</span><span class="w"> </span><span class="n">block_offset</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fs</span><span class="p">.</span><span class="n">get_disk_inode_pos</span><span class="p">(</span><span class="n">inode_id</span><span class="p">.</span><span class="n">unwrap</span><span class="p">());</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="bp">Self</span>::<span class="n">new</span><span class="p">(</span>
+<span class="w">            </span><span class="n">block_id</span><span class="p">,</span>
+<span class="w">            </span><span class="n">block_offset</span><span class="p">,</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">fs</span><span class="p">.</span><span class="n">clone</span><span class="p">(),</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">block_device</span><span class="p">.</span><span class="n">clone</span><span class="p">(),</span>
+<span class="w">        </span><span class="p">)))</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p>最后在 <code class="docutils literal notranslate"><span class="pre">easy-fs-fuse/src/main.rs</span></code> 里试试我们添加的新特性：</p>
+<div class="literal-block-wrapper docutils container" id="id11">
+<div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">easy-fs-fuse/src/main.rs</span></code></span><a class="headerlink" href="#id11" title="永久链接至代码">#</a></div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span> <span class="nf">read_string</span><span class="p">(</span><span class="n">file</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">String</span> <span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">read_buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="k">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">512</span><span class="p">];</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">offset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="k">usize</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">read_str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span>::<span class="n">new</span><span class="p">();</span>
+<span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">file</span><span class="p">.</span><span class="n">read_at</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">read_buffer</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">offset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">len</span><span class="p">;</span>
+<span class="w">        </span><span class="n">read_str</span><span class="p">.</span><span class="n">push_str</span><span class="p">(</span><span class="n">core</span>::<span class="kt">str</span>::<span class="n">from_utf8</span><span class="p">(</span><span class="o">&amp;</span><span class="n">read_buffer</span><span class="p">[</span><span class="o">..</span><span class="n">len</span><span class="p">]).</span><span class="n">unwrap</span><span class="p">());</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">read_str</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">tree</span><span class="p">(</span><span class="n">inode</span>: <span class="kp">&amp;</span><span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Inode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span>: <span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">depth</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="n">depth</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">print!</span><span class="p">(</span><span class="s">&quot;  &quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">);</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">inode</span><span class="p">.</span><span class="n">ls</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inode</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="o">&amp;</span><span class="n">name</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">        </span><span class="n">tree</span><span class="p">(</span><span class="o">&amp;</span><span class="n">child</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="cp">#[test]</span>
+<span class="k">fn</span> <span class="nf">efs_dir_test</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">std</span>::<span class="n">io</span>::<span class="nb">Result</span><span class="o">&lt;</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">block_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">BlockFile</span><span class="p">(</span><span class="n">Mutex</span>::<span class="n">new</span><span class="p">({</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">OpenOptions</span>::<span class="n">new</span><span class="p">()</span>
+<span class="w">            </span><span class="p">.</span><span class="n">read</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
+<span class="w">            </span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
+<span class="w">            </span><span class="p">.</span><span class="n">create</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
+<span class="w">            </span><span class="p">.</span><span class="n">open</span><span class="p">(</span><span class="s">&quot;target/fs.img&quot;</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">        </span><span class="n">f</span><span class="p">.</span><span class="n">set_len</span><span class="p">(</span><span class="mi">8192</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">512</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">        </span><span class="n">f</span>
+<span class="w">    </span><span class="p">})));</span>
+<span class="w">    </span><span class="n">EasyFileSystem</span>::<span class="n">create</span><span class="p">(</span><span class="n">block_file</span><span class="p">.</span><span class="n">clone</span><span class="p">(),</span><span class="w"> </span><span class="mi">4096</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">efs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">EasyFileSystem</span>::<span class="n">open</span><span class="p">(</span><span class="n">block_file</span><span class="p">.</span><span class="n">clone</span><span class="p">());</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">root</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span>::<span class="n">new</span><span class="p">(</span><span class="n">EasyFileSystem</span>::<span class="n">root_inode</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efs</span><span class="p">));</span>
+<span class="w">    </span><span class="n">root</span><span class="p">.</span><span class="n">create</span><span class="p">(</span><span class="s">&quot;f1&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">root</span><span class="p">.</span><span class="n">create</span><span class="p">(</span><span class="s">&quot;f2&quot;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">d1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">root</span><span class="p">.</span><span class="n">create_dir</span><span class="p">(</span><span class="s">&quot;d1&quot;</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">f3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">d1</span><span class="p">.</span><span class="n">create</span><span class="p">(</span><span class="s">&quot;f3&quot;</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">d2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">d1</span><span class="p">.</span><span class="n">create_dir</span><span class="p">(</span><span class="s">&quot;d2&quot;</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">f4</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">d2</span><span class="p">.</span><span class="n">create</span><span class="p">(</span><span class="s">&quot;f4&quot;</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="n">tree</span><span class="p">(</span><span class="o">&amp;</span><span class="n">root</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;/&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">f3_content</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;3333333&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">f4_content</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;4444444444444444444&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">f3</span><span class="p">.</span><span class="n">write_at</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">f3_content</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">());</span>
+<span class="w">    </span><span class="n">f4</span><span class="p">.</span><span class="n">write_at</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">f4_content</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">());</span>
+
+<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">read_string</span><span class="p">(</span><span class="o">&amp;</span><span class="n">d1</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;f3&quot;</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()),</span><span class="w"> </span><span class="n">f3_content</span><span class="p">);</span>
+<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">read_string</span><span class="p">(</span><span class="o">&amp;</span><span class="n">root</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;/d1/f3&quot;</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()),</span><span class="w"> </span><span class="n">f3_content</span><span class="p">);</span>
+<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">read_string</span><span class="p">(</span><span class="o">&amp;</span><span class="n">d2</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;f4&quot;</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()),</span><span class="w"> </span><span class="n">f4_content</span><span class="p">);</span>
+<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">read_string</span><span class="p">(</span><span class="o">&amp;</span><span class="n">d1</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;d2/f4&quot;</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()),</span><span class="w"> </span><span class="n">f4_content</span><span class="p">);</span>
+<span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">read_string</span><span class="p">(</span><span class="o">&amp;</span><span class="n">root</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;/d1/d2/f4&quot;</span><span class="p">).</span><span class="n">unwrap</span><span class="p">()),</span><span class="w"> </span><span class="n">f4_content</span><span class="p">);</span>
+<span class="w">    </span><span class="fm">assert!</span><span class="p">(</span><span class="n">f3</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;whatever&quot;</span><span class="p">).</span><span class="n">is_none</span><span class="p">());</span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p>如果你觉得这个练习不够过瘾，可以试试下面的任务：</p>
+<ul class="simple">
+<li><p>让easy-fs支持包含“.”和“..”的相对路径。你可以在目录文件里存放父目录的inode。</p></li>
+<li><p>在内核里给进程加上当前路径信息，然后实现chdir和getcwd。当然，也可以顺便补上openat和mkdir。</p></li>
+<li><p>在easy-fs中实现rename和mv的功能。在目录文件中删掉一些目录项也许要实现 <code class="docutils literal notranslate"><span class="pre">decrease_size</span></code> 或者类似删除的东西，但也可以考虑用删除标记这种常见的手段让一个目录项变得“不存在”。</p></li>
+</ul>
+</div>
+<div class="section" id="id4">
+<h3>问答题<a class="headerlink" href="#id4" title="永久链接至标题">#</a></h3>
 <ol class="arabic">
 <li><p><cite>*</cite> 文件系统的功能是什么？</p>
 <p>将数据以文件的形式持久化保存在存储设备上。</p>
@@ -496,7 +1348,8 @@
             <ul>
 <li><a class="reference internal" href="#">练习参考答案</a><ul>
 <li><a class="reference internal" href="#id2">课后练习</a><ul>
-<li><a class="reference internal" href="#id3">问答题</a></li>
+<li><a class="reference internal" href="#id3">编程题</a></li>
+<li><a class="reference internal" href="#id4">问答题</a></li>
 </ul>
 </li>
 </ul>
