@@ -134,7 +134,7 @@ API与ABI
       0
    }    
 
-这个程序的功能就是显示一行字符串（重点看第8行的代码）。注意，这里的 `println!` 一个宏。而进一步跟踪源代码 （位于  `user/src/console.rs` ），可以看到 `println!` 会进一步展开为 `write` 函数：
+这个程序的功能就是显示一行字符串（重点看第4行的代码）。注意，这里的 `println!` 一个宏。而进一步跟踪源代码 （位于  `user/src/console.rs` ），可以看到 `println!` 会进一步展开为 `write` 函数：
 
 .. code-block:: rust
    :linenos:
