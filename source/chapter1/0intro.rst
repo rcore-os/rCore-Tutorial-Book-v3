@@ -80,7 +80,7 @@
    $ cd os
    $ LOG=TRACE make run
 
-``LOG=TRACE`` 是指定 LOG 的级别为 ``TRACE``，可以查看这个级别下的输出日志。
+``LOG=TRACE`` 是指定 LOG 的级别为 ``TRACE``，可以查看重要程度不低于 TRACE 的输出日志。目前 TRACE 的重要程度最低，因此这样能够看到全部日志。
 
 如果顺利的话，以 Qemu 平台为例，将输出：
 
