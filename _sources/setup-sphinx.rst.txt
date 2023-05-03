@@ -30,3 +30,10 @@
    4. 打上必要的补丁：在根目录下执行 ``git apply --reject scripts/latexpdf.patch`` 。
    5. 构建：在根目录下执行 ``make latexpdf`` ，过程中会有很多 latex 的警告，但可以忽略。
    6. 构建结束后，电子版 pdf 可以在 ``build/latex/rcore-tutorial-book-v3.pdf`` 找到。
+
+.. note::
+
+   **如何生成epub格式**
+
+   1. 配置好 Sphinx Python 环境。
+   2. ``make epub`` 构建 epub 格式输出，产物可以在 ``build/epub/rCore-Tutorial-Book-v3.epub`` 中找到。
