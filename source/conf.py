@@ -126,3 +126,9 @@ class RVLexer(RegexLexer):
     }
 
 lexers['riscv'] = RVLexer()
+
+# epub build config
+import errno
+import sphinx.util.osutil
+sphinx.util.osutil.ENOENT = errno.ENOENT
+version = release
