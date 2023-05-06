@@ -175,7 +175,7 @@ RISC-V特权级切换
     static KERNEL_STACK: KernelStack = KernelStack { data: [0; KERNEL_STACK_SIZE] };
     static USER_STACK: UserStack = UserStack { data: [0; USER_STACK_SIZE] };
 
-常数 ``USER_STACK_SIZE`` 和 ``KERNEL_STACK_SIZE`` 指出用户栈和内核栈的大小分别为 :math:`\text{KiB}` 。两个类型是以全局变量的形式实例化在批处理操作系统的 ``.bss`` 段中的。
+常数 ``USER_STACK_SIZE`` 和 ``KERNEL_STACK_SIZE`` 指出用户栈和内核栈的大小分别为 ``8 KiB`` 。两个类型是以全局变量的形式实例化在批处理操作系统的 ``.bss`` 段中的。
 
 我们为两个类型实现了 ``get_sp`` 方法来获取栈顶地址。由于在 RISC-V 中栈是向下增长的，我们只需返回包裹的数组的结尾地址，以用户栈类型 ``UserStack`` 为例：
 
