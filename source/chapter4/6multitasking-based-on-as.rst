@@ -560,7 +560,7 @@
         TASK_MANAGER.get_current_trap_cx()
     }
 
-通过 ``current_user_token`` 和 ``current_trap_cx`` 分别可以获得当前正在执行的应用的地址空间的 token 和可以在内核地址空间中修改位于该应用地址空间中的 Trap 上下文的可变引用。
+通过 `current_user_token` 可以获得当前正在执行的应用的地址空间的 token ； 通过`current_trap_cx` 可以在内核地址空间中获取位于该应用地址空间中的 Trap 上下文的可变引用。
 
 改进 Trap 处理的实现
 ------------------------------------
