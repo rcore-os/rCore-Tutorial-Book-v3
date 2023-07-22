@@ -497,11 +497,11 @@
 <p><strong>I/O传输状态</strong></p>
 <p>设备驱动程序控制virtio设备进行I/O传输过程中，会经历一系列过程和执行状态，包括 <cite>I/O请求</cite> 状态、 <cite>I/O处理</cite> 状态、 <cite>I/O完成</cite> 状态、  <cite>I/O错误</cite> 状态、 <cite>I/O后续处理</cite> 状态等。设备驱动程序在执行过程中，需要对上述状态进行不同的处理。</p>
 <p>virtio设备进行I/O传输过程中，设备驱动会指出 <cite>I/O请求</cite> 队列的当前位置状态信息，这样设备能查到I/O请求的信息，并根据 <cite>I/O请求</cite> 进行I/O传输；而设备会指出 <cite>I/O完成</cite> 队列的当前位置状态信息，这样设备驱动通过读取 <cite>I/O完成</cite> 数据结构中的状态信息，就知道设备是否完成I/O请求的相应操作，并进行后续事务处理。</p>
-<p>比如，virtio_blk设备驱动发出一个读设备块的I/O请求，并在某确定位置给出这个I/O请求的地址，然后给设备发出’kick’通知(读或写相关I/O寄存器映射的内存地址)，此时处于I/O请求状态；设备在得到通知后，此时处于 <cite>I/O处理</cite> 状态，它解析个I/O请求，完成个I/O请求的处理，即把磁盘块内容读入到内存中，并给出读出的块数据的内存地址，再通过中断通知设备驱动，此时处于 <cite>I/O完成</cite> 状态；如果磁盘块读取发生错误，此时处于 <cite>I/O错误</cite> 状态；设备驱动通过中断处理例程，此时处于 <cite>I/O后续处理</cite> 状态，设备驱动知道设备已经完成读磁盘块操作，会根据磁盘块数据所在内存地址，把数据传递给文件系统进行进一步处理；如果设备驱动发现磁盘块读错误，则会进行错误恢复相关的后续处理。</p>
+<p>比如，virtio_blk设备驱动发出一个读设备块的I/O请求，并在某确定位置给出这个I/O请求的地址，然后给设备发出’kick’通知(读或写相关I/O寄存器映射的内存地址)，此时处于I/O请求状态；设备在得到通知后，此时处于 <cite>I/O处理</cite> 状态，它解析这个I/O请求，完成这个I/O请求的处理，即把磁盘块内容读入到内存中，并给出读出的块数据的内存地址，再通过中断通知设备驱动，此时处于 <cite>I/O完成</cite> 状态；如果磁盘块读取发生错误，此时处于 <cite>I/O错误</cite> 状态；设备驱动通过中断处理例程，此时处于 <cite>I/O后续处理</cite> 状态，设备驱动知道设备已经完成读磁盘块操作，会根据磁盘块数据所在内存地址，把数据传递给文件系统进行进一步处理；如果设备驱动发现磁盘块读错误，则会进行错误恢复相关的后续处理。</p>
 </div>
 <div class="section" id="id9">
 <h3>virtio设备交互机制<a class="headerlink" href="#id9" title="永久链接至标题">#</a></h3>
-<p>virtio设备交互机制包括基于Notifications的事件通知和基于virtqueue虚拟队列的数据传输。事件通知是指设备和驱动程序必须通知对方，它们有数据需要对方处理。数据传输是指设备和驱动程序之间进行进行I/O数据（如磁盘块数据、网络包）传输。</p>
+<p>virtio设备交互机制包括基于Notifications的事件通知和基于virtqueue虚拟队列的数据传输。事件通知是指设备和驱动程序必须通知对方，它们有数据需要对方处理。数据传输是指设备和驱动程序之间进行I/O数据（如磁盘块数据、网络包）传输。</p>
 <p><strong>Notification通知</strong></p>
 <p>驱动程序和设备在交互过程中需要相互通知对方：驱动程序组织好相关命令/信息要通知设备去处理I/O事务，设备处理完I/O事务后，要通知驱动程序进行后续事务，如回收内存，向用户进程反馈I/O事务的处理结果等。</p>
 <p>驱动程序通知设备可用``门铃 doorbell``机制，即采用PIO或MMIO方式访问设备特定寄存器，QEMU进行拦截再通知其模拟的设备。设备通知驱动程序一般用中断机制，即在QEMU中进行中断注入，让CPU响应并执行中断处理例程，来完成对I/O执行结果的处理。</p>
@@ -512,12 +512,12 @@
 <span id="term-virtqueue"></span><h3><strong>virtqueue虚拟队列</strong><a class="headerlink" href="#virtqueue" title="永久链接至标题">#</a></h3>
 <p>virtio协议中一个关键部分是virtqueue，在virtio规范中，virtqueue是virtio设备上进行批量数据传输的机制和抽象表示。在设备驱动实现和Qemu中virtio设备的模拟实现中，virtqueue是一种数据结构，用于设备和驱动程序中执行各种数据传输操作。</p>
 <p>操作系统在Qemu上运行时，virtqueue是 virtio 驱动程序和 virtio 设备访问的同一块内存区域。</p>
-<p>当涉及到 virtqueue 的描述时，有很多不一致的地方。有将其与vring（virtio-rings或VRings）等同表示，也有将二者分别单独描述为不同的对象。我们将在这里单独描述它们，因为vring是virtueues的主要组成部分，是达成virtio设备和驱动程序之间数据传输的数据结构， vring本质是virtio设备和驱动程序之间的共享内存，但 virtqueue 不仅仅只有vring。</p>
+<p>当涉及到 virtqueue 的描述时，有很多不一致的地方。有将其与vring（virtio-rings或VRings）等同表示，也有将二者分别单独描述为不同的对象。我们将在这里单独描述它们，因为vring是virtqueues的主要组成部分，是达成virtio设备和驱动程序之间数据传输的数据结构， vring本质是virtio设备和驱动程序之间的共享内存，但 virtqueue 不仅仅只有vring。</p>
 <p>virtqueue由三部分组成（如下图所示）：</p>
 <ul class="simple">
 <li><p>描述符表 Descriptor Table：描述符表是描述符为组成元素的数组，每个描述符描述了一个内存buffer 的address/length。而内存buffer中包含I/O请求的命令/数据（由virtio设备驱动填写），也可包含I/O完成的返回结果（由virtio设备填写）等。</p></li>
 <li><p>可用环 Available Ring：一种vring，记录了virtio设备驱动程序发出的I/O请求索引，即被virtio设备驱动程序更新的描述符索引的集合，需要virtio设备进行读取并完成相关I/O操作；</p></li>
-<li><p>已用环 Used Ring：另一种vring，记录了virtio设备发出的I/O完成索引，即被virtio设备更新的描述符索引d 集合，需要vrtio设备驱动程序进行读取并对I/O操作结果进行进一步处理。</p></li>
+<li><p>已用环 Used Ring：另一种vring，记录了virtio设备发出的I/O完成索引，即被virtio设备更新的描述符索引的集合，需要vrtio设备驱动程序进行读取并对I/O操作结果进行进一步处理。</p></li>
 </ul>
 <img alt="../_images/virtqueue-arch.png" class="align-center" id="virtqueue-arch" src="../_images/virtqueue-arch.png" />
 <p><strong>描述符表 Descriptor Table</strong></p>
@@ -719,7 +719,7 @@
 </div>
 <div class="section" id="id14">
 <h3><strong>接收设备I/O响应的操作</strong><a class="headerlink" href="#id14" title="永久链接至标题">#</a></h3>
-<p>一旦设备完成了I/O请求，形成I/O响应，就会更新描述符所指向的缓冲区，并向驱动程序发送已用缓冲区通知（used buffer notification）。一般会采用中断这种更加高效的通知机制。设备驱动程序在收到中断后，就会更加I/O响应信息进行后续处理。相关的伪代码如下所示：</p>
+<p>一旦设备完成了I/O请求，形成I/O响应，就会更新描述符所指向的缓冲区，并向驱动程序发送已用缓冲区通知（used buffer notification）。一般会采用中断这种更加高效的通知机制。设备驱动程序在收到中断后，就会对I/O响应信息进行后续处理。相关的伪代码如下所示：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// virtio_drivers/src/blk.rs</span>
 <span class="linenos"> 2</span><span class="k">impl</span><span class="o">&lt;</span><span class="n">H</span>: <span class="nc">Hal</span><span class="o">&gt;</span><span class="w"> </span><span class="n">VirtIOBlk</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="p">,</span><span class="w"> </span><span class="n">H</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos"> 3</span><span class="w">   </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">ack_interrupt</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">bool</span> <span class="p">{</span>

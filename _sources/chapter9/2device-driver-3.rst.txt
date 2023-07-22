@@ -56,7 +56,7 @@ virtio-blk设备的关键数据结构
       last_used_idx: u16, //上次已用环的索引值
    }
 
-其中成员变量 ``free_head`` 指空闲描述符链表头，初始时所有描述符通过 ``next`` 指针依次相连形成空闲链表，成员变量 ``last_used_idx`` 是指设备上次已取的已用环元素位置。成员变量 ``avail_idx`` 是指设备上次已取的已用环元素位置。
+其中成员变量 ``free_head`` 指空闲描述符链表头，初始时所有描述符通过 ``next`` 指针依次相连形成空闲链表，成员变量 ``last_used_idx`` 是指设备上次已取的已用环元素位置。成员变量 ``avail_idx`` 是可用环的索引值。
 
 .. _term-virtio-hal:
 
@@ -188,7 +188,7 @@ virtio-blk设备驱动程序了解了virtio-blk设备的扇区个数，扇区大
    }
 
 
-从上面的代码可以看到，操作系统中表示表示virtio_blk设备的全局变量 ``BLOCK_DEVICE`` 的类型是 ``VirtIOBlock`` ,封装了来自virtio_derivers 模块的 ``VirtIOBlk`` 类型。这样，操作系统内核就可以通过 ``BLOCK_DEVICE`` 全局变量来访问virtio_blk设备了。而  ``VirtIOBlock`` 中的 ``condvars: BTreeMap<u16, Condvar>`` 条件变量结构，是用于进程在等待 I/O读或写操作完全前，通过条件变量让进程处于挂起状态。当virtio_blk设备完成I/O操作后，会通过中断唤醒等待的进程。而操作系统对virtio_blk设备的初始化除了封装 ``VirtIOBlk`` 类型并调用 ``VirtIOBlk::<VirtioHal>::new()`` 外，还需要初始化 ``condvars`` 条件变量结构，而每个条件变量对应着一个虚拟队列条目的编号，这意味着每次I/O请求都绑定了一个条件变量，让发出请求的线程/进程可以被挂起。
+从上面的代码可以看到，操作系统中表示virtio_blk设备的全局变量 ``BLOCK_DEVICE`` 的类型是 ``VirtIOBlock`` ,封装了来自virtio_derivers 模块的 ``VirtIOBlk`` 类型。这样，操作系统内核就可以通过 ``BLOCK_DEVICE`` 全局变量来访问virtio_blk设备了。而  ``VirtIOBlock`` 中的 ``condvars: BTreeMap<u16, Condvar>`` 条件变量结构，是用于进程在等待 I/O读或写操作完全前，通过条件变量让进程处于挂起状态。当virtio_blk设备完成I/O操作后，会通过中断唤醒等待的进程。而操作系统对virtio_blk设备的初始化除了封装 ``VirtIOBlk`` 类型并调用 ``VirtIOBlk::<VirtioHal>::new()`` 外，还需要初始化 ``condvars`` 条件变量结构，而每个条件变量对应着一个虚拟队列条目的编号，这意味着每次I/O请求都绑定了一个条件变量，让发出请求的线程/进程可以被挂起。
 
 
 .. code-block:: Rust

@@ -652,7 +652,7 @@ who<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">PipeRingBuffer::read_byte</span></code> 方法可以从管道中读取一个字节，注意在调用它之前需要确保管道缓冲区中不是空的。它会更新循环队列队头的位置，并比较队头和队尾是否相同，如果相同的话则说明管道的状态变为空 <code class="docutils literal notranslate"><span class="pre">EMPTY</span></code> 。仅仅通过比较队头和队尾是否相同不能确定循环队列是否为空，因为它既有可能表示队列为空，也有可能表示队列已满。因此我们需要在 <code class="docutils literal notranslate"><span class="pre">read_byte</span></code> 的同时进行状态更新。</p>
-<p><code class="docutils literal notranslate"><span class="pre">PipeRingBuffer::available_read</span></code> 可以计算管道中还有多少个字符可以读取。我们首先需要需要判断队列是否为空，因为队头和队尾相等可能表示队列为空或队列已满，两种情况 <code class="docutils literal notranslate"><span class="pre">available_read</span></code> 的返回值截然不同。如果队列为空的话直接返回 0，否则根据队头和队尾的相对位置进行计算。</p>
+<p><code class="docutils literal notranslate"><span class="pre">PipeRingBuffer::available_read</span></code> 可以计算管道中还有多少个字符可以读取。我们首先需要判断队列是否为空，因为队头和队尾相等可能表示队列为空或队列已满，两种情况 <code class="docutils literal notranslate"><span class="pre">available_read</span></code> 的返回值截然不同。如果队列为空的话直接返回 0，否则根据队头和队尾的相对位置进行计算。</p>
 <p><code class="docutils literal notranslate"><span class="pre">PipeRingBuffer::all_write_ends_closed</span></code> 可以判断管道的所有写端是否都被关闭了，这是通过尝试将管道中保存的写端的弱引用计数升级为强引用计数来实现的。如果升级失败的话，说明管道写端的强引用计数为 0 ，也就意味着管道所有写端都被关闭了，从而管道中的数据不会再得到补充，待管道中仅剩的数据被读取完毕之后，管道就可以被销毁了。</p>
 <p>下面是 <code class="docutils literal notranslate"><span class="pre">Pipe</span></code> 的 <code class="docutils literal notranslate"><span class="pre">read</span></code> 方法的实现：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/fs/pipe.rs</span>
