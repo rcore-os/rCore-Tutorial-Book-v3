@@ -408,7 +408,7 @@
 <span class="linenos">12</span><span class="p">}</span>
 </pre></div>
 </div>
-<p>A是共享变量。粗略地看，可以估计执行流程为：第一个线程thr1检查A的值，如果为0，则显示“”thr1: A is Zero  –&gt; 0”；第二个线程thr2设置A的值为2，并显示”thr2: A is One  –&gt; 1”。但如果线程thr1执行完第4行代码，准备执行第5行代码前发生了线程切换，开始执行线程th2；当线程thr2完成第10行后，操作系统有切换回线程thr1继续执行，那么线程thr1就会输出“thr1: A is Zero  –&gt; 1” 这样的奇怪结果。</p>
+<p>A是共享变量。粗略地看，可以估计执行流程为：第一个线程thr1检查A的值，如果为0，则显示“”thr1: A is Zero  –&gt; 0”；第二个线程thr2将A的值由0设置为1（因为除了初始化之外没有其他地方修改了A的值），并显示”thr2: A is One  –&gt; 1”。但如果线程thr1执行完第4行代码，准备执行第5行代码前发生了线程切换，开始执行线程th2；当线程thr2完成第10行后，操作系统又切换回线程thr1继续执行，那么线程thr1就会输出“thr1: A is Zero  –&gt; 1” 这样的奇怪结果。</p>
 <p>这里出现问题的根源是线程在对共享变量进行访问时，违反了临界区的互斥性（原子性）原则。解决这样的问题需要给共享变量的访问加锁，确保每个线程访问共享变量时，都持有锁，修改后的代码如下：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">static</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">A</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="linenos"> 2</span><span class="c1">//... other code</span>
@@ -583,7 +583,7 @@
 </div>
 <p>跳转回步骤2</p>
 <ol class="arabic simple" start="4">
-<li><p>如果Finish[0..n-1] 都为true，则表示系统处于安全状态；否则表示系统处于不安全状态。</p></li>
+<li><p>如果Finish[0..=n-1] 都为true，则表示系统处于安全状态；否则表示系统处于不安全状态。</p></li>
 </ol>
 <p>通过操作系统调度，如银行家算法来避免死锁不是广泛使用的通用方案。因为从线程执行的一般情况上看，银行家算法需要提前获知线程总的资源申请量，以及未来的每一次请求，而这些请求对于一般线程而言在运行前是不可知或随机的。另外，即使在某些特殊情况下，可以提前知道线程的资源申请量等信息，多重循环的银行家算法开销也是很大的，不适合于对性能要求很高的操作系统中。</p>
 </div>

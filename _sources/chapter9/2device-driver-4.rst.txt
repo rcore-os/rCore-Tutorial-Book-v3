@@ -96,7 +96,7 @@ virtio-gpu驱动程序与virtio-gpu设备之间通过两个 virtqueue 来进行�
 初始化virtio-gpu设备
 ------------------------------------------
 
-在 ``virtio-drivers`` crate的 ``examples\riscv\src\main.rs`` 文件中的 ``virtio_probe`` 函数识别出virtio-gpu设备后，会调用 ``virtio_gpu(header)`` 函数来完成对virtio-gpu设备的初始化过程。virtio-gpu设备初始化的工作主要是查询显示设备的信息（如分辨率等），并将该信息用于初始显示扫描（scanout）设置。下面的命令可以看到虚拟GPU的创建和识别过程：
+在 ``virtio-drivers`` crate的 ``examples/riscv/src/main.rs`` 文件中的 ``virtio_probe`` 函数识别出virtio-gpu设备后，会调用 ``virtio_gpu(header)`` 函数来完成对virtio-gpu设备的初始化过程。virtio-gpu设备初始化的工作主要是查询显示设备的信息（如分辨率等），并将该信息用于初始显示扫描（scanout）设置。下面的命令可以看到虚拟GPU的创建和识别过程：
 
 .. code-block:: shell
    :linenos:
@@ -377,7 +377,7 @@ virtio-gpu设备的I/O操作
 4. （可选）设置virtio-gpu设备的光标图像
 5. 返回VirtIOGpuWrapper结构类型
 
-上述步骤的第一步  :ref:`"virto-gpu基本初始化"<term-virtio-driver-gpu-new>` 和第二步 :ref:` 设置显存<term-virtio-driver-gpu-setupfb>`是核心内容，都由 virtio-drivers中与具体操作系统无关的virtio-gpu裸机驱动实现，极大降低本章从操作系统的代码复杂性。至此，我们已经完成了操作系统对 virtio-gpu设备的初始化过程，接下来，我们看一下操作系统对virtio-gpu设备的I/O处理过程。
+上述步骤的第一步  :ref:`"virto-gpu基本初始化"<term-virtio-driver-gpu-new>` 和第二步 :ref:`设置显存<term-virtio-driver-gpu-setupfb>` 是核心内容，都由 virtio-drivers中与具体操作系统无关的virtio-gpu裸机驱动实现，极大降低本章从操作系统的代码复杂性。至此，我们已经完成了操作系统对 virtio-gpu设备的初始化过程，接下来，我们看一下操作系统对virtio-gpu设备的I/O处理过程。
 
 操作系统对接virtio-gpu设备I/O处理
 ------------------------------------------
@@ -462,7 +462,7 @@ virtio-gpu设备的I/O操作
    }
 
 
-到目前为止，看到的操作系统支持工作还是比较简单的，但其实我们还没分析如何给应用程序提供显存虚拟地址空间的。以前章节的操作系统支持应用程序的 :ref: `用户态地址空间<term-vm-app-addr-space>` ，都是在创建应用程序对应进程的初始化过程中建立，涉及不少工作，具体包括：
+到目前为止，看到的操作系统支持工作还是比较简单的，但其实我们还没分析如何给应用程序提供显存虚拟地址空间的。以前章节的操作系统支持应用程序的 :ref:`用户态地址空间<term-vm-app-addr-space>` ，都是在创建应用程序对应进程的初始化过程中建立，涉及不少工作，具体包括：
 
 - 分配空闲 :ref:`物理页帧<term-manage-phys-frame>`
 - 建立 :ref:`进程地址空间(Address Space)<term-vm-memory-set>` 中的 :ref:`逻辑段（MemArea）<term-vm-map-area>` 
