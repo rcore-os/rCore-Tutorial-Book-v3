@@ -261,7 +261,7 @@
 
    计算机中的中断控制器是一种硬件，可帮助处理器处理来自多个不同I/O设备的中断请求（Interrupt Request，简称IRQ）。这些中断请求可能同时发生，并首先经过中断控制器的处理，即中断控制器根据 IRQ 的优先级对同时发生的中断进行排序，然后把优先级最高的IRQ传给处理器，让操作系统执行相应的中断处理例程 （Interrupt Service Routine，简称ISR）。
 
-CPU可以通过MMIO方式来对PLIC进行管理，下面是一下与PLIC相关的寄存器：
+CPU可以通过MMIO方式来对PLIC进行管理，下面是一些与PLIC相关的寄存器：
 
 .. code-block:: console
 

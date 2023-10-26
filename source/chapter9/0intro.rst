@@ -136,7 +136,7 @@
    :alt: 侏罗盗龙操作系统 -- DeviceOS总体结构
 
 
-我们先分析一下图的上下两部分。从上图的右上角可以看到为应用程序增加了GUI相关的新系统调用。应用程序可以通过 ``sys_framebuffer`` 和 ``sys_framebuffer_flush`` 来显示图形界面，通过 ``sys_event_get`` 和 ``sys_key_pressed`` 来接收来自串口/键盘/鼠标的输入事件。这其实就形成了基本的GUI应用支持框架。在上图的中上部，添加了三个GUI应用的图形显示，从左到右分别是： ``gui_simple`` 、 ``gui_snake`` 和 ``gui_rect`` 。
+我们先分析一下图的上下两部分。从上图的左上角可以看到为应用程序增加了GUI相关的新系统调用。应用程序可以通过 ``sys_framebuffer`` 和 ``sys_framebuffer_flush`` 来显示图形界面，通过 ``sys_event_get`` 和 ``sys_key_pressed`` 来接收来自串口/键盘/鼠标的输入事件。这其实就形成了基本的GUI应用支持框架。在上图的中上部，添加了三个GUI应用的图形显示，从左到右分别是： ``gui_simple`` 、 ``gui_snake`` 和 ``gui_rect`` 。
 
 在上图的最下面展示的硬件组成中，可以看到由Qemu模拟器仿真的 ``Virt Machine`` ，它包含了我们要管理的各种硬件组件，包括在前面章节中重点涉及的 ``CPU`` 和 ``Main Memory`` ，还包括新引入的外设，  ``ns16500`` UART串口外设、 ``virtio-gpu`` 图形显示外设、 ``virtio-input`` 键盘鼠标外设、 ``vritio-blk`` 硬盘存储设备。为了与这些硬件交互，系统软件还需了解有关这些外设的硬件参数模型，如各个外设的控制寄存器的内存起始地址和范围等，这就是Qemu模拟器中的 ``Virt Machine`` 硬件参数模型。硬件参数的具体内容可以在Qemu源码 ``qemu/include/hw/riscv/virt.h`` 和  ``qemu/hw/riscv/virt.c`` 中找到。
 
