@@ -112,16 +112,15 @@
 .. code-block:: console
 
    $ cd os
-   $ make run GUI=1
-    >> gui_snake     #在OS启动后的shell界面中只需gui——snake游戏应用
+   $ make run GUI=on
+   >> gui_snake     #在OS启动后的shell界面中执行gui——snake游戏应用
 
-在这个应用中，可以看到 ``gui_snake`` 图形应用通过操作系统提供的UART串口驱动和 ``virtio-gui`` 显示驱动提供的服务来实现的一个贪吃蛇交互式小游戏。
+在这个应用中，可以看到 ``gui_snake`` 图形应用通过操作系统提供的UART串口驱动和 ``virtio-gui`` 显示驱动提供的服务来实现的一个贪吃蛇交互式小游戏。下面是该应用的演示图：其中红色为贪吃蛇，黄色方块为食物。玩家可以使用wasd（分别表示上左下右）控制贪吃蛇的行进方向。由于控制是基于和前面章节一样的命令行标准输入实现的，在游玩的时候需要让焦点位于 user shell 命令行界面，才能成功将控制传递给应用程序。应用画面可以在另一个图形显示窗口看到。
 
 .. image:: ../../os-lectures/lec13/figs/gui-snake.png
    :align: center
    :scale: 30 %
    :name: gui-snake
-
 
 
 本章代码树
