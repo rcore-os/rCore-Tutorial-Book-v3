@@ -503,7 +503,9 @@
 <span class="linenos">10</span><span class="p">}</span>
 </pre></div>
 </div>
-<p>当线程thr1持有锁mutex1，正在等待另外一个锁mutex2，而线程thr2持有锁mutex2，正在等待另外一个锁mutex1时，死锁就产生了。对于这个代码，可以很容易避免死锁：</p>
+<p>当线程thr1持有锁mutex1，正在等待另外一个锁mutex2，而线程thr2持有锁mutex2，正在等待另外一个锁mutex1时，死锁就产生了。</p>
+<a class="reference internal image-reference" href="../_images/dead-lock.png" id="dead-lock"><img alt="死锁缺陷示意图" class="align-center" id="dead-lock" src="../_images/dead-lock.png" style="width: 603.6px; height: 358.2px;" /></a>
+<p>对于这个代码，可以很容易避免死锁：</p>
 <div class="highlight-Rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thr1</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos"> 2</span><span class="w">   </span><span class="n">mutex1</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
 <span class="linenos"> 3</span><span class="w">   </span><span class="n">mutex2</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
@@ -533,6 +535,7 @@
 <p>计算机科学家Dijkstra在1965年为THE操作系统设计提出的一种死锁避免（avoidance）的调度算法，称为银行家算法（banker’s algorithm）算法的核心是判断满足线程的资源请求是否会导致整个系统进入不安全状态。如果是，就拒绝线程的资源请求；如果满足请求后系统状态仍然是安全的，就分配资源给线程。</p>
 <p>状态是安全的，是指存在一个资源分配/线程执行序列使得所有的线程都能获取其所需资源并完成线程的工作。如果找不到这样的资源分配/线程执行序列，那么状态是不安全的。这里把线程的执行过程简化为：申请资源、释放资源的一系列资源操作。这意味这线程执行完毕后，会释放其占用的所有资源。</p>
 <p>我们需要知道，不安全状态并不等于死锁，而是指有死锁的可能性。安全状态和不安全状态的区别是：从安全状态出发，操作系统通过调度线程执行序列，能够保证所有线程都能完成，一定不会出现死锁；而从不安全状态出发，就没有这样的保证，可能出现死锁。</p>
+<a class="reference internal image-reference" href="../_images/avoid-dead-lock.png" id="avoid-dead-lock"><img alt="死锁避免示意图" class="align-center" id="avoid-dead-lock" src="../_images/avoid-dead-lock.png" style="width: 337.20000000000005px; height: 310.8px;" /></a>
 <div class="section" id="id8">
 <h4>银行家算法的数据结构<a class="headerlink" href="#id8" title="永久链接至标题">#</a></h4>
 <p>为了描述操作系统中可利用的资源、所有线程对资源的最大需求、系统中的资源分配，以及所有线程还需要多少资源的情况，需要定义对应的四个数据结构：</p>

@@ -391,6 +391,7 @@
 <h2>本节导读<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
 <p>在本节之前的 IPC 机制主要集中在进程间的数据传输和数据交换方面，这需要两个进程之间相互合作，同步地来实现。比如，一个进程发出 <code class="docutils literal notranslate"><span class="pre">read</span></code> 系统调用，另外一个进程需要发出对应的 <code class="docutils literal notranslate"><span class="pre">write</span></code> 系统调用，这样两个进程才能协同完成基于 <code class="docutils literal notranslate"><span class="pre">pipe</span></code> 机制的数据传输。这种双向协作的方式不太适合单向的事件通知机制。</p>
 <p>在进程间还存在“事件通知”的需求：操作系统或某进程希望能单方面通知另外一个正在忙其它事情的进程产生了某个事件，并让这个进程能迅速响应。如果采用之前同步的 IPC 机制，难以高效地应对这样的需求。比如，用户想中断当前正在运行的一个程序，于是他敲击 <cite>Ctrl-C</cite> 的组合键，正在运行的程序会迅速退出它正在做的任何事情，截止程序的执行。</p>
+<a class="reference internal image-reference" href="../_images/signal-ctrl-c.png" id="signal-ctrl-c"><img alt="信号ctrl+c示意图" class="align-center" id="signal-ctrl-c" src="../_images/signal-ctrl-c.png" style="width: 661.1999999999999px; height: 320.4px;" /></a>
 <p>我们需要有一种类似于硬件中断的软件级异步通知机制，使得进程在接收到特定事件的时候能够暂停当前的工作并及时响应事件，并在响应事件之后可以恢复当前工作继续执行。如果进程没有接收到任何事件，它可以执行自己的任务。这里的暂停与恢复的工作，都由操作系统来完成，应用程序只需设置好响应某事件的事件处理例程就够了。这在很大程度上简化了应用程序响应事件的开发工作。这些需求和想法推动了 <strong>信号</strong> (Signal) 机制的产生。</p>
 </div>
 <div class="section" id="id3">

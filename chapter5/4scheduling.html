@@ -462,6 +462,7 @@
 <li><p>当正在运行的进程需要等待某个事件或资源时，操作系统会把该进程从就绪队列中移出，放到等待队列中（此时这个进程从就绪进程变成等待进程），并从就绪队列头取出下一个进程执行；</p></li>
 <li><p>当等待进程所等待的某个事件出现或等待的资源得到满足时，操作系统会把该进程转为就绪进程，并会把该进程从等待队列中移出，并放到就绪队列末尾。</p></li>
 </ul>
+<a class="reference internal image-reference" href="../_images/fcome-fserverd.png" id="first-come-first-severd"><img alt="先来先服务示意图" class="align-center" id="first-come-first-severd" src="../_images/fcome-fserverd.png" style="width: 491.7px; height: 252.0px;" /></a>
 <p>该调度策略的优点是简单，容易实现。对于满足1~5约束条件的执行环境，用这个调度策略的平均周转时间性能指标也很好。如果在一个在较长的时间段内，每个进程都能结束，那么公平性这个指标也是能得到保证的。</p>
 <p>操作系统不会主动打断进程的运行。</p>
 </div>
@@ -478,7 +479,9 @@
 </div></blockquote>
 <p>可以看到，如果采用先来先服务调度策略，执行时间短的进程（简称短进程）可被排在执行时间长的进程（长进程）后面，导致进程的平均周转时间变长。</p>
 <p>为应对短进程不得不等长进程结束后才能运行的问题，我们可以想到一个调度的方法：优先让短进程执行。这就是最短作业优先（Shortest Job First，简称SJF）调度策略。其实上面让PB先执行的调度方法，就是采用了最短作业优先策略。</p>
+<a class="reference internal image-reference" href="../_images/sjf1.png" id="shortest-job-first"><img alt="最短作业优先示意图" class="align-center" id="shortest-job-first" src="../_images/sjf1.png" style="width: 592.5px; height: 233.0px;" /></a>
 <p>在更新约束条件2的前提下，如果我们把平均周转时间作为唯一的性能指标，那么SJF是一个最优调度算法。这可以用数学方法进行证明。如果有同学感兴趣，可以试试。</p>
+<a class="reference internal image-reference" href="../_images/sjf2.png" id="shortest-job-first-turnaround-time"><img alt="最短作业优先周转时间示意图" class="align-center" id="shortest-job-first-turnaround-time" src="../_images/sjf2.png" style="width: 597.0px; height: 309.0px;" /></a>
 <p>虽然SJF调度策略在理论上表现很不错，但在具体实现中，需要对处于就绪队列上的进程按执行时间进行排序，这会引入一定的调度执行开销。而且如果进一步放宽约束，贴近实际情况，SJF就会显现出它的不足。如果我们放宽约束条件1：</p>
 <ol class="arabic simple">
 <li><p>每个进程可以在不同时间到达。</p></li>
@@ -534,6 +537,7 @@
 <div class="section" id="id14">
 <h3>基于时间片的轮转<a class="headerlink" href="#id14" title="永久链接至标题">#</a></h3>
 <p>如果操作系统分给每个运行的进程的运行时间是一个足够小的时间片（time slice，quantum），时间片一到，就抢占当前进程并切换到另外一个进程执行。这样进程以时间片为单位轮流占用处理器执行。对于交互式进程而言，就有比较大的机会在较短的时间内执行，从而有助于减少响应时间。这种调度策略称为轮转（Round-Robin，简称RR）调度，即基本思路就是从就绪队列头取出一个进程，让它运行一个时间片，然后把它放回到队列尾，再从队列头取下一个进程执行，周而复始。</p>
+<a class="reference internal image-reference" href="../_images/round-robin-theory.png" id="round-robin-theory"><img alt="基于时间片的轮转原理示意图" class="align-center" id="round-robin-theory" src="../_images/round-robin-theory.png" style="width: 561.0px; height: 144.5px;" /></a>
 <p>在具体实现上，需要考虑时间片的大小，一般时间片的大小会设置为时钟中断的时间间隔的整数倍。比如，时钟中断间隔为1ms，时间片可设置为10ms，两个用户发出了执行两个进程的请求，且两个进程大约同时到达，PA和PB的执行时间都为20s(即20,000ms)。如果采用轮转调度，那么进程的响应时间为:</p>
 <blockquote>
 <div><p>0+10 = 10ms</p>
@@ -661,6 +665,7 @@
 <p>计算机系统的应用领域非常广泛，如机器人、物联网、军事、工业控制等。在这些领域中，要求计算机系统能够实时响应，如果采用上述调度方式，不能满足这些需求，这对操作系统提出了新的挑战。</p>
 <p>这里，我们首先需要理解实时的含义。实时计算机系统通常可以分为硬实时（Hard Real Time）和软实时（Soft Real Time）两类，硬实时是指任务完成时间必须在绝对的截止时间内，如果超过意味着错误和失败，可能导致严重后果。软实时是指任务完成时间尽量在绝对的截止时间内，偶尔超过可以接受。</p>
 <p>实时的任务是由一组进程来实现，其中每个进程的行为是可预测和提前确定的。这些进程称为实时进程，它们的执行时间一般较短。支持实时任务的操作系统称为实时操作系统。</p>
+<a class="reference internal image-reference" href="../_images/real-time-schedule.png" id="real-time-schedule"><img alt="实时计算机系统的调度示意图" class="align-center" id="real-time-schedule" src="../_images/real-time-schedule.png" style="width: 753.3000000000001px; height: 182.70000000000002px;" /></a>
 <div class="section" id="id24">
 <h3>约束条件<a class="headerlink" href="#id24" title="永久链接至标题">#</a></h3>
 <p>实时计算机系统是一种以确定的时间范围起到主导作用的计算机系统，一旦外设发给计算机一个事件（如时钟中断、网络包到达等），计算机必须在一个确定时间范围内做出响应。</p>
@@ -698,6 +703,7 @@
 <div class="section" id="id26">
 <h3>速率单调调度<a class="headerlink" href="#id26" title="永久链接至标题">#</a></h3>
 <p>速率单调调度（Rate Monotonic Scheduling，RMS）算法是由刘炯朗（Chung Laung Liu）教授和James W. Layland在1973年提出的。该算法的基本思想是根据进程响应事件的执行周期的长短来设定进程的优先级，即执行周期越短的进程优先级越高。操作系统在调度过程中，选择优先级最高的就绪进程执行，高优先级的进程会抢占低优先级的进程。</p>
+<a class="reference internal image-reference" href="../_images/rms.png" id="rate-monotonic-scheduling"><img alt="速率单调调度示意图" class="align-center" id="rate-monotonic-scheduling" src="../_images/rms.png" style="width: 675.0px; height: 133.5px;" /></a>
 <p>该调度算法有如下的前提假设：</p>
 <ol class="arabic simple">
 <li><p>每个周期性进程必须在其执行周期内完成，以完成对周期性事件的响应。</p></li>
@@ -712,6 +718,7 @@
 <div class="section" id="edf">
 <h3>EDF调度<a class="headerlink" href="#edf" title="永久链接至标题">#</a></h3>
 <p>另一个典型的实时调度算法是最早截止时间优先（Earliest Deadline First，EDF）算法，其基本思想是根据进程的截止时间来确定任务的优先级。截止时间越早，其优先级就越高。如果进程的截止期相同，则处理时间短的进程优先级高。操作系统在调度过程中，选择优先级最高的就绪进程执行，高优先级的进程会抢占低优先级的进程。</p>
+<a class="reference internal image-reference" href="../_images/edf1.png" id="earliest-deadline-first"><img alt="EDF调度示意图" class="align-center" id="earliest-deadline-first" src="../_images/edf1.png" style="width: 687.15px; height: 190.8px;" /></a>
 <p>该调度算法有如下的前提假设：</p>
 <ol class="arabic simple">
 <li><p>进程可以是周期性或非周期性的。</p></li>
@@ -719,6 +726,7 @@
 <li><p>进程的优先级在执行过程中会基于进程的截止期动态变化。</p></li>
 <li><p>进程可被抢占。</p></li>
 </ol>
+<a class="reference internal image-reference" href="../_images/edf2.png" id="earliest-deadline-first-seize"><img alt="EDF调度抢占示意图" class="align-center" id="earliest-deadline-first-seize" src="../_images/edf2.png" style="width: 768.5px; height: 213.5px;" /></a>
 <p>EDF调度算法按照进程的截止时间的早晚来分配优先级，截止时间越近的进程优先级越高。操作系统在进行进程调度时，会根据各个进程的截止时间重新计算进程优先级，并选择优先级最高的进程执行，即操作系统总是优先运行最紧迫的进程。在不同时刻，两个周期性进程的截止时间的早晚关系可能会变化，所以EDF调度算法是一种动态优先级调度算法。</p>
 </div>
 <div class="section" id="id27">
@@ -765,6 +773,7 @@
 <div class="section" id="id28">
 <h2>多处理器计算机系统的调度<a class="headerlink" href="#id28" title="永久链接至标题">#</a></h2>
 <p>在2000年前，多处理器计算机的典型代表是少见的高端服务器和超级计算机，但到了2000年后，单靠提高处理器的频率越来越困难，而芯片的集成度还在进一步提升，所以在一个芯片上集成多个处理器核成为一种自然的选择。到目前位置，在个人计算机、以手机为代表的移动终端上，多核处理器（Multi Core）已成为一种普遍的现象，多个处理器核能够并行执行，且可以共享Cache和内存。</p>
+<a class="reference internal image-reference" href="../_images/multi-core-schedule.png" id="multi-core-scheduling"><img alt="多处理器计算机系统的调度示意图" class="align-center" id="multi-core-scheduling" src="../_images/multi-core-schedule.png" style="width: 672.0px; height: 243.0px;" /></a>
 <p>之前提到的调度策略/算法都是面向单处理器的，如果把这些策略和算法扩展到多处理器环境下，是否需要解决新问题？</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
@@ -797,6 +806,7 @@ t1: CurID = CurID+1    CurID = CurID +1</p>
 <h3>单队列调度<a class="headerlink" href="#id31" title="永久链接至标题">#</a></h3>
 <p>对于多处理器系统而言，两个进程数量多于处理器个数，我们希望每个处理器都执行进程。这一点是之前单处理器调度不会碰到的情况。单处理器的调度只需不断地解答：“接下来应该运行哪个进程？”，而在多处理机中，调度还需解答一个问题：“要运行的进程在哪一个CPU上运行？”。这就增加了调度的复杂性。</p>
 <p>如果我们直接使用单处理器调度的数据结构，其中的重点就是放置就绪进程的就绪队列或其他与调度相关的数据结构。那么这些数据结构就是需要互斥访问的共享数据。 为简化分析过程，我们以轮转调度采用的单就绪队列为例，面向多处理器的单队列调度的策略逻辑没有改变，只是在读写/修改就绪队列等共享数据时，需要用同步互斥的一些操作保护起来，确保对这些共享数据访问的正确性。</p>
+<a class="reference internal image-reference" href="../_images/queue-schedule.png" id="queue-scheduling"><img alt="单队列调度示意图" class="align-center" id="queue-scheduling" src="../_images/queue-schedule.png" style="width: 455.7px; height: 179.89999999999998px;" /></a>
 <p>采用单队列调度的一个好处是，它支持自动负载平衡，因为决不会出现一个CPU空闲而其他CPU过载的情况。</p>
 <p><strong>处理器亲和性</strong></p>
 <p>另外，还需考虑的一个性能问题是调度中的处理器亲和性（也称缓存亲和性、调度亲和性）问题。其基本思想是，尽量使一个进程在它前一次运行过的同一个CPU上运行。其原因是，现代的处理器都有私有Cache，基于局部性的考虑，如果操作系统在下次调度时要给该进程选择处理器，会优先选择该进程上次执行所在的处理器，从而使得Cache中缓存的数据可重用，提高了进程执行的局部性。</p>
@@ -805,6 +815,7 @@ t1: CurID = CurID+1    CurID = CurID +1</p>
 <h3>多队列调度<a class="headerlink" href="#id32" title="永久链接至标题">#</a></h3>
 <p>如果处理器的个数较多，频繁对共享数据执行同步互斥操作的开销会很大。为此，能想到的一个方法是，还是保持单处理器调度策略的基本逻辑，但把就绪队列或和他与调度相关的数据结构按处理器个数复制多份，这样操作系统在绝大多数情况下，只需访问本处理器绑定的调度相关数据结构，就可用完成调度操作。这样在一个调度控制框架下就包含多个调度队列。当要把一个新进程或被唤醒的进程放入就绪队列时，操作系统可根据一些启发式方法（如随机选择某个处理器上的就绪队列或选择就绪进程数量最少的就绪队列）来放置进程到某个就绪队列。操作系统通过访问本处理器上的调度相关数据结构，就可以选择出要执行的进程，这样就避免了开销大的同步互斥操作。</p>
 <p>多队列调度比单队列调度具有更好的可扩展性，多队列的数量会随着处理器的增加而增加，也具有良好的缓存亲和度。当多队列调度也有它自己的问题：负载均衡（Load Balance）问题。</p>
+<a class="reference internal image-reference" href="../_images/deque-schedule.png" id="deque-scheduling"><img alt="多队列调度示意图" class="align-center" id="deque-scheduling" src="../_images/deque-schedule.png" style="width: 537.9499999999999px; height: 176.39999999999998px;" /></a>
 <p>考虑如下的例子，在一个有4个进程，两个处理器的计算机系统中，有两个就绪队列，PA和PB在就绪队列Q1，PC和PD在就绪队列Q2，如果采用基于轮转调度的多队列调度，那么两个处理器可以均匀地让4给进程分时使用处理器。这是一种理想的情况。如果进程PB结束，而调度不进行进一步的干预，那么就会出现PA独占处理器1，PC和PD分时共享处理器2。如果PA也结束了，而调度还不进行进一步的干预，那么（Load Imbalance）就会出现处理器1空闲，而处理器2繁忙的情况，这就是典型的负载不均衡（Load Imbalance）的现象了。这就没有达到轮转调度的意图。</p>
 <p>所以多队列调度需要解决负载不均衡的问题。一个简单的思路就是允许进程根据处理器的负载情况从一个处理器迁移到另外一个处理器上。对于上面的例子，如果是处理器1空闲，处理器2繁忙的而情况，操作系统只需把处理器2上的进程分一半，迁移到处理器1即可。当如果是处理器1上运行了PA，处理器2上运行了PC和PD，这就需要统计每个进程的执行时间，根据进程的执行时间，让进程在两个处理器间不停的迁移，达到在一定时间段内，每个进程所占用的处理器时间大致相同，这就达到了轮转调度的意图，并达到了负载均衡。具体处理有多种方式，比如如下方式调度：</p>
 <blockquote>
