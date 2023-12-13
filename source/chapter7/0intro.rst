@@ -10,6 +10,12 @@
 
 其实在 **UNIX** 的早期发展历史中，也碰到了同样的问题，每个程序专注在完成一件事情上，但缺少把多个程序联合在一起完成复杂功能的机制。直到1975年UNIX v6中引入了让人眼前一亮的创新机制-- **I/O重定向** 与 **管道（pipe）** 。基于这两种机制，操作系统在不用改变应用程序的情况下，可以将一个程序的输出重新定向到另外一个程序的输入中，这样程序之间就可以进行任意的连接，并组合出各种灵活的复杂功能。
 
+.. image:: interprocess-communication.png
+   :align: center
+   :scale: 46 %
+   :name: Interprocess Communication
+   :alt: 进程通信示意图
+
 .. chyyuu 可以介绍pipe ???
    https://en.wikipedia.org/wiki/Pipeline_(Unix)
    Brian Kernighan, UNIX: A History and a Memoir, 2020 
