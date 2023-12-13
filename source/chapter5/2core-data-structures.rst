@@ -289,6 +289,12 @@
 
 在内核中，每个进程的执行状态、资源控制等元数据均保存在一个被称为 **进程控制块** (PCB, Process Control Block) 的结构中，它是内核对进程进行管理的单位，故而是一种极其关键的内核数据结构。在内核看来，它就等价于一个进程。
 
+.. image:: pcb.png
+   :align: center
+   :scale: 60 %
+   :name: pcb
+   :alt: 进程控制块示意图
+
 承接前面的章节，我们仅需对任务控制块 ``TaskControlBlock`` 进行若干改动并让它直接承担进程控制块的功能：
 
 .. code-block:: rust
