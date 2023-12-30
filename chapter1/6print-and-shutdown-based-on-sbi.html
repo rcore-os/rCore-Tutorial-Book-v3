@@ -391,62 +391,51 @@
 </div>
 <div class="section" id="id1">
 <h2>本节导读<a class="headerlink" href="#id1" title="永久链接至标题">#</a></h2>
-<p>本节我们将进行构建“三叶虫”操作系统的最后一个步骤，即基于 RustSBI 提供的服务完成在屏幕上打印 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 和关机操作。事实上，作为对我们之前提到的 <a class="reference internal" href="1app-ee-platform.html#app-software-stack"><span class="std std-ref">应用程序执行环境</span></a> 的细化，RustSBI 介于底层硬件和内核之间，是我们内核的底层执行环境。本节将会提到执行环境除了为上层应用进行初始化的第二种职责：即在上层应用运行时提供服务。本节的代码涉及的汇编和 Rust 的细节较多，不必完全理解其含义，重点在于将内核成功运行起来。</p>
+<p>本节我们将进行构建“三叶虫”操作系统的最后一个步骤，即基于 RustSBI 提供的服务完成在屏幕上打印 <code class="docutils literal notranslate"><span class="pre">Hello</span> <span class="pre">world!</span></code> 和关机操作。事实上，作为对我们之前提到的 <a class="reference internal" href="1app-ee-platform.html#app-software-stack"><span class="std std-ref">应用程序执行环境</span></a> 的细化，RustSBI 介于底层硬件和内核之间，是我们内核的底层执行环境。本节将会提到执行环境除了为上层应用进行初始化的第二种职责：即在上层应用运行时提供服务。</p>
 </div>
 <div class="section" id="rustsbi">
 <h2>使用 RustSBI 提供的服务<a class="headerlink" href="#rustsbi" title="永久链接至标题">#</a></h2>
-<p>之前我们对 RustSBI 的了解仅限于它会在计算机启动时进行它所负责的环境初始化工作，并将计算机控制权移交给内核。但实际上作为内核的执行环境，它还有另一项职责：即在内核运行时响应内核的请求为内核提供服务。当内核发出请求时，计算机会转由 RustSBI 控制来响应内核的请求，待请求处理完毕后，计算机控制权会被交还给内核。从内存布局的角度来思考，每一层执行环境（或称软件栈）都对应到内存中的一段代码和数据，这里的控制权转移指的是 CPU 从执行一层软件的代码到执行另一层软件的代码的过程。这个过程和函数调用比较像，但是内核无法通过函数调用来请求 RustSBI 提供的服务，这是因为内核并没有和 RustSBI 链接到一起，我们仅仅使用 RustSBI 构建后的可执行文件，因此内核对于 RustSBI 的符号一无所知。事实上，内核需要通过另一种复杂的方式来“调用” RustSBI 的服务：</p>
-<div class="highlight-rust notranslate" id="term-llvm-sbicall"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/main.rs</span>
-<span class="linenos"> 2</span><span class="k">mod</span> <span class="nn">sbi</span><span class="p">;</span>
-<span class="linenos"> 3</span>
-<span class="linenos"> 4</span><span class="c1">// os/src/sbi.rs</span>
-<span class="linenos"> 5</span><span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">arch</span>::<span class="n">asm</span><span class="p">;</span>
-<span class="linenos"> 6</span><span class="cp">#[inline(always)]</span>
-<span class="linenos"> 7</span><span class="k">fn</span> <span class="nf">sbi_call</span><span class="p">(</span><span class="n">which</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">arg0</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">arg1</span>: <span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">arg2</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
-<span class="linenos"> 8</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">ret</span><span class="p">;</span>
-<span class="linenos"> 9</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span>
-<span class="linenos">10</span><span class="w">        </span><span class="fm">asm!</span><span class="p">(</span>
-<span class="linenos">11</span><span class="w">            </span><span class="s">&quot;ecall&quot;</span><span class="p">,</span>
-<span class="linenos">12</span><span class="w">            </span><span class="n">inlateout</span><span class="p">(</span><span class="s">&quot;x10&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">arg0</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">ret</span><span class="p">,</span>
-<span class="linenos">13</span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;x11&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">arg1</span><span class="p">,</span>
-<span class="linenos">14</span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;x12&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">arg2</span><span class="p">,</span>
-<span class="linenos">15</span><span class="w">            </span><span class="k">in</span><span class="p">(</span><span class="s">&quot;x17&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">which</span><span class="p">,</span>
-<span class="linenos">16</span><span class="w">        </span><span class="p">);</span>
-<span class="linenos">17</span><span class="w">    </span><span class="p">}</span>
-<span class="linenos">18</span><span class="w">    </span><span class="n">ret</span>
-<span class="linenos">19</span><span class="p">}</span>
+<p>之前我们对 RustSBI 的了解仅限于它会在计算机启动时进行它所负责的环境初始化工作，并将计算机控制权移交给内核。但实际上作为内核的执行环境，它还有另一项职责：即在内核运行时响应内核的请求为内核提供服务。当内核发出请求时，计算机会转由 RustSBI 控制来响应内核的请求，待请求处理完毕后，计算机控制权会被交还给内核。从内存布局的角度来思考，每一层执行环境（或称软件栈）都对应到内存中的一段代码和数据，这里的控制权转移指的是 CPU 从执行一层软件的代码到执行另一层软件的代码的过程。这个过程与我们使用高级语言编程时调用库函数比较类似。</p>
+<p>这里展开介绍一些相关术语：从第二章将要讲到的 <a class="reference internal" href="../chapter2/1rv-privilege.html#riscv-priv-arch"><span class="std std-ref">RISC-V 特权级架构</span></a> 的视角来看，我们编写的 OS 内核位于 Supervisor 特权级，而 RustSBI 位于 Machine 特权级，也是最高的特权级。类似 RustSBI 这样运行在 Machine 特权级的软件被称为 Supervisor Execution Environment(SEE)，即 Supervisor 执行环境。两层软件之间的接口被称为 Supervisor Binary Interface(SBI)，即 Supervisor 二进制接口。 <a class="reference external" href="https://github.com/riscv-non-isa/riscv-sbi-doc">SBI Specification</a> （简称 SBI spec）规定了 SBI 接口层要包含哪些功能，该标准由 RISC-V 开源社区维护。RustSBI 按照 SBI spec 标准实现了需要支持的大多数功能，但 RustSBI 并不是 SBI 标准的唯一一种实现，除此之外还有社区中的前辈 OpenSBI 等等。</p>
+<p>目前， SBI spec 已经发布了 v2.0-rc8 版本，但本教程基于 2023 年 3 月份发布的 <a class="reference external" href="https://github.com/riscv-non-isa/riscv-sbi-doc/releases/download/v1.0.0/riscv-sbi.pdf">v1.0.0 版本</a> 。我们可以来看看里面约定了 SEE 要向 OS 内核提供哪些功能，并寻找我们本节所需的打印到屏幕和关机的接口。可以看到从 Chapter 4 开始，每一章包含了一个 SBI 拓展（Chapter 5 包含多个 Legacy Extension），代表一类功能接口，这有点像 RISC-V 指令集的 IMAFD 等拓展。每个 SBI 拓展还包含若干子功能。其中：</p>
+<ul class="simple">
+<li><p>Chapter 5 列出了若干 SBI 遗留接口，其中包括串口的写入（正是我们本节所需要的）和读取接口，分别位于 5.2 和 5.3 小节。在教程第九章我们自己实现串口外设驱动之前，与串口的交互都是通过这两个接口来进行的。顺带一提，第三章开始还会用到 5.1 小节介绍的 set timer 接口。</p></li>
+<li><p>Chapter 10 包含了若干系统重启相关的接口，我们本节所需的关机接口也在其中。</p></li>
+</ul>
+<p>内核应该如何调用 RustSBI 提供的服务呢？通过函数调用是行不通的，因为内核并没有和 RustSBI 链接到一起，我们仅仅使用 RustSBI 构建后的可执行文件，因此内核无从得知 RustSBI 中的符号或地址。幸而， RustSBI 开源社区的 <a class="reference external" href="https://github.com/rustsbi/sbi-rt">sbi_rt</a> 封装了调用 SBI 服务的接口，我们直接使用即可。首先，我们在 <code class="docutils literal notranslate"><span class="pre">Cargo.toml</span></code> 中引入 sbi_rt 依赖：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="o">//</span> <span class="n">os</span><span class="o">/</span><span class="n">Cargo</span><span class="o">.</span><span class="n">toml</span>
+<span class="linenos">2</span><span class="p">[</span><span class="n">dependencies</span><span class="p">]</span>
+<span class="linenos">3</span><span class="n">sbi</span><span class="o">-</span><span class="n">rt</span> <span class="o">=</span> <span class="p">{</span> <span class="n">version</span> <span class="o">=</span> <span class="s2">&quot;0.0.2&quot;</span><span class="p">,</span> <span class="n">features</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;legacy&quot;</span><span class="p">]</span> <span class="p">}</span>
 </pre></div>
 </div>
-<p>我们将内核与 RustSBI 通信的相关功能实现在子模块 <code class="docutils literal notranslate"><span class="pre">sbi</span></code> 中，因此我们需要在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 中加入 <code class="docutils literal notranslate"><span class="pre">mod</span> <span class="pre">sbi</span></code> 将该子模块加入我们的项目。在 <code class="docutils literal notranslate"><span class="pre">os/src/sbi.rs</span></code> 中，我们首先关注 <code class="docutils literal notranslate"><span class="pre">sbi_call</span></code> 的函数签名， <code class="docutils literal notranslate"><span class="pre">which</span></code> 表示请求 RustSBI 的服务的类型（RustSBI 可以提供多种不同类型的服务）， <code class="docutils literal notranslate"><span class="pre">arg0</span></code> ~ <code class="docutils literal notranslate"><span class="pre">arg2</span></code> 表示传递给 RustSBI 的 3 个参数，而 RustSBI 在将请求处理完毕后，会给内核一个返回值，这个返回值也会被 <code class="docutils literal notranslate"><span class="pre">sbi_call</span></code> 函数返回。尽管我们还不太理解函数 <code class="docutils literal notranslate"><span class="pre">sbi_call</span></code> 的具体实现，但目前我们已经知道如何使用它了：当需要使用 RustSBI 服务的时候调用它就行了。</p>
-<p>在 <code class="docutils literal notranslate"><span class="pre">sbi.rs</span></code> 中我们定义 RustSBI 支持的服务类型常量，它们并未被完全用到：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/sbi.rs</span>
-<span class="linenos"> 2</span><span class="cp">#![allow(unused)]</span><span class="w"> </span><span class="c1">// 此行请放在该文件最开头</span>
-<span class="linenos"> 3</span><span class="k">const</span><span class="w"> </span><span class="n">SBI_SET_TIMER</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<span class="linenos"> 4</span><span class="k">const</span><span class="w"> </span><span class="n">SBI_CONSOLE_PUTCHAR</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
-<span class="linenos"> 5</span><span class="k">const</span><span class="w"> </span><span class="n">SBI_CONSOLE_GETCHAR</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
-<span class="linenos"> 6</span><span class="k">const</span><span class="w"> </span><span class="n">SBI_CLEAR_IPI</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
-<span class="linenos"> 7</span><span class="k">const</span><span class="w"> </span><span class="n">SBI_SEND_IPI</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
-<span class="linenos"> 8</span><span class="k">const</span><span class="w"> </span><span class="n">SBI_REMOTE_FENCE_I</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
-<span class="linenos"> 9</span><span class="k">const</span><span class="w"> </span><span class="n">SBI_REMOTE_SFENCE_VMA</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">6</span><span class="p">;</span>
-<span class="linenos">10</span><span class="k">const</span><span class="w"> </span><span class="n">SBI_REMOTE_SFENCE_VMA_ASID</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span>
-<span class="linenos">11</span><span class="k">const</span><span class="w"> </span><span class="n">SBI_SHUTDOWN</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">;</span>
-</pre></div>
-</div>
-<p>如字面意思，服务 <code class="docutils literal notranslate"><span class="pre">SBI_CONSOLE_PUTCHAR</span></code> 可以用来在屏幕上输出一个字符。我们将这个功能封装成 <code class="docutils literal notranslate"><span class="pre">console_putchar</span></code> 函数：</p>
+<p>这里需要带上 <code class="docutils literal notranslate"><span class="pre">legacy</span></code> 的 feature，因为我们需要用到的串口读写接口都属于 SBI 的遗留接口。</p>
+<p id="term-llvm-sbicall">我们将内核与 RustSBI 通信的相关功能实现在子模块 <code class="docutils literal notranslate"><span class="pre">sbi</span></code> 中，因此我们需要在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 中加入 <code class="docutils literal notranslate"><span class="pre">mod</span> <span class="pre">sbi</span></code> 将该子模块加入我们的项目。在 <code class="docutils literal notranslate"><span class="pre">os/src/sbi.rs</span></code> 中，我们直接调用 sbi_rt 提供的接口来将输出字符：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/sbi.rs</span>
 <span class="linenos">2</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">console_putchar</span><span class="p">(</span><span class="n">c</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="linenos">3</span><span class="w">    </span><span class="n">sbi_call</span><span class="p">(</span><span class="n">SBI_CONSOLE_PUTCHAR</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
-<span class="linenos">4</span><span class="p">}</span>
-</pre></div>
-</div>
-<p>注意我们并未使用 <code class="docutils literal notranslate"><span class="pre">sbi_call</span></code> 的返回值，因为它并不重要。如果同学们有兴趣的话，可以试着在 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 中调用 <code class="docutils literal notranslate"><span class="pre">console_putchar</span></code> 来在屏幕上输出 <code class="docutils literal notranslate"><span class="pre">OK</span></code> 。接着在 Qemu 上运行一下，我们便可看到由我们自己输出的第一条 log 了。</p>
-<p>类似上述方式，我们还可以将关机服务 <code class="docutils literal notranslate"><span class="pre">SBI_SHUTDOWN</span></code> 封装成 <code class="docutils literal notranslate"><span class="pre">shutdown</span></code> 函数：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/sbi.rs</span>
-<span class="linenos">2</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">shutdown</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
-<span class="linenos">3</span><span class="w">    </span><span class="n">sbi_call</span><span class="p">(</span><span class="n">SBI_SHUTDOWN</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
-<span class="linenos">4</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;It should shutdown!&quot;</span><span class="p">);</span>
+<span class="linenos">3</span><span class="w">    </span><span class="cp">#[allow(deprecated)]</span>
+<span class="linenos">4</span><span class="w">    </span><span class="n">sbi_rt</span>::<span class="n">legacy</span>::<span class="n">console_putchar</span><span class="p">(</span><span class="n">c</span><span class="p">);</span>
 <span class="linenos">5</span><span class="p">}</span>
 </pre></div>
+</div>
+<p>注意我们为了简单起见并未用到 <code class="docutils literal notranslate"><span class="pre">sbi_call</span></code> 的返回值，有兴趣的同学可以在 SBI spec 中查阅 SBI 服务返回值的含义。到这里，同学们可以试着在 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 中调用 <code class="docutils literal notranslate"><span class="pre">console_putchar</span></code> 来在屏幕上输出 <code class="docutils literal notranslate"><span class="pre">OK</span></code> 。接着在 Qemu 上运行一下，我们便可看到由我们自己输出的第一条 log 了。</p>
+<p>同样，我们再来实现关机功能：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/sbi.rs</span>
+<span class="linenos"> 2</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">shutdown</span><span class="p">(</span><span class="n">failure</span>: <span class="kt">bool</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="n">sbi_rt</span>::<span class="p">{</span><span class="n">system_reset</span><span class="p">,</span><span class="w"> </span><span class="n">NoReason</span><span class="p">,</span><span class="w"> </span><span class="n">Shutdown</span><span class="p">,</span><span class="w"> </span><span class="n">SystemFailure</span><span class="p">};</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">failure</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="n">system_reset</span><span class="p">(</span><span class="n">Shutdown</span><span class="p">,</span><span class="w"> </span><span class="n">NoReason</span><span class="p">);</span>
+<span class="linenos"> 6</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 7</span><span class="w">        </span><span class="n">system_reset</span><span class="p">(</span><span class="n">Shutdown</span><span class="p">,</span><span class="w"> </span><span class="n">SystemFailure</span><span class="p">);</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos"> 9</span><span class="w">    </span><span class="fm">unreachable!</span><span class="p">()</span>
+<span class="linenos">10</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>这里的参数 <code class="docutils literal notranslate"><span class="pre">failure</span></code> 表示系统是否正常退出。更多内容可以参阅 SBI spec 的 Chapter 10。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p><strong>sbi_rt 是如何调用 SBI 服务的</strong></p>
+<p>SBI spec 的 Chapter 3 介绍了服务的调用方法：只需将要调用功能的拓展 ID 和功能 ID 分别放在 <code class="docutils literal notranslate"><span class="pre">a7</span></code> 和 <code class="docutils literal notranslate"><span class="pre">a6</span></code> 寄存器中，并按照 RISC-V 调用规范将参数放置在其他寄存器中，随后执行 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令即可。这会将控制权转交给 RustSBI 并由 RustSBI 来处理请求，处理完成后会将控制权交还给内核。返回值会被保存在 <code class="docutils literal notranslate"><span class="pre">a0</span></code> 和 <code class="docutils literal notranslate"><span class="pre">a1</span></code> 寄存器中。在本书的第二章中，我们会手动编写汇编代码来实现类似的过程。</p>
 </div>
 </div>
 <div class="section" id="id2">
@@ -554,11 +543,11 @@
 <span class="linenos">17</span><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos">18</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Panicked: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">message</span><span class="p">().</span><span class="n">unwrap</span><span class="p">());</span>
 <span class="linenos">19</span><span class="w">    </span><span class="p">}</span>
-<span class="linenos">20</span><span class="w">    </span><span class="n">shutdown</span><span class="p">()</span>
+<span class="linenos">20</span><span class="w">    </span><span class="n">shutdown</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
 <span class="linenos">21</span><span class="p">}</span>
 </pre></div>
 </div>
-<p>我们尝试打印更加详细的信息，包括 panic 所在的源文件和代码行数。我们尝试从传入的 <code class="docutils literal notranslate"><span class="pre">PanicInfo</span></code> 中解析这些信息，如果解析成功的话，就和 panic 的报错信息一起打印出来。我们需要在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 开头加上 <code class="docutils literal notranslate"><span class="pre">#![feature(panic_info_message)]</span></code> 才能通过 <code class="docutils literal notranslate"><span class="pre">PanicInfo::message</span></code> 获取报错信息。当打印完毕之后，我们直接调用 <code class="docutils literal notranslate"><span class="pre">shutdown</span></code> 函数关机。</p>
+<p>我们尝试打印更加详细的信息，包括 panic 所在的源文件和代码行数。我们尝试从传入的 <code class="docutils literal notranslate"><span class="pre">PanicInfo</span></code> 中解析这些信息，如果解析成功的话，就和 panic 的报错信息一起打印出来。我们需要在 <code class="docutils literal notranslate"><span class="pre">main.rs</span></code> 开头加上 <code class="docutils literal notranslate"><span class="pre">#![feature(panic_info_message)]</span></code> 才能通过 <code class="docutils literal notranslate"><span class="pre">PanicInfo::message</span></code> 获取报错信息。当打印完毕之后，我们直接调用 <code class="docutils literal notranslate"><span class="pre">shutdown</span></code> 函数关机，由于系统是异常 panic 关机的，参数 <code class="docutils literal notranslate"><span class="pre">failure</span></code> 应为 <code class="docutils literal notranslate"><span class="pre">true</span></code> 。</p>
 <p>为了测试我们的实现是否正确，我们将 <code class="docutils literal notranslate"><span class="pre">rust_main</span></code> 改为：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="c1">// os/src/main.rs</span>
 <span class="linenos">2</span><span class="cp">#[no_mangle]</span>
@@ -575,7 +564,7 @@ Hello, world!
 Panicked at src/main.rs:26 Shutdown machine!
 </pre></div>
 </div>
-<p>可以看到，panic 所在的源文件和代码行数被正确报告，这将为我们后续章节的开发和调试带来很大方便。到这里，我们就实现了一个可以在Qemu模拟的计算机上运行的裸机应用程序，其具体内容就是上述的 <cite>rust_main`函数，而其他部分，如 `entry.asm</cite> 、 <cite>lang_items.rs</cite> 、<cite>console.rs</cite> 、 <cite>sbi.rs</cite> 则形成了支持裸机应用程序的寒武纪“三叶虫”操作系统 – LibOS 。</p>
+<p>可以看到，panic 所在的源文件和代码行数被正确报告，这将为我们后续章节的开发和调试带来很大方便。到这里，我们就实现了一个可以在Qemu模拟的计算机上运行的裸机应用程序，其具体内容就是上述的 <cite>rust_main</cite> 函数，而其他部分，如 <cite>entry.asm</cite> 、 <cite>lang_items.rs</cite> 、<cite>console.rs</cite> 、 <cite>sbi.rs</cite> 则形成了支持裸机应用程序的寒武纪“三叶虫”操作系统 – LibOS 。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
 <p><strong>Rust Tips：Rust 可恢复错误</strong></p>
