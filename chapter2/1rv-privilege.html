@@ -404,15 +404,20 @@
 </ul>
 <p>假设有了这样的限制，我们还需要确保应用程序能够得到操作系统的服务，即应用程序和操作系统还需要有交互的手段。使得低特权级软件只能做高特权级软件允许它做的，且超出低特权级软件能力的功能必须寻求高特权级软件的帮助。这样，高特权级软件（操作系统）就成为低特权级软件（一般应用）的软件执行环境的重要组成部分。</p>
 <p>为了实现这样的特权级机制，需要进行软硬件协同设计。一个比较简洁的方法就是，处理器设置两个不同安全等级的执行环境：用户态特权级的执行环境和内核态特权级的执行环境。且明确指出可能破坏计算机系统的内核态特权级指令子集，规定内核态特权级指令子集中的指令只能在内核态特权级的执行环境中执行。处理器在执行指令前会进行特权级安全检查，如果在用户态执行环境中执行这些内核态特权级指令，会产生异常。</p>
-<p>为了让应用程序获得操作系统的函数服务，采用传统的函数调用方式（即通常的 <code class="docutils literal notranslate"><span class="pre">call</span></code> 和 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 指令或指令组合）将会直接绕过硬件的特权级保护检查。所以可以设计新的机器指令：执行环境调用（Execution Environment Call，简称 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> ）和执行环境返回(Execution Environment Return，简称 <code class="docutils literal notranslate"><span class="pre">eret</span></code> )）：</p>
+<p>为了让应用程序获得操作系统的函数服务，采用传统的函数调用方式（即通常的 <code class="docutils literal notranslate"><span class="pre">call</span></code> 和 <code class="docutils literal notranslate"><span class="pre">ret</span></code> 指令或指令组合）将会直接绕过硬件的特权级保护检查。为了解决这个问题， RISC-V 提供了新的机器指令：执行环境调用指令（Execution Environment Call，简称 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> ）和一类执行环境返回（Execution Environment Return，简称 <code class="docutils literal notranslate"><span class="pre">eret</span></code> ）指令。其中：</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">ecall</span></code> ：具有用户态到内核态的执行环境切换能力的函数调用指令</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">eret</span></code> ：具有内核态到用户态的执行环境切换能力的函数返回指令</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ecall</span></code> 具有用户态到内核态的执行环境切换能力的函数调用指令；</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sret</span></code> ：具有内核态到用户态的执行环境切换能力的函数返回指令。</p></li>
 </ul>
-<p>硬件具有了这样的机制后，还需要操作系统的配合才能最终完成对操作系统自身的保护。首先，操作系统需要提供相应的功能代码，能在执行 <code class="docutils literal notranslate"><span class="pre">eret</span></code> 前准备和恢复用户态执行应用程序的上下文。其次，在应用程序调用 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令后，能够检查应用程序的系统调用参数，确保参数不会破坏操作系统。</p>
 <div class="admonition note">
 <p class="admonition-title">注解</p>
-<p>一般来说， <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 和 <code class="docutils literal notranslate"><span class="pre">eret</span></code> 两条指令分别可以用来让 CPU 从当前特权级切换到比当前高一级的特权级和切换到不高于当前的特权级，因此上面提到的两条指令的功能仅是其中一种用法。在本书中，大多数情况我们只需考虑这种用法即可。</p>
+<p><strong>sret 与 eret 的联系与区别</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">eret</span></code> 代表一类执行环境返回指令，而 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 特指从 Supervisor 模式的执行环境（即 OS 内核）返回的那条指令，也是本书中主要用到的指令。除了 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 之外， <code class="docutils literal notranslate"><span class="pre">mret</span></code> 也属于执行环境返回指令，当从 Machine 模式的执行环境返回时使用， RustSBI 会用到这条指令。</p>
+</div>
+<p>硬件具有了这样的机制后，还需要操作系统的配合才能最终完成对操作系统自身的保护。首先，操作系统需要提供相应的功能代码，能在执行 <code class="docutils literal notranslate"><span class="pre">sret</span></code> 前准备和恢复用户态执行应用程序的上下文。其次，在应用程序调用 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令后，能够检查应用程序的系统调用参数，确保参数不会破坏操作系统。</p>
+<div class="admonition note">
+<p class="admonition-title">注解</p>
+<p>一般来说， <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 这条指令和 <code class="docutils literal notranslate"><span class="pre">eret</span></code> 这类指令分别可以用来让 CPU 从当前特权级切换到比当前高一级的特权级和切换到不高于当前的特权级，因此上面提到的两条指令的功能仅是其中一种用法。在本书中，大多数情况我们只需考虑这种用法即可。</p>
 <p>读者可能会好奇一共有多少种不同的特权级，在不同的指令集体系结构中特权级的数量也是不同的。x86 和 RISC-V 设计了多达 4 种特权级，而对于一般的操作系统而言，其实只要两种特权级就够了。</p>
 </div>
 </div>
