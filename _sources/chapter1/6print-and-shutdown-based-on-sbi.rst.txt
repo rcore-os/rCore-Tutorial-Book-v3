@@ -64,7 +64,7 @@
         unreachable!()
     }
 
-这里的参数 ``failure`` 表示系统是否正常退出。更多内容可以参阅 SBI spec 的 Chapter 10。
+这里的参数 ``failure`` 表示系统是否正常退出，这会影响 Qemu 模拟器进程退出之后的返回值，我们则会依此判断系统的执行是否正常。更多内容可以参阅 SBI spec 的 Chapter 10。
 
 .. note:: **sbi_rt 是如何调用 SBI 服务的**
 
