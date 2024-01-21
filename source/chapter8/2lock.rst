@@ -418,6 +418,7 @@ Rust 在标准库中提供了互斥锁 ``std::sync::Mutex<T>`` ，它可以包�
     extern crate alloc;
 
     use alloc::vec::Vec;
+    use core::ptr::addr_of_mut;
     use user_lib::{exit, get_time, thread_create, waittid};
 
     static mut A: usize = 0;
@@ -426,7 +427,7 @@ Rust 在标准库中提供了互斥锁 ``std::sync::Mutex<T>`` ，它可以包�
     static mut PER_THREAD: usize = 0;
 
     unsafe fn critical_section(t: &mut usize) {
-        let a = &mut A as *mut usize;
+        let a = addr_of_mut!(A);
         let cur = a.read_volatile();
         for _ in 0..500 {
             *t = (*t) * (*t) % 10007;
@@ -495,7 +496,7 @@ Rust 在标准库中提供了互斥锁 ``std::sync::Mutex<T>`` ，它可以包�
     static mut OCCUPIED: bool = false;
 
     unsafe fn lock() {
-        while vload!(&OCCUPIED) {}
+        while vload!(OCCUPIED) {}
         OCCUPIED = true;
     }
 
@@ -503,7 +504,7 @@ Rust 在标准库中提供了互斥锁 ``std::sync::Mutex<T>`` ，它可以包�
         OCCUPIED = false;
     }
 
-我们使用一个新的全局变量 ``OCCUPIED`` 作为标记，表示当前是否有线程在临界区内。在 ``lock`` 的时候，我们等待 ``OCCUPIED`` 变为 false （注意这里的 ``vload!`` 来自用户库 ``user_lib`` ，和临界区中的 ``volatile_read`` 含义相同），这意味着没有线程在临界区内了，于是将标记修改为 true 并自己进入临界区。在退出临界区 ``unlock`` 的时候则只需将标记改成 false 。
+我们使用一个新的全局变量 ``OCCUPIED`` 作为标记，表示当前是否有线程在临界区内。在 ``lock`` 的时候，我们等待 ``OCCUPIED`` 变为 false （注意这里的 ``vload!`` 来自用户库 ``user_lib`` ，基于临界区中用到的 ``read_volatile`` 实现，含义相同），这意味着没有线程在临界区内了，于是将标记修改为 true 并自己进入临界区。在退出临界区 ``unlock`` 的时候则只需将标记改成 false 。
 
 .. _term-busy-waiting:
 .. _term-spinning:
@@ -549,7 +550,7 @@ Rust 在标准库中提供了互斥锁 ``std::sync::Mutex<T>`` ，它可以包�
         // Otherwise the compiler will assume that they will never
         // be changed on this thread. Thus, they will be accessed
         // only once! 
-        while vload!(&FLAG[j]) && vload!(&TURN) == j {}
+        while vload!(FLAG[j]) && vload!(TURN) == j {}
         // while FLAG[j] && TURN == j {}
     }
 
