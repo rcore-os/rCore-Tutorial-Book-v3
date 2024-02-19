@@ -82,8 +82,6 @@
         let app_start = unsafe {
             core::slice::from_raw_parts(num_app_ptr.add(1), num_app + 1)
         };
-        // clear i-cache first
-        unsafe { asm!("fence.i" :::: "volatile"); }
         // load apps
         for i in 0..num_app {
             let base_i = get_base_i(i);
@@ -102,6 +100,9 @@
                 core::slice::from_raw_parts_mut(base_i as *mut u8, src.len())
             };
             dst.copy_from_slice(src);
+        }
+        unsafe {
+            asm!("fence.i");
         }
     }
 
