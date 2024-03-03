@@ -1051,8 +1051,10 @@
             process_inner.memory_set.recycle_data_pages();
             // drop file descriptors
             process_inner.fd_table.clear();
-            // remove all tasks
-            process_inner.tasks.clear();
+            // Remove all tasks except for the main thread itself.
+            while process_inner.tasks.len() > 1 {
+                process_inner.tasks.pop();
+            }
         }
         drop(process);
         // we do not have to save task context
@@ -1065,7 +1067,8 @@
 - 第 20~25 行更新 PID-进程控制块映射，将进程标记为僵尸进程然后记录进程退出码， **进程退出码即为其主线程退出码** 。
 - 第 29~33 行将子进程挂到初始进程 INITPROC 下面。
 - 第 36~58 行回收所有线程的 ``TaskUserRes`` ，为了保证进程控制块的独占访问，我们需要先将所有的线程的 ``TaskUserRes`` 收集到向量 ``recycle_res`` 中。在第 57 行独占访问结束后，第 58 行通过清空 ``recycle_res`` 自动回收所有的 ``TaskUserRes`` 。
-- 第 60~67 行依次清空子进程列表、回收进程地址空间中用于存放数据的物理页帧、清空文件描述符表并最终移除所有线程。注意我们在回收物理页帧之前必须将 ``TaskUserRes`` 清空，不然相关物理页帧会被回收两次。目前这种回收顺序并不是最好的实现，同学可以想想看有没有更合适的实现。
+- 第 60~65 行依次清空子进程列表、回收进程地址空间中用于存放数据的物理页帧、清空文件描述符表。注意我们在回收物理页帧之前必须将 ``TaskUserRes`` 清空，不然相关物理页帧会被回收两次。目前这种回收顺序并不是最好的实现，同学可以想想看有没有更合适的实现。
+- 第 66~69 行移除除了主线程之外的所有线程。目前线程控制块中，只有内核栈资源还未回收，但我们此时无法回收主线程的内核栈，因为当前的流程还是在这个内核栈上跑的，所以这里要绕过主线程。等到整个进程被父进程通过 ``waitpid`` 回收的时候，主线程的内核栈会被一起回收。
 
 这里特别需要注意的是在第 48 行，主线程退出的时候可能有一些线程处于就绪状态等在任务管理器 ``TASK_MANAGER`` 的队列中，我们需要及时调用 ``remove_inactive_task`` 函数将它们从队列中移除，不然将导致它们的引用计数不能成功归零并回收资源，最终导致内存溢出。相关测例如 ``early_exit.rs`` ，请同学思考我们的内核能否正确处理这种情况。
 
