@@ -1,0 +1,71 @@
+name: Generate Tutorial PDF
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+
+    - name: Setup Environment
+      run: |
+        sudo apt update
+        sudo apt install -y latexmk texlive-latex-recommended texlive-latex-extra texlive-xetex fonts-freefont-otf texlive-fonts-recommended texlive-lang-chinese tex-gyre
+        curl -fsSL https://deb.nodesource.com/setup_current.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        npm install -g @mermaid-js/mermaid-cli
+        sudo apt-get install -y python3-sphinx
+        sudo apt-get install -y python3-pip
+
+    - name: Apply Patch
+      run: |
+        git apply --reject scripts/latexpdf.patch
+
+    - name: Install Python Dependencies
+      run: |
+        pip install -r requirements.txt
+        
+    - name: Generate PDF
+      run: |
+        make latexpdf
+        
+    - name: Upload PDF to Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: tutorial-pdf
+        path: build/latex/rcore-tutorial-book-v3.pdf
+
+    - name: Get Current Date and Time
+      id: datetime
+      run: echo "::set-output name=datetime::$(date +'%Y%m%d-%H%M')"
+      
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.datetime.outputs.datetime }}
+        release_name: Release ${{ steps.datetime.outputs.datetime }}
+        draft: false
+        prerelease: false
+
+    - name: Upload PDF to Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/latex/rcore-tutorial-book-v3.pdf
+        asset_name: rcore-tutorial-book-v3.pdf
+        asset_content_type: application/pdf
