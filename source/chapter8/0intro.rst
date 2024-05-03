@@ -661,6 +661,6 @@
 		pub wait_queue: VecDeque<Arc<TaskControlBlock>>,//等待队列
 	}
 
-在上述代码片段的第7行，可以看到挂在条件变量上的线程，会被放入到条件变量的等待队列 `wait_queue` 中。条件变量 `Condvar` 类型实现了 `wait` 和 `signal` 两个方法完成获取等待条件变量和通知信号量的操作。而系统调用 `sys_condvar_create` 、 `sys_condvar_wait` 、 `sys_condvar_signal` 这几个系统调用，是提供给多线程应用程序实现条件变量的创建、等待和通知的同步互斥操作。	
+在上述代码片段的第6行，可以看到挂在条件变量上的线程，会被放入到条件变量的等待队列 `wait_queue` 中。条件变量 `Condvar` 类型实现了 `wait` 和 `signal` 两个方法完成获取等待条件变量和通知信号量的操作。而系统调用 `sys_condvar_create` 、 `sys_condvar_wait` 、 `sys_condvar_signal` 这几个系统调用，是提供给多线程应用程序实现条件变量的创建、等待和通知的同步互斥操作。	
 
 同学可能会注意到，上述的睡眠型互斥锁、信号量和条件变量的数据结构几乎相同，都会把挂起的线程放到等待队列中。但是它们的具体实现还是有区别的，这需要同学了解这三种同步互斥机制的操作原理，再看看它们的方法对的设计与实现：互斥锁的lock和unlock、信号量的up和down、条件变量的wait和signal，就可以看到它们的具体区别了。
