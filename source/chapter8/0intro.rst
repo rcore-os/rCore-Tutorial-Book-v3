@@ -594,7 +594,7 @@
 		pub condvar_list: Vec<Option<Arc<Condvar>>>,     // 条件变量列表
 	}
 
-在互斥锁的设计实现中，设计了一个更底层的 `UPSafeCellSafeCell<T>` 类型，用于支持在单核处理器上安全地在线程间共享可变全局变量。这个类型大致结构如下所示：
+在互斥锁的设计实现中，设计了一个更底层的 `UPSafeCell<T>` 类型，用于支持在单核处理器上安全地在线程间共享可变全局变量。这个类型大致结构如下所示：
 
 .. code-block:: Rust
     :linenos:
