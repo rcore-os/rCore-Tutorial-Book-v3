@@ -1,3 +1,5 @@
+.. _link-chapter6:
+
 第六章：文件系统
 ==============================================
 
@@ -9,6 +11,7 @@
    2fs-implementation
    3using-easy-fs-in-kernel
    4exercise
+   5answer
 
 .. chyyuu 
    最晚灭绝的“霸王龙”操作系统

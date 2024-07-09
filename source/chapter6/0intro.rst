@@ -53,6 +53,12 @@
 
 本章我们将实现一个简单的文件系统 -- easyfs，能够对 **持久存储设备** (Persistent Storage) 这种 I/O 资源进行管理。对于应用程序访问持久存储设备的需求，内核需要新增两种文件：常规文件和目录文件，它们均以文件系统所维护的 **磁盘文件** 形式被组织并保存在持久存储设备上。这样，就形成了具有强大UNIX操作系统基本功能的 “霸王龙” [#rex]_ 操作系统。
 
+.. image:: filesystem-general.png
+   :align: center
+   :scale: 60 %
+   :name: File System
+   :alt: 文件系统示意图
+
 .. 
    同时，由于我们进一步完善了对 **文件** 这一抽象概念的实现，我们可以更容易建立 ” **一切皆文件** “ (Everything is a file) 的UNIX的重要设计哲学。所以本章要完成的操作系统的第二个核心目标是： **以文件抽象来统一描述进程间通信，基于I/O重定向和程序运行参数，实现独立应用之间的灵活组合** 。这需要扩展与应用程序执行相关的 ``exec`` 系统调用，加入对程序运行参数的支持，并进一步改进了对shell程序自身的实现，加入对重定向符号 ``>`` 、 ``<`` 的识别和处理。这样我们也可以像UNIX中的shell程序一样，基于文件机制实现灵活的I/O重定位和管道操作，更加灵活地把应用程序组合在一起实现复杂功能。这样，就形成了具有强大UNIX操作系统基本功能的 “霸王龙” [#rex]_ 操作系统。
 
@@ -85,30 +91,6 @@
 
 在执行 ``qemu-system-riscv64`` 的参数中，``../user/target/riscv64gc-unknown-none-elf/release/fs.img`` 是包含应用程序集合的文件系统镜像，这个镜像是放在虚拟硬盘块设备 ``virtio-blk-device`` （在下一章会进一步介绍这种存储设备）中的。
 
-若要在 k210 平台上运行，首先需要将 microSD 通过读卡器插入 PC ，然后将打包应用 ELF 的文件系统镜像烧写到 microSD 中：
-
-.. code-block:: console
-
-   $ cd os
-   $ make sdcard
-   Are you sure write to /dev/sdb ? [y/N]
-   y
-   16+0 records in
-   16+0 records out
-   16777216 bytes (17 MB, 16 MiB) copied, 1.76044 s, 9.5 MB/s
-   8192+0 records in
-   8192+0 records out
-   4194304 bytes (4.2 MB, 4.0 MiB) copied, 3.44472 s, 1.2 MB/s
-
-途中需要输入 ``y`` 确认将文件系统烧写到默认的 microSD 所在位置 ``/dev/sdb`` 中（注：这个位置在不同的Linux开发环境下可能是不同的）。这个位置可以在 ``os/Makefile`` 中的 ``SDCARD`` 处进行修改，在烧写之前请确认它被正确配置为 microSD 的实际目录的位置，否则可能会造成数据损失。
-
-烧写之后，将 microSD 插入到 Maix 系列开发板并连接到 PC，然后在开发板上运行本章代码：
-
-.. code-block:: console
-
-   $ cd os
-   $ make run BOARD=k210
-
 内核初始化完成之后就会进入shell程序，在这里我们运行一下本章的测例 ``filetest_simple`` ：
 
 .. code-block::
@@ -130,6 +112,19 @@
 本章代码树
 -----------------------------------------
 
+
+霸王龙操作系统 -- FilesystemOS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec9/figs/fsos-fsdisk.png
+   :align: center
+   :scale: 30 %
+   :name: filesystem-os-detail
+   :alt: 霸王龙操作系统 - Address Space OS总体结构
+
+通过上图，大致可以看出霸王龙操作系统 -- FilesystemOS增加了对文件系统的支持，并对应用程序提供了文件访问相关的系统调用服务。在进程管理上，进一步扩展资源管理的范围，把打开的文件相关信息放到 `fd table` 数据结构中，纳入进程的管辖中，并以此为基础，提供 sys_open、sys_close、sys_read、sys_write 与访问文件相关的系统调用服务。在设备管理层面，增加了块设备驱动 --  `BlockDrv` ，通过访问块设备数据来读写文件系统与文件的各种数据。文件系统 -- EasyFS 成为 FilesystemOS的核心内核模块，完成文件与存储块之间的数据/地址映射关系，通过块设备驱动 BlockDrv 进行基于存储块的读写。其核心数据结构包括： Superblock（表示整个文件系统结构）、inode bitmap（表示存放inode磁盘块空闲情况的位图）、data bitmap（表示存放文件数据磁盘块空闲情况的位图）、inode blks（存放文件元数据的磁盘块）和data blks（存放文件数据的磁盘块）。EasyFS中的块缓存管理器 ``BlockManager`` 在内存中管理有限个 ``BlockCache`` 磁盘块缓存，并通过Blk Interface(与块设备驱动对接的读写操作接口）与BlockDrv 块设备驱动程序进行互操作。 
+
+位于 ``ch6`` 分支上的霸王龙操作系统 - FilesystemOS的源代码如下所示：
+
 .. code-block::
    :linenos:
    :emphasize-lines: 50
@@ -140,7 +135,6 @@
    ./easyfs/src
    Rust         7 Files     908 Lines
    ├── bootloader
-   │   ├── rustsbi-k210.bin
    │   └── rustsbi-qemu.bin
    ├── Dockerfile
    ├── easy-fs(新增：从内核中独立出来的一个简单的文件系统 EasyFileSystem 的实现)
@@ -181,7 +175,6 @@
    │       │   └── stdio.rs
    │       ├── lang_items.rs
    │       ├── link_app.S
-   │       ├── linker-k210.ld
    │       ├── linker-qemu.ld
    │       ├── loader.rs(移除：应用加载器 loader 子模块，本章开始从文件系统中加载应用)
    │       ├── main.rs
@@ -191,7 +184,7 @@
    │       │   ├── heap_allocator.rs
    │       │   ├── memory_set.rs(修改：在创建地址空间的时候插入 MMIO 虚拟页面)
    │       │   ├── mod.rs
-   │       │   └── page_table.rs
+   │       │   └── page_table.rs(新增：应用地址空间的缓冲区抽象 UserBuffer 及其迭代器实现)
    │       ├── sbi.rs
    │       ├── syscall
    │       │   ├── fs.rs(修改：新增 sys_open)
@@ -213,12 +206,6 @@
    │           └── trap.S
    ├── README.md
    ├── rust-toolchain
-   ├── tools
-   │   ├── kflash.py
-   │   ├── LICENSE
-   │   ├── package.json
-   │   ├── README.rst
-   │   └── setup.py
    └── user
       ├── Cargo.lock
       ├── Cargo.toml

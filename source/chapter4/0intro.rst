@@ -84,7 +84,7 @@
    2. 按需分页（demand paging）：由硬件地址转换触发缺页中断后，由操作系统将缺失的数据页移动到主存储器中，并形成正确的地址转换映射。
    3. 页面置换算法：检查最无用（least useful）的页，并将其移回二级存储中，这样可以让经常访问的数据驻留在主存中。
 
-   计算机科学家给与了 Atlas Supervisor 操作系统高度的评价。Brinch Hansen 认为它是操作系统史上最重大的突破。Simon Lavington 认为它是第一个可识别的现代操作系统。
+   计算机科学家对 Atlas Supervisor 操作系统给予高度的评价。Brinch Hansen 认为它是操作系统史上最重大的突破。Simon Lavington 认为它是第一个可识别的现代操作系统。
 
 实践体验
 -----------------------
@@ -106,13 +106,6 @@
 
    $ cd os
    $ make run
-
-将 Maix 系列开发板连接到 PC，并在上面运行本章代码：
-
-.. code-block:: console
-
-   $ cd os
-   $ make run BOARD=k210
 
 如果顺利的话，我们将看到和上一章相同的运行结果（以 K210 平台为例）：
 
@@ -144,6 +137,18 @@
 
 本章代码树
 -----------------------------------------------------
+
+头甲龙操作系统 - Address Space OS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec5/figs/addr-space-os-detail.png
+   :align: center
+   :scale: 30 %
+   :name: addr-space-os-detail
+   :alt: 头甲龙操作系统 - Address Space OS总体结构
+
+通过上图，大致可以看出头甲龙操作系统 - Address Space OS为了提高操作系统和应用程序执行的安全性，增强了内存管理能力，提供了地址空间隔离机制，给APP的内存地址空间划界，不能越界访问OS和其他APP。在具体实现上，扩展了 `TaskManager` 的管理范围，每个 `Task` 的上下文 `Task Context` 还包括该任务的地址空间，在切换任务时，也要切换任务的地址空间。新增的内存管理模块主要包括与内核中动态内存分配相关的页帧分配、堆分配，以及表示应用地址空间的 `Apps MemSets` 类型和内核自身地址空间的 `Kernel MemSet`类型。 `MemSet` 类型所包含的页表 `PageTable` 建立了虚实地址映射关系，而另外一个 `MemArea` 表示任务的合法空间范围。
+
+位于 ``ch4`` 分支上的头甲龙操作系统 - Address Space OS的源代码如下所示：
 
 .. code-block::
     :linenos:

@@ -152,7 +152,7 @@ RISC-V特权级切换
 
 使用两个不同的栈主要是为了安全性：如果两个控制流（即应用程序的控制流和内核的控制流）使用同一个栈，在返回之后应用程序就能读到 Trap 控制流的历史信息，比如内核一些函数的地址，这样会带来安全隐患。于是，我们要做的是，在批处理操作系统中添加一段汇编代码，实现从用户栈切换到内核栈，并在内核栈上保存应用程序控制流的寄存器状态。
 
-我们声明两个类型 ``KernelStack`` 和 ``UserStack`` 分别表示用户栈和内核栈，它们都只是字节数组的简单包装：
+我们声明两个类型 ``KernelStack`` 和 ``UserStack`` 分别表示内核栈和用户栈，它们都只是字节数组的简单包装：
 
 .. code-block:: rust
     :linenos:
@@ -175,7 +175,7 @@ RISC-V特权级切换
     static KERNEL_STACK: KernelStack = KernelStack { data: [0; KERNEL_STACK_SIZE] };
     static USER_STACK: UserStack = UserStack { data: [0; USER_STACK_SIZE] };
 
-常数 ``USER_STACK_SIZE`` 和 ``KERNEL_STACK_SIZE`` 指出内核栈和用户栈的大小分别为 :math:`8\text{KiB}` 。两个类型是以全局变量的形式实例化在批处理操作系统的 ``.bss`` 段中的。
+常数 ``USER_STACK_SIZE`` 和 ``KERNEL_STACK_SIZE`` 指出用户栈和内核栈的大小分别为 :math:`8\text{KiB}` 。两个类型是以全局变量的形式实例化在批处理操作系统的 ``.bss`` 段中的。
 
 我们为两个类型实现了 ``get_sp`` 方法来获取栈顶地址。由于在 RISC-V 中栈是向下增长的，我们只需返回包裹的数组的结尾地址，以用户栈类型 ``UserStack`` 为例：
 

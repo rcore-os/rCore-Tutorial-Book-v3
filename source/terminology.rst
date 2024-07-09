@@ -42,85 +42,85 @@
      - :ref:`移除标准库依赖 <term-cross-compile>`
    * - 物理地址
      - Physical Address
-     - :ref:`重建最小化运行时 <term-physical-address>`
+     - :ref:`内核第一条指令（原理篇） <term-physical-address>`
    * - 物理内存
      - Physical Memory
-     - :ref:`重建最小化运行时 <term-physical-memory>`
+     - :ref:`内核第一条指令（原理篇） <term-physical-memory>`
    * - 引导加载程序
      - Bootloader
-     - :ref:`重建最小化运行时 <term-bootloader>`
+     - :ref:`内核第一条指令（原理篇） <term-bootloader>`
    * - 控制流
      - Control Flow
-     - :ref:`重建最小化运行时 <term-control-flow>`
+     - :ref:`为内核支持函数调用 <term-control-flow>`
    * - 函数调用
      - Function Call
-     - :ref:`重建最小化运行时 <term-function-call>`
+     - :ref:`为内核支持函数调用 <term-function-call>`
    * - 源寄存器
      - Source Register
-     - :ref:`重建最小化运行时 <term-source-register>`
+     - :ref:`为内核支持函数调用 <term-source-register>`
    * - 立即数
      - Immediate
-     - :ref:`重建最小化运行时 <term-immediate>`
+     - :ref:`为内核支持函数调用 <term-immediate>`
    * - 目标寄存器
      - Destination Register
-     - :ref:`重建最小化运行时 <term-destination-register>`
+     - :ref:`为内核支持函数调用 <term-destination-register>`
    * - 伪指令
      - Pseudo Instruction
-     - :ref:`重建最小化运行时 <term-pseudo-instruction>`
+     - :ref:`为内核支持函数调用 <term-pseudo-instruction>`
    * - 上下文
      - Context
-     - :ref:`重建最小化运行时 <term-context>`
+     - :ref:`为内核支持函数调用 <term-context>`
    * - 活动记录
      - Activation Record
-     - :ref:`重建最小化运行时 <term-activation-record>`
+     - :ref:`为内核支持函数调用<term-activation-record>`
    * - 保存/恢复
      - Save/Restore
-     - :ref:`重建最小化运行时 <term-save-restore>`
+     - :ref:`为内核支持函数调用 <term-save-restore>`
    * - 被调用者保存
      - Callee-Saved
-     - :ref:`重建最小化运行时 <term-callee-saved>`
+     - :ref:`为内核支持函数调用 <term-callee-saved>`
    * - 调用者保存
      - Caller-Saved
-     - :ref:`重建最小化运行时 <term-caller-saved>`
+     - :ref:`为内核支持函数调用 <term-caller-saved>`
    * - 开场白
      - Prologue
-     - :ref:`重建最小化运行时 <term-prologue>`
+     - :ref:`为内核支持函数调用 <term-prologue>`
    * - 收场白
      - Epilogue
-     - :ref:`重建最小化运行时 <term-epilogue>`
+     - :ref:`为内核支持函数调用 <term-epilogue>`
    * - 调用规范
      - Calling Convention
-     - :ref:`重建最小化运行时 <term-calling-convention>`
+     - :ref:`为内核支持函数调用 <term-calling-convention>`
    * - 栈/栈指针/栈帧
      - Stack/Stack Pointer/Stackframe
-     - :ref:`重建最小化运行时 <term-stack>`
+     - :ref:`为内核支持函数调用 <term-stack>`
    * - 后入先出
      - LIFO, Last In First Out
-     - :ref:`重建最小化运行时 <term-lifo>`
+     - :ref:`为内核支持函数调用 <term-lifo>`
    * - 段
      - Section
-     - :ref:`重建最小化运行时 <term-section>`
+     - :ref:`为内核支持函数调用 <term-section>`
    * - 内存布局
      - Memory Layout
-     - :ref:`重建最小化运行时 <term-memory-layout>`
+     - :ref:`为内核支持函数调用 <term-memory-layout>`
    * - 堆
      - Heap
-     - :ref:`重建最小化运行时 <term-heap>`
+     - :ref:`为内核支持函数调用 <term-heap>`
    * - 编译器
      - Compiler
-     - :ref:`重建最小化运行时 <term-compiler>`
+     - :ref:`为内核支持函数调用 <term-compiler>`
    * - 汇编器
      - Assembler
-     - :ref:`重建最小化运行时 <term-assembler>`
+     - :ref:`为内核支持函数调用 <term-assembler>`
    * - 链接器
      - Linker
-     - :ref:`重建最小化运行时 <term-linker>`
+     - :ref:`为内核支持函数调用 <term-linker>`
    * - 目标文件
      - Object File
-     - :ref:`重建最小化运行时 <term-object-file>`
+     - :ref:`为内核支持函数调用 <term-object-file>`
    * - 链接脚本
      - Linker Script
-     - :ref:`重建最小化运行时 <term-linker-script>`
+     - :ref:`为内核支持函数调用 <term-linker-script>`
    * - 可执行和链接格式
      - ELF, Executable and Linkable Format
      - :ref:`手动加载、运行应用程序 <term-elf>`
@@ -190,9 +190,6 @@
    * - 数据缓存
      - d-cache, Data Cache
      - :ref:`实现批处理系统 <term-dcache>`
-   * - 执行流
-     - Execution of Thread
-     - :ref:`处理 Trap <term-execution-of-thread>`
    * - 原子指令
      - Atomic Instruction
      - :ref:`处理 Trap <term-atomic-instruction>`

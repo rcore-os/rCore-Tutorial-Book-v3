@@ -38,6 +38,7 @@ rCore-Tutorial-Book 第三版
    appendix-c/index
    appendix-d/index
    appendix-e/index
+   appendix-f/index
    terminology
 
 .. toctree::
@@ -51,19 +52,18 @@ rCore-Tutorial-Book 第三版
 
 欢迎来到 rCore-Tutorial-Book 第三版！
 
+欢迎参加 `2022年开源操作系统训练营! <https://learningos.github.io/rust-based-os-comp2022/>`_
+
 .. note::
 
    :doc:`/log` 
 
-   项目/文档于 2022-01-02 更新，情况如下：
 
-   - 第一章更新完成，Rust 版本升级至 ``nightly-2022-01-01`` ， ``asm`` 和 ``global_asm`` 特性已稳定，相关的宏可在 ``core::arch`` 中找到。更新了作者和版权信息，版本暂定 ``3.6.0-alpha.1`` 。
 
 项目简介
 ---------------------
 
-这本教程旨在一步一步展示如何 **从零开始** 用 **Rust** 语言写一个基于 **RISC-V** 架构的 **类 Unix 内核** 。值得注意的是，本项目不仅支持模拟器环境（如 Qemu/terminus 等），还支持在真实硬件平台 Kendryte K210 上运行。
-
+这本教程旨在一步一步展示如何 **从零开始** 用 **Rust** 语言写一个基于 **RISC-V** 架构的 **类 Unix 内核** 。值得注意的是，本项目不仅支持模拟器环境（如 Qemu/terminus 等），还支持在真实硬件平台 Kendryte K210 上运行（目前主要在 rCore-Tutorial-v3 仓库的 `k210 <https://github.com/rcore-os/rCore-Tutorial-v3/tree/k210/>`_ 分支上维护）。
 
 导读
 ---------------------
@@ -72,7 +72,7 @@ rCore-Tutorial-Book 第三版
  
 在正式进行实验之前，请先按照第零章章末的 :doc:`/chapter0/5setup-devel-env` 中的说明完成环境配置，再从第一章开始阅读正文。
 
-如果已经对 RISC-V 架构、Rust 语言和内核的知识有较多了解，第零章章末的 :doc:`/chapter0/6hardware` 提供了我们采用的真实硬件平台 Kendryte K210 的一些信息。
+.. chyyuu 如果已经对 RISC-V 架构、Rust 语言和内核的知识有较多了解，第零章章末的 :doc:`/chapter0/6hardware` 提供了我们采用的真实硬件平台 Kendryte K210 的一些信息。
 
 项目协作
 ----------------------
@@ -80,9 +80,21 @@ rCore-Tutorial-Book 第三版
 - :doc:`/setup-sphinx` 介绍了如何基于 Sphinx 框架配置文档开发环境，之后可以本地构建并渲染 html 或其他格式的文档；
 - :doc:`/rest-example` 给出了目前编写文档才用的 ReStructuredText 标记语言的一些基础语法及用例；
 - `项目的源代码仓库 <https://github.com/rcore-os/rCore-Tutorial-v3>`_ && `文档仓库 <https://github.com/rcore-os/rCore-Tutorial-Book-v3>`_
-- 时间仓促，本项目还有很多不完善之处，欢迎大家积极在每一个章节的评论区留言，或者提交 Issues 或 Pull Requests，让我们
-  一起努力让这本书变得更好！
+- 时间仓促，本项目还有很多不完善之处，欢迎大家积极在每一个章节的评论区留言，或者提交 Issues 或 Pull Requests，让我们一起努力让这本书变得更好！
 - 欢迎大家加入项目交流 QQ 群，群号：735045051
+
+本项目与其他系列项目的联系
+----------------------------------------------
+
+随着 rcore-os 开源社区的不断发展，目前已经有诸多基于 Rust 语言的操作系统项目，这里介绍一下这些项目之间的区别和联系，让同学们对它们能有一个整体了解并避免混淆。
+
+rcore-os 开源社区大致上可以分为两类项目：即探索使用 Rust 语言构建 OS 的主干项目，以及面向初学者的从零开始写 OS 项目。它们都面向教学用途，但前一类项目参与的开发者更多、更为复杂、功能也更为完善，也会用到更多新的技术；而后一类项目则作为教程项目，尽可能保持简单易懂，目的为向初学者演示如何从头开始写一个 OS 。
+
+主干项目按照时间顺序有这些：最早的是用 Rust 语言实现 linux syscall 的 `rCore <https://github.com/rcore-os/rCore>`_ ，这也是 rcore-os 开源社区的第一个项目。接着，紧跟 Rust 异步编程的浪潮，诞生了使用 Rust 语言重写 Google Fuchsia 操作系统的 Zircon 内核的 `zCore <https://github.com/rcore-os/zCore>`_ 项目，其中利用了大量 Rust 异步原语实现了超时取消等机制。最新的主干项目则是探索 OS 模块化架构的 `arceos <https://github.com/rcore-os/arceos>`_ 。
+
+教程项目则分布在 rcore-os 和 `LearningOS <https://github.com/LearningOS>`_ 两个开源社区中。最早的第一版教程是 `rcore_step_by_step <https://github.com/LearningOS/rcore_step_by_step>`_ ，第二版教程是 `rCore_tutorial <https://github.com/rcore-os/rCore_tutorial>`_ ，第三版教程是 `rCore-Tutorial <https://github.com/rcore-os/rCore-Tutorial>`_ ，最新的教程（暂定 v3.6 版本）就是本项目 `rCore-Tutorial-v3 <https://github.com/rcore-os/rCore-Tutorial-v3>`_ 仍在持续更新中。
+
+教程项目均以 rCore 为前缀，是因为它们都是主干项目 `rCore <https://github.com/rcore-os/rCore>`_ 的简化版。 "rCore" 这个词在不同的语境中指代的具体项目也不一样：如果在讨论教程项目的语境，比如以 xv6 和 ucore 以及 ChCore 等项目类比的时候，那么往往指的是最新的教程项目；相反如果讨论的是大规模项目的话，应该指代 `rCore <https://github.com/rcore-os/rCore>`_ 或者其他主干项目。由于教程项目是由 `rCore <https://github.com/rcore-os/rCore>`_ 简化来的，所以“大rCore”指的是 `rCore <https://github.com/rcore-os/rCore>`_ 主干项目，相对的 “小rCore/rCore教程”则指的是最新版的教程项目。
 
 项目进度
 -----------------------

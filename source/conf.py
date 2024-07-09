@@ -33,8 +33,17 @@ release = '3.6.0-alpha.1'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx_comments"
+    "sphinx_comments",
+    "sphinxcontrib.mermaid"
 ]
+
+# mermaid_output_format = 'png'
+mermaid_output_format = 'raw'
+mermaid_version = '9.3.0'
+html_js_files = [
+    'mermaid.js'
+]
+# mermaid_params = ['--puppeteerConfigFile', '/home/chyyuu/thecodes/rCore-Tutorial-Book-v3/puppeteerConfigFile.json']
 
 comments_config = {
    "utterances": {
@@ -60,8 +69,8 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
-
+#html_theme = 'sphinx_rtd_theme'
+html_theme = 'furo'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
@@ -88,7 +97,7 @@ class RVLexer(RegexLexer):
             (r'\bs(?:status|tvec|ip|ie|counteren|scratch|epc|cause|tval|atp|)\b', token.Name.Constant),
             (r'\bm(?:isa|vendorid|archid|hardid|status|tvec|ideleg|ip|ie|counteren|scratch|epc|cause|tval)\b', token.Name.Constant),
             # Instructions
-            (r'\b(?:(addi?w?)|(slti?u?)|(?:and|or|xor)i?|(?:sll|srl|sra)i?w?|lui|auipc|subw?|jal|jalr|beq|bne|bltu?|bgeu?|s[bhwd]|(l[bhw]u?)|ld)\b', token.Name.Decorator),
+            (r'\b(?:(addi?w?)|(slti?u?)|(?:and|or|xor)i?|(?:sll|srl|sra)i?w?|lui|auipc|subw?|jal|jalr|beq|bne|bltu?|bgeu?|s[bhwd]|(l[bhw]u?)|ld|lr.w|sc.w)\b', token.Name.Decorator),
             (r'\b(?:csrr?[rws]i?)\b', token.Name.Decorator),
             (r'\b(?:ecall|ebreak|[msu]ret|wfi|sfence.vma)\b', token.Name.Decorator),
             (r'\b(?:nop|li|la|mv|not|neg|negw|sext.w|seqz|snez|sltz|sgtz|f(?:mv|abs|neg).(?:s|d)|b(?:eq|ne|le|ge|lt)z|bgt|ble|bgtu|bleu|j|jr|ret|call)\b', token.Name.Decorator),
@@ -109,7 +118,7 @@ class RVLexer(RegexLexer):
             # Other operators
             (r'[,\+\*\-\(\)\\%]', token.Text),
             # Hacks
-            (r'(?:SAVE_GP|trap_handler|__switch|LOAD_GP|SAVE_SN|LOAD_SN|__alltraps|__restore)', token.Name.Builtin),
+            (r'(?:SAVE_GP|trap_handler|__switch|LOAD_GP|SAVE_SN|LOAD_SN|__alltraps|__restore|cas|fail)', token.Name.Builtin),
             (r'(?:.trampoline)', token.Name.Function),
             (r'(?:n)', token.Name.Entity),
             (r'(?:x)', token.Text),
@@ -117,3 +126,9 @@ class RVLexer(RegexLexer):
     }
 
 lexers['riscv'] = RVLexer()
+
+# epub build config
+import errno
+import sphinx.util.osutil
+sphinx.util.osutil.ENOENT = errno.ENOENT
+version = release

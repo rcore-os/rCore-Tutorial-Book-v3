@@ -112,13 +112,6 @@
    $ cd os
    $ make run
 
-将 Maix 系列开发板连接到 PC，并在上面运行本章代码：
-
-.. code-block:: console
-
-   $ cd os
-   $ make run BOARD=k210
-
 如果顺利的话，我们可以看到批处理系统自动加载并运行所有的程序并且正确在程序出错的情况下保护了自身：
 
 .. code-block:: 
@@ -164,6 +157,18 @@
 本章代码树
 -------------------------------------------------
 
+邓式鱼BatchOS操作系统的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec3/figs/batch-os-detail.png
+   :align: center
+   :scale: 30 %
+   :name: batch-os-detail
+   :alt: BatchOS总体结构
+
+通过上图，大致可以看出Qemu把包含多个app的列表和BatchOS的image镜像加载到内存中，RustSBI（bootloader）完成基本的硬件初始化后，跳转到邓式鱼BatchOS起始位置，邓式鱼BatchOS首先进行正常运行前的初始化工作，即建立栈空间和清零bss段，然后通过 `AppManager` 内核模块从app列表中依次加载各个app到指定的内存中在用户态执行。app在执行过程中，会通过系统调用的方式得到邓式鱼BatchOS提供的OS服务，如输出字符串等。
+
+位于 ``ch2`` 分支上的邓式鱼BatchOS操作系统的源代码如下所示：
+
 .. code-block::
 
    ./os/src
@@ -171,7 +176,6 @@
    Assembly     2 Files    58 Lines
 
    ├── bootloader
-   │   ├── rustsbi-k210.bin
    │   └── rustsbi-qemu.bin
    ├── LICENSE
    ├── os
@@ -184,7 +188,6 @@
    │       ├── entry.asm
    │       ├── lang_items.rs
    │       ├── link_app.S(构建产物，由 os/build.rs 输出)
-   │       ├── linker-k210.ld
    │       ├── linker-qemu.ld
    │       ├── main.rs(修改：主函数中需要初始化 Trap 处理并加载和执行应用)
    │       ├── sbi.rs
@@ -201,12 +204,6 @@
    │           └── trap.S(包含 Trap 上下文保存与恢复的汇编代码)
    ├── README.md
    ├── rust-toolchain
-   ├── tools
-   │   ├── kflash.py
-   │   ├── LICENSE
-   │   ├── package.json
-   │   ├── README.rst
-   │   └── setup.py
    └── user(新增：应用测例保存在 user 目录下)
       ├── Cargo.toml
       ├── Makefile
@@ -230,7 +227,7 @@
 
 相比于上一章的两个简单操作系统，本章的操作系统有两个最大的不同之处，一个是操作系统自身运行在内核态，且支持应用程序在用户态运行，且能完成应用程序发出的系统调用；另一个是能够一个接一个地自动运行不同的应用程序。所以，我们需要对操作系统和应用程序进行修改，也需要对应用程序的编译生成过程进行修改。
 
-首先改进应用程序，让它能够在用户态执行，并能发出系统调用。这其实就是上一章中  :ref:`构建用户态执行环境 <term-print-userminienv>` 小节介绍内容的进一步改进。具体而言，编写多个应用小程序，修改编译应用所需的 ``linker.ld`` 文件来   :ref:`调整程序的内存布局  <term-app-mem-layout>` ，让操作系统能够把应用加载到指定内存地址，然后顺利启动并运行应用程序。
+首先改进应用程序，让它能够在用户态执行，并能发出系统调用。具体而言，编写多个应用小程序，修改编译应用所需的 ``linker.ld`` 文件来   :ref:`调整程序的内存布局  <term-app-mem-layout>` ，让操作系统能够把应用加载到指定内存地址，然后顺利启动并运行应用程序。
 
 在应用程序的运行过程中，操作系统要支持应用程序的输出功能，并还能支持应用程序退出。这需要实现跨特权级的系统调用接口，以及 ``sys_write`` 和 ``sys_exit`` 等具体的系统调用功能。 在具体设计实现上，涉及到内联汇编的编写，以及应用与操作系统内核之间系统调用的参数传递的约定。为了让应用程序在还没实现 ``邓氏鱼`` 操作系统之前就能在Linux for RISC-V 64 上进行运行测试，我们采用了Linux on RISC-V64 的系统调用参数约定。具体实现可参看 :ref:`系统调用 <term-call-syscall>` 小节中的内容。 这样写完应用小例子后，就可以通过  ``qemu-riscv64`` 模拟器进行测试了。  
 

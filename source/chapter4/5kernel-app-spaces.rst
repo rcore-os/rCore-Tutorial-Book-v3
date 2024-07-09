@@ -14,6 +14,7 @@
 实现地址空间抽象
 ------------------------------------------
 
+.. _term-vm-map-area:
 
 逻辑段：一段连续地址的虚拟内存
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -71,6 +72,7 @@
     }
 
 
+.. _term-vm-memory-set:
 
 地址空间：一系列有关联的逻辑段
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -105,7 +107,7 @@
         fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
             map_area.map(&mut self.page_table);
             if let Some(data) = data {
-                map_area.copy_data(&mut self.page_table, data);
+                map_area.copy_data(&self.page_table, data);
             }
             self.areas.push(map_area);
         }
@@ -130,7 +132,8 @@
 - 第 4 行， ``new_bare`` 方法可以新建一个空的地址空间；
 - 第 10 行， ``push`` 方法可以在当前地址空间插入一个新的逻辑段 ``map_area`` ，如果它是以 ``Framed`` 方式映射到物理内存，还可以可选地在那些被映射到的物理页帧上写入一些初始化数据 ``data`` ；
 - 第 18 行， ``insert_framed_area`` 方法调用 ``push`` ，可以在当前地址空间插入一个 ``Framed`` 方式映射到物理内存的逻辑段。注意该方法的调用者要保证同一地址空间内的任意两个逻辑段不能存在交集，从后面即将分别介绍的内核和应用的地址空间布局可以看出这一要求得到了保证；
-- 第 29 行， ``new_kernel`` 可以生成内核的地址空间，而第 32 行的 ``from_elf`` 则可以应用的 ELF 格式可执行文件解析出各数据段并对应生成应用的地址空间。它们的实现我们将在后面讨论。
+- 第 29 行， ``new_kernel`` 可以生成内核的地址空间；具体实现将在后面讨论；
+- 第 32 行， ``from_elf`` 分析应用的 ELF 文件格式的内容，解析出各数据段并生成对应的地址空间；具体实现将在后面讨论。
 
 在实现 ``push`` 方法在地址空间中插入一个逻辑段 ``MapArea`` 的时候，需要同时维护地址空间的多级页表 ``page_table`` 记录的虚拟页号到页表项的映射关系，也需要用到这个映射关系来找到向哪些物理页帧上拷贝初始数据。这用到了 ``MapArea`` 提供的另外几个方法：
 
@@ -167,7 +170,7 @@
         }
         /// data: start-aligned but maybe with shorter length
         /// assume that all frames were cleared before
-        pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
+        pub fn copy_data(&mut self, page_table: &PageTable, data: &[u8]) {
             assert_eq!(self.map_type, MapType::Framed);
             let mut start: usize = 0;
             let mut current_vpn = self.vpn_range.get_start();
@@ -204,7 +207,7 @@
 
     // os/src/mm/memory_set.rs
 
-    impl MemoryArea {
+    impl MapArea {
         pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
             let ppn: PhysPageNum;
             match self.map_type {
@@ -247,9 +250,9 @@
 
 在本章之前，内核和应用代码的访存地址都被视为一个物理地址，并直接访问物理内存，而在分页模式开启之后，CPU先拿到虚存地址，需要通过 MMU 的地址转换变成物理地址，再交给 CPU 的访存单元去访问物理内存。地址空间抽象的重要意义在于 **隔离** (Isolation) ，当内核让应用执行前，内核需要控制 MMU 使用这个应用的多级页表进行地址转换。由于每个应用地址空间在创建的时候也顺带设置好了多级页表，使得只有那些存放了它的代码和数据的物理页帧能够通过该多级页表被映射到，这样它就只能访问自己的代码和数据而无法触及其他应用或内核的内容。
 
-.. _term-trampoline:
+.. _term-trampoline-first:
 
-启用分页模式下，内核代码的访存地址也会被视为一个虚拟地址并需要经过 MMU 的地址转换，因此我们也需要为内核对应构造一个地址空间，它除了仍然需要允许内核的各数据段能够被正常访问之后，还需要包含所有应用的内核栈以及一个 **跳板** (Trampoline) 。我们会在本章的最后一节再深入介绍跳板的机制。
+启用分页模式下，内核代码的访存地址也会被视为一个虚拟地址并需要经过 MMU 的地址转换，因此我们也需要为内核对应构造一个地址空间，它除了仍然需要允许内核的各数据段能够被正常访问之后，还需要包含所有应用的内核栈以及一个 **跳板** (Trampoline) 。我们会在本章的后续部分再深入介绍 :ref:`跳板的实现 <term-trampoline>` 。
 
 下图是软件看到的 64 位地址空间在 SV39 分页模式下实际可能通过 MMU 检查的最高 :math:`256\text{GiB}` （之前在 :ref:`这里 <high-and-low-256gib>` 中解释过最高和最低 :math:`256\text{GiB}` 的问题）：
 
@@ -351,6 +354,8 @@
 
 ``new_kernel`` 将映射跳板和地址空间中最低 :math:`256\text{GiB}` 中的内核逻辑段。第 3 行开始，我们从 ``os/src/linker.ld`` 中引用了很多表示各个段位置的符号，而后在 ``new_kernel`` 中，我们从低地址到高地址依次创建 5 个逻辑段并通过 ``push`` 方法将它们插入到内核地址空间中，上面我们已经详细介绍过这 5 个逻辑段。跳板是通过 ``map_trampoline`` 方法来映射的，我们也将在本章最后一节进行讲解。
 
+.. _term-vm-app-addr-space:
+
 应用地址空间
 ------------------------------------------
 
@@ -402,7 +407,7 @@
     
 左侧给出了应用地址空间最低 :math:`256\text{GiB}` 的布局：从 :math:`\text{0x10000}` 开始向高地址放置应用内存布局中的各个逻辑段，最后放置带有一个保护页面的用户栈。这些逻辑段都是以 ``Framed`` 方式映射到物理内存的，从访问方式上来说都加上了 U 标志位代表 CPU 可以在 U 特权级也就是执行应用代码的时候访问它们。右侧则给出了最高的 :math:`256\text{GiB}` ，可以看出它只是和内核地址空间一样将跳板放置在最高页，还将 Trap 上下文放置在次高页中。这两个虚拟页面虽然位于应用地址空间，但是它们并不包含 U 标志位，事实上它们在地址空间切换的时候才会发挥作用，请同样参考本章的最后一节。
 
-在 ``os/src/build.rs`` 中，我们不再将丢弃了所有符号的应用二进制镜像链接进内核，因为在应用二进制镜像中，内存布局中各个逻辑段的置和访问限制等信息都被裁剪掉了。我们直接使用保存了逻辑段信息的 ELF 格式的应用可执行文件。这样 ``loader`` 子模块的设计实现也变得精简：
+在 ``os/src/build.rs`` 中，我们不再将丢弃了所有符号的应用二进制镜像链接进内核，因为在应用二进制镜像中，内存布局中各个逻辑段的位置和访问限制等信息都被裁剪掉了。我们直接使用保存了逻辑段信息的 ELF 格式的应用可执行文件。这样 ``loader`` 子模块的设计实现也变得精简：
 
 .. code-block:: rust
 

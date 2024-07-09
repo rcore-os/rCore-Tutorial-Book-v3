@@ -15,4 +15,4 @@ RustSBI项目发起于鹏城实验室的“rCore代码之夏-2020”活动，它
 
 RustSBI项目的目标是，制作一个从固件启动的最小Rust语言SBI实现，为可能的复杂实现提供参考和支持。 RustSBI也可以作为一个库使用，帮助更多的SBI开发者适配自己的平台，以支持更多处理器核和片上系统。   
 
-当前项目实现源码：https://github.com/luojia65/rustsbi
+当前项目实现源码：https://github.com/rustsbi/rustsbi

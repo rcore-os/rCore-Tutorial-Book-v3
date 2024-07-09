@@ -26,7 +26,16 @@
 移除 ``println!`` 宏
 ----------------------------------
 
-``println!`` 宏所在的 Rust 标准库 std 需要通过系统调用获得操作系统的服务，而如果要构建运行在裸机上的操作系统，就不能再依赖标准库了。所以我们第一步要尝试移除 ``println!`` 宏及其所在的标准库。我们首先在 ``os`` 目录下新建 ``.cargo`` 目录，并在这个目录下创建 ``config`` 文件，并在里面输入如下内容：
+``println!`` 宏所在的 Rust 标准库 std 需要通过系统调用获得操作系统的服务，而如果要构建运行在裸机上的操作系统，就不能再依赖标准库了。所以我们第一步要尝试移除 ``println!`` 宏及其所在的标准库。
+
+由于后续实验需要 ``rustc`` 编译器缺省生成RISC-V 64的目标代码，所以我们首先要给  ``rustc`` 添加一个target : ``riscv64gc-unknown-none-elf`` 。这可通过如下命令来完成：
+
+.. code-block:: bash
+
+   $ rustup target add riscv64gc-unknown-none-elf
+
+
+然后在 ``os`` 目录下新建 ``.cargo`` 目录，并在这个目录下创建 ``config`` 文件，并在里面输入如下内容：
 
 .. code-block:: toml
 
@@ -36,7 +45,7 @@
 
 .. _term-cross-compile:
 
-这会对于 Cargo 工具在 os 目录下的行为进行调整：现在默认会使用 riscv64gc 作为目标平台而不是原先的默认 x86_64-unknown-linux-gnu。事实上，这是一种编译器运行的平台（x86_64）与可执行文件运行的目标平台（riscv-64）不同的情况。我们把这种情况称为 **交叉编译** (Cross Compile)。
+这会对于 Cargo 工具在 os 目录下的行为进行调整：现在默认会使用 riscv64gc 作为目标平台而不是原先的默认 x86_64-unknown-linux-gnu。事实上，这是一种编译器运行的开发平台（x86_64）与可执行文件运行的目标平台（riscv-64）不同的情况。我们把这种情况称为 **交叉编译** (Cross Compile)。
 
 
 .. note::
@@ -45,9 +54,9 @@
 
    下面指的 **平台** 主要由CPU硬件和操作系统这两个要素组成。
 
-   本地编译，即在当平台下编译出来的程序，也只是放到当前平台下运行。如在 Linux x86-64 平台上，编写代码并编译成可在 Linux x86-64 平台上执行的程序。
+   本地编译，即在当前开发平台下编译出来的程序，也只是放到这个平台下运行。如在 Linux x86-64 平台上编写代码并编译成可在 Linux x86-64 同样平台上执行的程序。
    
-   交叉编译，是一个与本地编译相对应的概念，即在一种平台上编译出在另一种平台上运行的程序。程序编译的环境与程序运行的环境不一样。如我们后续会讲到，在Linux x86-64 平台上，编写代码并编译成可在 rCore（这是我们要编写的操作系统内核）riscv64gc（这是CPU硬件）平台上执行的程序。
+   交叉编译，是一个与本地编译相对应的概念，即在一种平台上编译出在另一种平台上运行的程序。程序编译的环境与程序运行的环境不一样。如我们后续会讲到，在Linux x86-64 开发平台上，编写代码并编译成可在 rCore Tutorial（这是我们要编写的操作系统内核）和 riscv64gc（这是CPU硬件）构成的目标平台上执行的程序。
    
 
 
@@ -67,17 +76,18 @@
       4 |     println!("Hello, world!");
         |     ^^^^^^^
 
-我们之前提到过， ``println!`` 宏是由标准库 std 提供的，且会使用到一个名为 write 的系统调用。现在我们的代码功能还不足以自己实现一个 ``println!`` 宏。由于程序使用了系统调用，但不能在核心库 core 中找到它，所以我们目前先通过将 ``println!`` 宏注释掉，来暂时绕过这个问题。
+我们之前提到过， ``println!`` 宏是由标准库 std 提供的，且会使用到一个名为 write 的系统调用。现在我们的代码功能还不足以自己实现一个 ``println!`` 宏。由于程序使用了系统调用，但不能在核心库 core 中找到它，所以我们目前先通过将 ``println!`` 宏注释掉的简单粗暴方式，来暂时绕过这个问题。
 
-.. note::
-
+.. chyyuu note::
    **Rust Tips: Rust std 库和 core 库**
-
    * Rust 的标准库--std，为绝大多数的 Rust 应用程序开发提供基础支持、跨硬件和操作系统平台支持，是应用范围最广、地位最重要的库，但需要有底层操作系统的支持。
    * Rust 的核心库--core，可以理解为是经过大幅精简的标准库，它被应用在标准库不能覆盖到的某些特定领域，如裸机(bare metal) 环境下，用于操作系统和嵌入式系统的开发，它不需要底层操作系统的支持。
 
+
 提供panic_handler功能应对致命错误
 --------------------------------------------------------
+
+我们重新编译简单的os程序，之前的 `println` 宏缺失的错误消失了，但又出现了如下新的编译错误：
 
 .. error::
 
@@ -87,19 +97,19 @@
          Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)
       error: `#[panic_handler]` function required, but not found
 
-在使用 Rust 编写应用程序的时候，我们常常在遇到了一些无法恢复的致命错误（panic），导致程序无法继续向下运行。这时手动或自动调用 ``panic!`` 宏来打印出错的位置，让我们能够意识到它的存在，并进行一些后续处理。 ``panic!`` 宏最典型的应用场景包括断言宏 ``assert!`` 失败或者对 ``Option::None/Result::Err`` 进行 ``unwrap`` 操作。所以Rust编译器在编译程序时，从安全性考虑，需要有 ``panic!`` 宏的具体实现。
+在使用 Rust 编写应用程序的时候，我们常常在遇到了一些无法恢复的致命错误（panic），导致程序无法继续向下运行。这时手动或自动调用 ``panic!`` 宏来打印出错的位置，让软件能够意识到它的存在，并进行一些后续处理。 ``panic!`` 宏最典型的应用场景包括断言宏 ``assert!`` 失败或者对 ``Option::None/Result::Err`` 进行 ``unwrap`` 操作。所以Rust编译器在编译程序时，从安全性考虑，需要有 ``panic!`` 宏的具体实现。
 
 .. chyyuu  rust-lang/rust/library/std/src/panic.rs  `pub macro panic_2015/2021 {`
 
 .. chyyuu  rust-lang/rust/library/core/src/macros/modrs `macro_rules! panic {`
 
-在标准库 std 中提供了关于 ``panic!`` 宏的具体实现，其大致功能是打印出错位置和原因并杀死当前应用。但我们要实现的操作系统是不能使用还需依赖操作系统的标准库std，而更底层的核心库 core 中只有一个 ``panic!`` 宏的空壳，并没有提供 ``panic!`` 宏的精简实现。因此我们需要自己先实现一个简陋的 panic 处理函数，这样才能支持“三叶虫”操作系统的编译通过。
+在标准库 std 中提供了关于 ``panic!`` 宏的具体实现，其大致功能是打印出错位置和原因并杀死当前应用。但本章要实现的操作系统不能使用还需依赖操作系统的标准库std，而更底层的核心库 core 中只有一个 ``panic!`` 宏的空壳，并没有提供 ``panic!`` 宏的精简实现。因此我们需要自己先实现一个简陋的 panic 处理函数，这样才能让“三叶虫”操作系统 -- LibOS的编译通过。
 
 .. note::
 
    **#[panic_handler]**
 
-   ``#[panic_handler]`` 是一种编译指导属性，用于标记核心库core中的 ``panic!`` 宏要对接的函数（该函数实现对致命错误的具体处理）。该编译指导属性所标记的函数需要具有 ``fn(&PanicInfo) -> !`` 函数签名，函数可通过 ``PanicInfo`` 数据结构获取致命错误的相关信息。这样Rust编译器就可以把核心库core中的 ``panic!`` 宏与 ``#[panic_handler]`` 指向的panic函数实现合并在一起，使得no_std程序具有类似std库的应对致命错误的功能。
+   ``#[panic_handler]`` 是一种编译指导属性，用于标记核心库core中的 ``panic!`` 宏要对接的函数（该函数实现对致命错误的具体处理）。该编译指导属性所标记的函数需要具有 ``fn(&PanicInfo) -> !`` 函数签名，函数可通过 ``PanicInfo`` 数据结构获取致命错误的相关信息。这样Rust编译器就可以把核心库core中的 ``panic!`` 宏定义与 ``#[panic_handler]`` 指向的panic函数实现合并在一起，使得no_std程序具有类似std库的应对致命错误的功能。
 
 .. chyyuu https://doc.rust-lang.org/beta/unstable-book/language-features/lang-items.html
 
@@ -112,6 +122,7 @@
 我们创建一个新的子模块 ``lang_items.rs`` 实现panic函数，并通过 ``#[panic_handler]`` 属性通知编译器用panic函数来对接 ``panic!`` 宏。为了将该子模块添加到项目中，我们还需要在 ``main.rs`` 的 ``#![no_std]`` 的下方加上 ``mod lang_items;`` ，相关知识可参考 :ref:`Rust 模块编程 <rust-modular-programming>` ：
 
 .. code-block:: rust
+   :linenos:
 
    // os/src/lang_items.rs
    use core::panic::PanicInfo;
@@ -121,11 +132,24 @@
        loop {}
    }
 
+在把 ``panic_handler`` 配置在单独的文件 ``os/src/lang_items.rs`` 后，需要在os/src/main.rs文件中添加以下内容才能正常编译整个软件：
+
+.. code-block:: rust
+   :linenos:
+
+   // os/src/main.rs
+   #![no_std]
+   mod lang_items;
+   // ... other code
+
 注意，panic 处理函数的函数签名需要一个 ``PanicInfo`` 的不可变借用作为输入参数，它在核心库中得以保留，这也是我们第一次与核心库打交道。之后我们会从 ``PanicInfo`` 解析出错位置并打印出来，然后杀死应用程序。但目前我们什么都不做只是在原地  ``loop`` 。
+
+
 
 移除 main 函数
 -----------------------------
 
+我们再次重新编译简单的os程序，之前的 `#[panic_handler]` 函数缺失的错误消失了，但又出现了如下新的编译错误：
 .. error::
 
    .. code-block::
@@ -146,15 +170,17 @@
       Compiling os v0.1.0 (/home/shinbokuow/workspace/v3/rCore-Tutorial-v3/os)
        Finished dev [unoptimized + debuginfo] target(s) in 0.06s
 
-目前的代码如下：
+目前的主要代码包括 ``main.rs`` 和 ``lang_items.rs`` ，大致内容如下：
 
 .. code-block:: rust
+   :linenos:
 
    // os/src/main.rs
-   #![no_std]
    #![no_main]
-
+   #![no_std]
    mod lang_items;
+   // ... other code
+
 
    // os/src/lang_items.rs
    use core::panic::PanicInfo;
@@ -185,7 +211,14 @@
 分析被移除标准库的程序
 -----------------------------
 
-对于上面这个被移除标准库的应用程序，通过了编译器的检查和编译，形成了二进制代码。但这个二进制代码是怎样的，它能否被正常执行呢？我们可以通过一些工具来分析一下。
+对于上面这个被移除标准库的应用程序，通过了Rust编译器的检查和编译，形成了二进制代码。但这个二进制代码的内容是什么，它能否在RISC-V 64计算机上正常执行呢？为了分析这个二进制可执行程序，首先需要安装 cargo-binutils 工具集：
+
+.. code-block:: console
+
+   $ cargo install cargo-binutils
+   $ rustup component add llvm-tools-preview
+
+这样我们可以通过各种工具来分析目前的程序：
 
 .. code-block:: console
 

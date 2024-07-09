@@ -13,7 +13,7 @@
 
 - 通过提前加载应用程序到内存，减少应用程序切换开销
 - 通过协作机制支持程序主动放弃处理器，提高系统执行效率
-- 通过抢占机制支持程序被动放弃处理器，提高不同程序对处理器资源使用的公平性，也进一步提高了应用对 I/O 事件的响应效率
+- 通过抢占机制支持程序被动放弃处理器，保证不同程序对处理器资源使用的公平性，也进一步提高了应用对 I/O 事件的响应效率
 
 上一章，我们实现了一个安全的“邓式鱼” 批处理操作系统。首先，它能够自动按照顺序加载并运行序列中的每一个应用，当一个应用运行结束之后无需操作员的手动替换；另一方面，在硬件级特权隔离机制的帮助下，运行在更高特权级的操作系统不会受到有意或者无意出错的应用的影响；在硬件异常触发机制的帮助下，可以全方位监控运行在用户态低特权级的应用执行，一旦应用越过了特权级界限或主动申请获得操作系统的服务，就会触发 Trap 并进入到批处理系统中进行处理。无论原因是应用出错或是应用声明自己执行完毕，批处理系统都只需要加载应用序列中的下一个应用并让其执行。可以看到批处理系统的特性是：在内存中同一时间最多只需驻留一个应用。这是因为只有当一个应用出错或退出之后，批处理系统才会去将另一个应用加载到相同的一块内存区域。
 
@@ -141,13 +141,6 @@
    $ cd os
    $ make run
 
-将 Maix 系列开发板连接到 PC，并在上面运行本章代码：
-
-.. code-block:: console
-
-   $ cd os
-   $ make run BOARD=k210
-
 多道程序的应用分别会输出一个不同的字母矩阵。当他们交替执行的时候，我们将看到字母行的交错输出：
 
 .. code-block::
@@ -249,7 +242,41 @@
 本章代码树
 -----------------------------------
 
-这里以位于 ``ch3`` 分支上的分时多任务系统为例。
+锯齿螈多道程序操作系统 - Multiprog OS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec4/figs/jcy-multiprog-os-detail.png
+   :align: center
+   :scale: 30 %
+   :name: jcy-os-detail
+   :alt: 锯齿螈多道程序操作系统 -- Multiprog OS总体结构
+
+通过上图，大致可以看出Qemu把包含多个app的列表和MultiprogOS的image镜像加载到内存中，RustSBI（bootloader）完成基本的硬件初始化后，跳转到MultiprogOS起始位置，MultiprogOS首先进行正常运行前的初始化工作，即建立栈空间和清零bss段，然后通过改进的 `AppManager` 内核模块从app列表中把所有app都加载到内存中，并按指定顺序让app在用户态一个接一个地执行。app在执行过程中，会通过系统调用的方式得到MultiprogOS提供的OS服务，如输出字符串等。
+
+
+始初龙协作式多道程序操作系统 -- CoopOS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec4/figs/more-task-multiprog-os-detail.png
+   :align: center
+   :scale: 20 %
+   :name: more-task-multiprog-os-detail
+   :alt: 始初龙协作式多道程序操作系统 -- CoopOS总体结构
+
+通过上图，大致可以看出相对于MultiprogOS，CoopOS进一步改进了 `AppManager` 内核模块，把它拆分为负责加载应用的 `Loader` 内核模块和管理应用运行过程的 `TaskManager` 内核模块。 `TaskManager` 通过 `task` 任务控制块来管理应用程序的执行过程，支持应用程序主动放弃 CPU 并切换到另一个应用继续执行，从而提高系统整体执行效率。应用程序在运行时有自己所在的内存空间和栈，确保被切换时相关信息不会被其他应用破坏。如果当前应用程序正在运行，则该应用对应的任务处于运行（Running）状态；如果该应用主动放弃处理器，则该应用对应的任务处于就绪（Ready）状态。操作系统进行任务切换时，需要把要暂停任务的上下文（即任务用到的通用寄存器）保存起来，把要继续执行的任务的上下文恢复为暂停前的内容，这样就能让不同的应用协同使用处理器了。
+
+
+腔骨龙分时多任务操作系统 -- TimesharingOS的总体结构如下图所示：
+
+.. image:: ../../os-lectures/lec4/figs/time-task-multiprog-os-detail.png
+   :align: center
+   :scale: 20 %
+   :name: time-task-multiprog-os-detail
+   :alt: 腔骨龙分时多任务操作系统 -- TimesharingOS总体结构
+
+通过上图，大致可以看出相对于CoopOS，TimesharingOS最大的变化是改进了 `Trap_handler` 内核模块，支持时钟中断，从而可以抢占应用的执行。并通过进一步改进 `TaskManager` 内核模块，提供任务调度功能，这样可以在收到时钟中断后统计任务的使用时间片，如果任务的时间片用完后，则切换任务。从而可以公平和高效地分时执行多个应用，提高系统的整体效率。
+
+位于 ``ch3`` 分支上的腔骨龙分时多任务操作系统 -- TimesharingOS 的源代码如下所示：
+
+这里
 
 .. code-block::
     :linenos:
@@ -260,7 +287,6 @@
     Assembly     3 Files    82 Lines
 
     ├── bootloader
-    │   ├── rustsbi-k210.bin
     │   └── rustsbi-qemu.bin
     ├── LICENSE
     ├── os
@@ -274,7 +300,6 @@
     │       ├── entry.asm
     │       ├── lang_items.rs
     │       ├── link_app.S
-    │       ├── linker-k210.ld
     │       ├── linker-qemu.ld
     │       ├── loader.rs(新增：将应用加载到内存并进行管理)
     │       ├── main.rs(修改：主函数进行了修改)
@@ -299,12 +324,6 @@
     │           └── trap.S
     ├── README.md
     ├── rust-toolchain
-    ├── tools
-    │   ├── kflash.py
-    │   ├── LICENSE
-    │   ├── package.json
-    │   ├── README.rst
-    │   └── setup.py
     └── user
         ├── build.py(新增：使用 build.py 构建应用使得它们占用的物理地址区间不相交)
         ├── Cargo.toml
