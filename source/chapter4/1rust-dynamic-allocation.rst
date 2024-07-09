@@ -80,7 +80,11 @@ Rust 的标准库中提供了很多开箱即用的堆数据结构，利用它们
 
 - 裸指针 ``*const T/*mut T`` 基本等价于 C/C++ 里面的普通指针 ``T*`` ，它自身的内容仅仅是一个地址。它最为灵活，但是也最不安全。编译器只能对它进行最基本的可变性检查（只读的数据不能写）， :ref:`第一章 <term-raw-pointer>` 曾经提到，通过裸指针解引用来访问数据的行为是 unsafe 行为，需要被包裹在 unsafe 块中。
 - 引用 ``&T/&mut T`` 实质上只是一个地址范围，但是 Rust 编译器会在编译的时候进行比较严格的 **借用检查** (Borrow Check) ，来确保在编译期就解决掉很多内存不安全问题。详细内容可以参考 :ref:`Rust 所有权模型 <rust-ownership-model>` 。
-- 智能指针不仅包含它指向区域的地址范围，还含有一些额外的信息。从用途上看，它不仅可以作为一个媒介来访问它指向的数据，还能在这个过程中起到管理和控制的功能。
+- 智能指针不仅包含它指向区域的地址范围，还含有一些额外的信息。从用途上看，它不仅可以作为一个媒介来访问它指向的数据，还能在这个过程中起到管理和控制的功能。智能指针的大小通常大于裸指针，这被称作 **胖指针** (Fat Pointer)。如果智能指针仅用堆维护元信息（如针对 ``Sided`` 类型的 ``Arc`` 与 ``Rc``），那么它们“胖”在堆上，指针本身仍然是 8 字节的；反之，如果指针本身维护元信息（如 ``Mutex`` 和 ``Vec``），指针本身就会大于 8 字节。
+
+具体可以参考下面这张 Rust 智能指针/容器及其他类型的内存布局的 `经典图示 <https://docs.google.com/presentation/d/1q-c7UAyrUlM-eZyTo1pd8SZ0qwA_wYxmPZVOQkoDmH4/edit#slide=id.p>`_ 。
+
+.. image:: rust-containers.png
 
 在 Rust 中，与动态内存分配相关的智能指针主要有如下这些：
 
@@ -104,10 +108,6 @@ Rust 的标准库中提供了很多开箱即用的堆数据结构，利用它们
 - 链表 ``LinkedList<T>`` 类似于 C++ 中的 ``std::list`` ；
 - 双端队列 ``VecDeque<T>`` 类似于 C++ 中的 ``std::deque`` 。
 - 变长字符串 ``String`` 类似于 C++ 中的 ``std::string`` 。
-
-下面是一张 Rust 智能指针/容器及其他类型的内存布局的 `经典图示 <https://docs.google.com/presentation/d/1q-c7UAyrUlM-eZyTo1pd8SZ0qwA_wYxmPZVOQkoDmH4/edit#slide=id.p>`_ 。
-
-.. image:: rust-containers.png
 
 有对比才有更深入的理解，让我们先来看其它一些语言使用动态内存的方式：
 
