@@ -437,8 +437,10 @@
 <ul class="simple" id="term-borrow-check">
 <li><p>裸指针 <code class="docutils literal notranslate"><span class="pre">*const</span> <span class="pre">T/*mut</span> <span class="pre">T</span></code> 基本等价于 C/C++ 里面的普通指针 <code class="docutils literal notranslate"><span class="pre">T*</span></code> ，它自身的内容仅仅是一个地址。它最为灵活，但是也最不安全。编译器只能对它进行最基本的可变性检查（只读的数据不能写）， <a class="reference internal" href="../chapter1/5support-func-call.html#term-raw-pointer"><span class="std std-ref">第一章</span></a> 曾经提到，通过裸指针解引用来访问数据的行为是 unsafe 行为，需要被包裹在 unsafe 块中。</p></li>
 <li><p>引用 <code class="docutils literal notranslate"><span class="pre">&amp;T/&amp;mut</span> <span class="pre">T</span></code> 实质上只是一个地址范围，但是 Rust 编译器会在编译的时候进行比较严格的 <strong>借用检查</strong> (Borrow Check) ，来确保在编译期就解决掉很多内存不安全问题。详细内容可以参考 <a class="reference internal" href="../chapter2/3batch-system.html#rust-ownership-model"><span class="std std-ref">Rust 所有权模型</span></a> 。</p></li>
-<li><p>智能指针不仅包含它指向区域的地址范围，还含有一些额外的信息，因此这个类型的大小大于裸指针的大小，属于一种“胖”指针。从用途上看，它不仅可以作为一个媒介来访问它指向的数据，还能在这个过程中起到管理和控制的功能。</p></li>
+<li><p>智能指针不仅包含它指向区域的地址范围，还含有一些额外的信息。从用途上看，它不仅可以作为一个媒介来访问它指向的数据，还能在这个过程中起到管理和控制的功能。智能指针的大小通常大于裸指针，这被称作 <strong>胖指针</strong> (Fat Pointer)。如果智能指针仅用堆维护元信息（如针对 <code class="docutils literal notranslate"><span class="pre">Sided</span></code> 类型的 <code class="docutils literal notranslate"><span class="pre">Arc</span></code> 与 <code class="docutils literal notranslate"><span class="pre">Rc</span></code>），那么它们“胖”在堆上，指针本身仍然是 8 字节的；反之，如果指针本身维护元信息（如 <code class="docutils literal notranslate"><span class="pre">Mutex</span></code> 和 <code class="docutils literal notranslate"><span class="pre">Vec</span></code>），指针本身就会大于 8 字节。</p></li>
 </ul>
+<p>具体可以参考下面这张 Rust 智能指针/容器及其他类型的内存布局的 <a class="reference external" href="https://docs.google.com/presentation/d/1q-c7UAyrUlM-eZyTo1pd8SZ0qwA_wYxmPZVOQkoDmH4/edit#slide=id.p">经典图示</a> 。</p>
+<img alt="../_images/rust-containers.png" src="../_images/rust-containers.png" />
 <p>在 Rust 中，与动态内存分配相关的智能指针主要有如下这些：</p>
 <ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 在创建时会在堆上分配一个类型为 <code class="docutils literal notranslate"><span class="pre">T</span></code> 的变量，它自身也只保存在堆上的那个变量的位置。而和裸指针或引用不同的是，当 <code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 被回收的时候，它指向的那个变量（位于堆上）也会被回收。<code class="docutils literal notranslate"><span class="pre">Box&lt;T&gt;</span></code> 可以对标 C++ 的 <code class="docutils literal notranslate"><span class="pre">std::unique_ptr</span></code> 。</p></li>
@@ -459,8 +461,6 @@
 <li><p>双端队列 <code class="docutils literal notranslate"><span class="pre">VecDeque&lt;T&gt;</span></code> 类似于 C++ 中的 <code class="docutils literal notranslate"><span class="pre">std::deque</span></code> 。</p></li>
 <li><p>变长字符串 <code class="docutils literal notranslate"><span class="pre">String</span></code> 类似于 C++ 中的 <code class="docutils literal notranslate"><span class="pre">std::string</span></code> 。</p></li>
 </ul>
-<p>下面是一张 Rust 智能指针/容器及其他类型的内存布局的 <a class="reference external" href="https://docs.google.com/presentation/d/1q-c7UAyrUlM-eZyTo1pd8SZ0qwA_wYxmPZVOQkoDmH4/edit#slide=id.p">经典图示</a> 。</p>
-<img alt="../_images/rust-containers.png" src="../_images/rust-containers.png" />
 <p>有对比才有更深入的理解，让我们先来看其它一些语言使用动态内存的方式：</p>
 <span id="term-reference-counting"></span><ul class="simple" id="term-garbage-collection">
 <li><p>C 语言仅支持 <code class="docutils literal notranslate"><span class="pre">malloc/free</span></code> 这一对操作，它们必须恰好成对使用，否则就会出现各种内存错误。比如分配了之后没有回收，则会导致内存泄漏；回收之后再次 free 相同的指针，则会造成 Double-Free 问题；又如回收之后再尝试通过指针访问它指向的区域，这属于 Use-After-Free 问题。总之，这样的内存安全问题层出不穷，毕竟人总是会犯错的。</p></li>
