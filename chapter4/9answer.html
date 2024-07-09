@@ -391,11 +391,449 @@
 <h2>课后练习<a class="headerlink" href="#id2" title="永久链接至标题">#</a></h2>
 <div class="section" id="id3">
 <h3>编程题<a class="headerlink" href="#id3" title="永久链接至标题">#</a></h3>
-<ol class="arabic simple">
-<li><p><cite>**</cite> 使用sbrk，mmap,munmap,mprotect内存相关系统调用的linux应用程序。</p></li>
-<li><p><cite>***</cite> 修改本章操作系统内核，实现任务和操作系统内核共用同一张页表的单页表机制。</p></li>
-<li><p><cite>***</cite> 扩展内核，支持基于缺页异常机制，具有Lazy 策略的按需分页机制。</p></li>
-<li><p><cite>***</cite> 扩展内核，支持基于缺页异常的COW机制。（初始时，两个任务共享一个只读物理页。当一个任务执行写操作后，两个任务拥有各自的可写物理页）</p></li>
+<ol class="arabic">
+<li><p><cite>**</cite> 使用sbrk，mmap,munmap,mprotect内存相关系统调用的linux应用程序。</p>
+<p>可以编写使用sbrk系统调用的应用程序，具体代码如下：</p>
+</li>
+</ol>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">//user/src/ch4_sbrk.c</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">         </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Test sbrk start.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">         </span><span class="n">uint64</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x1000</span><span class="p">;</span>
+<span class="w">         </span><span class="n">uint64</span><span class="w"> </span><span class="n">origin_brk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sbrk</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="w">         </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;origin break point = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">origin_brk</span><span class="p">);</span>
+<span class="w">         </span><span class="n">uint64</span><span class="w"> </span><span class="n">brk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sbrk</span><span class="p">(</span><span class="n">PAGE_SIZE</span><span class="p">);</span>
+<span class="w">         </span><span class="k">if</span><span class="p">(</span><span class="n">brk</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">origin_brk</span><span class="p">){</span>
+<span class="w">                 </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">         </span><span class="p">}</span>
+<span class="w">         </span><span class="n">brk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sbrk</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="w">         </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;one page allocated, break point = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">brk</span><span class="p">);</span>
+<span class="w">         </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;try write to allocated page</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">         </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">new_page</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">origin_brk</span><span class="p">;</span>
+<span class="w">         </span><span class="k">for</span><span class="p">(</span><span class="n">uint64</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">;</span><span class="n">i</span><span class="w"> </span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                 </span><span class="n">new_page</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">         </span><span class="p">}</span>
+<span class="w">         </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;write ok</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">         </span><span class="n">sbrk</span><span class="p">(</span><span class="n">PAGE_SIZE</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<span class="w">         </span><span class="n">brk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sbrk</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="w">         </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;10 page allocated, break point = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">brk</span><span class="p">);</span>
+<span class="w">         </span><span class="n">sbrk</span><span class="p">(</span><span class="n">PAGE_SIZE</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">-11</span><span class="p">);</span>
+<span class="w">         </span><span class="n">brk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sbrk</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="w">         </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;11 page DEALLOCATED, break point = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">brk</span><span class="p">);</span>
+<span class="w">         </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;try DEALLOCATED more one page, should be failed.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">         </span><span class="n">uint64</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sbrk</span><span class="p">(</span><span class="n">PAGE_SIZE</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">-1</span><span class="p">);</span>
+<span class="w">         </span><span class="k">if</span><span class="p">(</span><span class="n">ret</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">-1</span><span class="p">){</span>
+<span class="w">                 </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Test sbrk failed!</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">                 </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">         </span><span class="p">}</span>
+<span class="w">         </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Test sbrk almost OK!</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">         </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;now write to deallocated page, should cause page fault.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">         </span><span class="k">for</span><span class="p">(</span><span class="n">uint64</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">;</span><span class="n">i</span><span class="w"> </span><span class="o">++</span><span class="p">){</span>
+<span class="w">                 </span><span class="n">new_page</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">         </span><span class="p">}</span>
+<span class="w">         </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w"> </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>使用mmap、unmap系统调用的应用代码可参考测例中的ch4_mmap0.c、ch4_unmap0.c等代码。</p>
+<ol class="arabic" start="2">
+<li><p><cite>***</cite> 修改本章操作系统内核，实现任务和操作系统内核共用同一张页表的单页表机制。</p>
+<p>要实现任务和操作系统内核通用一张页表，需要了解清楚内核地址空间和任务地址空间的布局，然后为每个任务在内核地址空间中单独分配一定的地址空间。</p>
+<p>在描述任务的struct proc中添加新的成员“kpgtbl”、“trapframe_base”，前者用户保存内核页表，后者用于保存任务的TRAPFRAME虚地址。并增加获取内核页表的函数“get_kernel_pagetable()”。</p>
+</li>
+</ol>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">//os/proc.h</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">proc</span><span class="w"> </span><span class="p">{</span>
+<span class="w">     </span><span class="k">enum</span><span class="w"> </span><span class="n">procstate</span><span class="w"> </span><span class="n">state</span><span class="p">;</span><span class="w"> </span><span class="c1">// Process state</span>
+<span class="w">     </span><span class="kt">int</span><span class="w"> </span><span class="n">pid</span><span class="p">;</span><span class="w"> </span><span class="c1">// Process ID</span>
+<span class="w">     </span><span class="n">pagetable_t</span><span class="w"> </span><span class="n">pagetable</span><span class="p">;</span><span class="w"> </span><span class="c1">// User page table</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">ustack</span><span class="p">;</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">kstack</span><span class="p">;</span><span class="w"> </span><span class="c1">// Virtual address of kernel stack</span>
+<span class="w">     </span><span class="k">struct</span><span class="w"> </span><span class="nc">trapframe</span><span class="w"> </span><span class="o">*</span><span class="n">trapframe</span><span class="p">;</span><span class="w"> </span><span class="c1">// data page for trampoline.S</span>
+<span class="w">     </span><span class="k">struct</span><span class="w"> </span><span class="nc">context</span><span class="w"> </span><span class="n">context</span><span class="p">;</span><span class="w"> </span><span class="c1">// swtch() here to run process</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">max_page</span><span class="p">;</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">program_brk</span><span class="p">;</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">heap_bottom</span><span class="p">;</span>
+<span class="w">     </span><span class="n">pagetable_t</span><span class="w"> </span><span class="n">kpgtbl</span><span class="p">;</span><span class="w"> </span><span class="c1">// 增加kpgtbl，用于保存内核页表</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">trapframe_base</span><span class="p">;</span><span class="w"> </span><span class="c1">// 增加trapframe，用于保存任务自己的trapframe</span>
+<span class="p">}</span>
+<span class="c1">//os/vm.c</span>
+<span class="c1">//增加get_kernel_pagetable函数，返回内核页表</span>
+<span class="n">pagetable_t</span><span class="w"> </span><span class="n">get_kernel_pagetable</span><span class="p">(){</span>
+<span class="w">     </span><span class="k">return</span><span class="w"> </span><span class="n">kernel_pagetable</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>让任务使用内核页表，在内核地址空间中为每个任务分配一定的地址空间，在bin_loader()函数中修改任务的内存布局。</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">//os/loader.c</span>
+<span class="c1">//修改任务的地址空间</span>
+<span class="n">pagetable_t</span><span class="w"> </span><span class="nf">bin_loader</span><span class="p">(</span><span class="n">uint64</span><span class="w"> </span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">uint64</span><span class="w"> </span><span class="n">end</span><span class="p">,</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">proc</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">num</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">     </span><span class="c1">//pagetable_t pg = uvmcreate(); //任务不创建自己的页表</span>
+<span class="w">     </span><span class="n">pagetable_t</span><span class="w"> </span><span class="n">pg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_kernel_pagetable</span><span class="p">();</span><span class="w"> </span><span class="c1">//获取内核页表</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">trapframe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRAPFRAME</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">;</span><span class="w"> </span><span class="c1">// 为每个任务依次指定TRAPFRAME</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">mappages</span><span class="p">(</span><span class="n">pg</span><span class="p">,</span><span class="w"> </span><span class="n">trapframe</span><span class="p">,</span><span class="w"> </span><span class="n">PGSIZE</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="p">,</span>
+<span class="w">                  </span><span class="n">PTE_R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTE_W</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="n">panic</span><span class="p">(</span><span class="s">&quot;mappages fail&quot;</span><span class="p">);</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">PGALIGNED</span><span class="p">(</span><span class="n">start</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="n">panic</span><span class="p">(</span><span class="s">&quot;user program not aligned, start = %p&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">start</span><span class="p">);</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">PGALIGNED</span><span class="p">(</span><span class="n">end</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="c1">// Fix in ch5</span>
+<span class="w">             </span><span class="n">warnf</span><span class="p">(</span><span class="s">&quot;Some kernel data maybe mapped to user, start = %p, end = %p&quot;</span><span class="p">,</span>
+<span class="w">                   </span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">end</span><span class="p">);</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PGROUNDUP</span><span class="p">(</span><span class="n">end</span><span class="p">);</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">;</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">base_address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BASE_ADDRESS</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="n">num</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">max_page</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">100</span><span class="p">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">;</span><span class="w"> </span><span class="c1">//设置任务的起始地址，并为任务保留100个页用做堆内存</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">mappages</span><span class="p">(</span><span class="n">pg</span><span class="p">,</span><span class="w"> </span><span class="n">base_address</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">,</span><span class="w"> </span><span class="n">start</span><span class="p">,</span>
+<span class="w">                  </span><span class="n">PTE_U</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTE_R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTE_W</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTE_X</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="n">panic</span><span class="p">(</span><span class="s">&quot;mappages fail&quot;</span><span class="p">);</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pg</span><span class="p">;</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">ustack_bottom_vaddr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">base_address</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">length</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">;</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">USTACK_SIZE</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="c1">// Fix in ch5</span>
+<span class="w">             </span><span class="n">panic</span><span class="p">(</span><span class="s">&quot;Unsupported&quot;</span><span class="p">);</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">mappages</span><span class="p">(</span><span class="n">pg</span><span class="p">,</span><span class="w"> </span><span class="n">ustack_bottom_vaddr</span><span class="p">,</span><span class="w"> </span><span class="n">USTACK_SIZE</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="n">kalloc</span><span class="p">(),</span>
+<span class="w">              </span><span class="n">PTE_U</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTE_R</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTE_W</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTE_X</span><span class="p">);</span>
+<span class="w">     </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">ustack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ustack_bottom_vaddr</span><span class="p">;</span>
+<span class="w">     </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">base_address</span><span class="p">;</span>
+<span class="w">     </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">sp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">ustack</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">USTACK_SIZE</span><span class="p">;</span>
+<span class="w">     </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">max_page</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PGROUNDUP</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">ustack</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">USTACK_SIZE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">;</span>
+<span class="w">     </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">program_brk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">ustack</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">USTACK_SIZE</span><span class="p">;</span>
+<span class="w">     </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">heap_bottom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">ustack</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">USTACK_SIZE</span><span class="p">;</span>
+<span class="w">     </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe_base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">trapframe</span><span class="p">;</span><span class="w"> </span><span class="c1">//任务保存自己的TRAPFRAME</span>
+<span class="w">     </span><span class="k">return</span><span class="w"> </span><span class="n">pg</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>在内核返回任务中使用任务自己的TRAPFRAME。</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">//os/trap.c</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">usertrapret</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">     </span><span class="n">set_usertrap</span><span class="p">();</span>
+<span class="w">     </span><span class="k">struct</span><span class="w"> </span><span class="nc">trapframe</span><span class="w"> </span><span class="o">*</span><span class="n">trapframe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">curr_proc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="p">;</span>
+<span class="w">     </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_satp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r_satp</span><span class="p">();</span><span class="w"> </span><span class="c1">// kernel page table</span>
+<span class="w">     </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_sp</span><span class="w"> </span><span class="o">=</span>
+<span class="w">             </span><span class="n">curr_proc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">kstack</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">KSTACK_SIZE</span><span class="p">;</span><span class="w"> </span><span class="c1">// process&#39;s kernel stack</span>
+<span class="w">     </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_trap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="n">usertrap</span><span class="p">;</span>
+<span class="w">     </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_hartid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r_tp</span><span class="p">();</span><span class="w"> </span><span class="c1">// unuesd</span>
+<span class="w">     </span><span class="n">w_sepc</span><span class="p">(</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="p">);</span>
+<span class="w">     </span><span class="c1">// set up the registers that trampoline.S&#39;s sret will use</span>
+<span class="w">     </span><span class="c1">// to get to user space.</span>
+<span class="w">     </span><span class="c1">// set S Previous Privilege mode to User.</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r_sstatus</span><span class="p">();</span>
+<span class="w">     </span><span class="n">x</span><span class="w"> </span><span class="o">&amp;=</span><span class="w"> </span><span class="o">~</span><span class="n">SSTATUS_SPP</span><span class="p">;</span><span class="w"> </span><span class="c1">// clear SPP to 0 for user mode</span>
+<span class="w">     </span><span class="n">x</span><span class="w"> </span><span class="o">|=</span><span class="w"> </span><span class="n">SSTATUS_SPIE</span><span class="p">;</span><span class="w"> </span><span class="c1">// enable interrupts in user mode</span>
+<span class="w">     </span><span class="n">w_sstatus</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+<span class="w">     </span><span class="c1">// tell trampoline.S the user page table to switch to.</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">satp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MAKE_SATP</span><span class="p">(</span><span class="n">curr_proc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">);</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">fn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRAMPOLINE</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="n">userret</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">trampoline</span><span class="p">);</span>
+<span class="w">     </span><span class="n">tracef</span><span class="p">(</span><span class="s">&quot;return to user @ %p&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="p">);</span>
+<span class="w">     </span><span class="p">((</span><span class="kt">void</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="p">)(</span><span class="n">uint64</span><span class="p">,</span><span class="w"> </span><span class="n">uint64</span><span class="p">))</span><span class="n">fn</span><span class="p">)(</span><span class="n">curr_proc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">trapframe_base</span><span class="p">,</span><span class="w"> </span><span class="n">satp</span><span class="p">);</span><span class="w"> </span><span class="c1">//使用任务自己的TRAPFRAME</span>
+<span class="w">     </span><span class="c1">//((void (*)(uint64, uint64))fn)(TRAPFRAME, satp);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<ol class="arabic" start="3">
+<li><p><cite>***</cite> 扩展内核，支持基于缺页异常机制，具有Lazy 策略的按需分页机制。</p>
+<p>在页面懒分配（Lazy allocation of pages）技术中，内存分配并不会立即发生，而是在需要使用内存时才分配，这样可以节省系统的资源并提高程序的性能。</p>
+<p>实现页面懒分配的思路是：当调用sbrk时不分配实际的页面，而是仅仅增大堆的大小，当实际访问页面时，就会触发缺页异常，此时再申请一个页面并映射到页表中，这时再次执行触发缺页异常的代码就可以正常读写内存了。</p>
+<p>注释掉growproc()函数，增加堆的size，但不实际分配内存：</p>
+</li>
+</ol>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">//os/syscall.c</span>
+<span class="n">uint64</span><span class="w"> </span><span class="nf">sys_sbrk</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">addr</span><span class="p">;</span>
+<span class="w">     </span><span class="k">struct</span><span class="w"> </span><span class="nc">proc</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">curr_proc</span><span class="p">();</span>
+<span class="w">     </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">program_brk</span><span class="p">;</span>
+<span class="w">     </span><span class="kt">int</span><span class="w"> </span><span class="n">heap_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">heap_bottom</span><span class="p">;</span>
+<span class="w">     </span><span class="k">if</span><span class="p">(</span><span class="n">heap_size</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">){</span>
+<span class="w">             </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;out of heap_bottom</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">             </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="k">else</span><span class="p">{</span>
+<span class="w">             </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">program_brk</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="c1">//增加堆的size，但不实际分配内存</span>
+<span class="w">             </span><span class="k">if</span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">){</span>
+<span class="w">                     </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;uvmdealloc</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">                     </span><span class="n">uvmdealloc</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">);</span><span class="w"> </span><span class="c1">//如果减少内存则调用内存释放函数</span>
+<span class="w">             </span><span class="p">}</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="c1">//if(growproc(n) &lt; 0) //注释掉growproc()函数，不实际分配内存</span>
+<span class="w">     </span><span class="c1">//        return -1;</span>
+<span class="w">     </span><span class="k">return</span><span class="w"> </span><span class="n">addr</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>因为没有给虚拟地址实际分配内存，所以当对相应的虚拟地址的内存进行读写的时候会触发缺页错误，这时再实际分配内存：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">//os/loader.c</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">usertrap</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">     </span><span class="n">set_kerneltrap</span><span class="p">();</span>
+<span class="w">     </span><span class="k">struct</span><span class="w"> </span><span class="nc">trapframe</span><span class="w"> </span><span class="o">*</span><span class="n">trapframe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">curr_proc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="p">;</span>
+<span class="w">     </span><span class="n">tracef</span><span class="p">(</span><span class="s">&quot;trap from user epc = %p&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="p">);</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">r_sstatus</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">SSTATUS_SPP</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">             </span><span class="n">panic</span><span class="p">(</span><span class="s">&quot;usertrap: not from user mode&quot;</span><span class="p">);</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">cause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r_scause</span><span class="p">();</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cause</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="mi">1ULL</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">63</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="n">cause</span><span class="w"> </span><span class="o">&amp;=</span><span class="w"> </span><span class="o">~</span><span class="p">(</span><span class="mi">1ULL</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">63</span><span class="p">);</span>
+<span class="w">             </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">cause</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">SupervisorTimer</span><span class="p">:</span>
+<span class="w">                     </span><span class="n">tracef</span><span class="p">(</span><span class="s">&quot;time interrupt!&quot;</span><span class="p">);</span>
+<span class="w">                     </span><span class="n">set_next_timer</span><span class="p">();</span>
+<span class="w">                     </span><span class="n">yield</span><span class="p">();</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                     </span><span class="n">unknown_trap</span><span class="p">();</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="p">}</span>
+<span class="w">     </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">cause</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">UserEnvCall</span><span class="p">:</span>
+<span class="w">                     </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="w">                     </span><span class="n">syscall</span><span class="p">();</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">StorePageFault</span><span class="p">:</span><span class="w"> </span><span class="c1">// 读缺页错误</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">LoadPageFault</span><span class="p">:</span><span class="w">  </span><span class="c1">// 写缺页错误</span>
+<span class="w">                     </span><span class="p">{</span>
+<span class="w">                             </span><span class="n">uint64</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r_stval</span><span class="p">();</span><span class="w"> </span><span class="c1">// 获取发生缺页错误的地址</span>
+<span class="w">                             </span><span class="k">if</span><span class="p">(</span><span class="n">lazy_alloc</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">){</span><span class="w"> </span><span class="c1">// 调用页面懒分配函数</span>
+<span class="w">                                     </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;lazy_aolloc() failed!</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">                                     </span><span class="n">exit</span><span class="p">(</span><span class="mi">-2</span><span class="p">);</span>
+<span class="w">                             </span><span class="p">}</span>
+<span class="w">                             </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                     </span><span class="p">}</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">StoreMisaligned</span><span class="p">:</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">InstructionMisaligned</span><span class="p">:</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">InstructionPageFault</span><span class="p">:</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">LoadMisaligned</span><span class="p">:</span>
+<span class="w">                     </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;%d in application, bad addr = %p, bad instruction = %p, &quot;</span>
+<span class="w">                            </span><span class="s">&quot;core dumped.&quot;</span><span class="p">,</span>
+<span class="w">                            </span><span class="n">cause</span><span class="p">,</span><span class="w"> </span><span class="n">r_stval</span><span class="p">(),</span><span class="w"> </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="p">);</span>
+<span class="w">                     </span><span class="n">exit</span><span class="p">(</span><span class="mi">-2</span><span class="p">);</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">IllegalInstruction</span><span class="p">:</span>
+<span class="w">                     </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;IllegalInstruction in application, core dumped.&quot;</span><span class="p">);</span>
+<span class="w">                     </span><span class="n">exit</span><span class="p">(</span><span class="mi">-3</span><span class="p">);</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                     </span><span class="n">unknown_trap</span><span class="p">();</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="p">}</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">usertrapret</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>实现页面懒分配函数，首先判断地址是否在堆的范围内，然后分配实际的内存，最后在页面中建立映射：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">//os/trap.c</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">lazy_alloc</span><span class="p">(</span><span class="n">uint64</span><span class="w"> </span><span class="n">addr</span><span class="p">){</span>
+<span class="w">     </span><span class="k">struct</span><span class="w"> </span><span class="nc">proc</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">curr_proc</span><span class="p">();</span>
+<span class="w">     </span><span class="c1">// 通过两个if判断发生缺页错误的地址是否在堆的范围内，不在则返回</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">addr</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">program_brk</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;lazy_alloc: access invalid address&quot;</span><span class="p">);</span>
+<span class="w">             </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">addr</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">p</span><span class="o">-&gt;</span><span class="n">heap_bottom</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;lazy_alloc: access address below stack&quot;</span><span class="p">);</span>
+<span class="w">             </span><span class="k">return</span><span class="w"> </span><span class="mi">-2</span><span class="p">;</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PGROUNDDOWN</span><span class="p">(</span><span class="n">addr</span><span class="p">);</span>
+<span class="w">     </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">mem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kalloc</span><span class="p">();</span><span class="w"> </span><span class="c1">// 调用kalloc()实际分配页面</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">mem</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;lazy_alloc: kalloc failed&quot;</span><span class="p">);</span>
+<span class="w">             </span><span class="k">return</span><span class="w"> </span><span class="mi">-3</span><span class="p">;</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">memset</span><span class="p">(</span><span class="n">mem</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">PGSIZE</span><span class="p">);</span>
+<span class="w">     </span><span class="k">if</span><span class="p">(</span><span class="n">mappages</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">,</span><span class="w"> </span><span class="n">va</span><span class="p">,</span><span class="w"> </span><span class="n">PGSIZE</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="n">mem</span><span class="p">,</span><span class="w"> </span><span class="n">PTE_W</span><span class="o">|</span><span class="n">PTE_X</span><span class="o">|</span><span class="n">PTE_R</span><span class="o">|</span><span class="n">PTE_U</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">){</span><span class="w"> </span><span class="c1">// 将新分配的页面和虚拟地址在页表中建立映射</span>
+<span class="w">             </span><span class="n">kfree</span><span class="p">(</span><span class="n">mem</span><span class="p">);</span>
+<span class="w">             </span><span class="k">return</span><span class="w"> </span><span class="mi">-4</span><span class="p">;</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<ol class="arabic" start="4">
+<li><p><cite>***</cite> 扩展内核，支持基于缺页异常的COW机制。（初始时，两个任务共享一个只读物理页。当一个任务执行写操作后，两个任务拥有各自的可写物理页）</p>
+<p>COW（Copy on Write）是指当需要在内存中创建一个新的副本时，COW技术会推迟复制操作，直到数据被修改为止。从而减少不必要的内存拷贝，提升性能。</p>
+<p>实现COW的思路是：在创建内存副本时，在内存中创建一个指向原始数据的指针或引用，而不是创建原始数据的完整副本。如果原始数据没有被修改，新副本将继续共享原始数据的指针或引用，以节省内存。当某个程序试图修改数据时，COW技术会在新副本中复制原始数据，使得每个程序都有自己的独立副本，从而避免数据之间的干扰。</p>
+<p>增加一个当做计数器的数据结构用于记录每个物理页面被多少变量引用，当页面初始被分配时计数器设置为1，其后如果产生副本则计数器加1。当页面被释放的时候则计数器减1，如果计数器不为0，说明还有其他引用在使用该页面，此时不执行实际的释放操作，最后计数器变为0时才真正释放页面：</p>
+</li>
+</ol>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">//os/kalloc.c</span>
+<span class="n">uint64</span><span class="w"> </span><span class="n">page_ref</span><span class="p">[</span><span class="w"> </span><span class="p">(</span><span class="n">PHYSTOP</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">KERNBASE</span><span class="p">)</span><span class="o">/</span><span class="n">PAGE_SIZE</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span><span class="w"> </span><span class="c1">// 定义用来记录页面引用的计数器，并将其值初始化为0</span>
+<span class="c1">// 新增修改页面计数器的函数</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">page_ref_add</span><span class="p">(</span><span class="n">uint64</span><span class="w"> </span><span class="n">pa</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="p">){</span><span class="w"> </span><span class="c1">// 增加页面计数</span>
+<span class="w">     </span><span class="n">page_ref</span><span class="p">[(</span><span class="n">PGROUNDDOWN</span><span class="p">(</span><span class="n">pa</span><span class="p">)</span><span class="o">-</span><span class="n">KERNBASE</span><span class="p">)</span><span class="o">/</span><span class="n">PGSIZE</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">page_ref_reduce</span><span class="p">(</span><span class="n">uint64</span><span class="w"> </span><span class="n">pa</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="p">){</span><span class="w"> </span><span class="c1">// 减少页面计数</span>
+<span class="w">     </span><span class="n">page_ref</span><span class="p">[(</span><span class="n">PGROUNDDOWN</span><span class="p">(</span><span class="n">pa</span><span class="p">)</span><span class="o">-</span><span class="n">KERNBASE</span><span class="p">)</span><span class="o">/</span><span class="n">PGSIZE</span><span class="p">]</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="n">uint64</span><span class="w"> </span><span class="nf">page_ref_get</span><span class="p">(</span><span class="n">uint64</span><span class="w"> </span><span class="n">pa</span><span class="p">){</span><span class="w"> </span><span class="c1">// 返回页面计数</span>
+<span class="w">     </span><span class="k">return</span><span class="w"> </span><span class="n">page_ref</span><span class="p">[(</span><span class="n">PGROUNDDOWN</span><span class="p">(</span><span class="n">pa</span><span class="p">)</span><span class="o">-</span><span class="n">KERNBASE</span><span class="p">)</span><span class="o">/</span><span class="n">PGSIZE</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="nf">kalloc</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">     </span><span class="k">struct</span><span class="w"> </span><span class="nc">linklist</span><span class="w"> </span><span class="o">*</span><span class="n">l</span><span class="p">;</span>
+<span class="w">     </span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kmem</span><span class="p">.</span><span class="n">freelist</span><span class="p">;</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">l</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="n">kmem</span><span class="p">.</span><span class="n">freelist</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">l</span><span class="o">-&gt;</span><span class="n">next</span><span class="p">;</span>
+<span class="w">             </span><span class="n">memset</span><span class="p">((</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">l</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="n">PGSIZE</span><span class="p">);</span><span class="w"> </span><span class="c1">// fill with junk</span>
+<span class="w">             </span><span class="n">page_ref_add</span><span class="p">((</span><span class="n">uint64</span><span class="p">)</span><span class="n">l</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"> </span><span class="c1">// 在页面分配的时候设置计数器为1</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">l</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">kfree</span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">pa</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">     </span><span class="k">struct</span><span class="w"> </span><span class="nc">linklist</span><span class="w"> </span><span class="o">*</span><span class="n">l</span><span class="p">;</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(((</span><span class="n">uint64</span><span class="p">)</span><span class="n">pa</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">PGSIZE</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">pa</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">ekernel</span><span class="w"> </span><span class="o">||</span>
+<span class="w">         </span><span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="n">pa</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">PHYSTOP</span><span class="p">)</span>
+<span class="w">             </span><span class="n">panic</span><span class="p">(</span><span class="s">&quot;kfree&quot;</span><span class="p">);</span>
+<span class="w">     </span><span class="k">if</span><span class="p">(</span><span class="n">page_ref_get</span><span class="p">((</span><span class="n">uint64</span><span class="p">)</span><span class="n">pa</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="p">){</span><span class="w"> </span><span class="c1">// 判断计数器的值，如果大于1说明还有其他引用，计数器减1后直接返回</span>
+<span class="w">             </span><span class="n">page_ref_reduce</span><span class="p">((</span><span class="n">uint64</span><span class="p">)</span><span class="n">pa</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">             </span><span class="k">return</span><span class="p">;</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="c1">// Fill with junk to catch dangling refs.</span>
+<span class="w">     </span><span class="n">memset</span><span class="p">(</span><span class="n">pa</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">PGSIZE</span><span class="p">);</span>
+<span class="w">     </span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">struct</span><span class="w"> </span><span class="nc">linklist</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">pa</span><span class="p">;</span>
+<span class="w">     </span><span class="n">l</span><span class="o">-&gt;</span><span class="n">next</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kmem</span><span class="p">.</span><span class="n">freelist</span><span class="p">;</span>
+<span class="w">     </span><span class="n">kmem</span><span class="p">.</span><span class="n">freelist</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">l</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>修改内存复制函数umcopy()，其实不进行实际的内存复制，只是增加新的引用到需要复制的内存上：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="w"> </span><span class="c1">//os/vm.c</span>
+<span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">uvmcopy</span><span class="p">(</span><span class="n">pagetable_t</span><span class="w"> </span><span class="n">old</span><span class="p">,</span><span class="w"> </span><span class="n">pagetable_t</span><span class="w"> </span><span class="n">new</span><span class="p">,</span><span class="w"> </span><span class="n">uint64</span><span class="w"> </span><span class="n">max_page</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">      </span><span class="n">pte_t</span><span class="w"> </span><span class="o">*</span><span class="n">pte</span><span class="p">;</span>
+<span class="w">      </span><span class="n">uint64</span><span class="w"> </span><span class="n">pa</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="w">      </span><span class="n">uint</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span>
+<span class="w">      </span><span class="c1">//char *mem;</span>
+<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">max_page</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">PAGE_SIZE</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">PGSIZE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">              </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">pte</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">walk</span><span class="p">(</span><span class="n">old</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">))</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">                      </span><span class="k">continue</span><span class="p">;</span>
+<span class="w">              </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="o">*</span><span class="n">pte</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">PTE_V</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">                      </span><span class="k">continue</span><span class="p">;</span>
+<span class="w">              </span><span class="n">pa</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PTE2PA</span><span class="p">(</span><span class="o">*</span><span class="n">pte</span><span class="p">);</span>
+<span class="w">              </span><span class="n">flags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PTE_FLAGS</span><span class="p">(</span><span class="o">*</span><span class="n">pte</span><span class="p">);</span>
+<span class="w">              </span><span class="o">*</span><span class="n">pte</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="o">*</span><span class="n">pte</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="o">~</span><span class="n">PTE_W</span><span class="p">))</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTE_COW</span><span class="p">;</span><span class="w"> </span><span class="c1">// 虽然不进行内存页的复制，但是需要修改内存页的操作权限，取消页的写操作权限，同时增加COW权限</span>
+<span class="w">              </span><span class="cm">/*if ((mem = kalloc()) == 0) // 注释掉分配内存的函数</span>
+<span class="cm">                      goto err;</span>
+<span class="cm">              memmove(mem, (char *)pa, PGSIZE);</span>
+<span class="cm">              if (mappages(new, i, PGSIZE, (uint64)mem, flags) != 0) {*/</span>
+<span class="w">              </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">mappages</span><span class="p">(</span><span class="n">new</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">PGSIZE</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="n">pa</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">flags</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="o">~</span><span class="n">PTE_W</span><span class="p">))</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTE_COW</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// 让另一页表中的虚拟地址指向原来页表中的物理地址</span>
+<span class="w">                      </span><span class="c1">//kfree(mem);</span>
+<span class="w">                      </span><span class="k">goto</span><span class="w"> </span><span class="n">err</span><span class="p">;</span>
+<span class="w">              </span><span class="p">}</span>
+<span class="w">              </span><span class="n">page_ref_add</span><span class="p">(</span><span class="n">pa</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w"> </span><span class="nl">err</span><span class="p">:</span>
+<span class="w">      </span><span class="n">uvmunmap</span><span class="p">(</span><span class="n">new</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">PGSIZE</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w"> </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>因为没有实际地进行内存复制，且取消了页面的的写权限，所以当对相应的虚拟地址的内存进行写操作的时候会触发缺页错误，这时再调用cowcopy()函数实际分配页或修改页的写权限：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">//os/trap.c</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">usertrap</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">     </span><span class="n">set_kerneltrap</span><span class="p">();</span>
+<span class="w">     </span><span class="k">struct</span><span class="w"> </span><span class="nc">trapframe</span><span class="w"> </span><span class="o">*</span><span class="n">trapframe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">curr_proc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="p">;</span>
+<span class="w">     </span><span class="n">tracef</span><span class="p">(</span><span class="s">&quot;trap from user epc = %p&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="p">);</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">r_sstatus</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">SSTATUS_SPP</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">             </span><span class="n">panic</span><span class="p">(</span><span class="s">&quot;usertrap: not from user mode&quot;</span><span class="p">);</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">cause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r_scause</span><span class="p">();</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">cause</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="mi">1ULL</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">63</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="n">cause</span><span class="w"> </span><span class="o">&amp;=</span><span class="w"> </span><span class="o">~</span><span class="p">(</span><span class="mi">1ULL</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">63</span><span class="p">);</span>
+<span class="w">             </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">cause</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">SupervisorTimer</span><span class="p">:</span>
+<span class="w">                     </span><span class="n">tracef</span><span class="p">(</span><span class="s">&quot;time interrupt!&quot;</span><span class="p">);</span>
+<span class="w">                     </span><span class="n">set_next_timer</span><span class="p">();</span>
+<span class="w">                     </span><span class="n">yield</span><span class="p">();</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                     </span><span class="n">unknown_trap</span><span class="p">();</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="p">}</span>
+<span class="w">     </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">cause</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">UserEnvCall</span><span class="p">:</span>
+<span class="w">                     </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="w">                     </span><span class="n">syscall</span><span class="p">();</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">StorePageFault</span><span class="p">:{</span><span class="w"> </span><span class="c1">// 写缺页错误</span>
+<span class="w">                     </span><span class="n">uint64</span><span class="w"> </span><span class="n">va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r_stval</span><span class="p">();</span><span class="w"> </span><span class="c1">//获取发生缺页错误的虚拟地址</span>
+<span class="w">                     </span><span class="k">if</span><span class="p">(</span><span class="n">cowcopy</span><span class="p">(</span><span class="n">va</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">){</span><span class="w"> </span><span class="c1">// 当发生写缺页错误的时候，调用COW函数，进行实际的内存复制</span>
+<span class="w">                             </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;Copy on Write Failed!</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">                             </span><span class="n">exit</span><span class="p">(</span><span class="mi">-2</span><span class="p">);</span>
+<span class="w">                     </span><span class="p">}</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="p">}</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">StoreMisaligned</span><span class="p">:</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">InstructionMisaligned</span><span class="p">:</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">InstructionPageFault</span><span class="p">:</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">LoadMisaligned</span><span class="p">:</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">LoadPageFault</span><span class="p">:</span>
+<span class="w">                     </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;%d in application, bad addr = %p, bad instruction = %p, &quot;</span>
+<span class="w">                            </span><span class="s">&quot;core dumped.&quot;</span><span class="p">,</span>
+<span class="w">                            </span><span class="n">cause</span><span class="p">,</span><span class="w"> </span><span class="n">r_stval</span><span class="p">(),</span><span class="w"> </span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="p">);</span>
+<span class="w">                     </span><span class="n">exit</span><span class="p">(</span><span class="mi">-2</span><span class="p">);</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="k">case</span><span class="w"> </span><span class="no">IllegalInstruction</span><span class="p">:</span>
+<span class="w">                     </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;IllegalInstruction in application, core dumped.&quot;</span><span class="p">);</span>
+<span class="w">                     </span><span class="n">exit</span><span class="p">(</span><span class="mi">-3</span><span class="p">);</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                     </span><span class="n">unknown_trap</span><span class="p">();</span>
+<span class="w">                     </span><span class="k">break</span><span class="p">;</span>
+<span class="w">             </span><span class="p">}</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">usertrapret</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>实现cowcopy()分配函数，首先判断地址是否在堆的范围内，然后分配实际的内存，最后在页面中建立映射：</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">//os/vm.c</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">cowcopy</span><span class="p">(</span><span class="n">uint64</span><span class="w"> </span><span class="n">va</span><span class="p">){</span>
+<span class="w">     </span><span class="n">va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PGROUNDDOWN</span><span class="p">(</span><span class="n">va</span><span class="p">);</span>
+<span class="w">     </span><span class="n">pagetable_t</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">curr_proc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">;</span>
+<span class="w">     </span><span class="n">pte_t</span><span class="o">*</span><span class="w"> </span><span class="n">pte</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">walk</span><span class="p">(</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="n">va</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">     </span><span class="n">uint64</span><span class="w"> </span><span class="n">pa</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PTE2PA</span><span class="p">(</span><span class="o">*</span><span class="n">pte</span><span class="p">);</span>
+<span class="w">     </span><span class="n">uint</span><span class="w"> </span><span class="n">flags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PTE_FLAGS</span><span class="p">(</span><span class="o">*</span><span class="n">pte</span><span class="p">);</span><span class="w"> </span><span class="c1">// 获取页面的操作权限</span>
+<span class="w">     </span><span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">flags</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">PTE_COW</span><span class="p">)){</span>
+<span class="w">             </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;not cow</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">             </span><span class="k">return</span><span class="w"> </span><span class="mi">-2</span><span class="p">;</span><span class="w"> </span><span class="c1">// not cow page</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">uint</span><span class="w"> </span><span class="n">ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">page_ref_get</span><span class="p">(</span><span class="n">pa</span><span class="p">);</span><span class="w"> </span><span class="c1">// 获取页面的被引用的次数</span>
+<span class="w">     </span><span class="k">if</span><span class="p">(</span><span class="n">ref</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="p">){</span><span class="w"> </span><span class="c1">// 若果大于1则说明有多个引用，这时需要重新分配页面</span>
+<span class="w">             </span><span class="c1">// ref &gt; 1, alloc a new page</span>
+<span class="w">             </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">mem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kalloc</span><span class="p">();</span>
+<span class="w">             </span><span class="k">if</span><span class="p">(</span><span class="n">mem</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">){</span>
+<span class="w">                     </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;kalloc failed!</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">                     </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">             </span><span class="p">}</span>
+<span class="w">             </span><span class="n">memmove</span><span class="p">(</span><span class="n">mem</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">char</span><span class="o">*</span><span class="p">)</span><span class="n">pa</span><span class="p">,</span><span class="w"> </span><span class="n">PGSIZE</span><span class="p">);</span><span class="w"> </span><span class="c1">// 复制页中的内容到新的页</span>
+<span class="w">             </span><span class="k">if</span><span class="p">(</span><span class="n">mappages</span><span class="p">(</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="n">va</span><span class="p">,</span><span class="w"> </span><span class="n">PGSIZE</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="n">mem</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">flags</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="o">~</span><span class="n">PTE_COW</span><span class="p">))</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTE_W</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">){</span>
+<span class="w">                     </span><span class="n">errorf</span><span class="p">(</span><span class="s">&quot;mappage failed!</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">                     </span><span class="n">kfree</span><span class="p">(</span><span class="n">mem</span><span class="p">);</span>
+<span class="w">                     </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">             </span><span class="p">}</span>
+<span class="w">             </span><span class="n">page_ref_reduce</span><span class="p">(</span><span class="n">pa</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">     </span><span class="p">}</span><span class="k">else</span><span class="p">{</span>
+<span class="w">             </span><span class="c1">// ref = 1, use this page directly</span>
+<span class="w">             </span><span class="o">*</span><span class="n">pte</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="o">*</span><span class="n">pte</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="o">~</span><span class="n">PTE_COW</span><span class="p">))</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">PTE_W</span><span class="p">;</span><span class="w"> </span><span class="c1">// 如果没有其他引用则修改页面操作权限，使得该页面可以进行写操作</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="5">
 <li><p><cite>***</cite> 扩展内核，实现swap in/out机制，并实现Clock置换算法或二次机会置换算法。</p></li>
 <li><p><cite>***</cite> 扩展内核，实现自映射机制。</p></li>
 </ol>
