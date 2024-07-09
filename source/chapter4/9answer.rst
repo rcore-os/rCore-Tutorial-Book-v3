@@ -8,9 +8,468 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. `**` 使用sbrk，mmap,munmap,mprotect内存相关系统调用的linux应用程序。
+
+   可以编写使用sbrk系统调用的应用程序，具体代码如下：
+
+.. code-block:: c
+
+   //user/src/ch4_sbrk.c
+   int main()
+   {
+            printf("Test sbrk start.\n");
+            uint64 PAGE_SIZE = 0x1000;
+            uint64 origin_brk = sbrk(0);
+            printf("origin break point = %p\n", origin_brk);
+            uint64 brk = sbrk(PAGE_SIZE);
+            if(brk != origin_brk){
+                    return -1;
+            }
+            brk = sbrk(0);
+            printf("one page allocated, break point = %p\n", brk);
+            printf("try write to allocated page\n");
+            char *new_page = (char *)origin_brk;
+            for(uint64 i = 0;i < PAGE_SIZE;i ++) {
+                    new_page[i] = 1;
+            }
+            printf("write ok\n");
+            sbrk(PAGE_SIZE * 10);
+            brk = sbrk(0);
+            printf("10 page allocated, break point = %p\n", brk);
+            sbrk(PAGE_SIZE * -11);
+            brk = sbrk(0);
+            printf("11 page DEALLOCATED, break point = %p\n", brk);
+            printf("try DEALLOCATED more one page, should be failed.\n");
+            uint64 ret = sbrk(PAGE_SIZE * -1);
+            if(ret != -1){
+                    printf("Test sbrk failed!\n");
+                    return -1;
+            }
+            printf("Test sbrk almost OK!\n");
+            printf("now write to deallocated page, should cause page fault.\n");
+            for(uint64 i = 0;i < PAGE_SIZE;i ++){
+                    new_page[i] = 2;
+            }
+            return 0;
+    }
+
+使用mmap、unmap系统调用的应用代码可参考测例中的ch4_mmap0.c、ch4_unmap0.c等代码。
+
 2. `***` 修改本章操作系统内核，实现任务和操作系统内核共用同一张页表的单页表机制。
+
+   要实现任务和操作系统内核通用一张页表，需要了解清楚内核地址空间和任务地址空间的布局，然后为每个任务在内核地址空间中单独分配一定的地址空间。
+
+   在描述任务的struct proc中添加新的成员“kpgtbl”、“trapframe_base”，前者用户保存内核页表，后者用于保存任务的TRAPFRAME虚地址。并增加获取内核页表的函数“get_kernel_pagetable()”。
+
+.. code-block:: c
+
+   //os/proc.h
+   struct proc {
+        enum procstate state; // Process state
+        int pid; // Process ID
+        pagetable_t pagetable; // User page table
+        uint64 ustack;
+        uint64 kstack; // Virtual address of kernel stack
+        struct trapframe *trapframe; // data page for trampoline.S
+        struct context context; // swtch() here to run process
+        uint64 max_page;
+        uint64 program_brk;
+        uint64 heap_bottom;
+        pagetable_t kpgtbl; // 增加kpgtbl，用于保存内核页表
+        uint64 trapframe_base; // 增加trapframe，用于保存任务自己的trapframe
+   }
+   //os/vm.c
+   //增加get_kernel_pagetable函数，返回内核页表
+   pagetable_t get_kernel_pagetable(){
+        return kernel_pagetable;
+   }
+
+让任务使用内核页表，在内核地址空间中为每个任务分配一定的地址空间，在bin_loader()函数中修改任务的内存布局。
+
+.. code-block:: c
+
+   //os/loader.c
+   //修改任务的地址空间
+   pagetable_t bin_loader(uint64 start, uint64 end, struct proc *p, int num)
+   {
+        //pagetable_t pg = uvmcreate(); //任务不创建自己的页表
+        pagetable_t pg = get_kernel_pagetable(); //获取内核页表
+        uint64 trapframe = TRAPFRAME - (num + 1)* PAGE_SIZE; // 为每个任务依次指定TRAPFRAME
+        if (mappages(pg, trapframe, PGSIZE, (uint64)p->trapframe,
+                     PTE_R | PTE_W) < 0) {
+                panic("mappages fail");
+        }
+        if (!PGALIGNED(start)) {
+                panic("user program not aligned, start = %p", start);
+        }
+        if (!PGALIGNED(end)) {
+                // Fix in ch5
+                warnf("Some kernel data maybe mapped to user, start = %p, end = %p",
+                      start, end);
+        }
+        end = PGROUNDUP(end);
+        uint64 length = end - start;
+        uint64 base_address = BASE_ADDRESS + (num * (p->max_page + 100)) * PAGE_SIZE; //设置任务的起始地址，并为任务保留100个页用做堆内存
+        if (mappages(pg, base_address, length, start,
+                     PTE_U | PTE_R | PTE_W | PTE_X) != 0) {
+                panic("mappages fail");
+        }
+        p->pagetable = pg;
+        uint64 ustack_bottom_vaddr = base_address + length + PAGE_SIZE;
+        if (USTACK_SIZE != PAGE_SIZE) {
+                // Fix in ch5
+                panic("Unsupported");
+        }
+        mappages(pg, ustack_bottom_vaddr, USTACK_SIZE, (uint64)kalloc(),
+                 PTE_U | PTE_R | PTE_W | PTE_X);
+        p->ustack = ustack_bottom_vaddr;
+        p->trapframe->epc = base_address;
+        p->trapframe->sp = p->ustack + USTACK_SIZE;
+        p->max_page = PGROUNDUP(p->ustack + USTACK_SIZE - 1) / PAGE_SIZE;
+        p->program_brk = p->ustack + USTACK_SIZE;
+        p->heap_bottom = p->ustack + USTACK_SIZE;
+        p->trapframe_base = trapframe; //任务保存自己的TRAPFRAME
+        return pg;
+   }
+   
+在内核返回任务中使用任务自己的TRAPFRAME。
+
+.. code-block:: c
+
+   //os/trap.c
+   void usertrapret()
+   {
+        set_usertrap();
+        struct trapframe *trapframe = curr_proc()->trapframe;
+        trapframe->kernel_satp = r_satp(); // kernel page table
+        trapframe->kernel_sp =
+                curr_proc()->kstack + KSTACK_SIZE; // process's kernel stack
+        trapframe->kernel_trap = (uint64)usertrap;
+        trapframe->kernel_hartid = r_tp(); // unuesd
+        w_sepc(trapframe->epc);
+        // set up the registers that trampoline.S's sret will use
+        // to get to user space.
+        // set S Previous Privilege mode to User.
+        uint64 x = r_sstatus();
+        x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
+        x |= SSTATUS_SPIE; // enable interrupts in user mode
+        w_sstatus(x);
+        // tell trampoline.S the user page table to switch to.
+        uint64 satp = MAKE_SATP(curr_proc()->pagetable);
+        uint64 fn = TRAMPOLINE + (userret - trampoline);
+        tracef("return to user @ %p", trapframe->epc);
+        ((void (*)(uint64, uint64))fn)(curr_proc()->trapframe_base, satp); //使用任务自己的TRAPFRAME
+        //((void (*)(uint64, uint64))fn)(TRAPFRAME, satp);
+   }
+
 3. `***` 扩展内核，支持基于缺页异常机制，具有Lazy 策略的按需分页机制。
+
+
+   在页面懒分配（Lazy allocation of pages）技术中，内存分配并不会立即发生，而是在需要使用内存时才分配，这样可以节省系统的资源并提高程序的性能。
+
+   实现页面懒分配的思路是：当调用sbrk时不分配实际的页面，而是仅仅增大堆的大小，当实际访问页面时，就会触发缺页异常，此时再申请一个页面并映射到页表中，这时再次执行触发缺页异常的代码就可以正常读写内存了。
+
+   注释掉growproc()函数，增加堆的size，但不实际分配内存：
+
+.. code-block:: c
+
+   //os/syscall.c
+   uint64 sys_sbrk(int n)
+   {
+        uint64 addr;
+        struct proc *p = curr_proc();
+        addr = p->program_brk;
+        int heap_size = addr + n - p->heap_bottom; 
+        if(heap_size < 0){
+                errorf("out of heap_bottom\n");
+                return -1;
+        }
+        else{
+                p->program_brk += n; //增加堆的size，但不实际分配内存
+                if(n < 0){
+                        printf("uvmdealloc\n");
+                        uvmdealloc(p->pagetable, addr, addr + n); //如果减少内存则调用内存释放函数
+                }
+        }
+        //if(growproc(n) < 0) //注释掉growproc()函数，不实际分配内存
+        //        return -1;
+        return addr;
+   }
+
+因为没有给虚拟地址实际分配内存，所以当对相应的虚拟地址的内存进行读写的时候会触发缺页错误，这时再实际分配内存：
+
+.. code-block:: c
+
+   //os/loader.c
+   void usertrap()
+   {
+        set_kerneltrap();
+        struct trapframe *trapframe = curr_proc()->trapframe;
+        tracef("trap from user epc = %p", trapframe->epc);
+        if ((r_sstatus() & SSTATUS_SPP) != 0)
+                panic("usertrap: not from user mode");
+        uint64 cause = r_scause();
+        if (cause & (1ULL << 63)) {
+                cause &= ~(1ULL << 63);
+                switch (cause) {
+                case SupervisorTimer:
+                        tracef("time interrupt!");
+                        set_next_timer();
+                        yield();
+                        break;
+                default:
+                        unknown_trap();
+                        break;
+                }
+        } else {
+                switch (cause) {
+                case UserEnvCall:
+                        trapframe->epc += 4;
+                        syscall();
+                        break;
+                case StorePageFault: // 读缺页错误
+                case LoadPageFault:  // 写缺页错误
+                        {
+                                uint64 addr = r_stval(); // 获取发生缺页错误的地址
+                                if(lazy_alloc(addr) < 0){ // 调用页面懒分配函数
+                                        errorf("lazy_aolloc() failed!\n");
+                                        exit(-2);
+                                }
+                                break;
+                        }
+                case StoreMisaligned:
+                case InstructionMisaligned:
+                case InstructionPageFault:
+                case LoadMisaligned:
+                        errorf("%d in application, bad addr = %p, bad instruction = %p, "
+                               "core dumped.",
+                               cause, r_stval(), trapframe->epc);
+                        exit(-2);
+                        break;
+                case IllegalInstruction:
+                        errorf("IllegalInstruction in application, core dumped.");
+                        exit(-3);
+                        break;
+                default:
+                        unknown_trap();
+                        break;
+                }
+        }
+        usertrapret();
+   }
+   
+实现页面懒分配函数，首先判断地址是否在堆的范围内，然后分配实际的内存，最后在页面中建立映射：
+
+.. code-block:: c
+
+   //os/trap.c
+   int lazy_alloc(uint64 addr){
+        struct proc *p = curr_proc();
+        // 通过两个if判断发生缺页错误的地址是否在堆的范围内，不在则返回
+        if (addr >= p->program_brk) { 
+                errorf("lazy_alloc: access invalid address");
+                return -1;
+        }
+        if (addr < p->heap_bottom) {
+                errorf("lazy_alloc: access address below stack");
+                return -2;
+        }
+        uint64 va = PGROUNDDOWN(addr);
+        char* mem = kalloc(); // 调用kalloc()实际分配页面
+        if (mem == 0) {
+                errorf("lazy_alloc: kalloc failed");
+                return -3;
+        }
+        memset(mem, 0, PGSIZE);
+        if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){ // 将新分配的页面和虚拟地址在页表中建立映射
+                kfree(mem);
+                return -4;
+        }
+        return 0;
+   }
+
 4. `***` 扩展内核，支持基于缺页异常的COW机制。（初始时，两个任务共享一个只读物理页。当一个任务执行写操作后，两个任务拥有各自的可写物理页）
+
+   COW（Copy on Write）是指当需要在内存中创建一个新的副本时，COW技术会推迟复制操作，直到数据被修改为止。从而减少不必要的内存拷贝，提升性能。
+
+   实现COW的思路是：在创建内存副本时，在内存中创建一个指向原始数据的指针或引用，而不是创建原始数据的完整副本。如果原始数据没有被修改，新副本将继续共享原始数据的指针或引用，以节省内存。当某个程序试图修改数据时，COW技术会在新副本中复制原始数据，使得每个程序都有自己的独立副本，从而避免数据之间的干扰。
+
+   增加一个当做计数器的数据结构用于记录每个物理页面被多少变量引用，当页面初始被分配时计数器设置为1，其后如果产生副本则计数器加1。当页面被释放的时候则计数器减1，如果计数器不为0，说明还有其他引用在使用该页面，此时不执行实际的释放操作，最后计数器变为0时才真正释放页面：
+
+.. code-block:: c
+
+   //os/kalloc.c
+   uint64 page_ref[ (PHYSTOP - KERNBASE)/PAGE_SIZE] = {0}; // 定义用来记录页面引用的计数器，并将其值初始化为0
+   // 新增修改页面计数器的函数
+   void page_ref_add(uint64 pa, int n){ // 增加页面计数
+        page_ref[(PGROUNDDOWN(pa)-KERNBASE)/PGSIZE] += n;
+   }
+   void page_ref_reduce(uint64 pa, int n){ // 减少页面计数
+        page_ref[(PGROUNDDOWN(pa)-KERNBASE)/PGSIZE] -= n;
+   }
+   uint64 page_ref_get(uint64 pa){ // 返回页面计数
+        return page_ref[(PGROUNDDOWN(pa)-KERNBASE)/PGSIZE];
+   }
+   void *kalloc()
+   {
+        struct linklist *l;
+        l = kmem.freelist;
+        if (l) {
+                kmem.freelist = l->next;
+                memset((char *)l, 5, PGSIZE); // fill with junk
+                page_ref_add((uint64)l, 1); // 在页面分配的时候设置计数器为1
+        }
+        return (void *)l;
+   }
+   void kfree(void *pa)
+   {
+        struct linklist *l;
+        if (((uint64)pa % PGSIZE) != 0 || (char *)pa < ekernel ||
+            (uint64)pa >= PHYSTOP)
+                panic("kfree");
+        if(page_ref_get((uint64)pa) > 1){ // 判断计数器的值，如果大于1说明还有其他引用，计数器减1后直接返回
+                page_ref_reduce((uint64)pa, 1);
+                return;
+        }
+        // Fill with junk to catch dangling refs.
+        memset(pa, 1, PGSIZE);
+        l = (struct linklist *)pa;
+        l->next = kmem.freelist;
+        kmem.freelist = l;
+   }
+
+修改内存复制函数umcopy()，其实不进行实际的内存复制，只是增加新的引用到需要复制的内存上：
+
+.. code-block:: c
+
+   //os/vm.c
+   int uvmcopy(pagetable_t old, pagetable_t new, uint64 max_page)
+  {
+        pte_t *pte;
+        uint64 pa, i;
+        uint flags;
+        //char *mem;
+        for (i = 0; i < max_page * PAGE_SIZE; i += PGSIZE) {
+                if ((pte = walk(old, i, 0)) == 0)
+                        continue;
+                if ((*pte & PTE_V) == 0)
+                        continue;
+                pa = PTE2PA(*pte);
+                flags = PTE_FLAGS(*pte);
+                *pte = ((*pte) & (~PTE_W)) | PTE_COW; // 虽然不进行内存页的复制，但是需要修改内存页的操作权限，取消页的写操作权限，同时增加COW权限
+                /*if ((mem = kalloc()) == 0) // 注释掉分配内存的函数
+                        goto err;
+                memmove(mem, (char *)pa, PGSIZE);
+                if (mappages(new, i, PGSIZE, (uint64)mem, flags) != 0) {*/
+                if (mappages(new, i, PGSIZE, (uint64)pa, (flags & (~PTE_W)) | PTE_COW) != 0) { // 让另一页表中的虚拟地址指向原来页表中的物理地址
+                        //kfree(mem);
+                        goto err;
+                }
+                page_ref_add(pa, 1);
+        }
+        return 0;
+   err:
+        uvmunmap(new, 0, i / PGSIZE, 1);
+        return -1;
+   }
+
+因为没有实际地进行内存复制，且取消了页面的的写权限，所以当对相应的虚拟地址的内存进行写操作的时候会触发缺页错误，这时再调用cowcopy()函数实际分配页或修改页的写权限：
+
+.. code-block:: c
+
+   //os/trap.c
+   void usertrap()
+   {
+        set_kerneltrap();
+        struct trapframe *trapframe = curr_proc()->trapframe;
+        tracef("trap from user epc = %p", trapframe->epc);
+        if ((r_sstatus() & SSTATUS_SPP) != 0)
+                panic("usertrap: not from user mode");
+        uint64 cause = r_scause();
+        if (cause & (1ULL << 63)) {
+                cause &= ~(1ULL << 63);
+                switch (cause) {
+                case SupervisorTimer:
+                        tracef("time interrupt!");
+                        set_next_timer();
+                        yield();
+                        break;
+                default:
+                        unknown_trap();
+                        break;
+                }
+        } else {
+                switch (cause) {
+                case UserEnvCall:
+                        trapframe->epc += 4;
+                        syscall();
+                        break;
+                case StorePageFault:{ // 写缺页错误
+                        uint64 va = r_stval(); //获取发生缺页错误的虚拟地址
+                        if(cowcopy(va) == -1){ // 当发生写缺页错误的时候，调用COW函数，进行实际的内存复制
+                                errorf("Copy on Write Failed!\n");
+                                exit(-2);
+                        }
+                        break;
+                }
+                case StoreMisaligned:
+                case InstructionMisaligned:
+                case InstructionPageFault:
+                case LoadMisaligned:
+                case LoadPageFault:
+                        errorf("%d in application, bad addr = %p, bad instruction = %p, "
+                               "core dumped.",
+                               cause, r_stval(), trapframe->epc);
+                        exit(-2);
+                        break;
+                case IllegalInstruction:
+                        errorf("IllegalInstruction in application, core dumped.");
+                        exit(-3);
+                        break;
+                default:
+                        unknown_trap();
+                        break;
+                }
+        }
+        usertrapret();
+   }
+   
+实现cowcopy()分配函数，首先判断地址是否在堆的范围内，然后分配实际的内存，最后在页面中建立映射：
+
+.. code-block:: c
+
+   //os/vm.c
+   int cowcopy(uint64 va){
+        va = PGROUNDDOWN(va);
+        pagetable_t p = curr_proc()->pagetable;
+        pte_t* pte = walk(p, va, 0);
+        uint64 pa = PTE2PA(*pte);
+        uint flags = PTE_FLAGS(*pte); // 获取页面的操作权限
+        if(!(flags & PTE_COW)){
+                printf("not cow\n");
+                return -2; // not cow page
+        }
+        uint ref = page_ref_get(pa); // 获取页面的被引用的次数
+        if(ref > 1){ // 若果大于1则说明有多个引用，这时需要重新分配页面
+                // ref > 1, alloc a new page
+                char* mem = kalloc();
+                if(mem == 0){
+                        errorf("kalloc failed!\n");
+                        return -1;
+                }
+                memmove(mem, (char*)pa, PGSIZE); // 复制页中的内容到新的页
+                if(mappages(p, va, PGSIZE, (uint64)mem, (flags & (~PTE_COW)) | PTE_W) != 0){
+                        errorf("mappage failed!\n");
+                        kfree(mem);
+                        return -1;
+                }
+                page_ref_reduce(pa, 1);
+        }else{
+                // ref = 1, use this page directly
+                *pte = ((*pte) & (~PTE_COW)) | PTE_W; // 如果没有其他引用则修改页面操作权限，使得该页面可以进行写操作
+        }
+        return 0;
+   }
+
 5. `***` 扩展内核，实现swap in/out机制，并实现Clock置换算法或二次机会置换算法。
 6. `***` 扩展内核，实现自映射机制。
 
