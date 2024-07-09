@@ -76,17 +76,17 @@
 性能指标
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-我们还需给出性能指标，用于衡量，比较和评价不同的调度策略。对于批处理系统中的一般应用而言，可以只有一个性能指标：周转时间（turn around time），即进程完成时间与进程到达时间的差值：
+我们还需给出性能指标，用于衡量，比较和评价不同的调度策略。对于批处理系统中的一般应用而言，可以只有一个性能指标：周转时间（turn around），即进程完成时间（completion）与进程到达时间（arrival）的差值：
 
 .. math::
 
-    T_{周转时间} = T_{完成时间} − T_{到达时间}
+    T_{\text{turn around}} = T_{\text{completion}} − T_{\text{arrival}}
 
-由于前提条件1 明确指出所有进程在同一时间到达，那么 :math:`T_{到达时间} = 0` ，因此 :math:`T_{周转时间} = T_{完成时间}` 。除了总的周转时间，我们还需要关注平均周转时间这样的统计值：
+由于前提条件1 明确指出所有进程在同一时间到达，那么 :math:`T_{\text{arrival}} = 0` ，因此 :math:`T_{\text{turn around}} = T_{\text{completion}}` 。除了总的周转时间，我们还需要关注平均周转时间（average turnaround）这样的统计值：
 
 .. math::
 
-    T_{平均周转时间} =  T_{周转时间} / 就绪进程个数
+    T_{\text{average turnaround}} =  T_{\text{turn around}} / \text{number of ready processes}
 
 对于单个进程而言，平均周转时间是一个更值得关注的性能指标。
 
@@ -189,13 +189,13 @@
 
 .. math::
 
-    T_{响应时间} = T_{首次执行} - T_{到达时间}
+    T_{\text{response time}} = T_{\text{first execution}} - T_{\text{arrival}}
 
-而对应的平均响应时间是：
+而对应的平均响应时间（average response time）是：
 
 .. math::
 
-   T_{平均响应时间} = T_{响应时间} / 就绪进程个数
+   T_{\text{average response time}} = T_{\text{response time}} / \text{number of ready processes}
 
 例如，操作系统采用SJF调度策略（不支持抢占进程），有两个进程，PA在时间0到达，执行时间为100， PB在时间20到达，执行时间为20，那么PA的响应时间为0，PB为80，平均响应时间为 40 。
 
