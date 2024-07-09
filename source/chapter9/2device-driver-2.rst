@@ -478,7 +478,7 @@ virtio驱动程序
 
    avail.ring[(avail.idx + added++) % qsz] = head;
 
-idx总是递增，在模以 ``qsz`` 后才能进行取描述符的操作：
+``idx`` 总是递增。由于上一行的取模操作，我们不必担心 ``idx > qsz`` 时会产生溢出。
 
 .. code-block:: Rust
 
