@@ -494,9 +494,7 @@
 </div>
 <div class="section" id="id6">
 <h2>时钟中断与计时器<a class="headerlink" href="#id6" title="永久链接至标题">#</a></h2>
-<p id="link-time-counter">由于软件（特别是操作系统）需要一种计时机制，RISC-V 架构要求处理器要有一个内置时钟，其频率一般低于 CPU 主频。此外，还有一个计数器用来统计处理器自上电以来经过了多少个内置时钟的时钟周期。在 RISC-V 64 架构上，该计数器保存在一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 中，我们无需担心它的溢出问题，在内核运行全程可以认为它是一直递增的。</p>
-<p>另外一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的作用是：一旦计数器 <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 的值超过了 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code>，就会触发一次时钟中断。这使得我们可以方便的通过设置 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的值来决定下一次时钟中断何时触发。</p>
-<p>可惜的是，它们都是 M 特权级的 CSR ，而我们的内核处在 S 特权级，是不被允许直接访问它们的。好在运行在 M 特权级的 SEE （这里是RustSBI）已经预留了相应的接口，我们可以调用它们来间接实现计时器的控制：</p>
+<p id="link-time-counter">由于软件（特别是操作系统）需要一种计时机制，RISC-V 架构要求处理器要有一个内置时钟，其频率一般低于 CPU 主频。此外，还有一个计数器用来统计处理器自上电以来经过了多少个内置时钟的时钟周期。在 RISC-V 64 架构上，该计数器保存在一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 中，我们无需担心它的溢出问题，在内核运行全程可以认为它是一直递增的。这个计数器被设计成在所有的特权级均可以通过一条 <code class="docutils literal notranslate"><span class="pre">rdtime</span></code> 的伪指令访问（可以参考 RISC-V 规范的”Zicntr”拓展相关章节）。 <code class="docutils literal notranslate"><span class="pre">riscv</span></code> 库已经封装了这个功能，我们直接调用相应接口，在 <code class="docutils literal notranslate"><span class="pre">timer</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">get_time</span></code> 函数中取得计数器的值：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/timer.rs</span>
 
 <span class="k">use</span><span class="w"> </span><span class="n">riscv</span>::<span class="n">register</span>::<span class="n">time</span><span class="p">;</span>
@@ -506,7 +504,7 @@
 <span class="p">}</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">timer</span></code> 子模块的 <code class="docutils literal notranslate"><span class="pre">get_time</span></code> 函数可以取得当前 <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 计数器的值；</p>
+<p>另外一个 64 位的 CSR <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的作用是：一旦计数器 <code class="docutils literal notranslate"><span class="pre">mtime</span></code> 的值超过了 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code>，就会触发一次时钟中断。这使得我们可以方便的通过设置 <code class="docutils literal notranslate"><span class="pre">mtimecmp</span></code> 的值来决定下一次时钟中断何时触发。运行在 M 特权级的 SEE （这里是RustSBI）预留了相关接口来实现计时器的控制：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/sbi.rs</span>
 <span class="linenos"> 2</span>
 <span class="linenos"> 3</span><span class="k">const</span><span class="w"> </span><span class="n">SBI_SET_TIMER</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
