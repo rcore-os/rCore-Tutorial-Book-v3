@@ -14,5 +14,6 @@
    5setup-devel-env
    7exercise
    8answer
+   9wsl-quick-setup
 
 .. chyyuu 注：可以把“6hardware”k210相关的内容放到某个附录中 ???
