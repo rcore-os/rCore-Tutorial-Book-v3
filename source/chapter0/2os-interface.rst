@@ -57,7 +57,7 @@ API与ABI
 
 
 
-.. image:: run-app.png
+.. image:: figures/en/run-app.png
    :align: center
    :name: run-app
 

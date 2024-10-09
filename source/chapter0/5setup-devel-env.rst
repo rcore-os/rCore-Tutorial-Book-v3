@@ -342,7 +342,7 @@ GDB 调试支持
 如果是在 QEMU 模拟器上运行，只需在 ``os`` 目录下 ``make run`` 即可。在内核加载完毕之后，可以看到目前可以用的
 应用程序。 ``usertests`` 打包了其中的很大一部分，所以我们可以运行它，只需输入在终端中输入它的名字即可。
 
-.. image:: qemu-final.png
+.. image:: figures/en/qemu-final.png
 
 之后，可以先按下 ``Ctrl+a`` （即：先按下 Ctrl 不松开，再按下小写字母 a 不放，随后同时将两个键松开） ，再按下 ``x`` 来退出 QEMU。
 
@@ -353,7 +353,7 @@ GDB 调试支持
 
 首先，我们需要将 MicroSD 插入 PC 来将文件系统镜像拷贝上去。
 
-.. image:: prepare-sd.png
+.. image:: figures/en/prepare-sd.png
 
 .. warning::
 
@@ -361,7 +361,7 @@ GDB 调试支持
    
 随后，我们将 MicroSD 插入 K210 开发板，将 K210 开发板连接到 PC ，然后进入 ``os`` 目录 ``make run BOARD=k210`` 在 K210 开发板上跑 rCore Tutorial 。 
 
-.. image:: k210-final.png
+.. image:: figures/en/k210-final.png
 
 之后，可以按下 ``Ctrl+]`` 来退出串口终端。
 
