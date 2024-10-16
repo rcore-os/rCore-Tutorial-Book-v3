@@ -60,7 +60,7 @@
 
 可以看到，我们最先进行了全局动态内存分配器的初始化，因为接下来马上就要用到 Rust 的堆数据结构。接下来我们初始化物理页帧管理器（内含堆数据结构 ``Vec<T>`` ）使能可用物理页帧的分配和回收能力。最后我们创建内核地址空间并让 CPU 开启分页模式， MMU 在地址转换的时候使用内核的多级页表，这一切均在一行之内做到：
 
-- 首先，我们引用 ``KERNEL_SPACE`` ，这是它第一次被使用，就在此时它会被初始化，调用 ``MemorySet::new_kernel`` 创建一个内核地址空间并使用 ``Arc<Mutex<T>>`` 包裹起来；
+- 首先，我们引用 ``KERNEL_SPACE`` ，这是它第一次被使用，就在此时它会被初始化，调用 ``MemorySet::new_kernel`` 创建一个内核地址空间并使用 ``Arc<UPSafeCell<T>>`` 包裹起来；
 - 接着使用 ``.exclusive_access()`` 获取一个可变引用 ``&mut MemorySet`` 。需要注意的是这里发生了两次隐式类型转换：
 
   1.  我们知道 ``exclusive_access`` 是 ``UPSafeCell<T>`` 的方法而不是 ``Arc<T>`` 的方法，由于 ``Arc<T>`` 实现了 ``Deref`` Trait ，当 ``exclusive_access`` 需要一个 ``&UPSafeCell<T>`` 类型的参数的时候，编译器会自动将传入的 ``Arc<UPSafeCell<T>>`` 转换为 ``&UPSafeCell<T>`` 这样就实现了类型匹配；
@@ -83,7 +83,7 @@
                 let satp = self.page_table.token();
                 unsafe {
                     satp::write(satp);
-                    asm!("sfence.vma" :::: "volatile");
+                    asm!("sfence.vma");
                 }
             }
         }
@@ -119,7 +119,7 @@
     // os/src/mm/memory_set.rs
 
     pub fn remap_test() {
-        let mut kernel_space = KERNEL_SPACE.lock();
+        let mut kernel_space = KERNEL_SPACE.exclusive_access();
         let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
         let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
         let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
