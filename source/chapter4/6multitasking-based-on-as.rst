@@ -119,7 +119,7 @@
     // os/src/mm/memory_set.rs
 
     pub fn remap_test() {
-        let mut kernel_space = KERNEL_SPACE.lock();
+        let mut kernel_space = KERNEL_SPACE.exclusive_access();
         let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
         let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
         let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
