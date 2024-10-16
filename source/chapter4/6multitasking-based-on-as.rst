@@ -83,7 +83,7 @@
                 let satp = self.page_table.token();
                 unsafe {
                     satp::write(satp);
-                    asm!("sfence.vma" :::: "volatile");
+                    asm!("sfence.vma");
                 }
             }
         }
