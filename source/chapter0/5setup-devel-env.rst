@@ -4,7 +4,7 @@
 .. toctree::
    :hidden:
    :maxdepth: 4
-   
+
 本节我们将完成环境配置并成功运行 rCore-Tutorial-v3 。整个流程分为下面几个部分：
 
 - 系统环境配置
@@ -13,18 +13,20 @@
 - 其他工具安装
 - 运行 rCore-Tutorial-v3
 
+如果您想阅读在WSL 2环境中配置rCore实验环境的保姆级指南，请参阅 :doc:`/chapter0/9wsl-quick-setup` 。
+
 在线开发环境配置
 -------------------------------------------------
 
 Github Classroom方式进行在线OS 环境配置
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-注：这种方式目前主要用于 `2022年开源操作系统训练营 <https://learningos.github.io/rust-based-os-comp2022/>`_ 
+注：这种方式目前主要用于 `2022年开源操作系统训练营 <https://learningos.github.io/rust-based-os-comp2022/>`_
 
 .. note::
 
    **基于 github classroom 的在线开发方式**
-   
+
    基于 github classroom，可方便建立开发用的 git repository，并可基于 github 的 codespace （在线版 ubuntu +vscode）在线开发使用。整个开发环境仅仅需要一个网络浏览器。
 
    1. 在网络浏览器中用自己的 github  id 登录 github.com
@@ -88,13 +90,13 @@ Docker方式进行本地OS开发环境配置
    **Docker 开发环境**
 
    感谢 qobilidop，dinghao188 和张汉东老师帮忙配置好的 Docker 开发环境，进入 Docker 开发环境之后不需要任何软件工具链的安装和配置，可以直接将 tutorial 运行起来，目前应该仅支持将 tutorial 运行在 QEMU 模拟器上。
-   
+
    使用方法如下（以 Ubuntu18.04 为例）：
 
    1. 通过 ``su`` 切换到管理员账户 ``root`` （注：如果此前并未设置 ``root`` 账户的密码需要先通过 ``sudo passwd`` 进行设置）, 在 ``rCore-Tutorial-v3`` 根目录下，执行 ``make build_docker`` ，来建立基于docker的开发环境 ；
    2. 在 ``rCore-Tutorial-v3`` 根目录下，执行 ``make docker`` 进入到 Docker 环境；
    3. 进入 Docker 之后，会发现当前处于根目录 ``/`` ，我们通过 ``cd mnt`` 将当前工作路径切换到 ``/mnt`` 目录；
-   4. 通过 ``ls`` 可以发现 ``/mnt`` 目录下的内容和 ``rCore-Tutorial-v3`` 目录下的内容完全相同，接下来就可以在这个环境下运行 tutorial 了。例如 ``cd os && make run`` 。    
+   4. 通过 ``ls`` 可以发现 ``/mnt`` 目录下的内容和 ``rCore-Tutorial-v3`` 目录下的内容完全相同，接下来就可以在这个环境下运行 tutorial 了。例如 ``cd os && make run`` 。
 
 
 .. chyyuu 下面的说法是面向github网页的，在书中应该有改变???
@@ -141,7 +143,7 @@ Rust 开发环境配置
 如果官方的脚本在运行时出现了网络速度较慢的问题，可选地可以通过修改 rustup 的镜像地址（修改为中国科学技术大学的镜像服务器）来加速：
 
 .. code-block:: bash
-   
+
    export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
    export RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rust-static/rustup
    curl https://sh.rustup.rs -sSf | sh
@@ -149,14 +151,14 @@ Rust 开发环境配置
 或者使用tuna源来加速 `参见 rustup 帮助 <https://mirrors.tuna.tsinghua.edu.cn/help/rustup/>`_：
 
 .. code-block:: bash
-   
+
    export RUSTUP_DIST_SERVER=https://mirrors.tuna.edu.cn/rustup
    export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.edu.cn/rustup/rustup
    curl https://sh.rustup.rs -sSf | sh
 
 或者也可以通过在运行前设置命令行中的科学上网代理来实现：
 
-.. code-block:: bash 
+.. code-block:: bash
 
    # e.g. Shadowsocks 代理，请根据自身配置灵活调整下面的链接
    export https_proxy=http://127.0.0.1:1080
@@ -172,7 +174,7 @@ Rust 开发环境配置
 接下来，我们可以确认一下我们正确安装了 Rust 工具链：
 
 .. code-block:: bash
-   
+
    rustc --version
 
 可以看到当前安装的工具链的版本。
@@ -188,7 +190,7 @@ Rust 开发环境配置
 可通过如下命令安装 rustc 的 nightly 版本，并把该版本设置为 rustc 的缺省版本。
 
 .. code-block:: bash
-   
+
    rustup install nightly
    rustup default nightly
 
@@ -251,10 +253,10 @@ QEMU 模拟器安装
    sudo apt install autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
                  gawk build-essential bison flex texinfo gperf libtool patchutils bc \
                  zlib1g-dev libexpat-dev pkg-config  libglib2.0-dev libpixman-1-dev libsdl2-dev libslirp-dev \
-                 git tmux python3 python3-pip ninja-build 
-   # 下载源码包 
-   # 如果下载速度过慢可以使用我们提供的百度网盘链接：https://pan.baidu.com/s/1dykndFzY73nqkPL2QXs32Q 
-   # 提取码：jimc 
+                 git tmux python3 python3-pip ninja-build
+   # 下载源码包
+   # 如果下载速度过慢可以使用我们提供的百度网盘链接：https://pan.baidu.com/s/1dykndFzY73nqkPL2QXs32Q
+   # 提取码：jimc
    wget https://download.qemu.org/qemu-7.0.0.tar.xz
    # 解压
    tar xvJf qemu-7.0.0.tar.xz
@@ -264,11 +266,11 @@ QEMU 模拟器安装
    make -j$(nproc)
 
 .. note::
-   
+
    注意，上面的依赖包可能并不完全，比如在 Ubuntu 18.04 上：
 
    - 出现 ``ERROR: pkg-config binary 'pkg-config' not found`` 时，可以安装 ``pkg-config`` 包；
-   - 出现 ``ERROR: glib-2.48 gthread-2.0 is required to compile QEMU`` 时，可以安装 
+   - 出现 ``ERROR: glib-2.48 gthread-2.0 is required to compile QEMU`` 时，可以安装
      ``libglib2.0-dev`` 包；
    - 出现 ``ERROR: pixman >= 0.21.8 not present`` 时，可以安装 ``libpixman-1-dev`` 包。
 
@@ -358,8 +360,8 @@ GDB 调试支持
 .. warning::
 
    在 ``os/Makefile`` 中我们默认设置 MicroSD 在当前操作系统中可以用设备 ``SDCARD=/dev/sdb`` 访问。你可以使用 ``df -hT`` 命令来确认在你的环境中 MicroSD 是哪个设备，并在 ``make sdcard`` 之前对 ``os/Makefile`` 的 ``SDCARD`` 配置做出适当的修改。不然，这有可能导致 **设备 /dev/sdb 上数据丢失** ！
-   
-随后，我们将 MicroSD 插入 K210 开发板，将 K210 开发板连接到 PC ，然后进入 ``os`` 目录 ``make run BOARD=k210`` 在 K210 开发板上跑 rCore Tutorial 。 
+
+随后，我们将 MicroSD 插入 K210 开发板，将 K210 开发板连接到 PC ，然后进入 ``os`` 目录 ``make run BOARD=k210`` 在 K210 开发板上跑 rCore Tutorial 。
 
 .. image:: k210-final.png
 
@@ -383,7 +385,7 @@ Q & A
 
 - 请按照本节说明进行 Rust 安装和 crates.io 镜像配置。通常情况下能够解决 Rust 工具链更新和下载已发布到 crates.io 上库的问题。
 - 如果发现在试图从 github 上下载下述几个库的时候卡死，可以修改 ``os`` 和 ``user`` 目录下的 ``Cargo.toml`` 替换为 gitee 上的镜像。例如，将：
-  
+
    .. code-block:: toml
 
       riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }
@@ -391,7 +393,7 @@ Q & A
       k210-pac = { git = "https://github.com/wyfcyx/k210-pac" }
       k210-hal = { git = "https://github.com/wyfcyx/k210-hal" }
       k210-soc = { git = "https://github.com/wyfcyx/k210-soc" }
-   
+
   替换为：
 
    .. code-block:: toml
