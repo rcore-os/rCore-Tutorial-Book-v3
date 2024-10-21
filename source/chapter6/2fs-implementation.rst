@@ -997,7 +997,7 @@ easy-fs 超级块
         }
     }
 
-inode 和数据块的分配/回收也由 ``EasyFileSystem`` 知 负责：
+inode 和数据块的分配/回收也由 ``EasyFileSystem`` 负责：
 
 .. code-block:: rust
 
