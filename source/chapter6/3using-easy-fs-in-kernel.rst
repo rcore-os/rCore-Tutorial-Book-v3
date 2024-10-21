@@ -558,7 +558,7 @@ K210 真实硬件平台
             path.as_str(),
             OpenFlags::from_bits(flags).unwrap()
         ) {
-            let mut inner = task.acquire_inner_lock();
+            let mut inner = task.inner_exclusive_access();
             let fd = inner.alloc_fd();
             inner.fd_table[fd] = Some(inode);
             fd as isize
