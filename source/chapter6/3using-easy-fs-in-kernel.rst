@@ -113,7 +113,7 @@ Qemu 模拟器平台
 - 第 12 行，我们为虚拟机添加一块虚拟硬盘，内容为我们之前通过 ``easy-fs-fuse`` 工具打包的包含应用 ELF 的 easy-fs 镜像，并命名为 ``x0`` 。
 - 第 13 行，我们将硬盘 ``x0`` 作为一个 VirtIO 总线中的一个块设备接入到虚拟机系统中。 ``virtio-mmio-bus.0`` 表示 VirtIO 总线通过 MMIO 进行控制，且该块设备在总线中的编号为 0 。
 
-**内存映射 I/O** (MMIO, Memory-Mapped I/O) 指的是外设的设备寄存器可以通过特定的物理内存地址来访问，每个外设的设备寄存器都分布在没有交集的一个或数个物理地址区间中，不同外设的设备寄存器所占的物理地址空间也不会产生交集，且这些外设物理地址区间也不会和RAM的物理内存所在的区间存在交集（注：在后续的外设相关章节有更深入的讲解）。从Qemu for RISC-V 64 平台的 `源码 <https://github.com/qemu/qemu/blob/master/hw/riscv/virt.c#L58>`_ 中可以找到 VirtIO 外设总线的 MMIO 物理地址区间为从 0x10001000 开头的 4KiB 。为了能够在内核中访问 VirtIO 外设总线，我们就必须在内核地址空间中对特定内存区域提前进行映射：
+**内存映射 I/O** (MMIO, Memory-Mapped I/O) 指的是外设的设备寄存器可以通过特定的物理内存地址来访问，每个外设的设备寄存器都分布在没有交集的一个或数个物理地址区间中，不同外设的设备寄存器所占的物理地址空间也不会产生交集，且这些外设物理地址区间也不会和RAM的物理内存所在的区间存在交集（注：在后续的外设相关章节有更深入的讲解）。从Qemu for RISC-V 64 平台的 `源码 <https://github.com/qemu/qemu/blob/f1dd640896ee2b50cb34328f2568aad324702954/hw/riscv/virt.c#L83>`_ 中可以找到 VirtIO 外设总线的 MMIO 物理地址区间为从 0x10001000 开头的 4KiB 。为了能够在内核中访问 VirtIO 外设总线，我们就必须在内核地址空间中对特定内存区域提前进行映射：
 
 .. code-block:: rust
 
@@ -558,7 +558,7 @@ K210 真实硬件平台
             path.as_str(),
             OpenFlags::from_bits(flags).unwrap()
         ) {
-            let mut inner = task.acquire_inner_lock();
+            let mut inner = task.inner_exclusive_access();
             let fd = inner.alloc_fd();
             inner.fd_table[fd] = Some(inode);
             fd as isize
