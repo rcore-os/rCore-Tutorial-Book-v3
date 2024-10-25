@@ -348,8 +348,8 @@
 	        ld t0, 0x70(a1)
 
 	        jr t0
-	    "
-	    :    :    :    : "volatile", "alignstack"
+	    ",
+                options(noreturn)
 	    );
 	}
 
