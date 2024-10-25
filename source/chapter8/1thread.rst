@@ -327,7 +327,7 @@
 	#[inline(never)]
 	unsafe fn switch(old: *mut TaskContext, new: *const TaskContext) {
 	    // a0: old, a1: new
-	    llvm_asm!("
+	    asm!("
 	        //if comment below lines: sd x1..., ld x1..., TASK2 can not finish, and will segment fault
 	        sd x1, 0x00(a0)
 	        sd x2, 0x08(a0)
