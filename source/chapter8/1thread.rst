@@ -235,7 +235,7 @@
 
 	            available.ctx.x1 = guard as u64;  //ctx.x1  is old return address
 	            available.ctx.nx1 = f as u64;     //ctx.nx1 is new return address
-	            available.ctx.x2 = s_ptr.offset(32) as u64; //cxt.x2 is sp
+	            available.ctx.x2 = s_ptr.offset(-32) as u64; //cxt.x2 is sp
 
 	        }
 	        available.state = State::Ready;
@@ -327,7 +327,7 @@
 	#[inline(never)]
 	unsafe fn switch(old: *mut TaskContext, new: *const TaskContext) {
 	    // a0: old, a1: new
-	    llvm_asm!("
+	    asm!("
 	        //if comment below lines: sd x1..., ld x1..., TASK2 can not finish, and will segment fault
 	        sd x1, 0x00(a0)
 	        sd x2, 0x08(a0)
@@ -348,8 +348,8 @@
 	        ld t0, 0x70(a1)
 
 	        jr t0
-	    "
-	    :    :    :    : "volatile", "alignstack"
+	    ",
+                options(noreturn)
 	    );
 	}
 
