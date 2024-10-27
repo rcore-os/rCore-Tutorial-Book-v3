@@ -591,7 +591,7 @@
 <span class="linenos">13</span>
 <span class="linenos">14</span><span class="w">                </span><span class="n">available</span><span class="p">.</span><span class="n">ctx</span><span class="p">.</span><span class="n">x1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">guard</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span><span class="w">  </span><span class="c1">//ctx.x1  is old return address</span>
 <span class="linenos">15</span><span class="w">                </span><span class="n">available</span><span class="p">.</span><span class="n">ctx</span><span class="p">.</span><span class="n">nx1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span><span class="w">     </span><span class="c1">//ctx.nx1 is new return address</span>
-<span class="linenos">16</span><span class="w">                </span><span class="n">available</span><span class="p">.</span><span class="n">ctx</span><span class="p">.</span><span class="n">x2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s_ptr</span><span class="p">.</span><span class="n">offset</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span><span class="w"> </span><span class="c1">//cxt.x2 is sp</span>
+<span class="linenos">16</span><span class="w">                </span><span class="n">available</span><span class="p">.</span><span class="n">ctx</span><span class="p">.</span><span class="n">x2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s_ptr</span><span class="p">.</span><span class="n">offset</span><span class="p">(</span><span class="o">-</span><span class="mi">32</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span><span class="w"> </span><span class="c1">//cxt.x2 is sp</span>
 <span class="linenos">17</span>
 <span class="linenos">18</span><span class="w">            </span><span class="p">}</span>
 <span class="linenos">19</span><span class="w">            </span><span class="n">available</span><span class="p">.</span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">State</span>::<span class="n">Ready</span><span class="p">;</span>
@@ -675,7 +675,7 @@
 <span class="linenos"> 2</span><span class="w">    </span><span class="cp">#[inline(never)]</span>
 <span class="linenos"> 3</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">switch</span><span class="p">(</span><span class="n">old</span>: <span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">,</span><span class="w"> </span><span class="n">new</span>: <span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">TaskContext</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos"> 4</span><span class="w">        </span><span class="c1">// a0: old, a1: new</span>
-<span class="linenos"> 5</span><span class="w">        </span><span class="fm">llvm_asm!</span><span class="p">(</span><span class="s">&quot;</span>
+<span class="linenos"> 5</span><span class="w">        </span><span class="fm">asm!</span><span class="p">(</span><span class="s">&quot;</span>
 <span class="linenos"> 6</span><span class="s">            //if comment below lines: sd x1..., ld x1..., TASK2 can not finish, and will segment fault</span>
 <span class="linenos"> 7</span><span class="s">            sd x1, 0x00(a0)</span>
 <span class="linenos"> 8</span><span class="s">            sd x2, 0x08(a0)</span>
@@ -696,8 +696,8 @@
 <span class="linenos">23</span><span class="s">            ld t0, 0x70(a1)</span>
 <span class="linenos">24</span>
 <span class="linenos">25</span><span class="s">            jr t0</span>
-<span class="linenos">26</span><span class="s">        &quot;</span>
-<span class="linenos">27</span><span class="w">        </span>:    :    :    : <span class="s">&quot;volatile&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;alignstack&quot;</span>
+<span class="linenos">26</span><span class="s">        &quot;</span><span class="p">,</span>
+<span class="linenos">27</span><span class="w">            </span><span class="n">options</span><span class="p">(</span><span class="n">noreturn</span><span class="p">)</span>
 <span class="linenos">28</span><span class="w">        </span><span class="p">);</span>
 <span class="linenos">29</span><span class="w">    </span><span class="p">}</span>
 </pre></div>
