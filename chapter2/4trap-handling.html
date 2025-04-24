@@ -465,7 +465,7 @@
 <p>当 CPU 执行完一条指令（如 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> ）并准备从用户特权级 陷入（ <code class="docutils literal notranslate"><span class="pre">Trap</span></code> ）到 S 特权级的时候，硬件会自动完成如下这些事情：</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">sstatus</span></code> 的 <code class="docutils literal notranslate"><span class="pre">SPP</span></code> 字段会被修改为 CPU 当前的特权级（U/S）。</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">sepc</span></code> 会被修改为 Trap 处理完成后默认会执行的下一条指令的地址。</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sepc</span></code> 会被修改为被中断或触发异常的指令的地址。如 CPU 执行 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令会触发异常，则 <code class="docutils literal notranslate"><span class="pre">sepc</span></code> 会被设置为 <code class="docutils literal notranslate"><span class="pre">ecall</span></code> 指令的地址。</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">scause/stval</span></code> 分别会被修改成这次 Trap 的原因以及相关的附加信息。</p></li>
 <li><p>CPU 会跳转到 <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 所设置的 Trap 处理入口地址，并将当前特权级设置为 S ，然后从Trap 处理入口地址处开始执行。</p></li>
 </ul>
@@ -490,7 +490,7 @@
 <h2>用户栈与内核栈<a class="headerlink" href="#id7" title="永久链接至标题">#</a></h2>
 <p>在 Trap 触发的一瞬间， CPU 就会切换到 S 特权级并跳转到 <code class="docutils literal notranslate"><span class="pre">stvec</span></code> 所指示的位置。但是在正式进入 S 特权级的 Trap 处理之前，上面
 提到过我们必须保存原控制流的寄存器状态，这一般通过内核栈来保存。注意，我们需要用专门为操作系统准备的内核栈，而不是应用程序运行时用到的用户栈。</p>
-<p>使用两个不同的栈主要是为了安全性：如果两个控制流（即应用程序的控制流和内核的控制流）使用同一个栈，在返回之后应用程序就能读到 Trap 控制流的历史信息，比如内核一些函数的地址，这样会带来安全隐患。于是，我们要做的是，在批处理操作系统中添加一段汇编代码，实现从用户栈切换到内核栈，并在内核栈上保存应用程序控制流的寄存器状态。</p>
+<p>使用两个不同的栈主要是为了安全性：如果两个控制流（即应用程序的控制流和内核的控制流）使用同一个栈，在返回之后应用程序就能读到 Trap 控制流的历史信息，比如内核一些函数的地址，这样会带来安全隐患。于是，我们要做的是，在批处理操作系统中添加一段汇编代码，实现从用户栈切换到内核栈，并在内核栈上保存应用程序控制流的寄存器状态。不过需要注意的是，在没有启用虚拟内存的情况下，用户态代码依然可以通过物理地址访问整个内存空间，包括内核栈区域。</p>
 <p>我们声明两个类型 <code class="docutils literal notranslate"><span class="pre">KernelStack</span></code> 和 <code class="docutils literal notranslate"><span class="pre">UserStack</span></code> 分别表示内核栈和用户栈，它们都只是字节数组的简单包装：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/batch.rs</span>
 <span class="linenos"> 2</span>
