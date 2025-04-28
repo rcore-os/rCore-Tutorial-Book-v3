@@ -216,7 +216,7 @@ I/O接口的交互协议
    i2c-0 gpiochip0 nvme0 tty0 rtc0 ...
 
 
-这些设备按照文件的访问接口（即 ``open/close/read/write`` ）来进行处理。但由于各种设备的功能繁多，仅仅靠 ``read/write`` 这样的方式很难有效地与设备交互。于是UNIX的后续设计者提出了一个非常特别的系统调用 ``ioctl`` ，即 ``input/output control`` 的含义。它是一个专用于设备输入输出操作的系统调用,该调用传入一个跟设备有关的请求码，系统调用的功能完全取决于设备驱动程序对请求码的解读和处理。比如，CD-ROM驱动程序可以弹出光驱，于是操作系统就可以设定一个ioctl的请求码来对应这种操作。当应用程序发出带有CD-ROM设备文件描述符和 **弹出光驱** 请求码这两个参数的 ``ioctl`` 系统调用请求后，操作系统中的CD-ROM驱动程序会识别出这个请求码，并进行弹出光驱的I/O操作。
+这些设备按照文件的访问接口（即 ``open/close/read/write`` ）来进行处理。但由于各种设备的功能繁多，仅仅靠 ``read/write`` 这样的方式很难有效地与设备交互。于是UNIX的后续设计者提出了一个非常特别的系统调用 ``ioctl`` ，即 ``input/output control`` 的含义。它是一个专用于设备输入输出操作的系统调用，该调用传入一个跟设备有关的请求码，系统调用的功能完全取决于设备驱动程序对请求码的解读和处理。比如，CD-ROM驱动程序可以弹出光驱，于是操作系统就可以设定一个ioctl的请求码来对应这种操作。当应用程序发出带有CD-ROM设备文件描述符和 **弹出光驱** 请求码这两个参数的 ``ioctl`` 系统调用请求后，操作系统中的CD-ROM驱动程序会识别出这个请求码，并进行弹出光驱的I/O操作。
 
 ``ioctl`` 这名字第一次出现在Unix第七版中，他在很多类unix系统（比如Linux、Mac OSX等）都有提供，不过不同系统的请求码对应的设备有所不同。Microsoft Windows在Win32 API里提供了相似的函数，叫做DeviceIoControl。
 
@@ -267,7 +267,7 @@ IBM资深工程师 Rusty Russell 在开发Lguest（Linux 内核中的的一个hy
 
 .. note::
 
-   Rusty Russell工程师在2008年在“ACM SIGOPS Operating Systems Review”期刊上发表了一篇论文“virtio: towards a de-facto standard for virtual I/O devices”，提出了给虚拟环境（Virtual Machine）中的操作系统提供一套统一的设备抽象，这样操作系统针对每类设备只需写一种驱动程序就可以了，这极大降低了系统虚拟机（Virtual Machine Monitor）和Hypervisor，以及运行在它们提供的虚拟环境中的操作系统的开发成本，且可以显著提高I/O的执行效率。目前virtio已经有相应的规范，最新的virtio spec版本是v1.1。
+   Rusty Russell工程师在2008年在“ACM SIGOPS Operating Systems Review”期刊上发表了一篇论文“virtio: towards a de-facto standard for virtual I/O devices”，提出了给虚拟环境（Virtual Machine）中的操作系统提供一套统一的设备抽象，这样操作系统针对每类设备只需写一种驱动程序就可以了，这极大降低了系统虚拟机（Virtual Machine Monitor或Hypervisor）和运行在它们提供的虚拟环境中的操作系统的开发成本，且可以显著提高I/O的执行效率。目前virtio已经有相应的规范，最新的virtio spec版本是v1.1。
 
 
 I/O执行模型
@@ -318,7 +318,7 @@ I/O执行模型
 
 所以阻塞IO（blocking IO）的特点就是用户进程在I/O执行的两个阶段（等待数据和拷贝数据两个阶段）都是阻塞的。
 
-当然，如果正好用户进程所需数据位于内存中，那么内核会把数据从I/O缓冲区拷贝到用户进程的buffer中，并从内核态返回到用户态的进程， ``read`` 系统调用完成。这个由于I/O缓冲带了的优化结果不会让用户进程处于阻塞状态。
+当然，如果正好用户进程所需数据位于内存中，那么内核会把数据从I/O缓冲区拷贝到用户进程的buffer中，并从内核态返回到用户态的进程， ``read`` 系统调用完成。这个由于I/O缓冲带来的优化结果不会让用户进程处于阻塞状态。
 
 
 非阻塞IO（non-blocking IO）
