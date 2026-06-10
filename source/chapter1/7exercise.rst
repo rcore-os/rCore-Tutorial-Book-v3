@@ -160,9 +160,9 @@ lab1 的工作使得我们从硬件世界跳入了软件世界，当看到自己
 
     // 这段代码输出了 os 内存空间布局，这到这些信息对于编写 os 十分重要
 
-    info!(".text [{:#x}, {:#x})", s_text as usize, e_text as usize);
-    debug!(".rodata [{:#x}, {:#x})", s_rodata as usize, e_rodata as usize);
-    error!(".data [{:#x}, {:#x})", s_data as usize, e_data as usize);
+    info!(".text [{:#x}, {:#x})", linker_symbol_addr!(s_text), linker_symbol_addr!(e_text));
+    debug!(".rodata [{:#x}, {:#x})", linker_symbol_addr!(s_rodata), linker_symbol_addr!(e_rodata));
+    error!(".data [{:#x}, {:#x})", linker_symbol_addr!(s_data), linker_symbol_addr!(e_data));
 
 .. code-block:: c
 
