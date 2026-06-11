@@ -166,7 +166,15 @@
        crate::task::user_time_end();
        let scause = scause::read(); // get trap cause
        let stval = stval::read(); // get extra value
-       match scause.cause() {
+       let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+           Ok(trap) => trap,
+           Err(_) => panic!(
+               "Unsupported trap {:?}, stval = {:#x}!",
+               scause.cause(),
+               stval
+           ),
+       };
+       match trap {
            Trap::Exception(Exception::UserEnvCall) => {
                cx.sepc += 4;
                cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
@@ -184,11 +192,7 @@
                suspend_current_and_run_next();
            }
            _ => {
-               panic!(
-                   "Unsupported trap {:?}, stval = {:#x}!",
-                   scause.cause(),
-                   stval
-               );
+               panic!("Unsupported trap {:?}, stval = {:#x}!", trap, stval);
            }
        }
        crate::task::user_time_start();
@@ -426,7 +430,7 @@ iv. 任务结束
 
    .. code:: rust
 
-      #[no_mangle]
+      #[unsafe(no_mangle)]
       pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
           match sstatus::read().spp() {
               sstatus::SPP::Supervisor => kernel_trap_handler(cx),
@@ -443,7 +447,15 @@ iv. 任务结束
    pub fn kernel_trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
        let scause = scause::read();
        let stval = stval::read();
-       match scause.cause() {
+       let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+           Ok(trap) => trap,
+           Err(_) => panic!(
+               "Unsupported trap {:?}, stval = {:#x}!",
+               scause.cause(),
+               stval
+           ),
+       };
+       match trap {
            Trap::Interrupt(Interrupt::SupervisorTimer) => {
                // 内核中断来自一个时钟中断
                println!("kernel interrupt: from timer");
@@ -705,7 +717,7 @@ iv. 任务结束
        }
 
 又或者，可以按照 ``trap/mod.rs:trap_handler()`` 中的写法，用
-``match scause.cause()`` 来判断。
+``scause.cause().try_into()`` 转换出的 ``Trap<Interrupt, Exception>`` 来判断。
 
 5. `**` 在 RISC-V 中断机制中，PLIC 和 CLINT 各起到了什么作用？
 

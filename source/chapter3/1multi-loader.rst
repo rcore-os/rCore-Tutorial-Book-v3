@@ -76,8 +76,10 @@
     // os/src/loader.rs
 
     pub fn load_apps() {
-        extern "C" { fn _num_app(); }
-        let num_app_ptr = _num_app as usize as *const usize;
+        unsafe extern "C" {
+            safe fn _num_app();
+        }
+        let num_app_ptr = linker_symbol_addr!(_num_app) as *const usize;
         let num_app = get_num_app();
         let app_start = unsafe {
             core::slice::from_raw_parts(num_app_ptr.add(1), num_app + 1)
@@ -134,4 +136,4 @@
   chyyuu：有一个ascii图，画出我们做的OS。
 
 
-.. [#prionosuchus] 锯齿螈身长可达9米，是迄今出现过的最大的两栖动物，是二叠纪时期江河湖泊和沼泽中的顶级掠食者。  
+.. [#prionosuchus] 锯齿螈身长可达9米，是迄今出现过的最大的两栖动物，是二叠纪时期江河湖泊和沼泽中的顶级掠食者。

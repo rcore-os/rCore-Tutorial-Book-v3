@@ -359,9 +359,11 @@
 
     impl TaskContext {
         pub fn goto_restore(kstack_ptr: usize) -> Self {
-            extern "C" { fn __restore(); }
+            unsafe extern "C" {
+                unsafe fn __restore();
+            }
             Self {
-                ra: __restore as usize,
+                ra: linker_symbol_addr!(__restore),
                 sp: kstack_ptr,
                 s: [0; 12],
             }
