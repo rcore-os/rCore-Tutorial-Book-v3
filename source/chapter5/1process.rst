@@ -203,7 +203,7 @@ exec 系统调用
         yield_,
     };
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     fn main() -> i32 {
         if fork() == 0 {
             exec("user_shell\0");
@@ -294,10 +294,10 @@ shell程序 user_shell
     const BS: u8 = 0x08u8;
 
     use alloc::string::String;
-    use user_lib::{fork, exec, waitpid, yield_};
     use user_lib::console::getchar;
+    use user_lib::{exec, fork, waitpid};
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn main() -> i32 {
         println!("Rust user shell");
         let mut line: String = String::new();
@@ -357,6 +357,12 @@ shell程序 user_shell
     .. code-block:: rust
 
         use buddy_system_allocator::LockedHeap;
+        use core::ptr::addr_of_mut;
+        use syscall::*;
+
+        unsafe extern "Rust" {
+            fn main() -> i32;
+        }
 
         const USER_HEAP_SIZE: usize = 16384;
 
@@ -365,19 +371,16 @@ shell程序 user_shell
         #[global_allocator]
         static HEAP: LockedHeap = LockedHeap::empty();
 
-        #[alloc_error_handler]
-        pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
-            panic!("Heap allocation error, layout = {:?}", layout);
-        }
-
-        #[no_mangle]
-        #[link_section = ".text.entry"]
+        #[unsafe(no_mangle)]
+        #[unsafe(link_section = ".text.entry")]
         pub extern "C" fn _start() -> ! {
             unsafe {
                 HEAP.lock()
-                    .init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
+                    .init(addr_of_mut!(HEAP_SPACE) as usize, USER_HEAP_SIZE);
             }
-            exit(main());
+            unsafe {
+                exit(main());
+            }
         }
 
 - 如果用户输入回车键（第 28 行），那么 user_shell 会 fork 出一个子进程（第 34 行开始）并试图通过 ``exec`` 系统调用执行一个应用，应用的名字在字符串 ``line`` 中给出。这里我们需要注意的是，由于子进程是从 user_shell 进程中 fork 出来的，它们除了 fork 的返回值不同之外均相同，自然也可以看到一个和user_shell 进程维护的版本相同的字符串 ``line`` 。第 35 行对 ``exec`` 的返回值进行了判断，如果返回值为 -1 则说明在应用管理器中找不到名字相同的应用，此时子进程就直接打印错误信息并退出；反之 ``exec`` 则根本不会返回，而是开始执行目标应用。
@@ -394,4 +397,4 @@ shell程序 user_shell
 .. [#multics] 1965年，MIT、通用电气公司、贝尔实验室联合开发 MULTICS 操作系统，开发不够成功，但产生了很多新的设计思想，并催生了UNIX操作系统。
 .. [#unix]  1969 年，贝尔实验室的 Ken Thompson 和 Dennis Ritchie 在退出 MUITICS 操作系统研发后，吸收其好的想法，设计实现了 UNIX 操作系统和 C 语言，并开始广泛推广。
 
-.. [#uCore] uCore OS 是用于清华大学计算机系本科操作系统课程的 OS 教学试验内容。 uCore OS 起源于 MIT CSAIL PDOS 课题组开发的xv6&jos、哈佛大学开发的 OS161 教学操作系统、以及 Linux-2.4 内核。目前 rCore/uCore Tutorial OS 逐步代替 uCore OS 成为新的教学 OS。  
+.. [#uCore] uCore OS 是用于清华大学计算机系本科操作系统课程的 OS 教学试验内容。 uCore OS 起源于 MIT CSAIL PDOS 课题组开发的xv6&jos、哈佛大学开发的 OS161 教学操作系统、以及 Linux-2.4 内核。目前 rCore/uCore Tutorial OS 逐步代替 uCore OS 成为新的教学 OS。

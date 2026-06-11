@@ -46,7 +46,7 @@
     use super::{PidHandle, pid_alloc, KernelStack};
     use super::TaskContext;
     use crate::config::TRAP_CONTEXT;
-    use crate::trap::TrapContext;
+    use crate::trap::{TrapContext, trap_handler};
 
     // impl TaskControlBlock
     pub fn new(elf_data: &[u8]) -> Self {
@@ -82,7 +82,7 @@
             user_sp,
             KERNEL_SPACE.exclusive_access().token(),
             kernel_stack_top,
-            trap_handler as usize,
+            linker_symbol_addr!(trap_handler),
         );
         task_control_block
     }
@@ -102,7 +102,7 @@
 
 .. code-block:: rust
     :linenos:
-    :emphasize-lines: 4,18
+    :emphasize-lines: 4,26
 
     // os/src/syscall/process.rs
 
@@ -113,12 +113,20 @@
 
     // os/src/trap/mod.rs
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn trap_handler() -> ! {
         set_kernel_trap_entry();
         let scause = scause::read();
         let stval = stval::read();
-        match scause.cause() {
+        let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+            Ok(trap) => trap,
+            Err(_) => panic!(
+                "Unsupported trap {:?}, stval = {:#x}!",
+                scause.cause(),
+                stval
+            ),
+        };
+        match trap {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 set_next_trigger();
                 suspend_current_and_run_next();
@@ -275,7 +283,7 @@ fork 系统调用的实现
 
 .. code-block:: rust
     :linenos: 
-    :emphasize-lines: 11,28,33
+    :emphasize-lines: 11,36,41
 
     // os/src/syscall/process.rs
 
@@ -295,12 +303,20 @@ fork 系统调用的实现
 
     // os/src/trap/mod.rs
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn trap_handler() -> ! {
         set_kernel_trap_entry();
         let scause = scause::read();
         let stval = stval::read();
-        match scause.cause() {
+        let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+            Ok(trap) => trap,
+            Err(_) => panic!(
+                "Unsupported trap {:?}, stval = {:#x}!",
+                scause.cause(),
+                stval
+            ),
+        };
+        match trap {
             Trap::Exception(Exception::UserEnvCall) => {
                 // jump to next instruction anyway
                 let mut cx = current_trap_cx();
@@ -314,9 +330,9 @@ fork 系统调用的实现
         ...
     }    
 
-在调用 ``syscall`` 进行系统调用分发并具体调用 ``sys_fork`` 之前， 第28行，``trap_handler`` 已经将当前进程 Trap 上下文中的 ``sepc`` 向后移动了 4 字节，使得它回到用户态之后，会从发出系统调用的 ``ecall`` 指令的下一条指令开始执行。之后当我们复制地址空间的时候，子进程地址空间 Trap 上下文的 ``sepc``  也是移动之后的值，我们无需再进行修改。
+在调用 ``syscall`` 进行系统调用分发并具体调用 ``sys_fork`` 之前， 第36行，``trap_handler`` 已经将当前进程 Trap 上下文中的 ``sepc`` 向后移动了 4 字节，使得它回到用户态之后，会从发出系统调用的 ``ecall`` 指令的下一条指令开始执行。之后当我们复制地址空间的时候，子进程地址空间 Trap 上下文的 ``sepc``  也是移动之后的值，我们无需再进行修改。
 
-父子进程回到用户态的瞬间都处于刚刚从一次系统调用返回的状态，但二者的返回值不同。第 8~11 行我们将子进程的 Trap 上下文中用来存放系统调用返回值的 a0 寄存器修改为 0 ；第 33 行，而父进程系统调用的返回值会在 ``trap_handler`` 中 ``syscall`` 返回之后再设置为 ``sys_fork`` 的返回值，这里我们返回子进程的 PID 。这就做到了父进程 ``fork`` 的返回值为子进程的 PID ，而子进程的返回值则为 0 。通过返回值是否为 0 可以区分父子进程。
+父子进程回到用户态的瞬间都处于刚刚从一次系统调用返回的状态，但二者的返回值不同。第 8~11 行我们将子进程的 Trap 上下文中用来存放系统调用返回值的 a0 寄存器修改为 0 ；第 41 行，而父进程系统调用的返回值会在 ``trap_handler`` 中 ``syscall`` 返回之后再设置为 ``sys_fork`` 的返回值，这里我们返回子进程的 PID 。这就做到了父进程 ``fork`` 的返回值为子进程的 PID ，而子进程的返回值则为 0 。通过返回值是否为 0 可以区分父子进程。
 
 另外，不要忘记在第 13 行，我们将生成的子进程通过 ``add_task`` 加入到任务管理器中。
 
@@ -352,7 +368,7 @@ exec 系统调用的实现
                 user_sp,
                 KERNEL_SPACE.exclusive_access().token(),
                 self.kernel_stack.get_top(),
-                trap_handler as usize,
+                linker_symbol_addr!(trap_handler),
             );
             // **** stop exclusively accessing inner automatically
         }
@@ -418,13 +434,21 @@ exec 系统调用的实现
 
     // os/src/trap/mod.rs
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn trap_handler() -> ! {
         set_kernel_trap_entry();
         let cx = current_trap_cx();
         let scause = scause::read();
         let stval = stval::read();
-        match scause.cause() {
+        let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+            Ok(trap) => trap,
+            Err(_) => panic!(
+                "Unsupported trap {:?}, stval = {:#x}!",
+                scause.cause(),
+                stval
+            ),
+        };
+        match trap {
             Trap::Exception(Exception::UserEnvCall) => {
                 cx.sepc += 4;
                 cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
@@ -441,12 +465,20 @@ exec 系统调用的实现
 
     // os/src/trap/mod.rs
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn trap_handler() -> ! {
         set_kernel_trap_entry();
         let scause = scause::read();
         let stval = stval::read();
-        match scause.cause() {
+        let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+            Ok(trap) => trap,
+            Err(_) => panic!(
+                "Unsupported trap {:?}, stval = {:#x}!",
+                scause.cause(),
+                stval
+            ),
+        };
+        match trap {
             Trap::Exception(Exception::UserEnvCall) => {
                 // jump to next instruction anyway
                 let mut cx = current_trap_cx();
@@ -518,7 +550,7 @@ shell程序 user_shell 的输入机制
 
 .. code-block:: rust
     :linenos:
-    :emphasize-lines: 4,29,34
+    :emphasize-lines: 4,37,42
 
     // os/src/syscall/process.rs
 
@@ -529,12 +561,20 @@ shell程序 user_shell 的输入机制
 
     // os/src/trap/mod.rs
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn trap_handler() -> ! {
         set_kernel_trap_entry();
         let scause = scause::read();
         let stval = stval::read();
-        match scause.cause() {
+        let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+            Ok(trap) => trap,
+            Err(_) => panic!(
+                "Unsupported trap {:?}, stval = {:#x}!",
+                scause.cause(),
+                stval
+            ),
+        };
+        match trap {
             Trap::Exception(Exception::StoreFault) |
             Trap::Exception(Exception::StorePageFault) |
             Trap::Exception(Exception::InstructionFault) |
@@ -542,7 +582,7 @@ shell程序 user_shell 的输入机制
             Trap::Exception(Exception::LoadFault) |
             Trap::Exception(Exception::LoadPageFault) => {
                 println!(
-                    "[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.",
+                    "[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
                     scause.cause(),
                     stval,
                     current_trap_cx().sepc,
@@ -551,7 +591,7 @@ shell程序 user_shell 的输入机制
                 exit_current_and_run_next(-2);
             }
             Trap::Exception(Exception::IllegalInstruction) => {
-                println!("[kernel] IllegalInstruction in application, core dumped.");
+                println!("[kernel] IllegalInstruction in application, kernel killed it.");
                 // illegal instruction exit code
                 exit_current_and_run_next(-3);
             }
@@ -560,7 +600,7 @@ shell程序 user_shell 的输入机制
         trap_return();
     }
 
-相比前面的章节， ``exit_current_and_run_next`` 带有一个退出码作为参数。当在 ``sys_exit`` 正常退出的时候，退出码由应用传到内核中；而出错退出的情况（如第 29 行的访存错误或第 34 行的非法指令异常）则是由内核指定一个特定的退出码。这个退出码会在 ``exit_current_and_run_next`` 写入当前进程的进程控制块中：
+相比前面的章节， ``exit_current_and_run_next`` 带有一个退出码作为参数。当在 ``sys_exit`` 正常退出的时候，退出码由应用传到内核中；而出错退出的情况（如第 37 行的访存错误或第 42 行的非法指令异常）则是由内核指定一个特定的退出码。这个退出码会在 ``exit_current_and_run_next`` 写入当前进程的进程控制块中：
 
 .. code-block:: rust
     :linenos:
