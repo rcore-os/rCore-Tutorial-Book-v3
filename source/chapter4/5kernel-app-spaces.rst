@@ -289,17 +289,17 @@
 
     // os/src/mm/memory_set.rs
 
-    extern "C" {
-        fn stext();
-        fn etext();
-        fn srodata();
-        fn erodata();
-        fn sdata();
-        fn edata();
-        fn sbss_with_stack();
-        fn ebss();
-        fn ekernel();
-        fn strampoline();
+    unsafe extern "C" {
+        safe fn stext();
+        safe fn etext();
+        safe fn srodata();
+        safe fn erodata();
+        safe fn sdata();
+        safe fn edata();
+        safe fn sbss_with_stack();
+        safe fn ebss();
+        safe fn ekernel();
+        safe fn strampoline();
     }
 
     impl MemorySet {
@@ -309,41 +309,41 @@
             // map trampoline
             memory_set.map_trampoline();
             // map kernel sections
-            println!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
-            println!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
-            println!(".data [{:#x}, {:#x})", sdata as usize, edata as usize);
-            println!(".bss [{:#x}, {:#x})", sbss_with_stack as usize, ebss as usize);
+            println!(".text [{:#x}, {:#x})", linker_symbol_addr!(stext), linker_symbol_addr!(etext));
+            println!(".rodata [{:#x}, {:#x})", linker_symbol_addr!(srodata), linker_symbol_addr!(erodata));
+            println!(".data [{:#x}, {:#x})", linker_symbol_addr!(sdata), linker_symbol_addr!(edata));
+            println!(".bss [{:#x}, {:#x})", linker_symbol_addr!(sbss_with_stack), linker_symbol_addr!(ebss));
             println!("mapping .text section");
             memory_set.push(MapArea::new(
-                (stext as usize).into(),
-                (etext as usize).into(),
+                (linker_symbol_addr!(stext)).into(),
+                (linker_symbol_addr!(etext)).into(),
                 MapType::Identical,
                 MapPermission::R | MapPermission::X,
             ), None);
             println!("mapping .rodata section");
             memory_set.push(MapArea::new(
-                (srodata as usize).into(),
-                (erodata as usize).into(),
+                (linker_symbol_addr!(srodata)).into(),
+                (linker_symbol_addr!(erodata)).into(),
                 MapType::Identical,
                 MapPermission::R,
             ), None);
             println!("mapping .data section");
             memory_set.push(MapArea::new(
-                (sdata as usize).into(),
-                (edata as usize).into(),
+                (linker_symbol_addr!(sdata)).into(),
+                (linker_symbol_addr!(edata)).into(),
                 MapType::Identical,
                 MapPermission::R | MapPermission::W,
             ), None);
             println!("mapping .bss section");
             memory_set.push(MapArea::new(
-                (sbss_with_stack as usize).into(),
-                (ebss as usize).into(),
+                (linker_symbol_addr!(sbss_with_stack)).into(),
+                (linker_symbol_addr!(ebss)).into(),
                 MapType::Identical,
                 MapPermission::R | MapPermission::W,
             ), None);
             println!("mapping physical memory");
             memory_set.push(MapArea::new(
-                (ekernel as usize).into(),
+                (linker_symbol_addr!(ekernel)).into(),
                 MEMORY_END.into(),
                 MapType::Identical,
                 MapPermission::R | MapPermission::W,
@@ -414,13 +414,17 @@
     // os/src/loader.rs
 
     pub fn get_num_app() -> usize {
-        extern "C" { fn _num_app(); }
-        unsafe { (_num_app as usize as *const usize).read_volatile() }
+        unsafe extern "C" {
+            safe fn _num_app();
+        }
+        unsafe { (linker_symbol_addr!(_num_app) as *const usize).read_volatile() }
     }
 
     pub fn get_app_data(app_id: usize) -> &'static [u8] {
-        extern "C" { fn _num_app(); }
-        let num_app_ptr = _num_app as usize as *const usize;
+        unsafe extern "C" {
+            safe fn _num_app();
+        }
+        let num_app_ptr = linker_symbol_addr!(_num_app) as *const usize;
         let num_app = get_num_app();
         let app_start = unsafe {
             core::slice::from_raw_parts(num_app_ptr.add(1), num_app + 1)
