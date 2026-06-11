@@ -226,8 +226,10 @@ Rust 编译器提示我们 ``RefCell<i32>`` 未被标记为 ``Sync`` ，因此 R
 
     lazy_static! {
         static ref APP_MANAGER: UPSafeCell<AppManager> = unsafe { UPSafeCell::new({
-            extern "C" { fn _num_app(); }
-            let num_app_ptr = _num_app as usize as *const usize;
+            unsafe extern "C" {
+                safe fn _num_app();
+            }
+            let num_app_ptr = linker_symbol_addr!(_num_app) as *const usize;
             let num_app = num_app_ptr.read_volatile();
             let mut app_start: [usize; MAX_APP_NUM + 1] = [0; MAX_APP_NUM + 1];
             let app_start_raw: &[usize] =  core::slice::from_raw_parts(

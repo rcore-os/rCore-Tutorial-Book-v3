@@ -55,36 +55,41 @@
 .. code-block:: rust
     :linenos:
 
-    #[no_mangle]
-    #[link_section = ".text.entry"]
+    macro_rules! linker_symbol_addr {
+        ($symbol:path) => {
+            ($symbol as *const ()).addr()
+        };
+    }
+
+    unsafe extern "Rust" {
+        fn main() -> i32;
+    }
+
+    #[unsafe(no_mangle)]
+    #[unsafe(link_section = ".text.entry")]
     pub extern "C" fn _start() -> ! {
         clear_bss();
-        exit(main());
+        unsafe {
+            exit(main());
+        }
         panic!("unreachable after sys_exit!");
     }
 
-第 2 行使用 Rust 的宏将 ``_start`` 这段代码编译后的汇编代码中放在一个名为 ``.text.entry`` 的代码段中，方便我们在后续链接的时候调整它的位置使得它能够作为用户库的入口。
-
-从第 4 行开始，进入用户库入口之后，首先和第一章一样，手动清空需要零初始化的 ``.bss`` 段（很遗憾到目前为止底层的批处理系统还没有这个能力，所以我们只能在用户库中完成）；然后调用 ``main`` 函数得到一个类型为 ``i32`` 的返回值，最后调用用户库提供的 ``exit`` 接口退出应用程序，并将 ``main`` 函数的返回值告知批处理系统。
-
-我们还在 ``lib.rs`` 中看到了另一个 ``main`` ：
-
-.. code-block:: rust
-    :linenos:
-
-    #[linkage = "weak"]
-    #[no_mangle]
-    fn main() -> i32 {
-        panic!("Cannot find main!");
+    fn clear_bss() {
+        unsafe extern "C" {
+            safe fn start_bss();
+            safe fn end_bss();
+        }
+        (linker_symbol_addr!(start_bss)..linker_symbol_addr!(end_bss)).for_each(|addr| unsafe {
+            (addr as *mut u8).write_volatile(0);
+        });
     }
 
-第 1 行，我们使用 Rust 的宏将其函数符号 ``main`` 标志为弱链接。这样在最后链接的时候，虽然在 ``lib.rs`` 和 ``bin`` 目录下的某个应用程序都有 ``main`` 符号，但由于 ``lib.rs`` 中的 ``main`` 符号是弱链接，链接器会使用 ``bin`` 目录下的应用主逻辑作为 ``main`` 。这里我们主要是进行某种程度上的保护，如果在 ``bin`` 目录下找不到任何 ``main`` ，那么编译也能够通过，但会在运行时报错。
+第 11~12 行，``#[unsafe(link_section = ".text.entry")]`` 将 ``_start`` 这段代码编译后的汇编代码放在一个名为 ``.text.entry`` 的代码段中，方便我们在后续链接的时候调整它的位置使得它能够作为用户库的入口。``#[unsafe(no_mangle)]`` 则避免编译器对 ``_start`` 的符号名进行混淆。
 
-为了支持上述这些链接操作，我们需要在 ``lib.rs`` 的开头加入：
+第 14 行，进入用户库入口之后，首先和第一章一样，手动清空需要零初始化的 ``.bss`` 段（很遗憾到目前为止底层的批处理系统还没有这个能力，所以我们只能在用户库中完成）。第 21~29 行，``clear_bss`` 中的 ``start_bss`` 和 ``end_bss`` 来自用户程序的链接脚本，仍通过 ``linker_symbol_addr!`` 宏取得符号地址。随后第 15~17 行调用应用程序提供的 ``main`` 函数得到一个类型为 ``i32`` 的返回值，最后调用用户库提供的 ``exit`` 接口退出应用程序，并将 ``main`` 函数的返回值告知批处理系统。
 
-.. code-block:: rust
-
-    #![feature(linkage)]
+第 7~9 行的 ``main`` 通过 ``unsafe extern "Rust"`` 声明为一个外部 Rust ABI 函数符号，它将在最终链接时由 ``user/src/bin`` 目录下的应用程序主逻辑提供。
 
 
 .. _term-app-mem-layout:
@@ -254,7 +259,7 @@
 
     // user/src/bin/03priv_inst.rs
     use core::arch::asm;
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     fn main() -> i32 {
         println!("Try to execute privileged instruction in U Mode");
         println!("Kernel should kill this application!");
@@ -266,7 +271,7 @@
 
     // user/src/bin/04priv_csr.rs
     use riscv::register::sstatus::{self, SPP};
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     fn main() -> i32 {
         println!("Try to access privileged CSR in U Mode");
         println!("Kernel should kill this application!");
