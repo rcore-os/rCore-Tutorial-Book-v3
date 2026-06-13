@@ -465,15 +465,23 @@
 
 .. code-block:: rust
     :caption: ``os/src/trap/mod.rs``
-    :emphasize-lines: 17
+    :emphasize-lines: 25
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     /// handle an interrupt, exception, or system call from user space
     pub fn trap_handler() -> ! {
         set_kernel_trap_entry();
         let scause = scause::read();
         let stval = stval::read();
-        match scause.cause() {
+        let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+            Ok(trap) => trap,
+            Err(_) => panic!(
+                "Unsupported trap {:?}, stval = {:#x}!",
+                scause.cause(),
+                stval
+            ),
+        };
+        match trap {
             Trap::Exception(Exception::UserEnvCall) => {
                 // ...
             }
@@ -961,4 +969,3 @@
 11. `***` 文件系统是一个操作系统必要的组件吗？是否可以将文件系统放到用户态？这样做有什么好处？操作系统需要提供哪些基本支持？
 
     不是，如在本章之前的rCore就没有文件系统。可以，如在Linux下就有FUSE这样的框架可以实现这一点。这样可以使得文件系统的实现更为灵活，开发与调试更为简便。操作系统需要提供一个注册用户态文件系统实现的机制，以及将收到的文件系统相关系统调用转发给注册的用户态进程的支持。
-

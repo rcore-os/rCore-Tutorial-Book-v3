@@ -155,45 +155,63 @@ Qemu 模拟器平台
 
 .. code-block:: rust
 
-    // os/src/drivers/block/virtio_blk.rs
+    // virtio-drivers/src/blk.rs
+    pub struct VirtIOBlk<'a, H: Hal> {
+        header: &'static mut VirtIOHeader,
+        queue: VirtQueue<'a, H>,
+        capacity: usize,
+    }
 
-    use virtio_drivers::{VirtIOBlk, VirtIOHeader};
+    // os/src/drivers/block/virtio_blk.rs
+    use virtio_drivers::{Hal, VirtIOBlk, VirtIOHeader};
     const VIRTIO0: usize = 0x10001000;
 
-    pub struct VirtIOBlock(Mutex<VirtIOBlk<'static>>);
+    pub struct VirtIOBlock(UPSafeCell<VirtIOBlk<'static, VirtioHal>>);
 
     impl VirtIOBlock {
         pub fn new() -> Self {
-            Self(Mutex::new(VirtIOBlk::new(
-                unsafe { &mut *(VIRTIO0 as *mut VirtIOHeader) }
-            ).unwrap()))
+            unsafe {
+                Self(UPSafeCell::new(
+                    VirtIOBlk::<VirtioHal>::new(&mut *(VIRTIO0 as *mut VirtIOHeader)).unwrap(),
+                ))
+            }
         }
     }
 
     impl BlockDevice for VirtIOBlock {
         fn read_block(&self, block_id: usize, buf: &mut [u8]) {
-            self.0.lock().read_block(block_id, buf).expect("Error when reading VirtIOBlk");
+            self.0
+                .exclusive_access()
+                .read_block(block_id, buf)
+                .expect("Error when reading VirtIOBlk");
         }
         fn write_block(&self, block_id: usize, buf: &[u8]) {
-            self.0.lock().write_block(block_id, buf).expect("Error when writing VirtIOBlk");
+            self.0
+                .exclusive_access()
+                .write_block(block_id, buf)
+                .expect("Error when writing VirtIOBlk");
         }
     }
 
-上面的代码中，我们将 ``virtio-drivers`` crate 提供的 VirtIO 块设备抽象 ``VirtIOBlk`` 包装为我们自己的 ``VirtIOBlock`` ，实质上只是加上了一层互斥锁，生成一个新的类型来实现 ``easy-fs`` 需要的 ``BlockDevice`` Trait 。注意在 ``VirtIOBlk::new`` 的时候需要传入一个 ``&mut VirtIOHeader`` 的参数， ``VirtIOHeader`` 实际上就代表以 MMIO 方式访问 VirtIO 设备所需的一组设备寄存器。因此我们从 ``qemu-system-riscv64`` 平台上的 Virtio MMIO 区间左端 ``VIRTIO0`` 开始转化为一个 ``&mut VirtIOHeader`` 就可以在该平台上访问这些设备寄存器了。
+``virtio-drivers`` crate 提供的 VirtIO 块设备抽象是 ``VirtIOBlk<'a, H: Hal>`` 。其中 ``header`` 指向 MMIO 方式访问 VirtIO 设备所需的一组设备寄存器， ``queue`` 管理用于提交请求和接收响应的 VirtQueue ，而泛型参数 ``H`` 则代表由使用者提供的平台适配层。驱动库需要分配设备可读写的内存，并在物理地址和内核可访问的虚拟地址之间进行转换，但它自身并不负责内存管理；这些能力需要由负责内存管理的操作系统提供。具体来说，OS 会提供一个实现了 ``Hal`` Trait 的类型，并通过该类型的方法把这些能力交给 ``virtio-drivers`` 使用。
 
-很容易为 ``VirtIOBlock`` 实现 ``BlockDevice`` Trait ，因为它内部来自 ``virtio-drivers`` crate 的 ``VirtIOBlk`` 类型已经实现了 ``read/write_block`` 方法，我们进行转发即可。
+在 OS 中，我们将 ``VirtIOBlk<'static, VirtioHal>`` 包装为自己的 ``VirtIOBlock`` ，实质上是在外层加上一层 ``UPSafeCell`` ，使得内核可以通过独占访问来调用底层块设备驱动。初始化时， ``VirtIOBlk::new`` 需要传入 ``&mut VirtIOHeader`` ，因此我们从 ``qemu-system-riscv64`` 平台上的 Virtio MMIO 区间左端 ``VIRTIO0`` 开始转化出这个参数。这里指定的 ``VirtioHal`` 就是 OS 提供给 ``virtio-drivers`` 的平台适配层，它的实现接下来介绍。
 
-VirtIO 设备需要占用部分内存作为一个公共区域从而更好的和 CPU 进行合作。这就像 MMU 需要在内存中保存多级页表才能和 CPU 共同实现分页机制一样。在 VirtIO 架构下，需要在公共区域中放置一种叫做 VirtQueue 的环形队列，CPU 可以向此环形队列中向 VirtIO 设备提交请求，也可以从队列中取得请求的结果，详情可以参考 `virtio 文档 <https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.pdf>`_ 。对于 VirtQueue 的使用涉及到物理内存的分配和回收，但这并不在 VirtIO 驱动 ``virtio-drivers`` 的职责范围之内，因此它声明了数个相关的接口，需要库的使用者自己来实现：
+最后，我们让 ``VirtIOBlock`` 实现 ``easy-fs`` 需要的 ``BlockDevice`` Trait 。 ``read_block/write_block`` 只是先取得内部 ``VirtIOBlk`` 的独占访问权，再把块读写请求转发给底层驱动。
+
+接下来看看 OS 侧的 ``VirtioHal`` 需要为 ``virtio-drivers`` 提供哪些能力。VirtIO 设备需要占用部分内存作为一个公共区域从而更好的和 CPU 进行合作。这就像 MMU 需要在内存中保存多级页表才能和 CPU 共同实现分页机制一样。在 VirtIO 架构下，需要在公共区域中放置一种叫做 VirtQueue 的环形队列，CPU 可以向此环形队列中向 VirtIO 设备提交请求，也可以从队列中取得请求的结果，详情可以参考 `virtio 文档 <https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.pdf>`_ 。对于 VirtQueue 的使用涉及到设备需要读写的连续物理内存的分配和回收，以及物理地址和内核虚拟地址之间的转换，但这些能力并不在 VirtIO 驱动 ``virtio-drivers`` 的职责范围之内，因此它要求库的使用者提供一个实现了 ``Hal`` Trait 的类型：
 
 .. code-block:: rust
-    
-    // https://github.com/rcore-os/virtio-drivers/blob/master/src/hal.rs#L57
 
-    extern "C" {
-        fn virtio_dma_alloc(pages: usize) -> PhysAddr;
-        fn virtio_dma_dealloc(paddr: PhysAddr, pages: usize) -> i32;
-        fn virtio_phys_to_virt(paddr: PhysAddr) -> VirtAddr;
-        fn virtio_virt_to_phys(vaddr: VirtAddr) -> PhysAddr;
+    // os/src/drivers/block/virtio_blk.rs
+
+    pub struct VirtioHal;
+
+    impl Hal for VirtioHal {
+        fn dma_alloc(pages: usize) -> usize { ... }
+        fn dma_dealloc(pa: usize, pages: usize) -> i32 { ... }
+        fn phys_to_virt(addr: usize) -> usize { ... }
+        fn virt_to_phys(vaddr: usize) -> usize { ... }
     }
 
 由于我们已经实现了基于分页内存管理的地址空间，实现这些功能自然不在话下：
@@ -203,45 +221,53 @@ VirtIO 设备需要占用部分内存作为一个公共区域从而更好的和 
     // os/src/drivers/block/virtio_blk.rs
 
     lazy_static! {
-        static ref QUEUE_FRAMES: Mutex<Vec<FrameTracker>> = Mutex::new(Vec::new());
+        static ref QUEUE_FRAMES: UPSafeCell<Vec<FrameTracker>> = unsafe {
+            UPSafeCell::new(Vec::new())
+        };
     }
 
-    #[no_mangle]
-    pub extern "C" fn virtio_dma_alloc(pages: usize) -> PhysAddr {
-        let mut ppn_base = PhysPageNum(0);
-        for i in 0..pages {
-            let frame = frame_alloc().unwrap();
-            if i == 0 { ppn_base = frame.ppn; }
-            assert_eq!(frame.ppn.0, ppn_base.0 + i);
-            QUEUE_FRAMES.lock().push(frame);
+    impl Hal for VirtioHal {
+        fn dma_alloc(pages: usize) -> usize {
+            let mut ppn_base = PhysPageNum(0);
+            for i in 0..pages {
+                let frame = frame_alloc().unwrap();
+                if i == 0 {
+                    ppn_base = frame.ppn;
+                }
+                assert_eq!(frame.ppn.0, ppn_base.0 + i);
+                QUEUE_FRAMES.exclusive_access().push(frame);
+            }
+            let pa: PhysAddr = ppn_base.into();
+            pa.0
         }
-        ppn_base.into()
-    }
 
-    #[no_mangle]
-    pub extern "C" fn virtio_dma_dealloc(pa: PhysAddr, pages: usize) -> i32 {
-        let mut ppn_base: PhysPageNum = pa.into();
-        for _ in 0..pages {
-            frame_dealloc(ppn_base);
-            ppn_base.step();
+        fn dma_dealloc(pa: usize, pages: usize) -> i32 {
+            let pa = PhysAddr::from(pa);
+            let mut ppn_base: PhysPageNum = pa.into();
+            for _ in 0..pages {
+                frame_dealloc(ppn_base);
+                ppn_base.step();
+            }
+            0
         }
-        0
-    }
 
-    #[no_mangle]
-    pub extern "C" fn virtio_phys_to_virt(paddr: PhysAddr) -> VirtAddr {
-        VirtAddr(paddr.0)
-    }
+        fn phys_to_virt(addr: usize) -> usize {
+            addr
+        }
 
-    #[no_mangle]
-    pub extern "C" fn virtio_virt_to_phys(vaddr: VirtAddr) -> PhysAddr {
-        PageTable::from_token(kernel_token()).translate_va(vaddr).unwrap()
+        fn virt_to_phys(vaddr: usize) -> usize {
+            PageTable::from_token(kernel_token())
+                .translate_va(VirtAddr::from(vaddr))
+                .unwrap()
+                .0
+        }
     }
 
 这里有一些细节需要注意：
 
-- ``virtio_dma_alloc/dealloc`` 需要分配/回收数个 *连续* 的物理页帧，而我们的 ``frame_alloc`` 是逐个分配，严格来说并不保证分配的连续性。幸运的是，这个过程只会发生在内核初始化阶段，因此能够保证连续性。
-- 在 ``virtio_dma_alloc`` 中通过 ``frame_alloc`` 得到的那些物理页帧 ``FrameTracker`` 都会被保存在全局的向量 ``QUEUE_FRAMES`` 以延长它们的生命周期，避免提前被回收。
+- ``dma_alloc/dealloc`` 需要分配/回收数个 *连续* 的物理页帧，而我们的 ``frame_alloc`` 是逐个分配，严格来说并不保证分配的连续性。幸运的是，这个过程只会发生在内核初始化阶段，因此能够保证连续性。
+- 在 ``dma_alloc`` 中通过 ``frame_alloc`` 得到的那些物理页帧 ``FrameTracker`` 都会被保存在全局的向量 ``QUEUE_FRAMES`` 以延长它们的生命周期，避免提前被回收。
+- ``phys_to_virt/virt_to_phys`` 负责在物理地址和内核可访问的虚拟地址之间转换。这里内核对设备 MMIO 区间和可用物理内存都做了恒等映射，因此物理地址到虚拟地址可以直接返回；反向转换则通过当前内核页表查询得到。
 
 
 K210 真实硬件平台
