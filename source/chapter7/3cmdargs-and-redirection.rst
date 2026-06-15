@@ -224,9 +224,9 @@ sys_exec 将命令行参数压入用户栈
             let mut trap_cx = TrapContext::app_init_context(
                 entry_point,
                 user_sp,
-                KERNEL_SPACE.lock().token(),
+                KERNEL_SPACE.exclusive_access().token(),
                 self.kernel_stack.get_top(),
-                trap_handler as usize,
+                linker_symbol_addr!(trap_handler),
             );
             trap_cx.x[10] = args.len();
             trap_cx.x[11] = argv_base;
@@ -253,16 +253,16 @@ sys_exec 将命令行参数压入用户栈
 
 .. code-block:: rust
     :linenos:
-    :emphasize-lines: 10-24
+    :emphasize-lines: 10-23
 
     // user/src/lib.rs
 
-    #[no_mangle]
-    #[link_section = ".text.entry"]
+    #[unsafe(no_mangle)]
+    #[unsafe(link_section = ".text.entry")]
     pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
         unsafe {
             HEAP.lock()
-                .init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
+                .init(addr_of_mut!(HEAP_SPACE) as usize, USER_HEAP_SIZE);
         }
         let mut v: Vec<&'static str> = Vec::new();
         for i in 0..argc {
@@ -278,7 +278,9 @@ sys_exec 将命令行参数压入用户栈
                 }).unwrap()
             );
         }
-        exit(main(argc, v.as_slice()));
+        unsafe {
+            exit(main(argc, v.as_slice()));
+        }
     }
 
 可以看到，在入口 ``_start`` 中我们就接收到了命令行参数个数 ``argc`` 和字符串数组的起始地址 ``argv`` 。但是这个起始地址不太好用，我们希望能够将其转化为编写应用的时候看到的 ``&[&str]`` 的形式。转化的主体在第 10~23 行，就是分别取出 ``argc`` 个字符串的起始地址（基于字符串数组的 base 地址 ``argv`` ），从它向后找到第一个 ``\0`` 就可以得到一个完整的 ``&str`` 格式的命令行参数字符串并加入到向量 ``v`` 中。最后通过 ``v.as_slice`` 就得到了我们在 ``main`` 主函数中看到的 ``&[&str]`` 。
@@ -322,7 +324,7 @@ sys_exec 将命令行参数压入用户栈
     };
     use alloc::string::String;
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn main(argc: usize, argv: &[&str]) -> i32 {
         assert!(argc == 2);
         let fd = open(argv[1], OpenFlags::RDONLY);
