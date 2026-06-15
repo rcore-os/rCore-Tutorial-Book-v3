@@ -350,7 +350,7 @@
         exit(0)
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn main() -> i32 {
         // create condvar & mutex
         assert_eq!(condvar_create() as usize, CONDVAR_ID);

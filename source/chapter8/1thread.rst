@@ -233,8 +233,8 @@
 	            let s_ptr = available.stack.as_mut_ptr().offset(size as isize);
 	            let s_ptr = (s_ptr as usize & !7) as *mut u8;
 
-	            available.ctx.x1 = guard as u64;  //ctx.x1  is old return address
-	            available.ctx.nx1 = f as u64;     //ctx.nx1 is new return address
+	            available.ctx.x1 = linker_symbol_addr!(guard) as u64;  //ctx.x1  is old return address
+	            available.ctx.nx1 = linker_symbol_addr!(f) as u64;     //ctx.nx1 is new return address
 	            available.ctx.x2 = s_ptr.offset(-32) as u64; //cxt.x2 is sp
 
 	        }
@@ -314,47 +314,52 @@
 
 
 
-这里还需分析一下汇编函数 `switch` 的具体实现细节，才能完全掌握线程切换的完整过程。注意到切换线程控制块的函数 `t_yield` 已经完成了当前运行线程的 `state` ， `id` 这两个部分，还缺少：当前指令指针(PC)、通用寄存器集合和栈。所以 `switch` 主要完成的就是完成这剩下的三部分的切换。
+这里还需分析一下汇编函数 `switch` 的具体实现细节，才能完全掌握线程切换的完整过程。注意到切换线程控制块的函数 `t_yield` 已经完成了当前运行线程的 `state` ， `id` 这两个部分，还缺少：当前指令指针(PC)、通用寄存器集合和栈。所以 `switch` 主要完成的就是完成这剩下的三部分的切换。汇编文件 ``user/src/bin/stackful_coroutine_switch.S`` 的核心内容如下：
 
-- 第7，14，16，23行，完成当前指令指针(PC)的切换；
-- 第8，17行，完成栈指针的切换；
-- 第9-13，18-22行，完成通用寄存器集合的切换；
+.. code-block:: asm
+    :linenos:
+
+    .section .text
+    .globl switch
+    switch:
+        sd x1, 0x00(a0)
+        sd x2, 0x08(a0)
+        sd x8, 0x10(a0)
+        sd x9, 0x18(a0)
+        sd x18, 0x20(a0) # sd x18..x27
+        ...
+        sd x27, 0x68(a0)
+        sd x1, 0x70(a0)
+
+        ld x1, 0x00(a1)
+        ld x2, 0x08(a1)
+        ld x8, 0x10(a1)
+        ld x9, 0x18(a1)
+        ld x18, 0x20(a1) # ld x18..x27
+        ...
+        ld x27, 0x68(a1)
+        ld t0, 0x70(a1)
+
+        jr t0
+
+从上面的代码片段可以看出：
+
+- 第 4 行保存当前线程的函数返回地址，第 11 行将同一个返回地址保存到 ``nx1`` 字段；第 20 行恢复切换后要执行线程的 ``nx1`` 到 ``t0`` 寄存器，第 22 行通过 ``jr t0`` 完成控制流跳转。因此，这几行共同完成当前指令指针(PC)的切换；
+- 第 5 和 14 行分别保存和恢复栈指针；
+- 第 6~10 和 15~19 行分别保存和恢复需要由被调用函数维护的通用寄存器集合。
+
+在 Rust 代码中，我们通过 ``global_asm!`` 引入上面的汇编文件，并用 ``extern "C"`` 声明汇编函数：
 
 .. code-block:: rust
     :linenos:
 
-	#[naked]
-	#[inline(never)]
-	unsafe fn switch(old: *mut TaskContext, new: *const TaskContext) {
-	    // a0: old, a1: new
-	    asm!("
-	        //if comment below lines: sd x1..., ld x1..., TASK2 can not finish, and will segment fault
-	        sd x1, 0x00(a0)
-	        sd x2, 0x08(a0)
-	        sd x8, 0x10(a0)
-	        sd x9, 0x18(a0)
-	        sd x18, 0x20(a0) # sd x18..x27
-	        ...
-	        sd x27, 0x68(a0)
-	        sd x1, 0x70(a0)
+    core::arch::global_asm!(include_str!("stackful_coroutine_switch.S"));
 
-	        ld x1, 0x00(a1)
-	        ld x2, 0x08(a1)
-	        ld x8, 0x10(a1)
-	        ld x9, 0x18(a1)
-	        ld x18, 0x20(a1) #ld x18..x27
-	        ...
-	        ld x27, 0x68(a1)
-	        ld t0, 0x70(a1)
+    unsafe extern "C" {
+        fn switch(old: *mut TaskContext, new: *const TaskContext);
+    }
 
-	        jr t0
-	    ",
-                options(noreturn)
-	    );
-	}
-
-
-这里需要注意两个细节。第一个是寄存器集合的保存数量。在保存通用寄存器集合时，并没有保存所有的通用寄存器，其原因是根据RISC-V的函数调用约定，有一部分寄存器是由调用函数 `Caller` 来保存的，所以就不需要被调用函数 `switch` 来保存了。第二个是当前指令指针(PC)的切换。在具体切换过程中，是基于函数返回地址来进行切换的。即首先把 `switch` 的函数返回地址 `ra` (即 `x1` )寄存器保存在 `TaskContext` 中，在此函数的倒数第二步，恢复切换后要执行线程的函数返回地址，即 `ra` 寄存器到 `t0` 寄存器，然后调用 `jr t0` 即完成了函数的返回。 
+这里需要注意两个细节。第一个是寄存器集合的保存数量。在保存通用寄存器集合时，并没有保存所有的通用寄存器，其原因是根据RISC-V的函数调用约定，有一部分寄存器是由调用函数 `Caller` 来保存的，所以就不需要被调用函数 `switch` 来保存了。第二个是当前指令指针(PC)的切换。在具体切换过程中，是基于函数返回地址来进行切换的。即首先把 `switch` 的函数返回地址 `ra` (即 `x1` )寄存器保存在 `TaskContext` 中，随后恢复切换后要执行线程的函数返回地址并跳转过去。这里将 `switch` 放在独立的汇编文件中，并通过 `global_asm!` 引入和 `extern "C"` 声明提供给 Rust 调用，从而避免依赖 `naked_functions` 等 nightly 特性。
 
 .. image:: thread-switch.png
    :align: center
