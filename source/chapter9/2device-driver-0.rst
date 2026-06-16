@@ -147,7 +147,7 @@
    :linenos:
 
    //virtio_drivers/examples/riscv/src/main.rs
-   #[no_mangle]
+   #[unsafe(no_mangle)]
    extern "C" fn main(_hartid: usize, device_tree_paddr: usize) {
       ...
       init_dt(device_tree_paddr);
