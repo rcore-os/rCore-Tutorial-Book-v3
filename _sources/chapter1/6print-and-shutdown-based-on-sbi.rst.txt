@@ -182,9 +182,6 @@
 .. code-block:: rust
     :linenos:
 
-    // os/src/main.rs
-    #![feature(panic_info_message)]
-
     // os/src/lang_item.rs
     use crate::sbi::shutdown;
     use core::panic::PanicInfo;
@@ -196,15 +193,15 @@
                 "Panicked at {}:{} {}",
                 location.file(),
                 location.line(),
-                info.message().unwrap()
+                info.message()
             );
         } else {
-            println!("Panicked: {}", info.message().unwrap());
+            println!("Panicked: {}", info.message());
         }
         shutdown(true)
     }
 
-我们尝试打印更加详细的信息，包括 panic 所在的源文件和代码行数。我们尝试从传入的 ``PanicInfo`` 中解析这些信息，如果解析成功的话，就和 panic 的报错信息一起打印出来。我们需要在 ``main.rs`` 开头加上 ``#![feature(panic_info_message)]`` 才能通过 ``PanicInfo::message`` 获取报错信息。当打印完毕之后，我们直接调用 ``shutdown`` 函数关机，由于系统是异常 panic 关机的，参数 ``failure`` 应为 ``true`` 。
+我们尝试打印更加详细的信息，包括 panic 所在的源文件和代码行数。我们尝试从传入的 ``PanicInfo`` 中解析这些信息，如果解析成功的话，就和 panic 的报错信息一起打印出来。当打印完毕之后，我们直接调用 ``shutdown`` 函数关机，由于系统是异常 panic 关机的，参数 ``failure`` 应为 ``true`` 。
 
 为了测试我们的实现是否正确，我们将 ``rust_main`` 改为：
 
@@ -212,7 +209,7 @@
     :linenos:
 
     // os/src/main.rs
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn rust_main() -> ! {
         clear_bss();
         println!("Hello, world!");

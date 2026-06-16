@@ -423,30 +423,40 @@
 </div>
 <p>这个外部库其实就是 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下的 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 以及它引用的若干子模块中。至于这个外部库为何叫 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 而不叫 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 所在的目录的名字 <code class="docutils literal notranslate"><span class="pre">user</span></code> ，是因为在 <code class="docutils literal notranslate"><span class="pre">user/Cargo.toml</span></code> 中我们对于库的名字进行了设置： <code class="docutils literal notranslate"><span class="pre">name</span> <span class="pre">=</span>&#160; <span class="pre">&quot;user_lib&quot;</span></code> 。它作为 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录下的源程序所依赖的用户库，等价于其他编程语言提供的标准库。</p>
 <p>在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 中我们定义了用户库的入口点 <code class="docutils literal notranslate"><span class="pre">_start</span></code> ：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="cp">#[no_mangle]</span>
-<span class="linenos">2</span><span class="cp">#[link_section = </span><span class="s">&quot;.text.entry&quot;</span><span class="cp">]</span>
-<span class="linenos">3</span><span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
-<span class="linenos">4</span><span class="w">    </span><span class="n">clear_bss</span><span class="p">();</span>
-<span class="linenos">5</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">());</span>
-<span class="linenos">6</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;unreachable after sys_exit!&quot;</span><span class="p">);</span>
-<span class="linenos">7</span><span class="p">}</span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="fm">macro_rules!</span><span class="w"> </span><span class="n">linker_symbol_addr</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 2</span><span class="w">    </span><span class="p">(</span><span class="cp">$symbol</span>:<span class="nc">path</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 3</span><span class="w">        </span><span class="p">(</span><span class="cp">$symbol</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="p">()).</span><span class="n">addr</span><span class="p">()</span>
+<span class="linenos"> 4</span><span class="w">    </span><span class="p">};</span>
+<span class="linenos"> 5</span><span class="p">}</span>
+<span class="linenos"> 6</span>
+<span class="linenos"> 7</span><span class="k">unsafe</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;Rust&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos"> 8</span><span class="w">    </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span><span class="p">;</span>
+<span class="linenos"> 9</span><span class="p">}</span>
+<span class="linenos">10</span>
+<span class="linenos">11</span><span class="cp">#[unsafe(no_mangle)]</span>
+<span class="linenos">12</span><span class="cp">#[unsafe(link_section = </span><span class="s">&quot;.text.entry&quot;</span><span class="cp">)]</span>
+<span class="linenos">13</span><span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">    </span><span class="n">clear_bss</span><span class="p">();</span>
+<span class="linenos">15</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">16</span><span class="w">        </span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">());</span>
+<span class="linenos">17</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">18</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;unreachable after sys_exit!&quot;</span><span class="p">);</span>
+<span class="linenos">19</span><span class="p">}</span>
+<span class="linenos">20</span>
+<span class="linenos">21</span><span class="k">fn</span> <span class="nf">clear_bss</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">22</span><span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">23</span><span class="w">        </span><span class="n">safe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">start_bss</span><span class="p">();</span>
+<span class="linenos">24</span><span class="w">        </span><span class="n">safe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">end_bss</span><span class="p">();</span>
+<span class="linenos">25</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">26</span><span class="w">    </span><span class="p">(</span><span class="n">linker_symbol_addr</span><span class="o">!</span><span class="p">(</span><span class="n">start_bss</span><span class="p">)</span><span class="o">..</span><span class="n">linker_symbol_addr</span><span class="o">!</span><span class="p">(</span><span class="n">end_bss</span><span class="p">)).</span><span class="n">for_each</span><span class="p">(</span><span class="o">|</span><span class="n">addr</span><span class="o">|</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">27</span><span class="w">        </span><span class="p">(</span><span class="n">addr</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">mut</span><span class="w"> </span><span class="kt">u8</span><span class="p">).</span><span class="n">write_volatile</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="linenos">28</span><span class="w">    </span><span class="p">});</span>
+<span class="linenos">29</span><span class="p">}</span>
 </pre></div>
 </div>
-<p>第 2 行使用 Rust 的宏将 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 这段代码编译后的汇编代码中放在一个名为 <code class="docutils literal notranslate"><span class="pre">.text.entry</span></code> 的代码段中，方便我们在后续链接的时候调整它的位置使得它能够作为用户库的入口。</p>
-<p>从第 4 行开始，进入用户库入口之后，首先和第一章一样，手动清空需要零初始化的 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段（很遗憾到目前为止底层的批处理系统还没有这个能力，所以我们只能在用户库中完成）；然后调用 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数得到一个类型为 <code class="docutils literal notranslate"><span class="pre">i32</span></code> 的返回值，最后调用用户库提供的 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 接口退出应用程序，并将 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数的返回值告知批处理系统。</p>
-<p>我们还在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 中看到了另一个 <code class="docutils literal notranslate"><span class="pre">main</span></code> ：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="cp">#[linkage = </span><span class="s">&quot;weak&quot;</span><span class="cp">]</span>
-<span class="linenos">2</span><span class="cp">#[no_mangle]</span>
-<span class="linenos">3</span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
-<span class="linenos">4</span><span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Cannot find main!&quot;</span><span class="p">);</span>
-<span class="linenos">5</span><span class="p">}</span>
-</pre></div>
-</div>
-<p>第 1 行，我们使用 Rust 的宏将其函数符号 <code class="docutils literal notranslate"><span class="pre">main</span></code> 标志为弱链接。这样在最后链接的时候，虽然在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 和 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录下的某个应用程序都有 <code class="docutils literal notranslate"><span class="pre">main</span></code> 符号，但由于 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">main</span></code> 符号是弱链接，链接器会使用 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录下的应用主逻辑作为 <code class="docutils literal notranslate"><span class="pre">main</span></code> 。这里我们主要是进行某种程度上的保护，如果在 <code class="docutils literal notranslate"><span class="pre">bin</span></code> 目录下找不到任何 <code class="docutils literal notranslate"><span class="pre">main</span></code> ，那么编译也能够通过，但会在运行时报错。</p>
-<p>为了支持上述这些链接操作，我们需要在 <code class="docutils literal notranslate"><span class="pre">lib.rs</span></code> 的开头加入：</p>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#![feature(linkage)]</span>
-</pre></div>
-</div>
+<p>第 11~12 行，<code class="docutils literal notranslate"><span class="pre">#[unsafe(link_section</span> <span class="pre">=</span> <span class="pre">&quot;.text.entry&quot;)]</span></code> 将 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 这段代码编译后的汇编代码放在一个名为 <code class="docutils literal notranslate"><span class="pre">.text.entry</span></code> 的代码段中，方便我们在后续链接的时候调整它的位置使得它能够作为用户库的入口。<code class="docutils literal notranslate"><span class="pre">#[unsafe(no_mangle)]</span></code> 则避免编译器对 <code class="docutils literal notranslate"><span class="pre">_start</span></code> 的符号名进行混淆。</p>
+<p>第 14 行，进入用户库入口之后，首先和第一章一样，手动清空需要零初始化的 <code class="docutils literal notranslate"><span class="pre">.bss</span></code> 段（很遗憾到目前为止底层的批处理系统还没有这个能力，所以我们只能在用户库中完成）。第 21~29 行，<code class="docutils literal notranslate"><span class="pre">clear_bss</span></code> 中的 <code class="docutils literal notranslate"><span class="pre">start_bss</span></code> 和 <code class="docutils literal notranslate"><span class="pre">end_bss</span></code> 来自用户程序的链接脚本，仍通过 <code class="docutils literal notranslate"><span class="pre">linker_symbol_addr!</span></code> 宏取得符号地址。随后第 15~17 行调用应用程序提供的 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数得到一个类型为 <code class="docutils literal notranslate"><span class="pre">i32</span></code> 的返回值，最后调用用户库提供的 <code class="docutils literal notranslate"><span class="pre">exit</span></code> 接口退出应用程序，并将 <code class="docutils literal notranslate"><span class="pre">main</span></code> 函数的返回值告知批处理系统。</p>
+<p>第 7~9 行的 <code class="docutils literal notranslate"><span class="pre">main</span></code> 通过 <code class="docutils literal notranslate"><span class="pre">unsafe</span> <span class="pre">extern</span> <span class="pre">&quot;Rust&quot;</span></code> 声明为一个外部 Rust ABI 函数符号，它将在最终链接时由 <code class="docutils literal notranslate"><span class="pre">user/src/bin</span></code> 目录下的应用程序主逻辑提供。</p>
 </div>
 <div class="section" id="term-app-mem-layout">
 <span id="id5"></span><h3>内存布局<a class="headerlink" href="#term-app-mem-layout" title="永久链接至标题">#</a></h3>
@@ -577,7 +587,7 @@
 <p id="term-csr-instr-app">假定我们已经完成了编译并生成了 ELF 可执行文件格式的应用程序，我们就可以来试试。首先看看应用程序执行 <a class="reference internal" href="1rv-privilege.html#term-csr-instr"><span class="std std-ref">RV64 的 S 模式特权指令</span></a> 会出现什么情况，对应的应用程序可以在 <code class="docutils literal notranslate"><span class="pre">user/src/bin</span></code> 目录下找到。</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// user/src/bin/03priv_inst.rs</span>
 <span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">arch</span>::<span class="n">asm</span><span class="p">;</span>
-<span class="cp">#[no_mangle]</span>
+<span class="cp">#[unsafe(no_mangle)]</span>
 <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
 <span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Try to execute privileged instruction in U Mode&quot;</span><span class="p">);</span>
 <span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Kernel should kill this application!&quot;</span><span class="p">);</span>
@@ -589,7 +599,7 @@
 
 <span class="c1">// user/src/bin/04priv_csr.rs</span>
 <span class="k">use</span><span class="w"> </span><span class="n">riscv</span>::<span class="n">register</span>::<span class="n">sstatus</span>::<span class="p">{</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">SPP</span><span class="p">};</span>
-<span class="cp">#[no_mangle]</span>
+<span class="cp">#[unsafe(no_mangle)]</span>
 <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
 <span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Try to access privileged CSR in U Mode&quot;</span><span class="p">);</span>
 <span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Kernel should kill this application!&quot;</span><span class="p">);</span>

@@ -534,7 +534,7 @@
 <span class="linenos">13</span><span class="w">    </span><span class="n">yield_</span><span class="p">,</span>
 <span class="linenos">14</span><span class="p">};</span>
 <span class="linenos">15</span>
-<span class="linenos">16</span><span class="cp">#[no_mangle]</span>
+<span class="linenos">16</span><span class="cp">#[unsafe(no_mangle)]</span>
 <span class="linenos">17</span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
 <span class="linenos">18</span><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">fork</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos">19</span><span class="w">        </span><span class="n">exec</span><span class="p">(</span><span class="s">&quot;user_shell</span><span class="se">\0</span><span class="s">&quot;</span><span class="p">);</span>
@@ -614,10 +614,10 @@
 <span class="linenos">14</span><span class="k">const</span><span class="w"> </span><span class="n">BS</span>: <span class="kt">u8</span> <span class="o">=</span><span class="w"> </span><span class="mh">0x08</span><span class="k">u8</span><span class="p">;</span>
 <span class="linenos">15</span>
 <span class="linenos">16</span><span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">string</span>::<span class="nb">String</span><span class="p">;</span>
-<span class="linenos">17</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span><span class="n">fork</span><span class="p">,</span><span class="w"> </span><span class="n">exec</span><span class="p">,</span><span class="w"> </span><span class="n">waitpid</span><span class="p">,</span><span class="w"> </span><span class="n">yield_</span><span class="p">};</span>
-<span class="linenos">18</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="n">console</span>::<span class="n">getchar</span><span class="p">;</span>
+<span class="linenos">17</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="n">console</span>::<span class="n">getchar</span><span class="p">;</span>
+<span class="linenos">18</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span><span class="n">exec</span><span class="p">,</span><span class="w"> </span><span class="n">fork</span><span class="p">,</span><span class="w"> </span><span class="n">waitpid</span><span class="p">};</span>
 <span class="linenos">19</span>
-<span class="linenos">20</span><span class="cp">#[no_mangle]</span>
+<span class="linenos">20</span><span class="cp">#[unsafe(no_mangle)]</span>
 <span class="linenos">21</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
 <span class="linenos">22</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Rust user shell&quot;</span><span class="p">);</span>
 <span class="linenos">23</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">line</span>: <span class="nb">String</span> <span class="o">=</span><span class="w"> </span><span class="nb">String</span>::<span class="n">new</span><span class="p">();</span>
@@ -673,6 +673,12 @@
 <p><strong>在应用中使能动态内存分配</strong></p>
 <p>我们知道，在 Rust 中可变长字符串类型 <code class="docutils literal notranslate"><span class="pre">String</span></code> 是基于动态内存分配的。因此本章我们还要在用户库 <code class="docutils literal notranslate"><span class="pre">user_lib</span></code> 中支持动态内存分配，与第四章的做法相同，只需加入以下内容即可：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">buddy_system_allocator</span>::<span class="n">LockedHeap</span><span class="p">;</span>
+<span class="k">use</span><span class="w"> </span><span class="n">core</span>::<span class="n">ptr</span>::<span class="n">addr_of_mut</span><span class="p">;</span>
+<span class="k">use</span><span class="w"> </span><span class="n">syscall</span>::<span class="o">*</span><span class="p">;</span>
+
+<span class="k">unsafe</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;Rust&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span><span class="p">;</span>
+<span class="p">}</span>
 
 <span class="k">const</span><span class="w"> </span><span class="n">USER_HEAP_SIZE</span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mi">16384</span><span class="p">;</span>
 
@@ -681,19 +687,16 @@
 <span class="cp">#[global_allocator]</span>
 <span class="k">static</span><span class="w"> </span><span class="n">HEAP</span>: <span class="nc">LockedHeap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LockedHeap</span>::<span class="n">empty</span><span class="p">();</span>
 
-<span class="cp">#[alloc_error_handler]</span>
-<span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">handle_alloc_error</span><span class="p">(</span><span class="n">layout</span>: <span class="nc">core</span>::<span class="n">alloc</span>::<span class="n">Layout</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Heap allocation error, layout = {:?}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">layout</span><span class="p">);</span>
-<span class="p">}</span>
-
-<span class="cp">#[no_mangle]</span>
-<span class="cp">#[link_section = </span><span class="s">&quot;.text.entry&quot;</span><span class="cp">]</span>
+<span class="cp">#[unsafe(no_mangle)]</span>
+<span class="cp">#[unsafe(link_section = </span><span class="s">&quot;.text.entry&quot;</span><span class="cp">)]</span>
 <span class="k">pub</span><span class="w"> </span><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="k">fn</span> <span class="nf">_start</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="n">HEAP</span><span class="p">.</span><span class="n">lock</span><span class="p">()</span>
-<span class="w">            </span><span class="p">.</span><span class="n">init</span><span class="p">(</span><span class="n">HEAP_SPACE</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">USER_HEAP_SIZE</span><span class="p">);</span>
+<span class="w">            </span><span class="p">.</span><span class="n">init</span><span class="p">(</span><span class="n">addr_of_mut</span><span class="o">!</span><span class="p">(</span><span class="n">HEAP_SPACE</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="n">USER_HEAP_SIZE</span><span class="p">);</span>
 <span class="w">    </span><span class="p">}</span>
-<span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">());</span>
+<span class="w">    </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">exit</span><span class="p">(</span><span class="n">main</span><span class="p">());</span>
+<span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </pre></div>
 </div>

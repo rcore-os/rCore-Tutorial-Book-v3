@@ -810,13 +810,21 @@
 <p>这里面有不少无聊的参数检查和辅助函数，就不详细介绍了。总之这个系统调用实际做的事情只有维护对应的 <code class="docutils literal notranslate"><span class="pre">FileMapping</span></code> 结构，实际的工作被推迟到缺页异常处理例程中。</p>
 <div class="literal-block-wrapper docutils container" id="id6">
 <div class="code-block-caption"><span class="caption-text"><code class="docutils literal notranslate"><span class="pre">os/src/trap/mod.rs</span></code></span><a class="headerlink" href="#id6" title="永久链接至代码">#</a></div>
-<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[no_mangle]</span>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[unsafe(no_mangle)]</span>
 <span class="sd">/// handle an interrupt, exception, or system call from user space</span>
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">trap_handler</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">set_kernel_trap_entry</span><span class="p">();</span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">scause</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scause</span>::<span class="n">read</span><span class="p">();</span>
 <span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stval</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stval</span>::<span class="n">read</span><span class="p">();</span>
-<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">trap</span>: <span class="nc">Trap</span><span class="o">&lt;</span><span class="n">Interrupt</span><span class="p">,</span><span class="w"> </span><span class="n">Exception</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">match</span><span class="w"> </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">().</span><span class="n">try_into</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(</span><span class="n">trap</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">trap</span><span class="p">,</span>
+<span class="w">        </span><span class="nb">Err</span><span class="p">(</span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">panic!</span><span class="p">(</span>
+<span class="w">            </span><span class="s">&quot;Unsupported trap {:?}, stval = {:#x}!&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="n">scause</span><span class="p">.</span><span class="n">cause</span><span class="p">(),</span>
+<span class="w">            </span><span class="n">stval</span>
+<span class="w">        </span><span class="p">),</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">trap</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="n">Trap</span>::<span class="n">Exception</span><span class="p">(</span><span class="n">Exception</span>::<span class="n">UserEnvCall</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">            </span><span class="c1">// ...</span>
 <span class="w">        </span><span class="p">}</span>

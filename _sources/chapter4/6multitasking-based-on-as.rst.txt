@@ -82,7 +82,7 @@
             pub fn activate(&self) {
                 let satp = self.page_table.token();
                 unsafe {
-                    satp::write(satp);
+                    satp::write(satp::Satp::from_bits(satp));
                     asm!("sfence.vma");
                 }
             }
@@ -120,9 +120,10 @@
 
     pub fn remap_test() {
         let mut kernel_space = KERNEL_SPACE.exclusive_access();
-        let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
-        let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
-        let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
+        let mid_text: VirtAddr = ((linker_symbol_addr!(stext) + linker_symbol_addr!(etext)) / 2).into();
+        let mid_rodata: VirtAddr =
+            ((linker_symbol_addr!(srodata) + linker_symbol_addr!(erodata)) / 2).into();
+        let mid_data: VirtAddr = ((linker_symbol_addr!(sdata) + linker_symbol_addr!(edata)) / 2).into();
         assert_eq!(
             kernel_space.page_table.translate(mid_text.floor()).unwrap().writable(),
             false
@@ -336,7 +337,7 @@
         fn map_trampoline(&mut self) {
             self.page_table.map(
                 VirtAddr::from(TRAMPOLINE).into(),
-                PhysAddr::from(strampoline as usize).into(),
+                PhysAddr::from(linker_symbol_addr!(strampoline)).into(),
                 PTEFlags::R | PTEFlags::X,
             );
         }
@@ -425,7 +426,7 @@
                 user_sp,
                 KERNEL_SPACE.exclusive_access().token(),
                 kernel_stack_top,
-                trap_handler as usize,
+                linker_symbol_addr!(trap_handler),
             );
             task_control_block
         }
@@ -574,22 +575,33 @@
 
     fn set_kernel_trap_entry() {
         unsafe {
-            stvec::write(trap_from_kernel as usize, TrapMode::Direct);
+            stvec::write(stvec::Stvec::new(
+                linker_symbol_addr!(trap_from_kernel),
+                TrapMode::Direct,
+            ));
         }
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn trap_from_kernel() -> ! {
         panic!("a trap from kernel!");
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn trap_handler() -> ! {
         set_kernel_trap_entry();
         let cx = current_trap_cx();
         let scause = scause::read();
         let stval = stval::read();
-        match scause.cause() {
+        let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+            Ok(trap) => trap,
+            Err(_) => panic!(
+                "Unsupported trap {:?}, stval = {:#x}!",
+                scause.cause(),
+                stval
+            ),
+        };
+        match trap {
             ...
         }
         trap_return();
@@ -608,20 +620,20 @@
 
     fn set_user_trap_entry() {
         unsafe {
-            stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
+            stvec::write(stvec::Stvec::new(TRAMPOLINE, TrapMode::Direct));
         }
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn trap_return() -> ! {
         set_user_trap_entry();
         let trap_cx_ptr = TRAP_CONTEXT;
         let user_satp = current_user_token();
-        extern "C" {
-            fn __alltraps();
-            fn __restore();
+        unsafe extern "C" {
+            unsafe fn __alltraps();
+            unsafe fn __restore();
         }
-        let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
+        let restore_va = linker_symbol_addr!(__restore) - linker_symbol_addr!(__alltraps) + TRAMPOLINE;
         unsafe {
             asm!(
                 "fence.i",
@@ -654,7 +666,7 @@
     impl TaskContext {
         pub fn goto_trap_return() -> Self {
             Self {
-                ra: trap_return as usize,
+                ra: linker_symbol_addr!(trap_return),
                 s: [0; 12],
             }
         }

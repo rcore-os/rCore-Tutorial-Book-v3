@@ -183,12 +183,12 @@
     // os/src/mm/frame_allocator.rs
 
     pub fn init_frame_allocator() {
-        extern "C" {
-            fn ekernel();
+        unsafe extern "C" {
+            safe fn ekernel();
         }
         FRAME_ALLOCATOR
             .exclusive_access()
-            .init(PhysAddr::from(ekernel as usize).ceil(), PhysAddr::from(MEMORY_END).floor());
+            .init(PhysAddr::from(linker_symbol_addr!(ekernel)).ceil(), PhysAddr::from(MEMORY_END).floor());
     }
 
 这里我们调用物理地址 ``PhysAddr`` 的 ``floor/ceil`` 方法分别下/上取整获得可用的物理页号区间。

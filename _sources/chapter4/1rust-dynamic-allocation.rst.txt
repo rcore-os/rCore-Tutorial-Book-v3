@@ -214,11 +214,11 @@ Rust 的标准库中提供了很多开箱即用的堆数据结构，利用它们
     pub fn heap_test() {
         use alloc::boxed::Box;
         use alloc::vec::Vec;
-        extern "C" {
-            fn sbss();
-            fn ebss();
+        unsafe extern "C" {
+            safe fn sbss();
+            safe fn ebss();
         }
-        let bss_range = sbss as usize..ebss as usize;
+        let bss_range = linker_symbol_addr!(sbss)..linker_symbol_addr!(ebss);
         let a = Box::new(5);
         assert_eq!(*a, 5);
         assert!(bss_range.contains(&(a.as_ref() as *const _ as usize)));

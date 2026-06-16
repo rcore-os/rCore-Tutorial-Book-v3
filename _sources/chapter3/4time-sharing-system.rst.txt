@@ -231,7 +231,15 @@ RISC-V 的中断可以分成三类：
 
     // os/src/trap/mod.rs
 
-    match scause.cause() {
+    let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+        Ok(trap) => trap,
+        Err(_) => panic!(
+            "Unsupported trap {:?}, stval = {:#x}!",
+            scause.cause(),
+            stval
+        ),
+    };
+    match trap {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             set_next_trigger();
             suspend_current_and_run_next();
@@ -248,7 +256,7 @@ RISC-V 的中断可以分成三类：
 
     // os/src/main.rs
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn rust_main() -> ! {
         clear_bss();
         println!("[kernel] Hello, world!");
@@ -285,7 +293,7 @@ RISC-V 的中断可以分成三类：
 
     // user/src/bin/03sleep.rs
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     fn main() -> i32 {
         let current_timer = get_time();
         let wait_for = current_timer + 3000;

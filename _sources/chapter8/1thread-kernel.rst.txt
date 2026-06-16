@@ -266,8 +266,8 @@
     extern crate user_lib;
     extern crate alloc;
 
-    use user_lib::{thread_create, waittid, exit};
-    use alloc::vec::Vec;
+    use alloc::vec;
+    use user_lib::{exit, thread_create, waittid};
 
     pub fn thread_a() -> ! {
         for _ in 0..1000 { print!("a"); }
@@ -284,12 +284,13 @@
         exit(3)
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn main() -> i32 {
-        let mut v = Vec::new();
-        v.push(thread_create(thread_a as usize, 0));
-        v.push(thread_create(thread_b as usize, 0));
-        v.push(thread_create(thread_c as usize, 0));
+        let v = vec![
+            thread_create(linker_symbol_addr!(thread_a), 0),
+            thread_create(linker_symbol_addr!(thread_b), 0),
+            thread_create(linker_symbol_addr!(thread_c), 0),
+        ];
         for tid in v.iter() {
             let exit_code = waittid(*tid as usize);
             println!("thread#{} exited with code {}", tid, exit_code);
@@ -326,7 +327,7 @@
         exit(arg.rc)
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn main() -> i32 {
         let mut v = Vec::new();
         let args = [
@@ -336,7 +337,7 @@
         ];
         for arg in args.iter() {
             v.push(thread_create(
-                thread_print as usize,
+                linker_symbol_addr!(thread_print),
                 arg as *const _ as usize,
             ));
         }
@@ -818,7 +819,7 @@
                 ustack_top,
                 KERNEL_SPACE.exclusive_access().token(),
                 kstack_top,
-                trap_handler as usize,
+                linker_symbol_addr!(trap_handler),
             );
             // add main thread to the process
             let mut process_inner = process.inner_exclusive_access();
@@ -952,7 +953,7 @@
             new_task_res.ustack_top(),
             kernel_token(),
             new_task.kstack.get_top(),
-            trap_handler as usize,
+            linker_symbol_addr!(trap_handler),
         );
         (*new_task_trap_cx).x[10] = arg;
         new_task_tid as isize

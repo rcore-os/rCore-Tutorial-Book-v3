@@ -11,38 +11,9 @@
 
 **配置步骤依赖关系：**
 
-.. mermaid::
-
-   flowchart LR
-       Start(["开始"]) --> A1["本地原生配置"]
-       Start --> A2["GitHub Classroom"]
-       Start --> A3["Docker"]
-
-       subgraph Stage1["阶段1: 基础环境准备"]
-           direction TB
-           A1 --> Stage1_1["阶段1.1: 基础依赖安装"]
-           A2
-           A3
-       end
-
-       Stage1_1 --> Stage2
-       A2 --> Stage5
-       A3 --> Stage5
-
-       Stage2["阶段2: Rust工具链"] --> Stage3["阶段3: QEMU"]
-       Stage3 --> Stage4["阶段4: IDE与调试支持"]
-       Stage4 --> Stage5
-
-       subgraph Stage5["阶段5: 运行项目"]
-           I["QEMU运行"]
-           J["K210真机运行"]
-       end
-
-       Stage5 --> End(["完成"])
-
-       style Start fill:#fff9c4
-       style Stage5 fill:#c8e6c9
-       style End fill:#c8e6c9
+.. image:: setup-overview.png
+   :align: center
+   :alt: rCore-Tutorial-v3 实验环境配置步骤依赖关系
 
 **请从** :ref:`阶段1: 基础环境准备 <setup-stage1>` **开始阅读，根据您的实际情况选择适合的配置方案。**
 
@@ -315,18 +286,18 @@ C 开发环境配置
 
 .. code-block:: bash
 
-   rustc 1.62.0-nightly (1f7fb6413 2022-04-10)
+   rustc 1.x.y
 
 .. warning::
-   目前用于操作系统实验开发的 rustc 编译器的版本不局限在 1.46.0 这样的数字上，你可以选择更新版本的 rustc 编译器。但注意只能用 rustc 的 nightly 类型的版本。
+   目前用于操作系统实验开发的 rustc 编译器使用 stable 类型的版本。项目根目录下的 ``rust-toolchain.toml`` 会指定具体工具链配置，请保持其与原版仓库对应分支一致。
 
 
-可通过如下命令安装 rustc 的 nightly 版本，并把该版本设置为 rustc 的缺省版本。
+可通过如下命令安装 rustc 的 stable 版本，并把该版本设置为 rustc 的缺省版本。
 
 .. code-block:: bash
    
-   rustup install nightly
-   rustup default nightly
+   rustup install stable
+   rustup default stable
 
 
 我们最好把软件包管理器 cargo 所用的软件包镜像地址 crates.io 也换成中国科学技术大学的镜像服务器来加速三方库的下载。我们打开（如果没有就新建） ``~/.cargo/config`` 文件，并把内容修改为：
@@ -359,7 +330,7 @@ C 开发环境配置
    rustup component add rust-src
 
 .. warning::
-   如果你换了另外一个rustc编译器（必须是nightly版的），需要重新安装上述rustc所需软件包。rCore-Tutorial 仓库中的 ``Makefile`` 包含了这些工具的安装，如果你使用 ``make run`` 也可以不手动安装。
+   如果你换了另外一个 rustc 编译器，需要重新安装上述 rustc 所需软件包。rCore-Tutorial 仓库中的 ``Makefile`` 包含了这些工具的安装，如果你使用 ``make run`` 也可以不手动安装。
 
 **下一步:** 继续到 :ref:`阶段3: QEMU 安装 <setup-stage3>`
 
@@ -378,6 +349,8 @@ C 开发环境配置
 
 首先我们安装依赖包，获取 QEMU 源代码并手动编译：
 
+**Ubuntu 环境：**
+
 .. code-block:: bash
 
    # 安装编译所需的依赖包
@@ -395,6 +368,25 @@ C 开发环境配置
    cd qemu-7.0.0
    ./configure --target-list=riscv64-softmmu,riscv64-linux-user  # 在第九章的实验中，可以有图形界面和网络。如果要支持图形界面，可添加 " --enable-sdl" 参数；如果要支持网络，可添加 " --enable-slirp" 参数
    make -j$(nproc)
+
+**macOS 环境：**
+
+.. code-block:: bash
+
+   # MacOS qemu环境配置
+   pip3 install tomli
+   brew install ninja pkgconfig glib sdl2 cmake
+   # 下载源码包
+   # 如果下载速度过慢可以使用我们提供的百度网盘链接：https://pan.baidu.com/s/1dykndFzY73nqkPL2QXs32Q
+   # 提取码：jimc
+   wget https://download.qemu.org/qemu-7.0.0.tar.xz
+   # 解压
+   tar xvJf qemu-7.0.0.tar.xz
+   # 编译安装并配置 RISC-V 支持
+   cd qemu-7.0.0
+   ./configure --target-list=riscv64-softmmu,riscv64-linux-user  # 在第九章的实验中，可以有图形界面和网络。如果要支持图形界面，可添加 " --enable-sdl" 参数；如果要支持网络，可添加 " --enable-slirp" 参数
+   make -j$(sysctl -n hw.ncpu)
+   # 退出：control+c即可
 
 .. note::
    
@@ -555,7 +547,6 @@ Q & A
   
    .. code-block:: toml
 
-      riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }
       virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers" }
       k210-pac = { git = "https://github.com/wyfcyx/k210-pac" }
       k210-hal = { git = "https://github.com/wyfcyx/k210-hal" }
@@ -565,7 +556,6 @@ Q & A
 
    .. code-block:: toml
 
-      riscv = { git = "https://gitee.com/rcore-os/riscv", features = ["inline-asm"] }
       virtio-drivers = { git = "https://gitee.com/rcore-os/virtio-drivers" }
       k210-pac = { git = "https://gitee.com/wyfcyx/k210-pac" }
       k210-hal = { git = "https://gitee.com/wyfcyx/k210-hal" }

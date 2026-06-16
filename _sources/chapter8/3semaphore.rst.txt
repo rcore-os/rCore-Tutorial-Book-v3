@@ -224,14 +224,14 @@
         exit(0)
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn main() -> i32 {
         // create semaphores
         assert_eq!(semaphore_create(0) as usize, SEM_SYNC);
         // create threads
         let threads = vec![
-            thread_create(first as usize, 0),
-            thread_create(second as usize, 0),
+            thread_create(linker_symbol_addr!(first), 0),
+            thread_create(linker_symbol_addr!(second), 0),
         ];
         // wait for all threads to complete
         for thread in threads.iter() {
@@ -299,7 +299,7 @@
         exit(0)
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn main() -> i32 {
         // create semaphores
         assert_eq!(semaphore_create(1) as usize, SEM_MUTEX);
@@ -310,11 +310,11 @@
         let mut threads = Vec::new();
         for i in 0..PRODUCER_COUNT {
             threads.push(thread_create(
-                producer as usize,
+                linker_symbol_addr!(producer),
                 &ids.as_slice()[i] as *const _ as usize,
             ));
         }
-        threads.push(thread_create(consumer as usize, 0));
+        threads.push(thread_create(linker_symbol_addr!(consumer), 0));
         // wait for all threads to complete
         for thread in threads.iter() {
             waittid(*thread as usize);

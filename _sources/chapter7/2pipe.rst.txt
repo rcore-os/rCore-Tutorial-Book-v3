@@ -77,7 +77,7 @@
 
     static STR: &str = "Hello, world!";
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn main() -> i32 {
         // create pipe
         let mut pipe_fd = [0usize; 2];

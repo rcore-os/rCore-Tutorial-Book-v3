@@ -592,8 +592,8 @@
 <span class="linenos"> 7</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">user_lib</span><span class="p">;</span>
 <span class="linenos"> 8</span><span class="k">extern</span><span class="w"> </span><span class="k">crate</span><span class="w"> </span><span class="n">alloc</span><span class="p">;</span>
 <span class="linenos"> 9</span>
-<span class="linenos">10</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span><span class="n">thread_create</span><span class="p">,</span><span class="w"> </span><span class="n">waittid</span><span class="p">,</span><span class="w"> </span><span class="n">exit</span><span class="p">};</span>
-<span class="linenos">11</span><span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">vec</span>::<span class="nb">Vec</span><span class="p">;</span>
+<span class="linenos">10</span><span class="k">use</span><span class="w"> </span><span class="n">alloc</span>::<span class="n">vec</span><span class="p">;</span>
+<span class="linenos">11</span><span class="k">use</span><span class="w"> </span><span class="n">user_lib</span>::<span class="p">{</span><span class="n">exit</span><span class="p">,</span><span class="w"> </span><span class="n">thread_create</span><span class="p">,</span><span class="w"> </span><span class="n">waittid</span><span class="p">};</span>
 <span class="linenos">12</span>
 <span class="linenos">13</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">thread_a</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="o">!</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos">14</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">1000</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="fm">print!</span><span class="p">(</span><span class="s">&quot;a&quot;</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
@@ -610,19 +610,20 @@
 <span class="linenos">25</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
 <span class="linenos">26</span><span class="p">}</span>
 <span class="linenos">27</span>
-<span class="linenos">28</span><span class="cp">#[no_mangle]</span>
+<span class="linenos">28</span><span class="cp">#[unsafe(no_mangle)]</span>
 <span class="linenos">29</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
-<span class="linenos">30</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span>
-<span class="linenos">31</span><span class="w">    </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">thread_a</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span>
-<span class="linenos">32</span><span class="w">    </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">thread_b</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span>
-<span class="linenos">33</span><span class="w">    </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span><span class="n">thread_c</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span>
-<span class="linenos">34</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">tid</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="linenos">35</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">waittid</span><span class="p">(</span><span class="o">*</span><span class="n">tid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span>
-<span class="linenos">36</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thread#{} exited with code {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">tid</span><span class="p">,</span><span class="w"> </span><span class="n">exit_code</span><span class="p">);</span>
-<span class="linenos">37</span><span class="w">    </span><span class="p">}</span>
-<span class="linenos">38</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;main thread exited.&quot;</span><span class="p">);</span>
-<span class="linenos">39</span><span class="w">    </span><span class="mi">0</span>
-<span class="linenos">40</span><span class="p">}</span>
+<span class="linenos">30</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span>
+<span class="linenos">31</span><span class="w">        </span><span class="n">thread_create</span><span class="p">(</span><span class="n">linker_symbol_addr</span><span class="o">!</span><span class="p">(</span><span class="n">thread_a</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span>
+<span class="linenos">32</span><span class="w">        </span><span class="n">thread_create</span><span class="p">(</span><span class="n">linker_symbol_addr</span><span class="o">!</span><span class="p">(</span><span class="n">thread_b</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span>
+<span class="linenos">33</span><span class="w">        </span><span class="n">thread_create</span><span class="p">(</span><span class="n">linker_symbol_addr</span><span class="o">!</span><span class="p">(</span><span class="n">thread_c</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span>
+<span class="linenos">34</span><span class="w">    </span><span class="p">];</span>
+<span class="linenos">35</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">tid</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">36</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">exit_code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">waittid</span><span class="p">(</span><span class="o">*</span><span class="n">tid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">);</span>
+<span class="linenos">37</span><span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;thread#{} exited with code {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">tid</span><span class="p">,</span><span class="w"> </span><span class="n">exit_code</span><span class="p">);</span>
+<span class="linenos">38</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">39</span><span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;main thread exited.&quot;</span><span class="p">);</span>
+<span class="linenos">40</span><span class="w">    </span><span class="mi">0</span>
+<span class="linenos">41</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>另一个名为 <code class="docutils literal notranslate"><span class="pre">threads_arg</span></code> 的应用和 <code class="docutils literal notranslate"><span class="pre">threads</span></code> 的功能相同，其不同在于利用 <code class="docutils literal notranslate"><span class="pre">thread_create</span></code> 可以传参的特性，从而只需编写一个线程函数。</p>
@@ -649,7 +650,7 @@
 <span class="linenos">21</span><span class="w">    </span><span class="n">exit</span><span class="p">(</span><span class="n">arg</span><span class="p">.</span><span class="n">rc</span><span class="p">)</span>
 <span class="linenos">22</span><span class="p">}</span>
 <span class="linenos">23</span>
-<span class="linenos">24</span><span class="cp">#[no_mangle]</span>
+<span class="linenos">24</span><span class="cp">#[unsafe(no_mangle)]</span>
 <span class="linenos">25</span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="kt">i32</span> <span class="p">{</span>
 <span class="linenos">26</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span>
 <span class="linenos">27</span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
@@ -659,7 +660,7 @@
 <span class="linenos">31</span><span class="w">    </span><span class="p">];</span>
 <span class="linenos">32</span><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">arg</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">iter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos">33</span><span class="w">        </span><span class="n">v</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">thread_create</span><span class="p">(</span>
-<span class="linenos">34</span><span class="w">            </span><span class="n">thread_print</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span>
+<span class="linenos">34</span><span class="w">            </span><span class="n">linker_symbol_addr</span><span class="o">!</span><span class="p">(</span><span class="n">thread_print</span><span class="p">),</span>
 <span class="linenos">35</span><span class="w">            </span><span class="n">arg</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span>
 <span class="linenos">36</span><span class="w">        </span><span class="p">));</span>
 <span class="linenos">37</span><span class="w">    </span><span class="p">}</span>
@@ -1077,7 +1078,7 @@
 <span class="linenos">25</span><span class="w">            </span><span class="n">ustack_top</span><span class="p">,</span>
 <span class="linenos">26</span><span class="w">            </span><span class="n">KERNEL_SPACE</span><span class="p">.</span><span class="n">exclusive_access</span><span class="p">().</span><span class="n">token</span><span class="p">(),</span>
 <span class="linenos">27</span><span class="w">            </span><span class="n">kstack_top</span><span class="p">,</span>
-<span class="linenos">28</span><span class="w">            </span><span class="n">trap_handler</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span>
+<span class="linenos">28</span><span class="w">            </span><span class="n">linker_symbol_addr</span><span class="o">!</span><span class="p">(</span><span class="n">trap_handler</span><span class="p">),</span>
 <span class="linenos">29</span><span class="w">        </span><span class="p">);</span>
 <span class="linenos">30</span><span class="w">        </span><span class="c1">// add main thread to the process</span>
 <span class="linenos">31</span><span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">process_inner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">process</span><span class="p">.</span><span class="n">inner_exclusive_access</span><span class="p">();</span>
@@ -1205,7 +1206,7 @@
 <span class="linenos">27</span><span class="w">        </span><span class="n">new_task_res</span><span class="p">.</span><span class="n">ustack_top</span><span class="p">(),</span>
 <span class="linenos">28</span><span class="w">        </span><span class="n">kernel_token</span><span class="p">(),</span>
 <span class="linenos">29</span><span class="w">        </span><span class="n">new_task</span><span class="p">.</span><span class="n">kstack</span><span class="p">.</span><span class="n">get_top</span><span class="p">(),</span>
-<span class="linenos">30</span><span class="w">        </span><span class="n">trap_handler</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span>
+<span class="linenos">30</span><span class="w">        </span><span class="n">linker_symbol_addr</span><span class="o">!</span><span class="p">(</span><span class="n">trap_handler</span><span class="p">),</span>
 <span class="linenos">31</span><span class="w">    </span><span class="p">);</span>
 <span class="linenos">32</span><span class="w">    </span><span class="p">(</span><span class="o">*</span><span class="n">new_task_trap_cx</span><span class="p">).</span><span class="n">x</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">arg</span><span class="p">;</span>
 <span class="linenos">33</span><span class="w">    </span><span class="n">new_task_tid</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">isize</span>

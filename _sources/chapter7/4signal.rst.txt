@@ -257,11 +257,11 @@
         sigreturn();
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn main() -> i32 {
         let mut new = SignalAction::default();
         let mut old = SignalAction::default();
-        new.handler = func as usize;
+        new.handler = linker_symbol_addr!(func);
 
         println!("signal_simple: sigaction");
         if sigaction(SIGUSR1, Some(&new), Some(&mut old)) < 0 {
@@ -456,10 +456,20 @@
 
     // os/src/trap/mod.rs
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn trap_handler() -> ! {
         ...
-        match scause.cause() {
+        let scause = scause::read();
+        let stval = stval::read();
+        let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+            Ok(trap) => trap,
+            Err(_) => panic!(
+                "Unsupported trap {:?}, stval = {:#x}!",
+                scause.cause(),
+                stval
+            ),
+        };
+        match trap {
             ...
             Trap::Exception(Exception::StoreFault)
             | Trap::Exception(Exception::StorePageFault)
@@ -652,7 +662,7 @@
 
     // os/src/trap/mod.rs
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn trap_handler() -> ! {
         ...
         handle_signals();

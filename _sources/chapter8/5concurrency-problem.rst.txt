@@ -81,10 +81,10 @@ A是共享变量。粗略地看，可以估计执行流程为：第一个线程t
     }
     pub fn main() -> i32 {
        let mut v = Vec::new();
-       v.push(thread_create(thr1 as usize, 0));
+       v.push(thread_create(linker_symbol_addr!(thr1), 0));
        sleep(10);
        ...
-       v.push(thread_create(thr2 as usize, 0));
+       v.push(thread_create(linker_symbol_addr!(thr2), 0));
        ...
     }
 
@@ -114,10 +114,10 @@ A是共享变量。粗略地看，可以估计执行流程为：线程thr1先被
     }
     pub fn main() -> i32 {
        let mut v = Vec::new();
-       v.push(thread_create(thr1 as usize, 0));
+       v.push(thread_create(linker_symbol_addr!(thr1), 0));
        sleep(10);
        ...
-       v.push(thread_create(thr2 as usize, 0));
+       v.push(thread_create(linker_symbol_addr!(thr2), 0));
        ...
     }
 

@@ -391,38 +391,8 @@
 </div>
 <p id="setup-overview">本节我们将完成实验环境配置并成功运行 rCore-Tutorial-v3。根据您的需求和操作系统，我们提供了多种配置方式，支持大多数 Linux 发行版、macOS、Windows 以及部分 RISC-V 开发板。</p>
 <p><strong>配置步骤依赖关系：</strong></p>
-<div class="mermaid">
-            flowchart LR
-    Start([&quot;开始&quot;]) --&gt; A1[&quot;本地原生配置&quot;]
-    Start --&gt; A2[&quot;GitHub Classroom&quot;]
-    Start --&gt; A3[&quot;Docker&quot;]
-
-    subgraph Stage1[&quot;阶段1: 基础环境准备&quot;]
-        direction TB
-        A1 --&gt; Stage1_1[&quot;阶段1.1: 基础依赖安装&quot;]
-        A2
-        A3
-    end
-
-    Stage1_1 --&gt; Stage2
-    A2 --&gt; Stage5
-    A3 --&gt; Stage5
-
-    Stage2[&quot;阶段2: Rust工具链&quot;] --&gt; Stage3[&quot;阶段3: QEMU&quot;]
-    Stage3 --&gt; Stage4[&quot;阶段4: IDE与调试支持&quot;]
-    Stage4 --&gt; Stage5
-
-    subgraph Stage5[&quot;阶段5: 运行项目&quot;]
-        I[&quot;QEMU运行&quot;]
-        J[&quot;K210真机运行&quot;]
-    end
-
-    Stage5 --&gt; End([&quot;完成&quot;])
-
-    style Start fill:#fff9c4
-    style Stage5 fill:#c8e6c9
-    style End fill:#c8e6c9
-        </div><p><strong>请从</strong> <a class="reference internal" href="#setup-stage1"><span class="std std-ref">阶段1: 基础环境准备</span></a> <strong>开始阅读，根据您的实际情况选择适合的配置方案。</strong></p>
+<img alt="rCore-Tutorial-v3 实验环境配置步骤依赖关系" class="align-center" src="../_images/setup-overview.png" />
+<p><strong>请从</strong> <a class="reference internal" href="#setup-stage1"><span class="std std-ref">阶段1: 基础环境准备</span></a> <strong>开始阅读，根据您的实际情况选择适合的配置方案。</strong></p>
 <div class="section" id="setup-stage1">
 <span id="id2"></span><h2>阶段1: 基础环境准备<a class="headerlink" href="#setup-stage1" title="永久链接至标题">#</a></h2>
 <p>本节提供多种环境配置方案，请根据您的实际情况选择一种：</p>
@@ -615,16 +585,16 @@ curl<span class="w"> </span>--proto<span class="w"> </span><span class="s1">&#39
 </pre></div>
 </div>
 <p>可以看到当前安装的工具链的版本。</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rustc<span class="w"> </span><span class="m">1</span>.62.0-nightly<span class="w"> </span><span class="o">(</span>1f7fb6413<span class="w"> </span><span class="m">2022</span>-04-10<span class="o">)</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rustc<span class="w"> </span><span class="m">1</span>.x.y
 </pre></div>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">警告</p>
-<p>目前用于操作系统实验开发的 rustc 编译器的版本不局限在 1.46.0 这样的数字上，你可以选择更新版本的 rustc 编译器。但注意只能用 rustc 的 nightly 类型的版本。</p>
+<p>目前用于操作系统实验开发的 rustc 编译器使用 stable 类型的版本。项目根目录下的 <code class="docutils literal notranslate"><span class="pre">rust-toolchain.toml</span></code> 会指定具体工具链配置，请保持其与原版仓库对应分支一致。</p>
 </div>
-<p>可通过如下命令安装 rustc 的 nightly 版本，并把该版本设置为 rustc 的缺省版本。</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rustup<span class="w"> </span>install<span class="w"> </span>nightly
-rustup<span class="w"> </span>default<span class="w"> </span>nightly
+<p>可通过如下命令安装 rustc 的 stable 版本，并把该版本设置为 rustc 的缺省版本。</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rustup<span class="w"> </span>install<span class="w"> </span>stable
+rustup<span class="w"> </span>default<span class="w"> </span>stable
 </pre></div>
 </div>
 <p>我们最好把软件包管理器 cargo 所用的软件包镜像地址 crates.io 也换成中国科学技术大学的镜像服务器来加速三方库的下载。我们打开（如果没有就新建） <code class="docutils literal notranslate"><span class="pre">~/.cargo/config</span></code> 文件，并把内容修改为：</p>
@@ -652,7 +622,7 @@ rustup<span class="w"> </span>component<span class="w"> </span>add<span class="w
 </div>
 <div class="admonition warning">
 <p class="admonition-title">警告</p>
-<p>如果你换了另外一个rustc编译器（必须是nightly版的），需要重新安装上述rustc所需软件包。rCore-Tutorial 仓库中的 <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> 包含了这些工具的安装，如果你使用 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 也可以不手动安装。</p>
+<p>如果你换了另外一个 rustc 编译器，需要重新安装上述 rustc 所需软件包。rCore-Tutorial 仓库中的 <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> 包含了这些工具的安装，如果你使用 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">run</span></code> 也可以不手动安装。</p>
 </div>
 <p><strong>下一步:</strong> 继续到 <a class="reference internal" href="#setup-stage3"><span class="std std-ref">阶段3: QEMU 安装</span></a></p>
 </div>
@@ -664,6 +634,7 @@ rustup<span class="w"> </span>component<span class="w"> </span>add<span class="w
 <p>注意，如果安装了 QEMU 6.0+ 版本，则目前需要将项目目录下的 bootloader（也即 RustSBI）更新为最新的 0.2.0-alpha.6 版本。它们目前可以在 <code class="docutils literal notranslate"><span class="pre">chX-dev</span></code> 分支中找到。</p>
 </div>
 <p>首先我们安装依赖包，获取 QEMU 源代码并手动编译：</p>
+<p><strong>Ubuntu 环境：</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 安装编译所需的依赖包</span>
 sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>autoconf<span class="w"> </span>automake<span class="w"> </span>autotools-dev<span class="w"> </span>curl<span class="w"> </span>libmpc-dev<span class="w"> </span>libmpfr-dev<span class="w"> </span>libgmp-dev<span class="w"> </span><span class="se">\</span>
 <span class="w">              </span>gawk<span class="w"> </span>build-essential<span class="w"> </span>bison<span class="w"> </span>flex<span class="w"> </span>texinfo<span class="w"> </span>gperf<span class="w"> </span>libtool<span class="w"> </span>patchutils<span class="w"> </span>bc<span class="w"> </span><span class="se">\</span>
@@ -679,6 +650,23 @@ tar<span class="w"> </span>xvJf<span class="w"> </span>qemu-7.0.0.tar.xz
 <span class="nb">cd</span><span class="w"> </span>qemu-7.0.0
 ./configure<span class="w"> </span>--target-list<span class="o">=</span>riscv64-softmmu,riscv64-linux-user<span class="w">  </span><span class="c1"># 在第九章的实验中，可以有图形界面和网络。如果要支持图形界面，可添加 &quot; --enable-sdl&quot; 参数；如果要支持网络，可添加 &quot; --enable-slirp&quot; 参数</span>
 make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span>
+</pre></div>
+</div>
+<p><strong>macOS 环境：</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># MacOS qemu环境配置</span>
+pip3<span class="w"> </span>install<span class="w"> </span>tomli
+brew<span class="w"> </span>install<span class="w"> </span>ninja<span class="w"> </span>pkgconfig<span class="w"> </span>glib<span class="w"> </span>sdl2<span class="w"> </span>cmake
+<span class="c1"># 下载源码包</span>
+<span class="c1"># 如果下载速度过慢可以使用我们提供的百度网盘链接：https://pan.baidu.com/s/1dykndFzY73nqkPL2QXs32Q</span>
+<span class="c1"># 提取码：jimc</span>
+wget<span class="w"> </span>https://download.qemu.org/qemu-7.0.0.tar.xz
+<span class="c1"># 解压</span>
+tar<span class="w"> </span>xvJf<span class="w"> </span>qemu-7.0.0.tar.xz
+<span class="c1"># 编译安装并配置 RISC-V 支持</span>
+<span class="nb">cd</span><span class="w"> </span>qemu-7.0.0
+./configure<span class="w"> </span>--target-list<span class="o">=</span>riscv64-softmmu,riscv64-linux-user<span class="w">  </span><span class="c1"># 在第九章的实验中，可以有图形界面和网络。如果要支持图形界面，可添加 &quot; --enable-sdl&quot; 参数；如果要支持网络，可添加 &quot; --enable-slirp&quot; 参数</span>
+make<span class="w"> </span>-j<span class="k">$(</span>sysctl<span class="w"> </span>-n<span class="w"> </span>hw.ncpu<span class="k">)</span>
+<span class="c1"># 退出：control+c即可</span>
 </pre></div>
 </div>
 <div class="admonition note">
@@ -798,8 +786,7 @@ sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> <
 <li><p>请按照本节说明进行 Rust 安装和 crates.io 镜像配置。通常情况下能够解决 Rust 工具链更新和下载已发布到 crates.io 上库的问题。</p></li>
 <li><p>如果发现在试图从 github 上下载下述几个库的时候卡死，可以修改 <code class="docutils literal notranslate"><span class="pre">os</span></code> 和 <code class="docutils literal notranslate"><span class="pre">user</span></code> 目录下的 <code class="docutils literal notranslate"><span class="pre">Cargo.toml</span></code> 替换为 gitee 上的镜像。例如，将：</p>
 <blockquote>
-<div><div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="n">riscv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://github.com/rcore-os/riscv&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;inline-asm&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
-<span class="n">virtio-drivers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://github.com/rcore-os/virtio-drivers&quot;</span><span class="w"> </span><span class="p">}</span>
+<div><div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="n">virtio-drivers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://github.com/rcore-os/virtio-drivers&quot;</span><span class="w"> </span><span class="p">}</span>
 <span class="n">k210-pac</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://github.com/wyfcyx/k210-pac&quot;</span><span class="w"> </span><span class="p">}</span>
 <span class="n">k210-hal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://github.com/wyfcyx/k210-hal&quot;</span><span class="w"> </span><span class="p">}</span>
 <span class="n">k210-soc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://github.com/wyfcyx/k210-soc&quot;</span><span class="w"> </span><span class="p">}</span>
@@ -808,8 +795,7 @@ sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> <
 </div></blockquote>
 <p>替换为：</p>
 <blockquote>
-<div><div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="n">riscv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://gitee.com/rcore-os/riscv&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;inline-asm&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
-<span class="n">virtio-drivers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://gitee.com/rcore-os/virtio-drivers&quot;</span><span class="w"> </span><span class="p">}</span>
+<div><div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="n">virtio-drivers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://gitee.com/rcore-os/virtio-drivers&quot;</span><span class="w"> </span><span class="p">}</span>
 <span class="n">k210-pac</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://gitee.com/wyfcyx/k210-pac&quot;</span><span class="w"> </span><span class="p">}</span>
 <span class="n">k210-hal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://gitee.com/wyfcyx/k210-hal&quot;</span><span class="w"> </span><span class="p">}</span>
 <span class="n">k210-soc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://gitee.com/wyfcyx/k210-soc&quot;</span><span class="w"> </span><span class="p">}</span>

@@ -241,9 +241,14 @@ Trap 上下文的保存与恢复
     global_asm!(include_str!("trap.S"));
 
     pub fn init() {
-        extern "C" { fn __alltraps(); }
+        unsafe extern "C" {
+            safe fn __alltraps();
+        }
         unsafe {
-            stvec::write(__alltraps as usize, TrapMode::Direct);
+            stvec::write(stvec::Stvec::new(
+                linker_symbol_addr!(__alltraps),
+                TrapMode::Direct,
+            ));
         }
     }
 
@@ -374,11 +379,19 @@ Trap 在使用 Rust 实现的 ``trap_handler`` 函数中完成分发和处理：
 
     // os/src/trap/mod.rs
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
         let scause = scause::read();
         let stval = stval::read();
-        match scause.cause() {
+        let trap: Trap<Interrupt, Exception> = match scause.cause().try_into() {
+            Ok(trap) => trap,
+            Err(_) => panic!(
+                "Unsupported trap {:?}, stval = {:#x}!",
+                scause.cause(),
+                stval
+            ),
+        };
+        match trap {
             Trap::Exception(Exception::UserEnvCall) => {
                 cx.sepc += 4;
                 cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
@@ -393,27 +406,27 @@ Trap 在使用 Rust 实现的 ``trap_handler`` 函数中完成分发和处理：
                 run_next_app();
             }
             _ => {
-                panic!("Unsupported trap {:?}, stval = {:#x}!", scause.cause(), stval);
+                panic!("Unsupported trap {:?}, stval = {:#x}!", trap, stval);
             }
         }
         cx
     }
 
-- 第 4 行声明返回值为 ``&mut TrapContext`` 并在第 25 行实际将传入的Trap 上下文 ``cx`` 原样返回，因此在 ``__restore`` 的时候 ``a0`` 寄存器在调用 ``trap_handler`` 前后并没有发生变化，仍然指向分配 Trap 上下文之后的内核栈栈顶，和此时 ``sp`` 的值相同，这里的 :math:`\text{sp}\leftarrow\text{a}_0` 并不会有问题；
-- 第 7 行根据 ``scause`` 寄存器所保存的 Trap 的原因进行分发处理。这里我们无需手动操作这些 CSR ，而是使用 Rust 的 riscv 库来更加方便的做这些事情。要引入 riscv 库，我们需要：
+- 第 5 行声明返回值为 ``&mut TrapContext`` 并在第 33 行实际将传入的 Trap 上下文 ``cx`` 原样返回，因此在 ``__restore`` 的时候 ``a0`` 寄存器在调用 ``trap_handler`` 前后并没有发生变化，仍然指向分配 Trap 上下文之后的内核栈栈顶，和此时 ``sp`` 的值相同，这里的 :math:`\text{sp}\leftarrow\text{a}_0` 并不会有问题；
+- 第 6~15 行根据 ``scause`` 寄存器所保存的 Trap 的原因进行分发处理。这里我们无需手动操作这些 CSR ，而是使用 Rust 的 riscv 库来更加方便的做这些事情。在 riscv 0.16 中，第 8~14 行先通过 ``try_into`` 将 ``scause.cause()`` 转换成 ``Trap<Interrupt, Exception>``，再和具体异常原因进行匹配。要引入 riscv 库，我们需要：
 
   .. code-block:: toml
 
       # os/Cargo.toml
       
       [dependencies]
-      riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }  
+      riscv = { version = "0.16", features = ["s-mode"] }
     
-- 第 8~11 行，发现触发 Trap 的原因是来自 U 特权级的 Environment Call，也就是系统调用。这里我们首先修改保存在内核栈上的 Trap 上下文里面 sepc，让其增加 4。这是因为我们知道这是一个由 ``ecall`` 指令触发的系统调用，在进入 Trap 的时候，硬件会将 sepc 设置为这条 ``ecall`` 指令所在的地址（因为它是进入 Trap 之前最后一条执行的指令）。而在 Trap 返回之后，我们希望应用程序控制流从 ``ecall`` 的下一条指令开始执行。因此我们只需修改 Trap 上下文里面的 sepc，让它增加 ``ecall`` 指令的码长，也即 4 字节。这样在 ``__restore`` 的时候 sepc 在恢复之后就会指向 ``ecall`` 的下一条指令，并在 ``sret`` 之后从那里开始执行。
+- 第 16~19 行，发现触发 Trap 的原因是来自 U 特权级的 Environment Call，也就是系统调用。这里我们首先修改保存在内核栈上的 Trap 上下文里面 sepc，让其增加 4。这是因为我们知道这是一个由 ``ecall`` 指令触发的系统调用，在进入 Trap 的时候，硬件会将 sepc 设置为这条 ``ecall`` 指令所在的地址（因为它是进入 Trap 之前最后一条执行的指令）。而在 Trap 返回之后，我们希望应用程序控制流从 ``ecall`` 的下一条指令开始执行。因此我们只需修改 Trap 上下文里面的 sepc，让它增加 ``ecall`` 指令的码长，也即 4 字节。这样在 ``__restore`` 的时候 sepc 在恢复之后就会指向 ``ecall`` 的下一条指令，并在 ``sret`` 之后从那里开始执行。
 
   用来保存系统调用返回值的 a0 寄存器也会同样发生变化。我们从 Trap 上下文取出作为 syscall ID 的 a7 和系统调用的三个参数 a0~a2 传给 ``syscall`` 函数并获取返回值。 ``syscall`` 函数是在 ``syscall`` 子模块中实现的。 这段代码是处理正常系统调用的控制逻辑。
-- 第 12~20 行，分别处理应用程序出现访存错误和非法指令错误的情形。此时需要打印错误信息并调用 ``run_next_app`` 直接切换并运行下一个应用程序。
-- 第 21 行开始，当遇到目前还不支持的 Trap 类型的时候，“邓式鱼” 批处理操作系统整个 panic 报错退出。
+- 第 20~28 行，分别处理应用程序出现访存错误和非法指令错误的情形。此时需要打印错误信息并调用 ``run_next_app`` 直接切换并运行下一个应用程序。
+- 第 29~31 行，当遇到目前还不支持的 Trap 类型的时候，“邓式鱼” 批处理操作系统整个 panic 报错退出。
 
 
 
@@ -525,7 +538,9 @@ Trap 在使用 Rust 实现的 ``trap_handler`` 函数中完成分发和处理：
         drop(app_manager);
         // before this we have to drop local variables related to resources manually
         // and release the resources
-        extern "C" { fn __restore(cx_addr: usize); }
+        unsafe extern "C" {
+            unsafe fn __restore(cx_addr: usize);
+        }
         unsafe {
             __restore(KERNEL_STACK.push_context(
                 TrapContext::app_init_context(APP_BASE_ADDRESS, USER_STACK.get_sp())
@@ -565,8 +580,3 @@ Trap 在使用 Rust 实现的 ``trap_handler`` 函数中完成分发和处理：
    然后是 rust_trap 的处理，尤其是奇妙的参数传递，内部处理逻辑倒是非常简单。
    --
    最后是如何利用 __restore 初始化应用的执行环境，包括如何设置入口点、用户栈以及保证在 U 特权级执行。
-
-
-
-
-
