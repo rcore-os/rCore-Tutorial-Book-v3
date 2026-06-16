@@ -10,7 +10,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
+import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
@@ -43,7 +43,10 @@ mermaid_version = '9.3.0'
 html_js_files = [
     'mermaid.js'
 ]
-# mermaid_params = ['--puppeteerConfigFile', '/home/chyyuu/thecodes/rCore-Tutorial-Book-v3/puppeteerConfigFile.json']
+mermaid_params = [
+    '--puppeteerConfigFile',
+    os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'puppeteerConfigFile.json')),
+]
 
 comments_config = {
    "utterances": {
