@@ -1,6 +1,7 @@
 name: Generate Tutorial PDF
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -46,10 +47,12 @@ jobs:
         path: build/latex/rcore-tutorial-book-v3.pdf
 
     - name: Get Current Date and Time
+      if: github.event_name == 'workflow_dispatch'
       id: datetime
-      run: echo "::set-output name=datetime::$(date +'%Y%m%d-%H%M')"
+      run: echo "datetime=$(date +'%Y%m%d-%H%M')" >> "$GITHUB_OUTPUT"
       
     - name: Create Release
+      if: github.event_name == 'workflow_dispatch'
       id: create_release
       uses: actions/create-release@v1
       env:
@@ -61,6 +64,7 @@ jobs:
         prerelease: false
 
     - name: Upload PDF to Release
+      if: github.event_name == 'workflow_dispatch'
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
