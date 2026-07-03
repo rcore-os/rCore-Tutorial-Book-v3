@@ -34,7 +34,7 @@
         add_task(INITPROC.clone());
     }
 
-我们调用 ``TaskControlBlock::new`` 来创建一个进程控制块，它需要传入 ELF 可执行文件的数据切片作为参数，这可以通过加载器 ``loader`` 子模块提供的 ``get_app_data_by_name`` 接口查找 ``initproc`` 的 ELF 执行文件数据来获得。在初始化 ``INITPROC`` 之后，就可以在 ``add_initproc`` 中调用 ``task`` 的任务管理器 ``manager`` 子模块提供的 ``add_task`` 接口，将其加入到任务管理器。
+我们调用 ``TaskControlBlock::new`` 来创建一个进程控制块，它需要传入 ELF 可执行文件的数据切片作为参数，这可以通过加载器 ``loader`` 子模块提供的 ``get_app_data_by_name`` 接口查找 ``initproc`` 的 ELF 执行文件数据来获得。由于全局 PID 分配器从 1 开始分配， ``initproc`` 作为内核创建的第一个用户态进程，其 PID 为 1 。在初始化 ``INITPROC`` 之后，就可以在 ``add_initproc`` 中调用 ``task`` 的任务管理器 ``manager`` 子模块提供的 ``add_task`` 接口，将其加入到任务管理器。
 
 接下来介绍 ``TaskControlBlock::new`` 是如何实现的：
 

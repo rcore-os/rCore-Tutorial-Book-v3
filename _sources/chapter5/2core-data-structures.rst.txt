@@ -160,7 +160,7 @@
     impl PidAllocator {
         pub fn new() -> Self {
             PidAllocator {
-                current: 0,
+                current: 1,
                 recycled: Vec::new(),
             }
         }
@@ -187,6 +187,8 @@
             UPSafeCell::new(PidAllocator::new())
         };
     }
+
+这里将 ``current`` 初始化为 1 ，因此第一次通过 ``alloc`` 分配出的 PID 为 1 。PID 0 被保留出来，不分配给用户进程；这样内核中创建的第一个用户态进程 ``initproc`` 也会获得 PID 1 ，与 Linux 中保留 PID 0 并让用户态 init 进程使用 PID 1 的约定保持一致。
 
 ``PidAllocator::alloc`` 将会分配出去一个将 ``usize`` 包装之后的 ``PidHandle`` 。我们将其包装为一个全局分配进程标识符的接口 ``pid_alloc`` 提供给内核的其他子模块：
 

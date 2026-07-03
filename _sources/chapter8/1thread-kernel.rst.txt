@@ -411,8 +411,11 @@
 
     impl RecycleAllocator {
         pub fn new() -> Self {
+            Self::new_start(0)
+        }
+        pub fn new_start(current: usize) -> Self {
             RecycleAllocator {
-                current: 0,
+                current,
                 recycled: Vec::new(),
             }
         }
@@ -443,7 +446,7 @@
 
     lazy_static! {
         static ref PID_ALLOCATOR: UPSafeCell<RecycleAllocator> =
-            unsafe { UPSafeCell::new(RecycleAllocator::new()) };
+            unsafe { UPSafeCell::new(RecycleAllocator::new_start(1)) };
     }
 
     pub fn pid_alloc() -> PidHandle {
@@ -456,7 +459,7 @@
         }
     }
 
-调用 ``pid_alloc`` 可以从全局 PID 分配器中分配一个 PID 并构成一个 RAII 风格的 ``PidHandle`` 。当 ``PidHandle`` 被回收的时候则会自动调用 ``drop`` 方法在全局 PID 分配器将对应的 PID 回收。
+调用 ``pid_alloc`` 可以从全局 PID 分配器中分配一个 PID 并构成一个 RAII 风格的 ``PidHandle`` 。这里通过 ``RecycleAllocator::new_start(1)`` 让 PID 从 1 开始分配，从而保留 PID 0 ；而 ``RecycleAllocator::new()`` 仍然表示从 0 开始分配，供 TID、内核栈标识符等其他资源继续使用。当 ``PidHandle`` 被回收的时候则会自动调用 ``drop`` 方法在全局 PID 分配器将对应的 PID 回收。
 
 对于 TID 而言，每个进程控制块中都有一个给进程内的线程分配资源的通用分配器：
 

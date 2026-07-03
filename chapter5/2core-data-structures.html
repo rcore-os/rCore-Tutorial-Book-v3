@@ -522,7 +522,7 @@
 <span class="k">impl</span><span class="w"> </span><span class="n">PidAllocator</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="n">PidAllocator</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="n">current</span>: <span class="mi">0</span><span class="p">,</span>
+<span class="w">            </span><span class="n">current</span>: <span class="mi">1</span><span class="p">,</span>
 <span class="w">            </span><span class="n">recycled</span>: <span class="nb">Vec</span>::<span class="n">new</span><span class="p">(),</span>
 <span class="w">        </span><span class="p">}</span>
 <span class="w">    </span><span class="p">}</span>
@@ -551,6 +551,7 @@
 <span class="p">}</span>
 </pre></div>
 </div>
+<p>这里将 <code class="docutils literal notranslate"><span class="pre">current</span></code> 初始化为 1 ，因此第一次通过 <code class="docutils literal notranslate"><span class="pre">alloc</span></code> 分配出的 PID 为 1 。PID 0 被保留出来，不分配给用户进程；这样内核中创建的第一个用户态进程 <code class="docutils literal notranslate"><span class="pre">initproc</span></code> 也会获得 PID 1 ，与 Linux 中保留 PID 0 并让用户态 init 进程使用 PID 1 的约定保持一致。</p>
 <p><code class="docutils literal notranslate"><span class="pre">PidAllocator::alloc</span></code> 将会分配出去一个将 <code class="docutils literal notranslate"><span class="pre">usize</span></code> 包装之后的 <code class="docutils literal notranslate"><span class="pre">PidHandle</span></code> 。我们将其包装为一个全局分配进程标识符的接口 <code class="docutils literal notranslate"><span class="pre">pid_alloc</span></code> 提供给内核的其他子模块：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// os/src/task/pid.rs</span>
 

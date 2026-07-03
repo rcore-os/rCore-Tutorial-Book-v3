@@ -717,29 +717,32 @@
 <span class="linenos"> 7</span>
 <span class="linenos"> 8</span><span class="k">impl</span><span class="w"> </span><span class="n">RecycleAllocator</span><span class="w"> </span><span class="p">{</span>
 <span class="linenos"> 9</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
-<span class="linenos">10</span><span class="w">        </span><span class="n">RecycleAllocator</span><span class="w"> </span><span class="p">{</span>
-<span class="linenos">11</span><span class="w">            </span><span class="n">current</span>: <span class="mi">0</span><span class="p">,</span>
-<span class="linenos">12</span><span class="w">            </span><span class="n">recycled</span>: <span class="nb">Vec</span>::<span class="n">new</span><span class="p">(),</span>
-<span class="linenos">13</span><span class="w">        </span><span class="p">}</span>
-<span class="linenos">14</span><span class="w">    </span><span class="p">}</span>
-<span class="linenos">15</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">alloc</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
-<span class="linenos">16</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">recycled</span><span class="p">.</span><span class="n">pop</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="linenos">17</span><span class="w">            </span><span class="n">id</span>
-<span class="linenos">18</span><span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="linenos">19</span><span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
-<span class="linenos">20</span><span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span>
-<span class="linenos">21</span><span class="w">        </span><span class="p">}</span>
-<span class="linenos">22</span><span class="w">    </span><span class="p">}</span>
-<span class="linenos">23</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">dealloc</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="linenos">24</span><span class="w">        </span><span class="fm">assert!</span><span class="p">(</span><span class="n">id</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="p">);</span>
-<span class="linenos">25</span><span class="w">        </span><span class="fm">assert!</span><span class="p">(</span>
-<span class="linenos">26</span><span class="w">            </span><span class="o">!</span><span class="bp">self</span><span class="p">.</span><span class="n">recycled</span><span class="p">.</span><span class="n">iter</span><span class="p">().</span><span class="n">any</span><span class="p">(</span><span class="o">|</span><span class="n">i</span><span class="o">|</span><span class="w"> </span><span class="o">*</span><span class="n">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">id</span><span class="p">),</span>
-<span class="linenos">27</span><span class="w">            </span><span class="s">&quot;id {} has been deallocated!&quot;</span><span class="p">,</span>
-<span class="linenos">28</span><span class="w">            </span><span class="n">id</span>
-<span class="linenos">29</span><span class="w">        </span><span class="p">);</span>
-<span class="linenos">30</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">recycled</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">id</span><span class="p">);</span>
-<span class="linenos">31</span><span class="w">    </span><span class="p">}</span>
-<span class="linenos">32</span><span class="p">}</span>
+<span class="linenos">10</span><span class="w">        </span><span class="bp">Self</span>::<span class="n">new_start</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="linenos">11</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">12</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">new_start</span><span class="p">(</span><span class="n">current</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">13</span><span class="w">        </span><span class="n">RecycleAllocator</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">14</span><span class="w">            </span><span class="n">current</span><span class="p">,</span>
+<span class="linenos">15</span><span class="w">            </span><span class="n">recycled</span>: <span class="nb">Vec</span>::<span class="n">new</span><span class="p">(),</span>
+<span class="linenos">16</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">17</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">18</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">alloc</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">usize</span> <span class="p">{</span>
+<span class="linenos">19</span><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">recycled</span><span class="p">.</span><span class="n">pop</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">20</span><span class="w">            </span><span class="n">id</span>
+<span class="linenos">21</span><span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">22</span><span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="linenos">23</span><span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span>
+<span class="linenos">24</span><span class="w">        </span><span class="p">}</span>
+<span class="linenos">25</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">26</span><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">dealloc</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">id</span>: <span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="linenos">27</span><span class="w">        </span><span class="fm">assert!</span><span class="p">(</span><span class="n">id</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">current</span><span class="p">);</span>
+<span class="linenos">28</span><span class="w">        </span><span class="fm">assert!</span><span class="p">(</span>
+<span class="linenos">29</span><span class="w">            </span><span class="o">!</span><span class="bp">self</span><span class="p">.</span><span class="n">recycled</span><span class="p">.</span><span class="n">iter</span><span class="p">().</span><span class="n">any</span><span class="p">(</span><span class="o">|</span><span class="n">i</span><span class="o">|</span><span class="w"> </span><span class="o">*</span><span class="n">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">id</span><span class="p">),</span>
+<span class="linenos">30</span><span class="w">            </span><span class="s">&quot;id {} has been deallocated!&quot;</span><span class="p">,</span>
+<span class="linenos">31</span><span class="w">            </span><span class="n">id</span>
+<span class="linenos">32</span><span class="w">        </span><span class="p">);</span>
+<span class="linenos">33</span><span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">recycled</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">id</span><span class="p">);</span>
+<span class="linenos">34</span><span class="w">    </span><span class="p">}</span>
+<span class="linenos">35</span><span class="p">}</span>
 </pre></div>
 </div>
 <p>分配与回收的算法与之前的 <code class="docutils literal notranslate"><span class="pre">PidAllocator</span></code> 一样，不过分配的内容从 PID 变为一个非负整数的通用标识符，可以用来表示多种不同资源。这个通用整数标识符可以直接用作进程的 PID 和进程内一个线程的 TID 。下面是 PID 的全局分配器 <code class="docutils literal notranslate"><span class="pre">PID_ALLOCATOR</span></code> ：</p>
@@ -747,7 +750,7 @@
 
 <span class="n">lazy_static</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">PID_ALLOCATOR</span>: <span class="nc">UPSafeCell</span><span class="o">&lt;</span><span class="n">RecycleAllocator</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span>
-<span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">RecycleAllocator</span>::<span class="n">new</span><span class="p">())</span><span class="w"> </span><span class="p">};</span>
+<span class="w">        </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">UPSafeCell</span>::<span class="n">new</span><span class="p">(</span><span class="n">RecycleAllocator</span>::<span class="n">new_start</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span><span class="w"> </span><span class="p">};</span>
 <span class="p">}</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">pid_alloc</span><span class="p">()</span><span class="w"> </span>-&gt; <span class="nc">PidHandle</span><span class="w"> </span><span class="p">{</span>
@@ -761,7 +764,7 @@
 <span class="p">}</span>
 </pre></div>
 </div>
-<p>调用 <code class="docutils literal notranslate"><span class="pre">pid_alloc</span></code> 可以从全局 PID 分配器中分配一个 PID 并构成一个 RAII 风格的 <code class="docutils literal notranslate"><span class="pre">PidHandle</span></code> 。当 <code class="docutils literal notranslate"><span class="pre">PidHandle</span></code> 被回收的时候则会自动调用 <code class="docutils literal notranslate"><span class="pre">drop</span></code> 方法在全局 PID 分配器将对应的 PID 回收。</p>
+<p>调用 <code class="docutils literal notranslate"><span class="pre">pid_alloc</span></code> 可以从全局 PID 分配器中分配一个 PID 并构成一个 RAII 风格的 <code class="docutils literal notranslate"><span class="pre">PidHandle</span></code> 。这里通过 <code class="docutils literal notranslate"><span class="pre">RecycleAllocator::new_start(1)</span></code> 让 PID 从 1 开始分配，从而保留 PID 0 ；而 <code class="docutils literal notranslate"><span class="pre">RecycleAllocator::new()</span></code> 仍然表示从 0 开始分配，供 TID、内核栈标识符等其他资源继续使用。当 <code class="docutils literal notranslate"><span class="pre">PidHandle</span></code> 被回收的时候则会自动调用 <code class="docutils literal notranslate"><span class="pre">drop</span></code> 方法在全局 PID 分配器将对应的 PID 回收。</p>
 <p>对于 TID 而言，每个进程控制块中都有一个给进程内的线程分配资源的通用分配器：</p>
 <div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1">// os/src/task/process.rs</span>
 <span class="linenos"> 2</span>
