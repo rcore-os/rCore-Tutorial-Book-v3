@@ -130,7 +130,7 @@ virtio-blk设备的初始化过程与virtio规范中描述的一般virtio设备�
    [ INFO] found a block device of size 16KB
    ...
 
-virtio-blk设备驱动程序了解了virtio-blk设备的扇区个数，扇区大小和总体容量后，还需调用 `` VirtQueue::new`` 成员函数来创建虚拟队列 ``VirtQueue`` 数据结构的实例，这样才能进行后续的磁盘读写操作。这个函数主要完成的事情是分配虚拟队列的内存空间，并进行初始化：
+virtio-blk设备驱动程序了解了virtio-blk设备的扇区个数，扇区大小和总体容量后，还需调用 ``VirtQueue::new`` 成员函数来创建虚拟队列 ``VirtQueue`` 数据结构的实例，这样才能进行后续的磁盘读写操作。这个函数主要完成的事情是分配虚拟队列的内存空间，并进行初始化：
 
 - 设定 ``queue_size`` （即虚拟队列的描述符条目数）为16；
 - 计算满足 ``queue_size`` 的描述符表 ``desc`` ，可用环 ``avail`` 和已用环 ``used`` 所需的物理空间的大小 -- ``size`` ；
